@@ -19,6 +19,8 @@
 - Fix simulator control action help routing and show help when a flag is incomplete. ([#4681](https://github.com/expo/eas-cli/pull/4681) by [@gwdp](https://github.com/gwdp))
 - Require explicit `host:` simulator-host upload paths and report missing local files. ([#4683](https://github.com/expo/eas-cli/pull/4683) by [@gwdp](https://github.com/gwdp))
 
+  Missing local absolute paths now require the `host:` prefix. Actions that require upload IDs accept local files and reject host paths with an explanation.
+
 ## 26.0.0
 
 ### Patch Changes

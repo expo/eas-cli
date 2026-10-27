@@ -2,4 +2,4 @@
 'eas-cli': patch
 ---
 
-Fix changelog formatting for simulator control upload paths.
+Format the generated root changelog before committing a release.

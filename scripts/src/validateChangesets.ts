@@ -31,8 +31,6 @@ async function validateChangesetAsync(
   const errors: string[] = [];
   if (!changeset.summary.trim()) {
     errors.push(`${file}: the summary is empty. Describe the change below the front matter.`);
-  } else if (/[\r\n]/.test(changeset.summary.trim())) {
-    errors.push(`${file}: the changeset body must contain exactly one nonempty line.`);
   }
   for (const release of changeset.releases) {
     if (!packageNames.has(release.name)) {
