@@ -37,6 +37,12 @@ export function createReportResolvedVersionBuildFunction(
           return;
         }
 
+        const buildId = ctx.env.EAS_BUILD_ID;
+        if (!buildId) {
+          stepCtx.logger.info('EAS_BUILD_ID not set, skipping.');
+          return;
+        }
+
         const { appVersion, appBuildVersion } =
           ctx.job.platform === Platform.IOS
             ? await extractIosVersionAsync(archivePath)
@@ -50,12 +56,6 @@ export function createReportResolvedVersionBuildFunction(
         stepCtx.logger.info(
           `Resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
         );
-
-        const buildId = ctx.env.EAS_BUILD_ID;
-        if (!buildId) {
-          stepCtx.logger.warn('EAS_BUILD_ID not set, cannot report resolved version.');
-          return;
-        }
 
         await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
           appVersion,

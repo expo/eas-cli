@@ -245,13 +245,13 @@ async function buildInnerAsync(
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
-    if (!archivePath) {
+    const buildId = ctx.env.EAS_BUILD_ID;
+    if (!archivePath || !buildId) {
       return;
     }
     try {
       const { appVersion, appBuildVersion } = await extractIosVersionAsync(archivePath);
-      const buildId = ctx.env.EAS_BUILD_ID;
-      if (buildId && (appVersion || appBuildVersion)) {
+      if (appVersion || appBuildVersion) {
         await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
           appVersion,
           appBuildVersion,

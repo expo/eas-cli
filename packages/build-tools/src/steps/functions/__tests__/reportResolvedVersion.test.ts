@@ -1,4 +1,4 @@
-import { spawnAsync } from '@expo/steps';
+import { BuildStep, spawnAsync } from '@expo/steps';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -14,8 +14,14 @@ jest.mock('@expo/steps', () => ({
 
 const mockedSpawnAsync = jest.mocked(spawnAsync);
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
+import { createTestAndroidJob } from '../../../__tests__/utils/job';
+import { createMockLogger } from '../../../__tests__/utils/logger';
+import { BuildContext } from '../../../context';
+import { CustomBuildContext } from '../../../customBuildContext';
 import { parseInfoPlistBuffer } from '../readIpaInfo';
 import {
+  createReportResolvedVersionBuildFunction,
   extractAndroidVersionAsync,
   extractIosVersionAsync,
   parseAaptOutput,
@@ -220,5 +226,115 @@ describe(extractAndroidVersionAsync, () => {
 
     expect(mockedSpawnAsync).not.toHaveBeenCalled();
     expect(result).toEqual({});
+  });
+});
+
+describe(createReportResolvedVersionBuildFunction, () => {
+  afterEach(() => {
+    mockedSpawnAsync.mockReset();
+  });
+
+  function createStep({
+    env,
+    archivePath,
+    mutationResult = { data: {}, error: undefined },
+  }: {
+    env: Record<string, string>;
+    archivePath?: string;
+    mutationResult?: { data?: unknown; error?: Error };
+  }): { step: BuildStep; mutation: jest.Mock } {
+    const mutation = jest.fn(() => ({ toPromise: async () => mutationResult }));
+    const ctx = new BuildContext(createTestAndroidJob({}), {
+      env: { __API_SERVER_URL: 'http://api.expo.test', ...env },
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      uploadArtifact: jest.fn(),
+      workingdir: '',
+    });
+    ctx.graphqlClient.mutation = mutation as any;
+    const step = createReportResolvedVersionBuildFunction(
+      new CustomBuildContext(ctx)
+    ).createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: archivePath ? { application_archive_path: archivePath } : {},
+    });
+    return { step, mutation };
+  }
+
+  it('reports the resolved versions for the build', async () => {
+    mockedSpawnAsync.mockResolvedValue({
+      stdout: `package: name='com.example.app' versionCode='42' versionName='2.5.0'`,
+      stderr: '',
+    } as any);
+    const { step, mutation } = createStep({
+      env: { EAS_BUILD_ID: 'build-id' },
+      archivePath: '/path/to/app.apk',
+    });
+
+    await step.executeAsync();
+
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(mutation.mock.calls[0][1]).toEqual({
+      buildId: 'build-id',
+      appVersion: '2.5.0',
+      appBuildVersion: '42',
+    });
+  });
+
+  it('omits a missing value instead of sending null', async () => {
+    mockedSpawnAsync.mockResolvedValue({
+      stdout: `package: name='com.example.app' versionCode='42'`,
+      stderr: '',
+    } as any);
+    const { step, mutation } = createStep({
+      env: { EAS_BUILD_ID: 'build-id' },
+      archivePath: '/path/to/app.apk',
+    });
+
+    await step.executeAsync();
+
+    const variables = mutation.mock.calls[0][1];
+    expect(variables.appBuildVersion).toBe('42');
+    expect(variables.appVersion).toBeUndefined();
+    expect(variables.appVersion).not.toBeNull();
+  });
+
+  it('does nothing without a build ID', async () => {
+    const { step, mutation } = createStep({ env: {}, archivePath: '/path/to/app.apk' });
+
+    await step.executeAsync();
+
+    expect(mockedSpawnAsync).not.toHaveBeenCalled();
+    expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it('does nothing without an archive path', async () => {
+    const { step, mutation } = createStep({ env: { EAS_BUILD_ID: 'build-id' } });
+
+    await step.executeAsync();
+
+    expect(mockedSpawnAsync).not.toHaveBeenCalled();
+    expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the step when extraction or the mutation fails', async () => {
+    mockedSpawnAsync.mockRejectedValueOnce(new Error('aapt2: command not found'));
+    const failingExtraction = createStep({
+      env: { EAS_BUILD_ID: 'build-id' },
+      archivePath: '/path/to/app.apk',
+    });
+    await expect(failingExtraction.step.executeAsync()).resolves.not.toThrow();
+    expect(failingExtraction.mutation).not.toHaveBeenCalled();
+
+    mockedSpawnAsync.mockResolvedValue({
+      stdout: `package: name='com.example.app' versionCode='42' versionName='2.5.0'`,
+      stderr: '',
+    } as any);
+    const failingMutation = createStep({
+      env: { EAS_BUILD_ID: 'build-id' },
+      archivePath: '/path/to/app.apk',
+      mutationResult: { error: new Error('GraphQL error') },
+    });
+    await expect(failingMutation.step.executeAsync()).resolves.not.toThrow();
+    expect(failingMutation.mutation).toHaveBeenCalledTimes(1);
   });
 });
