@@ -43,6 +43,7 @@ export async function createBuildContext<TJob extends Job>({
     environment: config.env,
     env: job.builderEnvironment?.env,
   });
+  // Build-tools waits for the launcher's own cleanup record before it changes a Simulator.
   void maybeStopWarmSimulatorAsync(job).catch(err => {
     childLogger.warn({ err }, 'Could not stop warm Simulator services.');
   });

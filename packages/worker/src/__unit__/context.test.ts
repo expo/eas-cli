@@ -81,7 +81,7 @@ describe(createBuildContext.name, () => {
       expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
       const error = new Error('Late Simulator shutdown failure');
       failStop(error);
-      await Promise.resolve();
+      await new Promise(resolve => setImmediate(resolve));
       expect(childLogger.warn).toHaveBeenCalledWith(
         { err: error },
         'Could not stop warm Simulator services.'
