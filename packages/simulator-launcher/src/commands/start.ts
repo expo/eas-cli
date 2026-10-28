@@ -275,8 +275,8 @@ export function createWarmSimulatorSession({
   let toolRetirement: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
 
   /**
-   * Sets up each device once `ready` settles and the device booted: disable apsd, then preinstall
-   * Expo Go. Claim and stop join the apsd steps. An aborted setup can run again.
+   * Sets up each device once `ready` settles and the device booted: disable apsd and preinstall
+   * Expo Go in parallel. Claim and stop join the apsd steps. An aborted setup can run again.
    */
   async function startSimulatorsSetupAsync(
     udids: string[],
@@ -289,21 +289,23 @@ export function createWarmSimulatorSession({
           return;
         }
         // serve-sim boots every device; the launcher only waits for it.
-        const apsd = ready.then(async () => {
-          await waitForSimulatorBootAsync(udid, setupSignal);
-          await disableApsdAsync(udid, setupSignal).catch(error => {
+        const booted = ready.then(() => waitForSimulatorBootAsync(udid, setupSignal));
+        const apsd = booted.then(() =>
+          disableApsdAsync(udid, setupSignal).catch(error => {
             setupSignal.throwIfAborted();
             process.stderr.write(`Could not disable apsd on ${udid}; continuing: ${error}\n`);
-          });
-        });
+          })
+        );
         simulatorSetups.set(udid, apsd);
         void apsd.catch(() => {
           if (simulatorSetups.get(udid) === apsd) {
             simulatorSetups.delete(udid);
           }
         });
-        await apsd;
-        await expoGo?.preinstallOnDeviceAsync(udid, Promise.resolve(), setupSignal);
+        await Promise.all([
+          apsd,
+          booted.then(() => expoGo?.preinstallOnDeviceAsync(udid, Promise.resolve(), setupSignal)),
+        ]);
       })
     );
   }
