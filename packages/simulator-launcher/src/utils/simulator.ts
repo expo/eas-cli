@@ -93,11 +93,13 @@ export async function waitForSimulatorBootAsync(udid: string, signal: AbortSigna
 
 /** `simctl shutdown` fails for a device that is already shut down; that device is done. */
 export async function shutdownSimulatorAsync(udid: string): Promise<void> {
+  // A shutdown that cannot finish fails instead of blocking cleanup forever.
+  const signal = AbortSignal.timeout(120_000);
   try {
-    await commands.runAsync('xcrun', ['simctl', 'shutdown', udid]);
+    await commands.runAsync('xcrun', ['simctl', 'shutdown', udid], signal);
   } catch (error) {
     const { devices } = SimulatorStatesSchema.parse(
-      JSON.parse(await commands.runAsync('xcrun', ['simctl', 'list', 'devices', '--json']))
+      JSON.parse(await commands.runAsync('xcrun', ['simctl', 'list', 'devices', '--json'], signal))
     );
     if (
       Object.values(devices)

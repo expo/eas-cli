@@ -610,7 +610,6 @@ it('preinstalls all three configured devices from one shared archive through the
     signal: controller.signal,
     throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
     onPreparationFailure: onFailure,
-    onBackgroundFailure: onFailure,
   });
   try {
     await session.prepareAsync();

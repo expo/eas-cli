@@ -108,10 +108,6 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
       }
       shutdown.abort(error);
     },
-    onBackgroundFailure(error) {
-      sessionError ??= error;
-      requestShutdown();
-    },
   });
   const watcher = (async () => {
     while (!watcherAbort.signal.aborted) {
@@ -204,6 +200,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   try {
     try {
       if (process.env.EXPO_SIMULATOR_STARTUP !== '1') {
+        process.stderr.write('EXPO_SIMULATOR_STARTUP is not 1; Simulator warmup is disabled.\n');
         requestShutdown();
       }
       await prepareDefaultDeviceAsync();
@@ -247,12 +244,10 @@ export function createWarmSimulatorSession({
   signal: parentSignal,
   throwIfStoppingAsync,
   onPreparationFailure,
-  onBackgroundFailure,
 }: {
   signal: AbortSignal;
   throwIfStoppingAsync(): Promise<void>;
   onPreparationFailure(error: unknown): void;
-  onBackgroundFailure(error: unknown): void;
 }): WarmSimulatorSession {
   const lifetime = new AbortController();
   // A claim stops warmup work that has not started yet.
@@ -436,8 +431,9 @@ export function createWarmSimulatorSession({
           )
           .map(([tool, started]) => {
             startedTools.delete(tool);
+            // The job owns the device now; the terminal stop retries this tool.
             return started.stopAsync().catch(error => {
-              onBackgroundFailure(error);
+              process.stderr.write(`Could not stop ${tool.name}; retrying at stop: ${error}\n`);
               throw error;
             });
           })
@@ -501,9 +497,9 @@ export function createWarmSimulatorSession({
       const preinstall = await Promise.allSettled(
         warmDevices.map(device => expoGo?.stopAsync(device.udid))
       );
-      const retired = await toolRetirement;
+      await toolRetirement;
       await launcherCachePriming.catch(() => {});
-      const errors = [...preinstall, ...retired].flatMap(result =>
+      const errors = preinstall.flatMap(result =>
         result.status === 'rejected' ? [result.reason] : []
       );
       const attemptAsync = async (operation: Promise<void>) => {

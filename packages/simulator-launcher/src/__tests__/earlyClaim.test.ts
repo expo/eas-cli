@@ -63,7 +63,6 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
       signal: controller.signal,
       throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
       onPreparationFailure: onFailure,
-      onBackgroundFailure: onFailure,
     });
     await session.prepareAsync();
     expect(await session.claimAsync({ engine: 'serve-sim' })).toMatchObject({
