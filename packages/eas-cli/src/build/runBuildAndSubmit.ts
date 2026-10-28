@@ -345,9 +345,7 @@ export async function runBuildAndSubmitAsync({
   }
   await maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
     builds,
-    getFreeTierNearLimitAgentUpdatesTipExperiment(Object.values(buildCtxByPlatform)[0], {
-      json: flags.json,
-    })
+    getFreeTierNearLimitAgentUpdatesTipExperiment(buildCtxByPlatform, { json: flags.json })
   );
 
   const haveAllBuildsFailedOrCanceled = builds.every(

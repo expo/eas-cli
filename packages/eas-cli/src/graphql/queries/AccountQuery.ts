@@ -270,6 +270,7 @@ export const AccountQuery = {
               'BillingPeriod',
               'EstimatedUsage',
             ],
+            noRetry: true,
           }
         )
         .toPromise()

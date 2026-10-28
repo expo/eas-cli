@@ -43,7 +43,7 @@ describe('UserPreferenceQuery.getValueAsync', () => {
     expect(printed).toContain('query UserPreferenceByKey');
     expect(printed).toContain('get(key: $key)');
     expect(variables).toEqual({ key: 'some-key' });
-    expect(context).toEqual({ additionalTypenames: ['UserPreference'] });
+    expect(context).toEqual({ additionalTypenames: ['UserPreference'], noRetry: true });
   });
 
   it('rejects on a GraphQL error', async () => {

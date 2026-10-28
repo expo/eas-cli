@@ -2,7 +2,10 @@ import { ExpoConfig } from '@expo/config';
 
 import { getAgentTelemetryContext } from '../analytics/agent';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import {
+  ExpoGraphqlClient,
+  createGraphqlClient,
+} from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import {
   AppPlatform,
@@ -17,6 +20,7 @@ import { UserPreferenceQuery } from '../graphql/queries/UserPreferenceQuery';
 import Log from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { isExpoUpdatesInstalled, isUsingEASUpdate } from '../project/projectUtils';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { Actor } from '../user/User';
 
 export const FREE_TIER_NEAR_LIMIT_AGENT_UPDATES_TIP_EXPERIMENT_NAMESPACE =
@@ -30,7 +34,19 @@ export const EAS_UPDATE_GETTING_STARTED_URL = 'https://docs.expo.dev/eas-update/
 /** Server-side user preference key prefix. The full key is `<prefix>/<accountId>/<platform>`. */
 const USER_PREFERENCE_KEY_PREFIX = 'free-tier-near-limit-agent-updates-tip-shown';
 
+/** The tip's requests run after the build, so a stalled request must not delay the exit. */
+const REQUEST_TIMEOUT_MS = 3000;
+
 export type FreeTierNearLimitAgentUpdatesTipVariant = 'control' | 'treatment';
+
+/** The project state of one platform's build. Each build profile evaluates its own config. */
+export type FreeTierNearLimitAgentUpdatesTipPlatformProject = {
+  developmentClient: boolean;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  manifestHostOverride: string | null;
+};
 
 export type FreeTierNearLimitAgentUpdatesTipExperiment = {
   experimentation: LazyExperimentationClient;
@@ -38,13 +54,26 @@ export type FreeTierNearLimitAgentUpdatesTipExperiment = {
   analytics: Analytics;
   analyticsEventProperties: AnalyticsEventProperties;
   accountId: string;
-  isRobot: boolean;
+  /** Only regular and SSO users can store user preferences. */
+  isUser: boolean;
+  runFromCI: boolean;
+  json: boolean;
+  projectByPlatform: Partial<Record<AppPlatform, FreeTierNearLimitAgentUpdatesTipPlatformProject>>;
+};
+
+export type FreeTierNearLimitAgentUpdatesTipBuildContext = {
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
+  analytics: Analytics;
+  analyticsEventProperties: AnalyticsEventProperties;
+  accountId: string;
+  user: Actor;
+  developmentClient: boolean;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
-  manifestHostOverride: string | null;
+  easJsonCliConfig: { updateManifestHostOverride?: string } | undefined;
   runFromCI: boolean;
-  json: boolean;
 };
 
 export type FreeTierPlatformBuildUsage = {
@@ -57,38 +86,37 @@ export type FreeTierBuildUsage = {
   byPlatform: Record<AppPlatform, FreeTierPlatformBuildUsage>;
 };
 
+/** All build contexts belong to one command run, so the account and the actor are shared. */
 export function getFreeTierNearLimitAgentUpdatesTipExperiment(
-  ctx: {
-    experimentation?: LazyExperimentationClient;
-    graphqlClient: ExpoGraphqlClient;
-    analytics: Analytics;
-    analyticsEventProperties: AnalyticsEventProperties;
-    accountId: string;
-    user: Actor;
-    projectDir: string;
-    projectId: string;
-    exp: ExpoConfig;
-    easJsonCliConfig: { updateManifestHostOverride?: string } | undefined;
-    runFromCI: boolean;
-  },
+  buildCtxByPlatform: Partial<Record<AppPlatform, FreeTierNearLimitAgentUpdatesTipBuildContext>>,
   { json }: { json: boolean }
 ): FreeTierNearLimitAgentUpdatesTipExperiment | undefined {
-  if (!ctx.experimentation) {
+  const ctx = Object.values(buildCtxByPlatform)[0];
+  if (!ctx?.experimentation || !ctx.authenticationInfo) {
     return undefined;
+  }
+  const projectByPlatform: FreeTierNearLimitAgentUpdatesTipExperiment['projectByPlatform'] = {};
+  for (const [platform, platformCtx] of Object.entries(buildCtxByPlatform)) {
+    projectByPlatform[platform as AppPlatform] = {
+      developmentClient: platformCtx.developmentClient,
+      projectDir: platformCtx.projectDir,
+      projectId: platformCtx.projectId,
+      exp: platformCtx.exp,
+      manifestHostOverride: platformCtx.easJsonCliConfig?.updateManifestHostOverride ?? null,
+    };
   }
   return {
     experimentation: ctx.experimentation,
-    graphqlClient: ctx.graphqlClient,
+    graphqlClient: createGraphqlClient(ctx.authenticationInfo, {
+      requestTimeoutMs: REQUEST_TIMEOUT_MS,
+    }),
     analytics: ctx.analytics,
     analyticsEventProperties: ctx.analyticsEventProperties,
     accountId: ctx.accountId,
-    isRobot: ctx.user.__typename === 'Robot',
-    projectDir: ctx.projectDir,
-    projectId: ctx.projectId,
-    exp: ctx.exp,
-    manifestHostOverride: ctx.easJsonCliConfig?.updateManifestHostOverride ?? null,
+    isUser: ctx.user.__typename === 'User' || ctx.user.__typename === 'SSOUser',
     runFromCI: ctx.runFromCI,
     json,
+    projectByPlatform,
   };
 }
 
@@ -98,7 +126,7 @@ export function isProjectConfiguredForEASUpdate({
   projectId,
   manifestHostOverride,
 }: Pick<
-  FreeTierNearLimitAgentUpdatesTipExperiment,
+  FreeTierNearLimitAgentUpdatesTipPlatformProject,
   'projectDir' | 'exp' | 'projectId' | 'manifestHostOverride'
 >): boolean {
   return (
@@ -107,22 +135,28 @@ export function isProjectConfiguredForEASUpdate({
 }
 
 /**
- * Only runs driven by a coding agent logged in as a user, outside CI and without --json, for a
- * project that is not set up for EAS Update yet are eligible. Everything else gets no tip and no
- * usage request.
+ * Only runs driven by a coding agent logged in as a user, outside CI and without --json are
+ * eligible. Everything else gets no tip and no usage request.
  */
 export function isEligibleForFreeTierNearLimitAgentUpdatesTip(
   experiment: FreeTierNearLimitAgentUpdatesTipExperiment
 ): boolean {
-  if (
+  return !(
     experiment.runFromCI ||
     experiment.json ||
-    experiment.isRobot ||
+    !experiment.isUser ||
     !getAgentTelemetryContext()
-  ) {
-    return false;
-  }
-  return !isProjectConfiguredForEASUpdate(experiment);
+  );
+}
+
+/**
+ * A platform is eligible when its project is not set up for EAS Update. Development builds load
+ * JavaScript from the dev server, so the tip does not apply to them.
+ */
+export function isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip(
+  project: FreeTierNearLimitAgentUpdatesTipPlatformProject
+): boolean {
+  return !project.developmentClient && !isProjectConfiguredForEASUpdate(project);
 }
 
 /** True when the platform still has builds left, but no more than the tip's threshold. */
@@ -157,6 +191,10 @@ export async function getFreeTierBuildUsageAsync({
   };
 }
 
+/**
+ * The first call logs the exposure, so call it only when the tip would show. Accounts outside the
+ * rollout get the control default and no exposure.
+ */
 export async function resolveFreeTierNearLimitAgentUpdatesTipVariantAsync({
   experimentation,
   accountId,
@@ -200,8 +238,9 @@ function isShownTipPreference(value: unknown): value is ShownTipPreference {
 }
 
 /**
- * The tip shows at most once per account, platform and billing period. The marker is a user
- * preference on the server, so it follows the user across machines and fresh agent sandboxes.
+ * The tip shows at most once per user, account, platform and billing period. The marker is a
+ * user preference on the server, so it follows the user across machines and fresh agent
+ * sandboxes.
  */
 export async function wasFreeTierNearLimitAgentUpdatesTipShownAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -232,8 +271,9 @@ export async function markFreeTierNearLimitAgentUpdatesTipShownAsync(
 
 /**
  * After finished builds, suggests EAS Update to coding agents whose Free plan account is close to
- * the platform build limit. The exposure logs only when every eligibility check passes, so both
- * arms see the same population; the treatment arm prints the tip. Fails open on any error.
+ * the platform build limit. The exposure logs only when every eligibility check passed, so both
+ * arms see the same population. The treatment arm prints the tip, logs the tip event, then
+ * writes the marker, so a failed write means at most a repeated tip. Fails open on any error.
  */
 export async function maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
   builds: (BuildFragment | null)[],
@@ -242,12 +282,16 @@ export async function maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
   if (!experiment || !isEligibleForFreeTierNearLimitAgentUpdatesTip(experiment)) {
     return;
   }
-  const finishedPlatforms = new Set(
+  const eligiblePlatforms = new Set(
     builds
       .filter((build): build is BuildFragment => build?.status === BuildStatus.Finished)
       .map(build => build.platform)
+      .filter(platform => {
+        const project = experiment.projectByPlatform[platform];
+        return project && isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip(project);
+      })
   );
-  if (finishedPlatforms.size === 0) {
+  if (eligiblePlatforms.size === 0) {
     return;
   }
 
@@ -256,7 +300,7 @@ export async function maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
     if (!usage) {
       return;
     }
-    for (const platform of finishedPlatforms) {
+    for (const platform of eligiblePlatforms) {
       const platformUsage = usage.byPlatform[platform];
       if (
         !isWithinFreeTierNearLimitBand(platformUsage) ||
@@ -271,22 +315,27 @@ export async function maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
       }
 
       const variant = await resolveFreeTierNearLimitAgentUpdatesTipVariantAsync(experiment);
-      await markFreeTierNearLimitAgentUpdatesTipShownAsync(
-        experiment.graphqlClient,
-        experiment.accountId,
-        platform,
-        usage.billingPeriodId
-      );
+      if (variant !== 'treatment') {
+        continue;
+      }
+      Log.newLine();
+      Log.log(formatFreeTierNearLimitAgentUpdatesTip({ platform, ...platformUsage }));
       experiment.analytics.logEvent(BuildEvent.FREE_TIER_NEAR_LIMIT_AGENT_UPDATES_TIP, {
         ...experiment.analyticsEventProperties,
         platform,
         builds_used: platformUsage.used,
         builds_limit: platformUsage.limit,
-        variant,
       });
-      if (variant === 'treatment') {
-        Log.newLine();
-        Log.log(formatFreeTierNearLimitAgentUpdatesTip({ platform, ...platformUsage }));
+      try {
+        await markFreeTierNearLimitAgentUpdatesTipShownAsync(
+          experiment.graphqlClient,
+          experiment.accountId,
+          platform,
+          usage.billingPeriodId
+        );
+      } catch (error: any) {
+        // The tip was shown. A missing marker means at most a repeated tip, so keep going.
+        Log.debug('Failed to mark the EAS Update tip as shown:', error?.message ?? error);
       }
     }
   } catch (error: any) {

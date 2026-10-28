@@ -25,7 +25,7 @@ export const UserPreferenceQuery = {
             }
           `,
           { key },
-          { additionalTypenames: ['UserPreference'] }
+          { additionalTypenames: ['UserPreference'], noRetry: true }
         )
         .toPromise()
     );

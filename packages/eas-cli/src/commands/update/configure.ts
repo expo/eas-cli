@@ -2,7 +2,6 @@ import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { UpdateEvent } from '../../analytics/AnalyticsManager';
 import { easJsonExistsAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
@@ -31,7 +30,6 @@ export default class UpdateConfigure extends EasCommand {
     ...this.ContextOptions.ProjectConfig,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
-    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -39,7 +37,6 @@ export default class UpdateConfigure extends EasCommand {
     const {
       privateProjectConfig: { projectId, exp, projectDir },
       vcsClient,
-      analytics,
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
       withServerSideEnvironment: flags['environment'] ?? null,
@@ -67,12 +64,6 @@ export default class UpdateConfigure extends EasCommand {
     });
 
     await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
-
-    analytics.logEvent(UpdateEvent.CONFIGURE_SUCCESS, {
-      project_id: projectId,
-      platform: flags['platform'],
-      non_interactive: flags['non-interactive'],
-    });
 
     Log.addNewLineIfNone();
     Log.log(`🎉 Your app is configured to use EAS Update!`);

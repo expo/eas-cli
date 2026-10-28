@@ -31,7 +31,7 @@ describe('UserPreferenceMutation.setAsync', () => {
     expect(printed).toContain('mutation SetUserPreference');
     expect(printed).toContain('set(key: $key, value: $value)');
     expect(variables).toEqual({ key: 'some-key', value: { billingPeriodId: 'period-1' } });
-    expect(context).toEqual({ additionalTypenames: ['UserPreference'] });
+    expect(context).toEqual({ additionalTypenames: ['UserPreference'], noRetry: true });
   });
 
   it('rejects on a GraphQL error', async () => {

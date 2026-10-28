@@ -22,7 +22,7 @@ export const UserPreferenceMutation = {
             }
           `,
           { key, value },
-          { additionalTypenames: ['UserPreference'] }
+          { additionalTypenames: ['UserPreference'], noRetry: true }
         )
         .toPromise()
     );

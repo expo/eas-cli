@@ -22,7 +22,6 @@ export type AnalyticsEvent =
   | MetadataEvent
   | BillingEvent
   | SimulatorEvent
-  | UpdateEvent
   | ExperimentationEvent;
 
 export enum CommandEvent {
@@ -84,10 +83,6 @@ export enum BuildEvent {
   CREDENTIALS_SYNC_UPDATE_REMOTE_FAIL = 'build cli credentials sync update remote fail',
 
   ANDROID_KEYSTORE_CREATE = 'build cli credentials keystore create',
-}
-
-export enum UpdateEvent {
-  CONFIGURE_SUCCESS = 'update cli configure success',
 }
 
 export enum SimulatorEvent {

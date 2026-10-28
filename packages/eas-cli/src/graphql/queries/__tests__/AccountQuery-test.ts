@@ -76,6 +76,7 @@ describe('AccountQuery.getFreeTierBuildUsageAsync', () => {
         'BillingPeriod',
         'EstimatedUsage',
       ],
+      noRetry: true,
     });
   });
 
