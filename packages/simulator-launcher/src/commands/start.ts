@@ -328,10 +328,11 @@ export function createWarmSimulatorSession({
       availableDevices,
       process.env.EXPO_SIMULATOR_DEVICE?.trim() || undefined
     );
-    if (selected.length !== 1)
+    if (selected.length !== 1) {
       throw new Error(
         'Could not select one available Simulator. Use an exact device name or UDID.'
       );
+    }
     warmDevices = selected;
     const controllerStartTime = (
       await commands.runAsync('ps', ['-p', String(process.pid), '-o', 'lstart='], signal)
