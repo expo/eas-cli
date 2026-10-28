@@ -216,50 +216,36 @@ it('primes the exact version once before readiness and bounds two failed attempt
   await session.stopAsync();
 });
 
-it('does not begin secondary preinstall until default preinstall and tools finish', async () => {
-  const installed = deferred();
-  const prepared = deferred<string>();
-  const preinstall = mockDefaultExpoGoInstall(installed.promise);
-  jest
-    .mocked(commands.start)
-    .mockImplementation((_file, args) =>
-      args.includes('prepare') ? { ...agent, resultPromise: prepared.promise } : argent
-    );
+it('consumed claim forbids the secondary preinstall of a device still booting', async () => {
+  const preinstall = mockDefaultExpoGoInstall(Promise.resolve());
+  jest.mocked(waitForSimulatorBootAsync).mockImplementation(async (udid, signal) => {
+    if (udid === 'PHONE18') {
+      await new Promise((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      );
+    }
+  });
   const session = createSession();
   await session.prepareAsync();
-  await new Promise(resolve => setImmediate(resolve));
-  expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
-  installed.resolve();
-  await new Promise(resolve => setImmediate(resolve));
-  expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
-  prepared.resolve('');
-  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 1);
-  expect(preinstall.preinstallOnDeviceAsync).toHaveBeenCalledWith(
-    'PHONE18',
-    expect.any(Promise),
-    expect.any(AbortSignal)
-  );
-  await session.stopAsync();
-});
-
-it('consumed claim forbids queued secondary preinstall', async () => {
-  const installed = deferred();
-  const preinstall = mockDefaultExpoGoInstall(installed.promise);
-  const session = createSession();
-  await session.prepareAsync();
+  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 2);
   await session.claimAsync({ engine: 'serve-sim' });
-  installed.resolve();
   await session.stopAsync();
-  expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
-  // Only the default device's preinstall ran; the claim stopped the queued secondary one.
-  expect(preinstall.preinstallOnDeviceAsync).toHaveBeenCalledTimes(1);
+  expect(preinstall.preinstallOnDeviceAsync).not.toHaveBeenCalledWith(
+    'PHONE18',
+    expect.anything(),
+    expect.anything()
+  );
 });
 
 it('a secondary boot observation failure leaves the claimed default usable', async () => {
-  jest.mocked(waitForSimulatorBootAsync).mockRejectedValue(new Error('optional boot failed'));
+  jest
+    .mocked(waitForSimulatorBootAsync)
+    .mockImplementation(async udid =>
+      udid === 'PHONE18' ? Promise.reject(new Error('optional boot failed')) : undefined
+    );
   const session = createSession();
   await session.prepareAsync();
-  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 1);
+  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 2);
   await expect(session.claimAsync({ engine: 'serve-sim' })).resolves.toMatchObject({
     device: defaultDevice,
   });
@@ -514,8 +500,6 @@ it('does not report a background failure when a stop aborts the default setup', 
 });
 
 it('runs the setup again for an extra device whose warmup the claim cancelled', async () => {
-  const session = createSession();
-  await session.prepareAsync();
   const disable = jest
     .mocked(disableApsdAsync)
     .mockImplementation((udid, signal) =>
@@ -525,11 +509,13 @@ it('runs the setup again for an extra device whose warmup the claim cancelled', 
           )
         : Promise.resolve()
     );
+  const session = createSession();
+  await session.prepareAsync();
   await until(() => disable.mock.calls.some(([udid]) => udid === 'PHONE18'));
   await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
   disable.mockResolvedValue(undefined);
   await session.prepareToolsAsync();
-  expect(disable.mock.calls.filter(([udid]) => udid === 'PHONE18')).toHaveLength(2);
+  await until(() => disable.mock.calls.filter(([udid]) => udid === 'PHONE18').length === 2);
   await session.stopAsync();
 });
 
@@ -540,6 +526,10 @@ it('warns on ordinary adopted-device apsd failure without failing the claimed se
   jest.mocked(disableApsdAsync).mockRejectedValue(new Error('apsd remains loaded'));
   const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   await session.prepareToolsAsync();
+  // The setup runs in the background; wait for its warning before stopping.
+  await until(() =>
+    warning.mock.calls.some(([text]) => String(text).includes('Could not disable apsd on OTHER'))
+  );
   await session.stopAsync();
   expect(onPreparationFailure).not.toHaveBeenCalled();
   expect(onBackgroundFailure).not.toHaveBeenCalled();
