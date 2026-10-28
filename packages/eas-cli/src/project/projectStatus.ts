@@ -466,6 +466,7 @@ function colorWorkflowStatus(status: string): string {
     case WorkflowRunStatus.ActionRequired:
       return chalk.yellow('action required');
     case WorkflowRunStatus.New:
+    case WorkflowRunStatus.Waiting:
     case WorkflowRunStatus.InProgress:
       return chalk.blue(status.toLowerCase().replace(/_/g, ' '));
     default:

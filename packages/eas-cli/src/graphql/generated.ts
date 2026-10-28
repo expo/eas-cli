@@ -183,12 +183,25 @@ export type Account = {
   /** Convex team connections for this account */
   convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
+  /**
+   * Whether the account turned on credentials protection. When protection is on, reading,
+   * creating, changing, or deleting build, submission, and push credentials needs the
+   * PUBLISH_PROTECTED permission, in every project of the account.
+   */
+  credentialsProtectionEnabled: Scalars['Boolean']['output'];
   /** Simulator sessions for all apps associated with this account, sorted newest first. */
   deviceRunSessionsPaginated: AccountDeviceRunSessionsConnection;
   displayName?: Maybe<Scalars['String']['output']>;
   /** Environment secrets for an account */
   environmentSecrets: Array<EnvironmentSecret>;
   environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
+  /**
+   * Whether the account turned on environment variable protection. When protection is on,
+   * reading, using, creating, changing, or deleting an environment variable whose environments are
+   * exclusively production needs the PUBLISH_PROTECTED permission, whatever its visibility, in
+   * every project of the account.
+   */
+  environmentVariableProtectionEnabled: Scalars['Boolean']['output'];
   /** Environment variables for an account */
   environmentVariables: Array<EnvironmentVariable>;
   /** Environment variables for an account with decrypted secret values */
@@ -768,8 +781,23 @@ export type AccountMutation = {
   requestRefund?: Maybe<Scalars['Boolean']['output']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
+  /**
+   * Set whether credentials protection is on for this account. When it is on, reading, creating,
+   * changing, or deleting build, submission, and push credentials needs the PUBLISH_PROTECTED
+   * permission on the account, in every project of the account. Requires the ADMIN permission on
+   * the account.
+   */
+  setCredentialsProtectionEnabled: Account;
   /** Set the display name for the account. Pass null to clear it and fall back to the account identifier. */
   setDisplayName: Account;
+  /**
+   * Set whether environment variable protection is on for this account. When it is on, reading,
+   * using, creating, changing, or deleting an environment variable whose environments are
+   * exclusively production needs the PUBLISH_PROTECTED permission on the account, whatever its
+   * visibility, in every project of the account. Requires the ADMIN permission on the account.
+   * Turning protection off also requires a sudo session.
+   */
+  setEnvironmentVariableProtectionEnabled: Account;
   /** Set whether EAS Observe ingestion is paused for this account. */
   setObserveIngestionPaused: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
@@ -842,9 +870,21 @@ export type AccountMutation_RevokeActorPermissionsArgs = {
 };
 
 
+export type AccountMutation_SetCredentialsProtectionEnabledArgs = {
+  accountID: Scalars['ID']['input'];
+  credentialsProtectionEnabled: Scalars['Boolean']['input'];
+};
+
+
 export type AccountMutation_SetDisplayNameArgs = {
   accountID: Scalars['ID']['input'];
   displayName?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type AccountMutation_SetEnvironmentVariableProtectionEnabledArgs = {
+  accountID: Scalars['ID']['input'];
+  environmentVariableProtectionEnabled: Scalars['Boolean']['input'];
 };
 
 
@@ -1059,6 +1099,7 @@ export type ActivityTimelineProjectActivity = {
 
 export enum ActivityTimelineProjectActivityType {
   Build = 'BUILD',
+  DeviceRunSession = 'DEVICE_RUN_SESSION',
   Submission = 'SUBMISSION',
   Update = 'UPDATE',
   Worker = 'WORKER',
@@ -1162,6 +1203,11 @@ export type AgentDeviceRunSessionRemoteConfig = {
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
 
+export enum AgentKind {
+  ClaudeCode = 'CLAUDE_CODE',
+  Codex = 'CODEX'
+}
+
 export enum AgentProvider {
   Anthropic = 'ANTHROPIC',
   Openai = 'OPENAI'
@@ -1235,6 +1281,44 @@ export enum AgentProviderConnectionStatus {
   UnableToVerify = 'UNABLE_TO_VERIFY',
   Valid = 'VALID'
 }
+
+export type AgentRun = {
+  __typename?: 'AgentRun';
+  agentKind: AgentKind;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  maxDurationSeconds: Scalars['Int']['output'];
+  prompt?: Maybe<Scalars['String']['output']>;
+  turtleJobRun: JobRun;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type AgentRunConnection = {
+  __typename?: 'AgentRunConnection';
+  edges: Array<AgentRunEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AgentRunEdge = {
+  __typename?: 'AgentRunEdge';
+  cursor: Scalars['String']['output'];
+  node: AgentRun;
+};
+
+export type AgentRunFilterInput = {
+  agentKinds?: InputMaybe<Array<AgentKind>>;
+  statuses?: InputMaybe<Array<JobRunStatus>>;
+};
+
+export type AgentRunQuery = {
+  __typename?: 'AgentRunQuery';
+  byId: AgentRun;
+};
+
+
+export type AgentRunQuery_ByIdArgs = {
+  agentRunId: Scalars['ID']['input'];
+};
 
 export type AndroidAppBuildCredentials = {
   __typename?: 'AndroidAppBuildCredentials';
@@ -1596,6 +1680,8 @@ export type App = Project & {
   __typename?: 'App';
   /** Coalesced project activity for an app */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
+  /** Agent runs for this project, newest first. Empty filters include all runs. */
+  agentRunsPaginated: AgentRunConnection;
   /** Android app credentials for the project */
   androidAppCredentials: Array<AndroidAppCredentials>;
   appStoreConnectApp?: Maybe<AppStoreConnectApp>;
@@ -1756,6 +1842,16 @@ export type App_ActivityTimelineProjectActivitiesArgs = {
   filterPlatforms?: InputMaybe<Array<AppPlatform>>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type App_AgentRunsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AgentRunFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -2391,16 +2487,13 @@ export type AppObserve = {
    * @deprecated Use overview.stability instead.
    */
   overviewStability: AppObserveOverviewStability;
-  /**
-   * Per-version, per-platform metric summaries for the Overview version-comparison matrix.
-   * @deprecated Use overview.versionComparison instead.
-   */
-  overviewVersionComparison: AppObserveOverviewVersionComparison;
-  /** One session's metrics and logs for the timeline (ENG-26160). Unknown session ids yield empty lists. */
+  /** One session's metrics, logs and spans for the timeline (ENG-26160). Unknown session ids yield empty lists. */
   session: AppObserveSession;
   /** @deprecated Use metrics.timeSeries instead. */
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
+  /** Trace spans: today the HTTP request spans recorded with the SDK's networkTraces option (ENG-28448). */
+  traces: AppObserveTraces;
   /**
    * Approximate count of unique users (`eas_client_id`) with at least one
    * supported-metric event in `[startTime, endTime)`. Uses a ClickHouse
@@ -2410,11 +2503,6 @@ export type AppObserve = {
    * universe used by `appVersions` headline counts.
    */
   uniqueActiveUserCount: Scalars['Int']['output'];
-  /**
-   * Update download activity (the Recent updates list). Not available on the free tier or legacy plans.
-   * @deprecated Use easUpdates.list instead.
-   */
-  updates: AppObserveUpdatesConnection;
   /** Namespaced successor API (ENG-26160). Prefer over the flat `customEventNames`/`customEventList` fields. */
   userEvents: AppObserveUserEvents;
 };
@@ -2503,11 +2591,6 @@ export type AppObserve_OverviewStabilityArgs = {
 };
 
 
-export type AppObserve_OverviewVersionComparisonArgs = {
-  input: AppObserveOverviewVersionComparisonInput;
-};
-
-
 export type AppObserve_SessionArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2520,11 +2603,6 @@ export type AppObserve_TimeSeriesArgs = {
 
 export type AppObserve_UniqueActiveUserCountArgs = {
   input: AppObserveReleasesInput;
-};
-
-
-export type AppObserve_UpdatesArgs = {
-  input: AppObserveUpdatesInput;
 };
 
 export type AppObserveAppBuildEmbeddedSummary = {
@@ -3847,6 +3925,8 @@ export type AppObserveSession = {
   logs: AppObserveLogConnection;
   /** Metric samples in the session. */
   metrics: AppObserveMetricConnection;
+  /** Trace spans in the session. Defaults to oldest first. */
+  spans: AppObserveSpanConnection;
 };
 
 
@@ -3866,6 +3946,194 @@ export type AppObserveSession_MetricsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
 };
+
+
+export type AppObserveSession_SpansArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveSessionSpanFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+};
+
+/** Filters for the spans of one session. The session already bounds the query. */
+export type AppObserveSessionSpanFilter = {
+  hosts?: InputMaybe<Array<Scalars['String']['input']>>;
+  httpStatusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
+  kinds?: InputMaybe<Array<AppObserveSpanKind>>;
+  minDurationMs?: InputMaybe<Scalars['Float']['input']>;
+  names?: InputMaybe<Array<Scalars['String']['input']>>;
+  rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
+};
+
+export type AppObserveSpan = {
+  __typename?: 'AppObserveSpan';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  /** Span attributes other than those extracted to dedicated fields. */
+  attributes: Array<AppObserveEventProperty>;
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  droppedAttributesCount: Scalars['Int']['output'];
+  droppedEventsCount: Scalars['Int']['output'];
+  /** Span links are not stored; this counts the links received. */
+  droppedLinksCount: Scalars['Int']['output'];
+  /** Keeps sub-millisecond precision. */
+  durationMs: Scalars['Float']['output'];
+  easClientId: Scalars['String']['output'];
+  endTimestamp: Scalars['DateTime']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  events: Array<AppObserveSpanEvent>;
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  /** Null when the span is not an HTTP request span. */
+  http?: Maybe<AppObserveSpanHttp>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  kind: AppObserveSpanKind;
+  /** Per the producer's semantic conventions: the HTTP method for request spans. */
+  name: Scalars['String']['output'];
+  /** Null for a root span. */
+  parentSpanId?: Maybe<Scalars['String']['output']>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  spanId: Scalars['String']['output'];
+  startTimestamp: Scalars['DateTime']['output'];
+  statusCode: AppObserveSpanStatusCode;
+  statusMessage?: Maybe<Scalars['String']['output']>;
+  traceId: Scalars['String']['output'];
+};
+
+export type AppObserveSpanAttributeFilter = {
+  key: Scalars['String']['input'];
+  value: Scalars['String']['input'];
+};
+
+export type AppObserveSpanConnection = {
+  __typename?: 'AppObserveSpanConnection';
+  edges: Array<AppObserveSpanEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveSpanEdge = {
+  __typename?: 'AppObserveSpanEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveSpan;
+};
+
+export type AppObserveSpanEvent = {
+  __typename?: 'AppObserveSpanEvent';
+  /** The event's attributes as a JSON object. */
+  attributes: Scalars['JSON']['output'];
+  name: Scalars['String']['output'];
+  timestamp: Scalars['DateTime']['output'];
+};
+
+/** HTTP request fields of a span, from the OpenTelemetry HTTP client semantic conventions. */
+export type AppObserveSpanHttp = {
+  __typename?: 'AppObserveSpanHttp';
+  /** Set when the request failed before a response: an NSURLError code on iOS, an exception class on Android. */
+  errorType?: Maybe<Scalars['String']['output']>;
+  method?: Maybe<Scalars['String']['output']>;
+  protocolVersion?: Maybe<Scalars['String']['output']>;
+  /** On-the-wire bytes including headers. */
+  requestSize?: Maybe<Scalars['Int']['output']>;
+  responseSize?: Maybe<Scalars['Int']['output']>;
+  /** Null when the request got no response. */
+  statusCode?: Maybe<Scalars['Int']['output']>;
+  /** Credentials and signing query parameters are redacted at ingestion. */
+  urlFull?: Maybe<Scalars['String']['output']>;
+  urlHost?: Maybe<Scalars['String']['output']>;
+};
+
+export enum AppObserveSpanKind {
+  Client = 'CLIENT',
+  Consumer = 'CONSUMER',
+  Internal = 'INTERNAL',
+  Producer = 'PRODUCER',
+  Server = 'SERVER',
+  Unspecified = 'UNSPECIFIED'
+}
+
+export type AppObserveSpanListFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  /** At most 5. Matches spans whose attribute has exactly this value. */
+  attributeFilters?: InputMaybe<Array<AppObserveSpanAttributeFilter>>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** HTTP request spans to any of these hosts. */
+  hosts?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** HTTP request spans with any of these response status codes. */
+  httpStatusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  kinds?: InputMaybe<Array<AppObserveSpanKind>>;
+  minDurationMs?: InputMaybe<Scalars['Float']['input']>;
+  /** Span names, such as GET or POST. The cheapest filter: span name is in the table's sort key. */
+  names?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  /** Only spans with no parent. */
+  rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime: Scalars['DateTime']['input'];
+  statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
+  /** 32-character hex trace id. */
+  traceId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type AppObserveSpanListOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveSpanListOrderByField;
+};
+
+export enum AppObserveSpanListOrderByField {
+  StartTimestamp = 'START_TIMESTAMP'
+}
+
+export type AppObserveSpanName = {
+  __typename?: 'AppObserveSpanName';
+  count: Scalars['Int']['output'];
+  kind: AppObserveSpanKind;
+  name: Scalars['String']['output'];
+};
+
+export type AppObserveSpanNames = {
+  __typename?: 'AppObserveSpanNames';
+  /** True when more names exist than were returned (top-N truncation). */
+  isTruncated: Scalars['Boolean']['output'];
+  names: Array<AppObserveSpanName>;
+};
+
+export type AppObserveSpanNamesInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Maximum names to return, 1 to 500. Defaults to 100. */
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export enum AppObserveSpanStatusCode {
+  Error = 'ERROR',
+  Ok = 'OK',
+  Unset = 'UNSET'
+}
 
 /** Stability-tile filters. No release filters: the tiles always span all versions. */
 export type AppObserveStabilityInput = {
@@ -3930,6 +4198,70 @@ export type AppObserveTimeSeriesStatistics = {
   p99?: Maybe<Scalars['Float']['output']>;
 };
 
+export type AppObserveTrace = {
+  __typename?: 'AppObserveTrace';
+  id: Scalars['ID']['output'];
+  /** True when the trace has more spans than were returned. */
+  isTruncated: Scalars['Boolean']['output'];
+  /** Oldest first. The root span, when present, is the one with no parent. */
+  spans: Array<AppObserveSpan>;
+};
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces = {
+  __typename?: 'AppObserveTraces';
+  /** Distinct span names and kinds with counts over the time range, most frequent first. */
+  names: AppObserveSpanNames;
+  /** A single span by id. Null when missing or aged out of retention. */
+  span?: Maybe<AppObserveSpan>;
+  /** Individual spans. Defaults to newest first. */
+  spans: AppObserveSpanConnection;
+  /** All spans of one trace by its 32-character hex trace id. Null when unknown or aged out of retention. */
+  trace?: Maybe<AppObserveTrace>;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_NamesArgs = {
+  input: AppObserveSpanNamesInput;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_SpanArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_SpansArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter: AppObserveSpanListFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_TraceArgs = {
+  id: Scalars['ID']['input'];
+};
+
 export type AppObserveUpdate = {
   __typename?: 'AppObserveUpdate';
   appUpdateId: Scalars['String']['output'];
@@ -3966,31 +4298,6 @@ export type AppObserveUpdatesConnection = {
   totalCount: Scalars['Int']['output'];
   totalDownloads: Scalars['Int']['output'];
 };
-
-export type AppObserveUpdatesInput = {
-  after?: InputMaybe<Scalars['String']['input']>;
-  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
-  appUpdateId?: InputMaybe<Scalars['String']['input']>;
-  appVersion?: InputMaybe<Scalars['String']['input']>;
-  endTime: Scalars['DateTime']['input'];
-  environment?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Int']['input']>;
-  orderBy?: InputMaybe<AppObserveUpdatesOrderBy>;
-  platform?: InputMaybe<AppObservePlatform>;
-  /** Filter to these platforms. Cannot be set together with platform. */
-  platforms?: InputMaybe<Array<AppObservePlatform>>;
-  startTime: Scalars['DateTime']['input'];
-};
-
-export type AppObserveUpdatesOrderBy = {
-  direction: AppObserveUpdatesOrderByDirection;
-  field: AppObserveUpdatesOrderByField;
-};
-
-export enum AppObserveUpdatesOrderByDirection {
-  Asc = 'ASC',
-  Desc = 'DESC'
-}
 
 export enum AppObserveUpdatesOrderByField {
   DownloadCount = 'DOWNLOAD_COUNT',
@@ -5375,6 +5682,7 @@ export enum AuthProviderIdentifier {
   MsEntraId = 'MS_ENTRA_ID',
   Okta = 'OKTA',
   OneLogin = 'ONE_LOGIN',
+  Rippling = 'RIPPLING',
   StubIdp = 'STUB_IDP'
 }
 
@@ -5523,6 +5831,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   embeddedUpdate?: Maybe<EmbeddedUpdate>;
   enqueuedAt?: Maybe<Scalars['DateTime']['output']>;
   error?: Maybe<BuildError>;
+  /** @deprecated Build wait estimates are no longer available. This field returns null. */
   estimatedWaitTimeLeftSeconds?: Maybe<Scalars['Int']['output']>;
   expirationDate?: Maybe<Scalars['DateTime']['output']>;
   fingerprint?: Maybe<Fingerprint>;
@@ -5530,7 +5839,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   gitCommitMessage?: Maybe<Scalars['String']['output']>;
   gitRef?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  /** Queue position is 1-indexed */
+  /** @deprecated Build queue position is no longer available. This field returns null. */
   initialQueuePosition?: Maybe<Scalars['Int']['output']>;
   initiatingActor?: Maybe<Actor>;
   iosEnterpriseProvisioning?: Maybe<BuildIosEnterpriseProvisioning>;
@@ -5553,7 +5862,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   projectMetadataFileUrl?: Maybe<Scalars['String']['output']>;
   projectRootDirectory?: Maybe<Scalars['String']['output']>;
   provisioningStartedAt?: Maybe<Scalars['DateTime']['output']>;
-  /** Queue position is 1-indexed */
+  /** @deprecated Build queue position is no longer available. This field returns null. */
   queuePosition?: Maybe<Scalars['Int']['output']>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   releaseChannel?: Maybe<Scalars['String']['output']>;
@@ -5888,6 +6197,11 @@ export type BuildOrBuildJob = {
 };
 
 export type BuildParamsInput = {
+  /**
+   * The role of the EXPO_TOKEN that the build gets. The caller must have at least this role on the
+   * account, or the mutation fails. Without it, the token has the default permissions.
+   */
+  expoTokenRole?: InputMaybe<JobExpoTokenRole>;
   reactNativeVersion?: InputMaybe<Scalars['String']['input']>;
   resourceClass: BuildResourceClass;
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
@@ -6357,24 +6671,6 @@ export type CreateConvexTeamConnectionInput = {
   deploymentRegion: Scalars['String']['input'];
 };
 
-export type CreateDeviceRunSessionArtifactUploadSessionInput = {
-  filename: Scalars['String']['input'];
-  kind?: InputMaybe<Scalars['String']['input']>;
-  metadata?: InputMaybe<Scalars['JSONObject']['input']>;
-  name: Scalars['String']['input'];
-  size: Scalars['ByteSize']['input'];
-};
-
-export type CreateDeviceRunSessionArtifactUploadSessionResult = {
-  __typename?: 'CreateDeviceRunSessionArtifactUploadSessionResult';
-  uploadSession: DeviceRunSessionArtifactUploadSession;
-};
-
-export type CreateDeviceRunSessionEventLogUploadSessionResult = {
-  __typename?: 'CreateDeviceRunSessionEventLogUploadSessionResult';
-  uploadSession: DeviceRunSessionEventLogUploadSession;
-};
-
 export type CreateDeviceRunSessionInput = {
   /**
    * The coding agent sending this request, recorded for analytics only and never used for
@@ -6408,6 +6704,14 @@ export type CreateDeviceRunSessionInput = {
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
+   * Origins of pages that may call the session's preview host API cross-origin, for example to
+   * render the device with @expo/hub-client. Framing the preview does not need this. Same value
+   * rules as frameAncestors. At most 10. The page still needs the preview token from remoteConfig.
+   * If omitted, only expo.dev may call the preview API cross-origin. Available on Production and
+   * Enterprise plans.
+   */
+  corsOrigins?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
    * Where the virtual device's proxied network traffic exits to the internet. If
    * omitted, all traffic exits from EAS infrastructure.
    */
@@ -6424,6 +6728,7 @@ export type CreateDeviceRunSessionInput = {
    * as https://*.example.com; plain http is accepted for localhost only. At most 10. The
    * embedding page still needs the preview token from remoteConfig, and whoever embeds the
    * preview can also control the device. If omitted, only expo.dev may embed the preview.
+   * Available on Production and Enterprise plans.
    */
   frameAncestors?: InputMaybe<Array<Scalars['String']['input']>>;
   /** iOS Simulator options. Only supported when platform is IOS. */
@@ -6435,7 +6740,7 @@ export type CreateDeviceRunSessionInput = {
   launchArgs?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Stop the session automatically after this many minutes without observed
-   * session activity. Must be positive and smaller than the session's maximum
+   * session activity. Must be positive and no greater than the session's maximum
    * duration (maxRunTimeMinutes when set). Only supported for
    * agent-device, argent, and Appium sessions. If omitted, the session has no idle
    * timeout.
@@ -6564,13 +6869,6 @@ export type CreateGitHubRepositorySettingsInput = {
 };
 
 export type CreateIosDeviceRunSessionInput = {
-  /**
-   * Origins of pages that may call the session's preview host API cross-origin, for example to
-   * render the device with @expo/hub-client. Framing the preview does not need this. Same value
-   * rules as frameAncestors. At most 10. The page still needs the preview token from remoteConfig.
-   * If omitted, only expo.dev may call the preview API cross-origin.
-   */
-  corsOrigins?: InputMaybe<Array<Scalars['String']['input']>>;
   /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6611,6 +6909,7 @@ export type CreateSandboxInput = {
   agentRunId?: InputMaybe<Scalars['ID']['input']>;
   appId: Scalars['ID']['input'];
   image?: InputMaybe<Scalars['String']['input']>;
+  maxDurationSeconds?: InputMaybe<Scalars['Int']['input']>;
   operatingSystem: SandboxOperatingSystem;
   projectArchive?: InputMaybe<SandboxProjectArchiveInput>;
   resourceClass: SandboxResourceClass;
@@ -7061,8 +7360,10 @@ export type DeploymentsMutation_DeleteWorkerDeploymentByIdentifierArgs = {
   deploymentIdentifier: Scalars['ID']['input'];
 };
 
-export type DeviceRunSession = {
+export type DeviceRunSession = ActivityTimelineProjectActivity & {
   __typename?: 'DeviceRunSession';
+  activityTimestamp: Scalars['DateTime']['output'];
+  actor?: Maybe<Actor>;
   app: App;
   /**
    * Direct application archive URL installed and launched for this session. Null when
@@ -7134,12 +7435,6 @@ export type DeviceRunSessionArtifactQuery_ByIdArgs = {
   deviceRunSessionArtifactId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionArtifactUploadSession = {
-  __typename?: 'DeviceRunSessionArtifactUploadSession';
-  headers: Scalars['JSONObject']['output'];
-  url: Scalars['String']['output'];
-};
-
 /**
  * Where the virtual device's proxied network traffic exits to the internet. When
  * unset, all traffic exits from EAS infrastructure.
@@ -7156,12 +7451,6 @@ export enum DeviceRunSessionEgress {
   Local = 'LOCAL'
 }
 
-export type DeviceRunSessionEventLogUploadSession = {
-  __typename?: 'DeviceRunSessionEventLogUploadSession';
-  headers: Scalars['JSONObject']['output'];
-  url: Scalars['String']['output'];
-};
-
 export type DeviceRunSessionFilterInput = {
   /** Case-insensitive match anywhere in the session name. */
   name?: InputMaybe<Scalars['String']['input']>;
@@ -7174,20 +7463,8 @@ export type DeviceRunSessionFilterInput = {
 
 export type DeviceRunSessionMutation = {
   __typename?: 'DeviceRunSessionMutation';
-  /** Create an upload session for an artifact while the backing job run is not in a final state */
-  createArtifactUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
-  /**
-   * Create or reuse a standard artifact and a two-hour upload URL for repeatedly
-   * overwriting its structured event log while the backing job run is running.
-   */
-  createEventLogUploadSession: CreateDeviceRunSessionEventLogUploadSessionResult;
-  /**
-   * Create or renew a two-hour upload URL for overwriting the session preview.
-   * Reuses one WebP artifact while the backing job run is active.
-   */
-  createPreviewUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /**
    * Permanently delete a finished session and its artifacts. The backing job,
    * if present, must also have finished. Returns the deleted session ID.
@@ -7199,8 +7476,6 @@ export type DeviceRunSessionMutation = {
    * ERRORED).
    */
   ensureDeviceRunSessionStopped: DeviceRunSession;
-  /** Mark a device run session as started and persist remote connection details */
-  startDeviceRunSession: DeviceRunSession;
   /**
    * Update a device run session name and tags, including on sessions
    * that have already finished.
@@ -7209,24 +7484,8 @@ export type DeviceRunSessionMutation = {
 };
 
 
-export type DeviceRunSessionMutation_CreateArtifactUploadSessionArgs = {
-  deviceRunSessionId: Scalars['ID']['input'];
-  input: CreateDeviceRunSessionArtifactUploadSessionInput;
-};
-
-
 export type DeviceRunSessionMutation_CreateDeviceRunSessionArgs = {
   deviceRunSessionInput: CreateDeviceRunSessionInput;
-};
-
-
-export type DeviceRunSessionMutation_CreateEventLogUploadSessionArgs = {
-  deviceRunSessionId: Scalars['ID']['input'];
-};
-
-
-export type DeviceRunSessionMutation_CreatePreviewUploadSessionArgs = {
-  deviceRunSessionId: Scalars['ID']['input'];
 };
 
 
@@ -7237,12 +7496,6 @@ export type DeviceRunSessionMutation_DeleteDeviceRunSessionArgs = {
 
 export type DeviceRunSessionMutation_EnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
-};
-
-
-export type DeviceRunSessionMutation_StartDeviceRunSessionArgs = {
-  deviceRunSessionId: Scalars['ID']['input'];
-  remoteConfig: Scalars['JSONObject']['input'];
 };
 
 
@@ -7528,7 +7781,9 @@ export enum EntityTypeName {
   ConvexProjectEntity = 'ConvexProjectEntity',
   ConvexTeamConnectionEntity = 'ConvexTeamConnectionEntity',
   CustomerEntity = 'CustomerEntity',
+  /** @deprecated This entity type was deleted. Existing audit logs can still reference it. */
   EchoProjectEntity = 'EchoProjectEntity',
+  /** @deprecated This entity type was deleted. Existing audit logs can still reference it. */
   EchoVersionEntity = 'EchoVersionEntity',
   EnvironmentVariableEntity = 'EnvironmentVariableEntity',
   GoogleServiceAccountKeyEntity = 'GoogleServiceAccountKeyEntity',
@@ -8523,21 +8778,11 @@ export type GitHubUserMutation = {
   __typename?: 'GitHubUserMutation';
   /** Delete a GitHub User by ID */
   deleteGitHubUser: DeleteGitHubUserResult;
-  /**
-   * Generate a GitHub User Access Token
-   * @deprecated This mutation is scheduled for removal.
-   */
-  generateGitHubUserAccessToken?: Maybe<Scalars['String']['output']>;
 };
 
 
 export type GitHubUserMutation_DeleteGitHubUserArgs = {
   id: Scalars['ID']['input'];
-};
-
-
-export type GitHubUserMutation_GenerateGitHubUserAccessTokenArgs = {
-  githubAppRegistrationId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type GoogleServiceAccountKey = {
@@ -8968,9 +9213,17 @@ export type IosSubmissionConfigInput = {
   isVerboseFastlaneEnabled?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+/** A role that a build can request for its EXPO_TOKEN. */
+export enum JobExpoTokenRole {
+  Developer = 'DEVELOPER',
+  ReleaseManager = 'RELEASE_MANAGER',
+  Runner = 'RUNNER'
+}
+
 /** Represents a Turtle Job Run */
 export type JobRun = {
   __typename?: 'JobRun';
+  agentRun?: Maybe<AgentRun>;
   app: App;
   artifacts: Array<WorkflowArtifact>;
   createdAt: Scalars['DateTime']['output'];
@@ -10002,7 +10255,7 @@ export type RootMutation = {
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
-  /** Mutations that create, start, stop, and update device run sessions */
+  /** Mutations that create, stop, update, and delete device run sessions */
   deviceRunSession: DeviceRunSessionMutation;
   /** Mutations for Discord users */
   discordUser: DiscordUserMutation;
@@ -10122,6 +10375,7 @@ export type RootQuery = {
   account: AccountQuery;
   /** Top-level query object for querying AccountSSOConfigurationPublicData */
   accountSSOConfigurationPublicData: AccountSsoConfigurationPublicDataQuery;
+  agentRuns: AgentRunQuery;
   app: AppQuery;
   /**
    * Look up app by app id
@@ -10445,6 +10699,7 @@ export type Sandbox = {
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   lastUsedAt: Scalars['DateTime']['output'];
+  maxDurationSeconds?: Maybe<Scalars['Int']['output']>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: SandboxStatus;
   turtleJobRun: JobRun;
@@ -10724,8 +10979,6 @@ export type ServeSimRunSessionRemoteConfig = {
   /** Session token gating the preview. Null when the preview runs ungated. */
   previewToken?: Maybe<Scalars['String']['output']>;
   previewUrl: Scalars['String']['output'];
-  /** @deprecated Use previewUrl instead. */
-  streamUrl?: Maybe<Scalars['String']['output']>;
 };
 
 export type SetSupabaseConnectionOrganizationInput = {
@@ -12094,11 +12347,15 @@ export type UsageBudget = {
 export type UsageBudgetLimits = {
   __typename?: 'UsageBudgetLimits';
   builds?: Maybe<Scalars['Int']['output']>;
+  concurrentSandboxes?: Maybe<Scalars['Int']['output']>;
+  sandboxMinutes?: Maybe<Scalars['Int']['output']>;
   simulatorMinutes?: Maybe<Scalars['Int']['output']>;
 };
 
 export type UsageBudgetLimitsInput = {
   builds?: InputMaybe<Scalars['Int']['input']>;
+  concurrentSandboxes?: InputMaybe<Scalars['Int']['input']>;
+  sandboxMinutes?: InputMaybe<Scalars['Int']['input']>;
   simulatorMinutes?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -12126,6 +12383,10 @@ export type UsageBudgetRemaining = {
   __typename?: 'UsageBudgetRemaining';
   /** Available builds, or null when there is no build limit. */
   builds?: Maybe<Scalars['Int']['output']>;
+  /** Available sandbox slots, including starting and running sandboxes, or null when unlimited. */
+  concurrentSandboxes?: Maybe<Scalars['Int']['output']>;
+  /** Available minutes after completed usage and active reservations, or null when unlimited. */
+  sandboxMinutes?: Maybe<Scalars['Float']['output']>;
   /** Available minutes after completed usage and active reservations, or null when unlimited. */
   simulatorMinutes?: Maybe<Scalars['Float']['output']>;
 };
@@ -13920,6 +14181,13 @@ export type WorkflowJob = {
   __typename?: 'WorkflowJob';
   allDeviceTestCaseResults: Array<WorkflowDeviceTestCaseResult>;
   approvals: Array<WorkflowJobApproval>;
+  /**
+   * The workflow run started by a WORKFLOW_CALL job. Null for other job types, while the
+   * called run is not created yet, and for a failed call that never started a run. A call
+   * job copied by "re-run from failed jobs" resolves to the called run of the attempt it
+   * was copied from.
+   */
+  childWorkflowRun?: Maybe<WorkflowRun>;
   createdAt: Scalars['DateTime']['output'];
   credentialsAppleDeviceRegistrationRequest?: Maybe<AppleDeviceRegistrationRequest>;
   /**
@@ -14055,6 +14323,7 @@ export enum WorkflowJobType {
   Custom = 'CUSTOM',
   Deploy = 'DEPLOY',
   Doc = 'DOC',
+  Email = 'EMAIL',
   Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
   GithubComment = 'GITHUB_COMMENT',
@@ -14101,6 +14370,11 @@ export type WorkflowQuery_ByIdArgs = {
   workflowId: Scalars['ID']['input'];
 };
 
+export type WorkflowReferencedFileInput = {
+  fileName: Scalars['String']['input'];
+  yamlConfig: Scalars['String']['input'];
+};
+
 export type WorkflowRevision = {
   __typename?: 'WorkflowRevision';
   blobSha: Scalars['String']['output'];
@@ -14120,6 +14394,12 @@ export type WorkflowRevisionEdge = {
 
 export type WorkflowRevisionInput = {
   fileName: Scalars['String']['input'];
+  /**
+   * Other workflow files of the project that `uses` jobs reference, by bare file name.
+   * Required when the workflow has `uses` jobs. Every uploaded file is stored as a
+   * revision and pinned on the run, whether or not a job calls it.
+   */
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput>>;
   yamlConfig: Scalars['String']['input'];
 };
 
@@ -14146,6 +14426,7 @@ export type WorkflowRevisionMutation_GetWorkflowRevisionsFromGitRefArgs = {
 
 export type WorkflowRevisionMutation_ValidateWorkflowYamlConfigArgs = {
   appId: Scalars['ID']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput>>;
   yamlConfig: Scalars['String']['input'];
 };
 
@@ -14171,6 +14452,12 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   actor?: Maybe<Actor>;
   app: App;
   /**
+   * The run currently holding the concurrency group this run is waiting for.
+   * Null for runs that are not waiting, and briefly null while the group's
+   * next run is being promoted.
+   */
+  blockingWorkflowRun?: Maybe<WorkflowRun>;
+  /**
    * Why the server canceled this run. Null for manually canceled runs and for
    * runs canceled before the reason was recorded.
    */
@@ -14189,6 +14476,11 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   jobs: Array<WorkflowJob>;
   /** Snapshot of the workflow's name at run creation. */
   name: Scalars['String']['output'];
+  /**
+   * The WORKFLOW_CALL job of another run that started this run. Null for runs started by
+   * a trigger, a manual dispatch or a retry. Called runs are omitted from run lists.
+   */
+  parentWorkflowJob?: Maybe<WorkflowJob>;
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
   requestedGitRef?: Maybe<Scalars['String']['output']>;
   retriedWorkflowRun?: Maybe<WorkflowRun>;
@@ -14204,7 +14496,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonConcurrencyGroupQueueFull | WorkflowRunCancelReasonConcurrencyGroupReplaced | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14213,6 +14505,24 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupQueueFull = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupQueueFull';
+  /**
+   * The waiting-run capacity the concurrency group's queue was at when this
+   * run arrived.
+   */
+  maximumWaitingRuns: Scalars['Int']['output'];
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupReplaced = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupReplaced';
+  /**
+   * The newer run that took this run's place in the concurrency group's waiting
+   * slot. Null if that run no longer exists.
+   */
+  replacingWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunCancelReasonWorkflowCall = {
@@ -15621,6 +15931,7 @@ export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'Root
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput> | WorkflowReferencedFileInput>;
 }>;
 
 
@@ -15749,7 +16060,7 @@ export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
 }>;
 
 
-export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -16595,7 +16906,7 @@ export type WorkflowRunByIdWithJobsQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, blockingWorkflowRun?: { __typename?: 'WorkflowRun', id: string, name: string, status: WorkflowRunStatus } | null, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
             | { __typename: 'PartnerActor', id: string, displayName: string }
             | { __typename: 'Robot', id: string, displayName: string }
             | { __typename: 'SSOUser', id: string, displayName: string }
@@ -16615,7 +16926,7 @@ export type WorkflowRunsForAppIdFileNameAndStatusQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -16807,7 +17118,7 @@ export type WorkflowJobFragment = { __typename?: 'WorkflowJob', id: string, key:
       | { __typename: 'User', id: string, displayName: string }
      | null, app: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, updateChannel?: { __typename?: 'UpdateChannel', id: string, name: string } | null, runtime?: { __typename?: 'Runtime', id: string, version: string } | null, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> };
 
-export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
     | { __typename: 'PartnerActor', id: string }
     | { __typename: 'Robot', firstName?: string | null, id: string }
     | { __typename: 'SSOUser', username: string, id: string }

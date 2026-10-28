@@ -1,7 +1,7 @@
 import Joi from 'joi';
 import semver from 'semver';
 
-import { ResourceClass } from './types';
+import { JobExpoTokenRole, ResourceClass } from './types';
 
 const AllowedCommonResourceClasses: ResourceClass[] = [
   ResourceClass.DEFAULT,
@@ -31,9 +31,20 @@ const CacheSchema = Joi.object({
       'Cannot provide both "cache.customPaths" and "cache.paths" - use "cache.paths"',
   });
 
+const PermissionsSchema = Joi.object({
+  account: Joi.object({
+    role: Joi.string()
+      .valid(...Object.values(JobExpoTokenRole))
+      .required(),
+  }).required(),
+});
+
 const CommonBuildProfileSchema = Joi.object({
   // builder
   resourceClass: Joi.string().valid(...AllowedCommonResourceClasses),
+
+  // permissions of the EXPO_TOKEN used by the build
+  permissions: PermissionsSchema,
 
   // build environment
   env: Joi.object().pattern(Joi.string(), Joi.string().empty(null)),

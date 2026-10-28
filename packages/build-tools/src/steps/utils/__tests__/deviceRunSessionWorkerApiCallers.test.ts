@@ -170,6 +170,53 @@ describe('with a device run session token', () => {
     expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
   });
 
+  it('handles the structured stopped code without matching the message', async () => {
+    const ctx = createCtx({ withToken: true });
+    jest.mocked(turtleFetch).mockResolvedValueOnce(
+      jsonResponse(
+        {
+          errors: [
+            { code: 'DEVICE_RUN_SESSION_ALREADY_STOPPED', message: 'A different explanation.' },
+          ],
+        },
+        400
+      )
+    );
+    await expect(
+      uploadRemoteSessionConfigAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        remoteConfig: {},
+        logger,
+      })
+    ).resolves.toBe('stopped');
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      'Device run session drs-id was stopped during startup.'
+    );
+  });
+
+  it.each([undefined, 'VALIDATION_ERROR'])('preserves an ordinary 400 with code %s', async code => {
+    const ctx = createCtx({ withToken: true });
+    jest
+      .mocked(turtleFetch)
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { errors: [{ code, message: 'Device run session has already stopped.' }] },
+          400
+        )
+      );
+    await expect(
+      uploadRemoteSessionConfigAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        remoteConfig: {},
+        logger,
+      })
+    ).rejects.toBeInstanceOf(SystemError);
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('fails the start with a system error that does not contain the token', async () => {
     const ctx = createCtx({ withToken: true });
     jest
@@ -364,7 +411,9 @@ describe('with a device run session token', () => {
         robotAccessToken: ROBOT_ACCESS_TOKEN,
         extensions: ['app'],
       })
-    ).rejects.toThrow('Unexpected response from server (500): stop here');
+    ).rejects.toThrow(
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+    );
 
     expectWorkerApiCall('application', 'GET');
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
@@ -589,7 +638,9 @@ describe('without a device run session token', () => {
         robotAccessToken: ROBOT_ACCESS_TOKEN,
         extensions: ['app'],
       })
-    ).rejects.toThrow('Unexpected response from server (500)');
+    ).rejects.toThrow(
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+    );
 
     expect(ctx.graphqlClient.query).toHaveBeenCalled();
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(

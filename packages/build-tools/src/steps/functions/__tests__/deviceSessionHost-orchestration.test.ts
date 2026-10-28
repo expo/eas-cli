@@ -98,7 +98,7 @@ beforeEach(() => {
   const events = { stopAsync: stopEvents, getLastEventObservedAt: () => undefined };
   jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(startAppiumEventCollectionAsync).mockResolvedValue(events);
-  jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+  jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
   jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
 });
 

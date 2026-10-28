@@ -593,7 +593,7 @@ async function startDeviceSessionHostInternalAsync(
   }
 
   let stagedAppDirectory: string | undefined;
-  let beforeLaunch: ReturnType<typeof asyncResult<void>> | undefined;
+  let simulatorSetup: ReturnType<typeof asyncResult<void>> | undefined;
   const readinessController = new AbortController();
   const readinessSignal = AbortSignal.any([startup.signal, readinessController.signal]);
   let previewToken: string | undefined;
@@ -686,7 +686,7 @@ async function startDeviceSessionHostInternalAsync(
         onStopped: successful => onFinished(successful && !previewFailed),
       })
         .finally(async () => {
-          await beforeLaunch;
+          await simulatorSetup;
           if (stagedAppDirectory) {
             await fs.promises.rm(stagedAppDirectory, { recursive: true, force: true });
           }
@@ -727,7 +727,8 @@ async function startDeviceSessionHostInternalAsync(
         );
       }
       signal?.throwIfAborted();
-      beforeLaunch = asyncResult(
+      // APSD cleanup runs alongside app startup and readiness; teardown joins the task.
+      simulatorSetup = asyncResult(
         startup.untilAborted(
           startup.run('Simulator setup', async taskLogger => {
             try {
@@ -765,7 +766,6 @@ async function startDeviceSessionHostInternalAsync(
         signal?.throwIfAborted();
         await action('app.install', { udid: iosSimulatorUdid, path: staged.path });
       }
-      (await beforeLaunch)?.enforceValue();
       if (app.launchAppIdentifier) {
         signal?.throwIfAborted();
         await action('app.launch', {
