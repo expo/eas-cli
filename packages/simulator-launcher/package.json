@@ -1,6 +1,6 @@
 {
   "name": "@expo/simulator-launcher",
-  "version": "25.3.0",
+  "version": "27.1.0",
   "description": "Launch and claim Simulator sessions on EAS workers",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
