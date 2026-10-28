@@ -1,7 +1,4 @@
 import { type ChildProcess } from 'node:child_process';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 
 import { createWarmSimulatorSession } from '../commands/start';
 import { createArgentTool } from '../utils/argent';
@@ -9,39 +6,43 @@ import {
   type ChildProcessHandle,
   commands,
   stopProcessAndDescendantsAsync,
-  terminateProcessGroupAsync,
 } from '../utils/processes';
 import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
-import { shutdownSimulatorAsync } from '../utils/simulator';
+import { disableApsdAsync, shutdownSimulatorAsync } from '../utils/simulator';
 import { deferred, until } from './helpers';
 
+jest.mock('../utils/argent');
 jest.mock('../utils/processes');
 jest.mock('../utils/serveSim');
 jest.mock('../utils/simulator', () => ({
   ...jest.requireActual('../utils/simulator'),
   shutdownSimulatorAsync: jest.fn(),
+  disableApsdAsync: jest.fn(),
 }));
 
-/** Calls that started a tool process whose arguments include `word`, e.g. `prepare` or `server`. */
-function started(word: string) {
-  return jest.mocked(commands.start).mock.calls.filter(([, args]) => args.includes(word));
-}
-function ran(...words: string[]) {
-  return jest
-    .mocked(commands.runAsync)
-    .mock.calls.filter(([, args]) => words.every(word => args.includes(word)));
-}
+const defaultDevice = { udid: 'DUO', name: 'iPhone Duo' };
+const secondary = { udid: 'PHONE18', name: 'iPhone 18' };
+const otherDevice = { udid: 'OTHER', name: 'iPhone Pro' };
+const serverInfo = {
+  startupDevice: 'DUO',
+  pid: 10,
+  nativeStartTime: 'server-start',
+  port: 3200,
+  url: 'http://127.0.0.1:3200',
+  token: 'fixture-token',
+};
 function handle(pid: number): ChildProcessHandle {
   return { child: { pid } as ChildProcess, resultPromise: Promise.resolve('') };
 }
-const serveSim = handle(10);
+const server = handle(10);
 const agent = handle(11);
 const argent = handle(12);
 let controller: AbortController;
-let environment: NodeJS.ProcessEnv;
+let env: NodeJS.ProcessEnv;
 let onPreparationFailure: jest.Mock;
 let onBackgroundFailure: jest.Mock;
-
+const starts = (word: string) =>
+  jest.mocked(commands.start).mock.calls.filter(([, args]) => args.includes(word));
 function createSession() {
   return createWarmSimulatorSession({
     signal: controller.signal,
@@ -50,677 +51,256 @@ function createSession() {
     onBackgroundFailure,
   });
 }
+
 beforeEach(() => {
   jest.resetAllMocks();
-  environment = { ...process.env };
-  delete process.env.EXPO_SIMULATOR_DEVICE;
-  process.env.AGENT_DEVICE_STATE_DIR = '/isolated-session-fixture/agent';
-  process.env.ARGENT_EVENT_LOG = '/isolated-session-fixture/events';
-  jest.spyOn(os, 'homedir').mockReturnValue('/isolated-session-fixture');
+  env = { ...process.env };
+  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo';
+  process.env.AGENT_DEVICE_STATE_DIR = '/fixture/agent';
+  process.env.ARGENT_EVENT_LOG = '/fixture/argent-events';
   controller = new AbortController();
   onPreparationFailure = jest.fn(error => controller.abort(error));
   onBackgroundFailure = jest.fn(error => controller.abort(error));
   jest.mocked(commands.runAsync).mockImplementation(async (_file, args) => {
-    if (args.includes('launchctl') && args.includes('list')) {
-      throw Object.assign(new Error('apsd is not loaded'), { code: 113 });
+    if (args.includes('devices')) {
+      return JSON.stringify({ devices: { ios: [defaultDevice, secondary, otherDevice] } });
     }
-    return args.includes('devices')
-      ? JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } })
-      : 'native-start-time';
+    if (args.includes('launchctl') && args.includes('list')) {
+      throw Object.assign(new Error('not loaded'), { code: 113 });
+    }
+    return 'controller-start';
   });
-  jest.mocked(startServeSim).mockReturnValue(serveSim);
   jest
     .mocked(commands.start)
     .mockImplementation((_file, args) => (args.includes('prepare') ? agent : argent));
-  jest.mocked(shutdownSimulatorAsync).mockResolvedValue();
+  jest.mocked(createArgentTool).mockImplementation(() => ({
+    name: 'argent',
+    startAsync: async () => {
+      commands.start('bunx', ['argent', 'server']);
+    },
+    stopAsync: async () => {
+      await stopProcessAndDescendantsAsync(argent);
+    },
+  }));
+  jest.mocked(startServeSim).mockReturnValue(server);
+  jest.mocked(waitForServeSimReadyAsync).mockResolvedValue(serverInfo);
   jest.mocked(stopProcessAndDescendantsAsync).mockResolvedValue();
+  jest.mocked(shutdownSimulatorAsync).mockResolvedValue();
+  jest
+    .mocked(disableApsdAsync)
+    .mockImplementation(jest.requireActual('../utils/simulator').disableApsdAsync);
 });
 afterEach(() => {
+  process.env = env;
   jest.restoreAllMocks();
-  process.env = environment;
 });
 
-it('creates an idle owner synchronously and stops services acquired before a tool fails', async () => {
-  const argentPreparation = deferred<string>();
-  const failure = new Error('Argent preparation failed');
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation((file, args, signal) =>
-      args.includes('artifacts-list-endpoint')
-        ? argentPreparation.promise
-        : original(file, args, signal)
-    );
+it('creates a stoppable owner before any native work and does not start after stop', async () => {
   const session = createSession();
   expect(commands.runAsync).not.toHaveBeenCalled();
-  try {
-    // serve-sim readiness makes the session claimable while the tools are still starting.
-    await session.prepareAsync();
-    expect(started('prepare')).toHaveLength(1);
-    argentPreparation.reject(failure);
-    await until(() => onPreparationFailure.mock.calls.length > 0);
-    expect(onPreparationFailure).toHaveBeenCalledWith(failure);
-    expect(onBackgroundFailure).not.toHaveBeenCalled();
-    await session.stopAsync();
-    expect(jest.mocked(stopProcessAndDescendantsAsync).mock.calls).toEqual([
-      [serveSim],
-      [agent, true],
-    ]);
-    expect(ran('daemon', 'stop')).toHaveLength(1);
-    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-    expect(started('server')).toEqual([]);
-  } finally {
-    argentPreparation.reject(failure);
-  }
+  await session.stopAsync();
+  await expect(session.prepareAsync()).rejects.toThrow();
+  expect(startServeSim).not.toHaveBeenCalled();
+  expect(shutdownSimulatorAsync).not.toHaveBeenCalled();
 });
 
-it('disables apsd after boot and before the device is reported ready', async () => {
-  const apsdBootout = deferred<string>();
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+it('stop joins pending device selection without starting a late server', async () => {
+  const listing = deferred<string>();
+  jest.mocked(commands.runAsync).mockReturnValueOnce(listing.promise);
+  const session = createSession();
+  const preparing = session.prepareAsync();
+  void preparing.catch(() => {});
+  let stopped = false;
+  const stopping = session.stopAsync().then(() => {
+    stopped = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(stopped).toBe(false);
+  listing.resolve(JSON.stringify({ devices: { ios: [defaultDevice] } }));
+  await stopping;
+  await expect(preparing).rejects.toThrow();
+  expect(startServeSim).not.toHaveBeenCalled();
+});
+
+it('starts one orphan with all configured devices and keeps its identity separate from selection', async () => {
+  const session = createSession();
+  const info = await session.prepareAsync();
+  expect(startServeSim).toHaveBeenCalledWith(['DUO'], expect.any(AbortSignal));
+  expect(info).toMatchObject({
+    device: defaultDevice,
+    server: serverInfo,
+    controllerPid: process.pid,
+    controllerStartTime: 'controller-start',
+  });
+  const selected = await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'OTHER' });
+  expect(selected.device).toEqual(otherDevice);
+  expect(startServeSim).toHaveBeenCalledTimes(1);
+  expect(commands.runAsync).not.toHaveBeenCalledWith(
+    'xcrun',
+    expect.arrayContaining(['bootstatus']),
+    expect.anything()
+  );
+  await session.stopAsync();
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('OTHER');
+});
+
+it('primes the exact version once before readiness and bounds two failed attempts', async () => {
+  const priming = deferred<string>();
+  const run = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest
     .mocked(commands.runAsync)
     .mockImplementation((file, args, signal) =>
-      args.includes('bootout') && args.includes('user/foreground/com.apple.apsd')
-        ? apsdBootout.promise
-        : original(file, args, signal)
+      file === 'bun' ? priming.promise : run(file, args, signal)
     );
   const session = createSession();
   let ready = false;
-  const preparing = session.prepareAsync().then(info => {
+  const preparing = session.prepareAsync().then(() => {
     ready = true;
-    return info;
   });
-  try {
-    await until(() =>
-      jest.mocked(commands.runAsync).mock.calls.some(([, args]) => args.includes('bootout'))
-    );
-    const calls = jest.mocked(commands.runAsync).mock.calls.map(([, args]) => args.join(' '));
-    expect(calls.findIndex(call => call.includes('bootstatus PHONE'))).toBeLessThan(
-      calls.indexOf('simctl spawn PHONE launchctl disable user/foreground/com.apple.apsd')
-    );
-    await new Promise(resolve => setImmediate(resolve));
-    expect(ready).toBe(false);
-    apsdBootout.resolve('');
-    await preparing;
-    expect(calls).toContain('simctl spawn PHONE launchctl disable user/foreground/com.apple.apsd');
-  } finally {
-    apsdBootout.resolve('');
-  }
-});
-
-it('keeps the warm session when apsd cannot be disabled', async () => {
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation(async (file, args, signal) =>
-      args.includes('launchctl') && args.includes('disable')
-        ? Promise.reject(new Error('launchctl unavailable'))
-        : original(file, args, signal)
-    );
-  const stderr = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-  const session = createSession();
-  expect(await session.prepareAsync()).toMatchObject({ device: { udid: 'PHONE' } });
-  expect(stderr).toHaveBeenCalledWith(
-    expect.stringContaining('Could not disable apsd on PHONE; continuing')
+  await until(() => jest.mocked(commands.runAsync).mock.calls.some(([file]) => file === 'bun'));
+  expect(ready).toBe(false);
+  expect(jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file === 'bun')).toHaveLength(
+    1
   );
-  expect(onPreparationFailure).not.toHaveBeenCalled();
+  priming.resolve('25.3.0');
+  await preparing;
+  await session.stopAsync();
 });
 
-it('starts tools in the Simulator only after serve-sim is ready', async () => {
-  const serveSimReady = deferred<void>();
-  jest.mocked(waitForServeSimReadyAsync).mockReturnValueOnce(serveSimReady.promise);
-  const session = createSession();
-  const preparing = session.prepareAsync();
-  try {
-    await until(() => jest.mocked(startServeSim).mock.calls.length > 0);
-    await new Promise(resolve => setImmediate(resolve));
-    // Argent's configuration does not touch the Simulator, so it may run early.
-    expect(commands.runAsync).toHaveBeenCalledWith('ffmpeg', ['-version'], expect.anything());
-    expect(commands.start).not.toHaveBeenCalled();
-    serveSimReady.resolve();
-    await preparing;
-    await until(() => started('server').length > 0);
-    expect(started('prepare')[0][1]).toContain('PHONE');
-  } finally {
-    serveSimReady.resolve();
-  }
-});
-
-it('serve-sim claim during agent-device prepare stops it and returns without waiting', async () => {
-  const preparing = deferred<string>();
-  const prepare = { child: { pid: 11 } as ChildProcess, resultPromise: preparing.promise };
+it('reuses the default runner after adoption without preparing it twice', async () => {
+  const preparation = deferred<string>();
   jest
     .mocked(commands.start)
-    .mockImplementation((_file, args) => (args.includes('prepare') ? prepare : argent));
-  jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async job => {
-    if (job === prepare) {
-      preparing.reject(new Error('stopped'));
+    .mockImplementation((_file, args) =>
+      args.includes('prepare') ? { ...agent, resultPromise: preparation.promise } : argent
+    );
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'agent-device' });
+  let ready = false;
+  const tools = session.prepareToolsAsync().then(() => {
+    ready = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(ready).toBe(false);
+  preparation.resolve('');
+  await tools;
+  expect(starts('prepare')).toHaveLength(1);
+  await session.stopAsync();
+});
+
+it('starts the selected runner only in the post-adopt phase, after old runner retirement', async () => {
+  const retirement = deferred();
+  jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async handle => {
+    if (handle === agent) {
+      await retirement.promise;
     }
   });
   const session = createSession();
-  try {
-    await session.prepareAsync();
-    expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-      device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
-    });
-    await until(() => ran('daemon', 'stop').length > 0);
-    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(prepare, true);
-    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(argent);
-    expect(onPreparationFailure).not.toHaveBeenCalled();
-    jest.mocked(stopProcessAndDescendantsAsync).mockClear();
-    await session.stopAsync();
-    // Only serve-sim is left; the stopped tools are not stopped again.
-    expect(jest.mocked(stopProcessAndDescendantsAsync).mock.calls).toEqual([[serveSim]]);
-    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-  } finally {
-    preparing.reject(new Error('stopped'));
-  }
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'agent-device', requestedDevice: 'PHONE18' });
+  expect(starts('prepare')).toHaveLength(1);
+  let finished = false;
+  const tools = session.prepareToolsAsync().then(() => {
+    finished = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(finished).toBe(false);
+  expect(starts('prepare')).toHaveLength(1);
+  retirement.resolve();
+  await tools;
+  expect(starts('prepare')[1][1]).toEqual(expect.arrayContaining(['--udid', 'PHONE18']));
+  await session.stopAsync();
 });
 
-it('claim waits only for the requested tool and stops the other one mid-start', async () => {
-  const preparing = deferred<string>();
-  const prepare = { child: { pid: 11 } as ChildProcess, resultPromise: preparing.promise };
-  const argentConfig = deferred<string>();
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation((file, args, signal) =>
-      args.includes('artifacts-list-endpoint') ? argentConfig.promise : original(file, args, signal)
-    );
-  jest
-    .mocked(commands.start)
-    .mockImplementation((_file, args) => (args.includes('prepare') ? prepare : argent));
-  jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async job => {
-    if (job === prepare) {
-      preparing.reject(new Error('stopped'));
+it('keeps global Argent when selecting another device', async () => {
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'argent', requestedDevice: 'PHONE18' });
+  await session.prepareToolsAsync();
+  expect(starts('server')).toHaveLength(1);
+  expect(stopProcessAndDescendantsAsync).not.toHaveBeenCalledWith(argent);
+  await session.stopAsync();
+});
+
+it('rejects a changed server identity before starting the selected runner', async () => {
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'agent-device', requestedDevice: 'PHONE18' });
+  jest.mocked(waitForServeSimReadyAsync).mockResolvedValueOnce({ ...serverInfo, pid: 99 });
+  await expect(session.prepareToolsAsync()).rejects.toThrow('does not match');
+  expect(starts('prepare')).toHaveLength(1);
+  await session.stopAsync();
+});
+
+it('serve-sim tool preparation does not gate on unused tool stops, but terminal cleanup drains them', async () => {
+  const retirement = deferred();
+  jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async handle => {
+    if (handle === agent) {
+      await retirement.promise;
     }
   });
   const session = createSession();
-  try {
-    await session.prepareAsync();
-    let claimed = false;
-    const claiming = session.claimAsync({ engine: 'argent' }).then(device => {
-      claimed = true;
-      return device;
-    });
-    await until(() => ran('daemon', 'stop').length > 0);
-    expect(claimed).toBe(false);
-    expect(started('server')).toEqual([]);
-    argentConfig.resolve('');
-    expect(await claiming).toMatchObject({ device: { udid: 'PHONE' } });
-    expect(started('server')).toHaveLength(1);
-    expect(onPreparationFailure).not.toHaveBeenCalled();
-  } finally {
-    preparing.reject(new Error('stopped'));
-    argentConfig.resolve('');
-  }
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim' });
+  await session.prepareToolsAsync();
+  let stopped = false;
+  const stopping = session.stopAsync().then(() => {
+    stopped = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(stopped).toBe(false);
+  retirement.resolve();
+  await stopping;
 });
 
-it('replacement starts new services once the old serve-sim exits, without waiting for the old device shutdown', async () => {
-  const serveSimStop = deferred<void>();
-  const oldShutdown = deferred<string>();
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
-    args.includes('devices')
-      ? JSON.stringify({
-          devices: {
-            ios: [
-              { udid: 'PHONE', name: 'iPhone 17' },
-              { udid: 'PRO', name: 'iPhone 17 Pro' },
-            ],
-          },
-        })
-      : original(file, args, signal)
-  );
-  jest.mocked(shutdownSimulatorAsync).mockImplementation(async () => {
-    await oldShutdown.promise;
-  });
-  jest.mocked(terminateProcessGroupAsync).mockReturnValueOnce(serveSimStop.promise);
+it('starts an owned nonblocking apsd attempt after selected adoption and drains it before shutdown', async () => {
   const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'OTHER' });
+  const setup = deferred();
+  const disable = jest.mocked(disableApsdAsync).mockImplementation(() => setup.promise);
   try {
-    await session.prepareAsync();
-    jest.mocked(commands.start).mockClear();
-    jest.mocked(startServeSim).mockClear();
-    const claiming = session.claimAsync({ engine: 'agent-device', requestedDevice: 'PRO' });
-    await until(() =>
-      jest
-        .mocked(commands.runAsync)
-        .mock.calls.some(([, args]) => args.includes('bootstatus') && args.includes('PRO'))
-    );
-    expect(terminateProcessGroupAsync).toHaveBeenCalledWith(serveSim);
-    expect(startServeSim).not.toHaveBeenCalled();
-    expect(commands.start).not.toHaveBeenCalled();
-    serveSimStop.resolve();
-    // The claim returns while the old device is still shutting down.
-    expect(await claiming).toEqual({ device: { udid: 'PRO', name: 'iPhone 17 Pro', port: 3200 } });
-    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-    expect(startServeSim).toHaveBeenCalledWith('PRO', expect.any(AbortSignal), 3200);
-    expect(commands.runAsync).toHaveBeenCalledWith(
-      'xcrun',
-      ['simctl', 'spawn', 'PRO', 'launchctl', 'disable', 'user/foreground/com.apple.apsd'],
-      expect.any(AbortSignal)
-    );
-    expect(started('prepare')).toHaveLength(1);
-    expect(started('prepare')[0][1]).toContain('PRO');
-    expect(started('server')).toEqual([]);
-    // Terminal cleanup waits for the background shutdown, then owns only the new device.
+    await session.prepareToolsAsync();
+    expect(disable).toHaveBeenCalledWith('OTHER', expect.any(AbortSignal));
     let stopped = false;
     const stopping = session.stopAsync().then(() => {
       stopped = true;
     });
     await new Promise(resolve => setImmediate(resolve));
     expect(stopped).toBe(false);
-    expect(jest.mocked(shutdownSimulatorAsync).mock.calls).toEqual([['PHONE']]);
-    oldShutdown.resolve('');
-    await stopping;
-    expect(jest.mocked(shutdownSimulatorAsync).mock.calls).toEqual([['PHONE'], ['PRO']]);
-    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(agent, true);
-  } finally {
-    serveSimStop.resolve();
-    oldShutdown.resolve('');
-  }
-});
-
-it('fails a replacement only after every old stop settles', async () => {
-  const serveSimStop = deferred<void>();
-  const daemonFailure = new Error('daemon stop failed');
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
-    if (args.includes('daemon') && ran('daemon', 'stop').length === 1) {
-      throw daemonFailure;
-    }
-    return args.includes('devices')
-      ? JSON.stringify({
-          devices: {
-            ios: [
-              { udid: 'PHONE', name: 'iPhone 17' },
-              { udid: 'PRO', name: 'iPhone 17 Pro' },
-            ],
-          },
-        })
-      : original(file, args, signal);
-  });
-  jest.mocked(terminateProcessGroupAsync).mockReturnValueOnce(serveSimStop.promise);
-  const session = createSession();
-  try {
-    await session.prepareAsync();
-    let settled = false;
-    const claiming = session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' }).then(
-      () => {
-        settled = true;
-      },
-      error => {
-        settled = true;
-        return error;
-      }
-    );
-    await until(() => ran('daemon', 'stop').length > 0);
-    await new Promise(resolve => setImmediate(resolve));
-    // The old serve-sim is still stopping, so the replacement has not failed yet.
-    expect(settled).toBe(false);
     expect(shutdownSimulatorAsync).not.toHaveBeenCalled();
-    serveSimStop.resolve();
-    expect(await claiming).toBe(daemonFailure);
+    setup.resolve();
+    await stopping;
+    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('OTHER');
   } finally {
-    serveSimStop.resolve();
+    setup.resolve();
+    await session.stopAsync();
   }
 });
 
-it('keeps a replaced device owned when its background shutdown fails', async () => {
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) =>
-    args.includes('devices')
-      ? JSON.stringify({
-          devices: {
-            ios: [
-              { udid: 'PHONE', name: 'iPhone 17' },
-              { udid: 'PRO', name: 'iPhone 17 Pro' },
-            ],
-          },
-        })
-      : original(file, args, signal)
-  );
-  jest.mocked(shutdownSimulatorAsync).mockRejectedValueOnce(new Error('shutdown failed'));
+it('does not repeat completed default-device setup after adoption', async () => {
   const session = createSession();
   await session.prepareAsync();
-  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PRO' });
+  jest.mocked(disableApsdAsync).mockClear();
+  await session.claimAsync({ engine: 'serve-sim' });
+  await session.prepareToolsAsync();
+  expect(disableApsdAsync).not.toHaveBeenCalled();
   await session.stopAsync();
-  // The background shutdown of PHONE failed, so terminal cleanup shuts down both devices.
-  expect(jest.mocked(shutdownSimulatorAsync).mock.calls).toEqual([['PHONE'], ['PHONE'], ['PRO']]);
-  expect(onBackgroundFailure).not.toHaveBeenCalled();
 });
 
-it('drains unused tools before native cleanup, retaining their failure', async () => {
-  const unusedAgent = deferred<string>();
-  const unusedArgent = deferred<void>();
-  let argentStopped = false;
-  const failure = new Error('Argent stop failed');
-  // The claim-time Argent stop fails; the terminal retry of that stop succeeds.
-  jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async job => {
-    if (job === argent && !argentStopped) {
-      argentStopped = true;
-      await unusedArgent.promise;
-    }
-  });
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation((file, args, signal) =>
-      args.includes('daemon') && ran('daemon', 'stop').length === 1
-        ? unusedAgent.promise
-        : original(file, args, signal)
-    );
+it('warns on ordinary adopted-device apsd failure without failing the claimed session', async () => {
   const session = createSession();
-  expect(await session.prepareAsync()).toMatchObject({
-    device: { udid: 'PHONE' },
-    controllerPid: process.pid,
-    controllerStartTime: 'native-start-time',
-    agentDeviceStateDir: '/isolated-session-fixture/agent',
-    argentEventLogPath: '/isolated-session-fixture/events',
-  });
-  expect(await session.claimAsync({ engine: 'serve-sim' })).toEqual({
-    device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
-  });
-  const stopping = session.stopAsync();
-  const rejected = expect(stopping).rejects.toMatchObject({ errors: [failure] });
-  try {
-    unusedArgent.reject(failure);
-    await new Promise(resolve => setImmediate(resolve));
-    expect(onBackgroundFailure).toHaveBeenCalledWith(failure);
-    expect(stopProcessAndDescendantsAsync).not.toHaveBeenCalledWith(serveSim);
-    unusedAgent.resolve('');
-    await rejected;
-    expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(serveSim);
-    expect(
-      jest.mocked(stopProcessAndDescendantsAsync).mock.calls.filter(([job]) => job === argent)
-    ).toHaveLength(2);
-    expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-  } finally {
-    unusedArgent.reject(failure);
-    unusedAgent.resolve('');
-    await stopping.catch(() => {});
-  }
-});
-
-describe('waitForServeSimReadyAsync', () => {
-  const { waitForServeSimReadyAsync } =
-    jest.requireActual<typeof import('../utils/serveSim')>('../utils/serveSim');
-
-  it('waits for the state file and a ready /readyz answer for this device', async () => {
-    const tmpdir = await fs.mkdtemp(
-      path.join(jest.requireActual<typeof os>('node:os').tmpdir(), 'serve-sim-ready-')
-    );
-    jest.spyOn(os, 'tmpdir').mockReturnValue(tmpdir);
-    const fetchSpy = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'starting' })))
-      .mockResolvedValue(new Response(JSON.stringify({ status: 'ready', device: 'phone' })));
-    try {
-      const running = {
-        child: { pid: 10 } as ChildProcess,
-        resultPromise: new Promise<string>(() => {}),
-      };
-      const waiting = waitForServeSimReadyAsync('PHONE', running, controller.signal);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      expect(fetchSpy).not.toHaveBeenCalled();
-      await fs.mkdir(path.join(tmpdir, 'serve-sim'));
-      await fs.writeFile(
-        path.join(tmpdir, 'serve-sim', 'server-PHONE.json'),
-        JSON.stringify({ device: 'PHONE', url: 'http://127.0.0.1:3200', token: 'secret' })
-      );
-      await waiting;
-      expect(fetchSpy).toHaveBeenLastCalledWith('http://127.0.0.1:3200/readyz', {
-        signal: expect.any(AbortSignal),
-      });
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
-    } finally {
-      await fs.rm(tmpdir, { recursive: true, force: true });
-    }
-  });
-
-  it('reads serve-sim state from SERVE_SIM_STATE_DIR when it is set', async () => {
-    const stateDir = await fs.mkdtemp(
-      path.join(jest.requireActual<typeof os>('node:os').tmpdir(), 'serve-sim-state-')
-    );
-    process.env.SERVE_SIM_STATE_DIR = stateDir;
-    jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
-    jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ status: 'ready', device: 'PHONE' })));
-    try {
-      await fs.writeFile(
-        path.join(stateDir, 'server-PHONE.json'),
-        JSON.stringify({ device: 'PHONE', url: 'http://127.0.0.1:3200', token: 'secret' })
-      );
-      const running = {
-        child: { pid: 10 } as ChildProcess,
-        resultPromise: new Promise<string>(() => {}),
-      };
-      await waitForServeSimReadyAsync('PHONE', running, controller.signal);
-      expect(fetch).toHaveBeenCalledTimes(1);
-    } finally {
-      await fs.rm(stateDir, { recursive: true, force: true });
-    }
-  });
-
-  it('fails without an unhandled rejection when serve-sim exits with an error', async () => {
-    jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
-    const unhandled = jest.fn();
-    process.on('unhandledRejection', unhandled);
-    try {
-      const crashed = {
-        child: { pid: 10 } as ChildProcess,
-        resultPromise: Promise.reject(new Error('bunx exited with SIGTERM.')),
-      };
-      await expect(waitForServeSimReadyAsync('PHONE', crashed, controller.signal)).rejects.toThrow(
-        'serve-sim exited before PHONE became ready.'
-      );
-      await new Promise(resolve => setImmediate(resolve));
-      expect(unhandled).not.toHaveBeenCalled();
-    } finally {
-      process.off('unhandledRejection', unhandled);
-    }
-  });
-
-  it('fails when serve-sim exits before it is ready', async () => {
-    jest.spyOn(os, 'tmpdir').mockReturnValue('/missing-serve-sim-fixture');
-    const exited = { child: { pid: 10 } as ChildProcess, resultPromise: Promise.resolve('') };
-    await expect(waitForServeSimReadyAsync('PHONE', exited, controller.signal)).rejects.toThrow(
-      'serve-sim exited before PHONE became ready.'
-    );
-  });
-});
-
-describe('Argent preparation', () => {
-  it('warns without installing ffmpeg when the image does not provide it', async () => {
-    jest.mocked(commands.runAsync).mockImplementation(async file => {
-      if (file === 'ffmpeg') {
-        throw Object.assign(new Error('spawn ffmpeg ENOENT'), { code: 'ENOENT' });
-      }
-      return '';
-    });
-    const stderr = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-    await createArgentTool().prepareAsync!(controller.signal);
-    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('ffmpeg is unavailable'));
-    expect(
-      jest
-        .mocked(commands.runAsync)
-        .mock.calls.some(([file, args]) => file.includes('brew') || args.includes('brew'))
-    ).toBe(false);
-    expect(commands.runAsync).toHaveBeenCalledWith(
-      'bunx',
-      [expect.stringMatching(/^@swmansion\/argent@/), 'enable', 'artifacts-list-endpoint'],
-      expect.any(AbortSignal)
-    );
-  });
-});
-
-it('rejects serve-sim state that points readiness at another address', async () => {
-  const { waitForServeSimReadyAsync: waitActual } =
-    jest.requireActual<typeof import('../utils/serveSim')>('../utils/serveSim');
-  const stateDir = await fs.mkdtemp(
-    path.join(jest.requireActual<typeof os>('node:os').tmpdir(), 'serve-sim-state-')
-  );
-  process.env.SERVE_SIM_STATE_DIR = stateDir;
-  const fetchSpy = jest.spyOn(global, 'fetch');
-  try {
-    await fs.writeFile(
-      path.join(stateDir, 'server-PHONE.json'),
-      JSON.stringify({ device: 'PHONE', url: 'http://example.test:3200', token: 'secret' })
-    );
-    const running = {
-      child: { pid: 10 } as ChildProcess,
-      resultPromise: new Promise<string>(() => {}),
-    };
-    await expect(waitActual('PHONE', running, controller.signal)).rejects.toThrow(
-      'not http://127.0.0.1:3200'
-    );
-    expect(fetchSpy).not.toHaveBeenCalled();
-  } finally {
-    await fs.rm(stateDir, { recursive: true, force: true });
-  }
-});
-
-function configureTwoDevices() {
-  process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo,iPhone 18';
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation((file, args, signal) =>
-    args.includes('devices')
-      ? Promise.resolve(
-          JSON.stringify({
-            devices: {
-              ios: [
-                { udid: 'DUO', name: 'iPhone Duo' },
-                { udid: 'PHONE18', name: 'iPhone 18' },
-                { udid: 'OTHER', name: 'iPhone Other' },
-              ],
-            },
-          })
-        )
-      : original(file, args, signal)
-  );
-  const handles = { DUO: handle(201), PHONE18: handle(202), OTHER: handle(203) };
-  jest.mocked(startServeSim).mockImplementation(udid => handles[udid as keyof typeof handles]);
-  return handles;
-}
-
-it('stops partial device startup without requiring the parent signal to abort first', async () => {
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation((file, args, signal) => {
-    if (args.includes('bootstatus')) {
-      return new Promise((_resolve, reject) =>
-        signal!.addEventListener('abort', () => reject(signal!.reason), { once: true })
-      );
-    }
-    return original(file, args, signal);
-  });
-  const session = createSession();
-  const preparing = session.prepareAsync().catch(error => error);
-  await until(() => ran('bootstatus').length === 1);
-  await session.stopAsync();
-  expect(await preparing).toMatchObject({ name: 'AbortError' });
-  expect(controller.signal.aborted).toBe(false);
-  expect(startServeSim).not.toHaveBeenCalled();
-  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE');
-});
-it('bounds cache priming to two 30-second attempts and still becomes ready after both time out', async () => {
-  const attempts = [new AbortController(), new AbortController()];
-  const realTimeout = AbortSignal.timeout;
-  const timeoutSpy = jest
-    .spyOn(AbortSignal, 'timeout')
-    .mockImplementation(ms => (ms === 30_000 ? attempts.shift()!.signal : realTimeout(ms)));
-  const first = attempts[0],
-    second = attempts[1];
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest
-    .mocked(commands.runAsync)
-    .mockImplementation((file, args, signal) =>
-      args.includes('--version')
-        ? new Promise((_resolve, reject) =>
-            signal!.addEventListener('abort', () => reject(signal!.reason), { once: true })
-          )
-        : original(file, args, signal)
-    );
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'OTHER' });
+  jest.mocked(disableApsdAsync).mockRejectedValue(new Error('apsd remains loaded'));
   const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-  const session = createSession();
-  const preparing = session.prepareAsync();
-  void preparing.catch(() => {});
-  try {
-    await until(() => ran('--version').length === 1);
-    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
-    first.abort(new DOMException('prime timed out', 'TimeoutError'));
-    await until(() => ran('--version').length === 2);
-    second.abort(new DOMException('prime timed out', 'TimeoutError'));
-    expect((await preparing).device.udid).toBe('PHONE');
-    expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining('claim/stop may need the registry')
-    );
-  } finally {
-    first.abort();
-    second.abort();
-    controller.abort();
-    await preparing.catch(() => {});
-    await session.stopAsync();
-    timeoutSpy.mockRestore();
-  }
-});
-it('starts each warm serve-sim as an explicit orphan on its device port', () => {
-  const { startServeSim: launch } =
-    jest.requireActual<typeof import('../utils/serveSim')>('../utils/serveSim');
-  launch('DUO', controller.signal, 3200);
-  launch('PHONE18', controller.signal, 3202);
-  const launches = jest.mocked(commands.start).mock.calls;
-  expect(launches).toHaveLength(2);
-  for (const [, args] of launches) {
-    expect(args).toContain('--orphan');
-  }
-  expect(launches.map(([, args]) => args[args.indexOf('--port') + 1])).toEqual(['3200', '3202']);
-});
-
-it('a stopped session cannot begin preparation later', async () => {
-  const session = createSession();
+  await session.prepareToolsAsync();
   await session.stopAsync();
-  try {
-    await expect(session.prepareAsync()).rejects.toMatchObject({ name: 'AbortError' });
-    expect(commands.runAsync).not.toHaveBeenCalled();
-    expect(startServeSim).not.toHaveBeenCalled();
-  } finally {
-    await session.stopAsync();
-  }
-});
-
-it('stop cancels and drains the initial device listing before returning', async () => {
-  const listing = deferred<string>();
-  let listingSignal: AbortSignal | undefined;
-  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  jest.mocked(commands.runAsync).mockImplementation((file, args, signal) => {
-    if (args.includes('devices')) {
-      listingSignal = signal;
-      return listing.promise;
-    }
-    return original(file, args, signal);
-  });
-  const session = createSession();
-  const preparing = session.prepareAsync().catch(error => error);
-  await until(() => listingSignal !== undefined);
-  let stopped = false;
-  const stopping = session.stopAsync().then(() => {
-    stopped = true;
-  });
-  try {
-    await new Promise(resolve => setImmediate(resolve));
-    expect(listingSignal!.aborted).toBe(true);
-    expect(stopped).toBe(false);
-    listing.resolve(JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } }));
-    await stopping;
-    expect(await preparing).toMatchObject({ name: 'AbortError' });
-    expect(startServeSim).not.toHaveBeenCalled();
-    expect(ran('bootstatus')).toHaveLength(0);
-    expect(shutdownSimulatorAsync).not.toHaveBeenCalled();
-  } finally {
-    listing.resolve(JSON.stringify({ devices: { ios: [{ udid: 'PHONE', name: 'iPhone 17' }] } }));
-    await preparing;
-    await stopping;
-    await session.stopAsync();
-  }
+  expect(onPreparationFailure).not.toHaveBeenCalled();
+  expect(onBackgroundFailure).not.toHaveBeenCalled();
+  expect(warning.mock.calls.map(([text]) => text).join('')).toContain(
+    'Could not disable apsd on OTHER; continuing'
+  );
 });

@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { claimAsync } from './commands/claim';
+import { claimAsync, prepareToolsAsync } from './commands/claim';
 import { startAsync } from './commands/start';
 import { stopAsync } from './commands/stop';
 import { commands } from './utils/processes';
@@ -14,8 +14,13 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
     return 0;
   }
   const [command, engine, requestedDevice] = args;
-  if (command !== 'start' && command !== 'stop' && command !== 'claim') {
-    throw new Error('Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]>');
+  if (
+    command !== 'start' &&
+    command !== 'stop' &&
+    command !== 'claim' &&
+    command !== 'prepare-tools'
+  ) {
+    throw new Error('Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]|prepare-tools>');
   }
   const bootUuid = (
     await commands.runAsync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'])
@@ -32,6 +37,8 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
       return await stopAsync(bootUuid);
     case 'claim':
       return await claimAsync(bootUuid, engine, requestedDevice);
+    case 'prepare-tools':
+      return await prepareToolsAsync(bootUuid);
   }
 }
 

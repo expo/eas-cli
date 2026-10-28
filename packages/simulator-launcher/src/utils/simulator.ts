@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { commands } from './processes';
 import { type SimulatorDevice, SimulatorDeviceSchema } from './state';
@@ -36,13 +37,6 @@ export function selectSimulators(devices: SimulatorDevice[], selector?: string):
         .filter(device => device.name.startsWith('iPhone'))
         .sort((a, b) => a.name.length - b.name.length)
         .slice(0, 1);
-}
-
-export async function bootSimulatorAsync(udid: string, signal: AbortSignal): Promise<void> {
-  await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], signal).catch(async () => {
-    signal.throwIfAborted();
-    await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid], signal);
-  });
 }
 
 /** `simctl shutdown` fails for a device that is already shut down; that device is done. */

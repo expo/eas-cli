@@ -415,7 +415,7 @@ describe('EPERM from exited processes awaiting reap', () => {
 
 test('serve-sim leads its own process group', () => {
   const { startServeSim } = require('../utils/serveSim');
-  startServeSim('PHONE', new AbortController().signal);
+  startServeSim(['PHONE'], new AbortController().signal);
   expect(spawn).toHaveBeenCalledWith(
     'bunx',
     expect.arrayContaining(['PHONE', '--port', '3200']),
@@ -427,4 +427,214 @@ test('the fixture PID guard keeps tests away from the real process.kill', () => 
   expect(() => process.kill(90002, 0)).toThrow('fixture PID 90002');
   expect(() => process.kill(-90001, 'SIGKILL')).toThrow('fixture PID -90001');
   expect(() => process.kill(11, 0)).toThrow('fixture PID 11');
+});
+
+test.each([
+  { exitCode: 23, signalCode: null },
+  { exitCode: 143, signalCode: null },
+  { exitCode: null, signalCode: 'SIGTERM' },
+])(
+  'owned-group wrapper exit after intentional child stop still drains siblings and owned close: %j',
+  async exit => {
+    const job = commands.start('wrapper', [], undefined, true, true);
+    const signalled = new Set<number>();
+    jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -90001 || signalled.has(pid)) {
+        throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+      }
+      if (pid === child.pid) {
+        throw new Error('An exited wrapper PID must not be probed.');
+      }
+      if (signal === 'SIGTERM') {
+        signalled.add(pid);
+        Object.assign(child, exit);
+        child.emit('exit', exit.exitCode, exit.signalCode);
+      }
+      return true;
+    });
+    jest
+      .spyOn(commands, 'runAsync')
+      .mockImplementation(async (file, args) =>
+        file === 'pgrep' && args[1] === '90001' ? '90002 90003' : ''
+      );
+    let finished = false;
+    const stopping = stopProcessAndDescendantsAsync(job).then(() => {
+      finished = true;
+    });
+    await jest.advanceTimersByTimeAsync(1);
+    expect([...signalled]).toEqual([90002, 90003]);
+    expect(finished).toBe(false);
+    expect(child.kill).not.toHaveBeenCalled();
+    child.emit('close', exit.exitCode, exit.signalCode);
+    await stopping;
+    expect(finished).toBe(true);
+  }
+);
+
+test('an owned group cannot excuse wrapper exit before descendant discovery or intentional signals', async () => {
+  const job = commands.start('wrapper', [], undefined, true, true);
+  const kill = jest.spyOn(process, 'kill');
+  jest.spyOn(commands, 'runAsync').mockImplementation(async () => {
+    Object.assign(child, { exitCode: 143 });
+    child.emit('exit', 143, null);
+    return '90002';
+  });
+  await expect(stopProcessAndDescendantsAsync(job)).rejects.toThrow(
+    'before its child processes could be identified'
+  );
+  expect(kill).not.toHaveBeenCalled();
+  child.emit('close', 143, null);
+});
+
+test.each([0, 143])(
+  'wrapper exit %s before the first intentional signal remains a failure even for an owned group',
+  async exitCode => {
+    const job = commands.start('wrapper', [], undefined, true, true);
+    let signalled = false;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === 90001 || pid === -90001) {
+        throw new Error('Exited wrapper must not be probed or signalled.');
+      }
+      if (signal === 'SIGTERM') {
+        signalled = true;
+        return true;
+      }
+      if (signalled) {
+        throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+      }
+      Object.assign(child, { exitCode });
+      child.emit('exit', exitCode, null);
+      return true;
+    });
+    jest
+      .spyOn(commands, 'runAsync')
+      .mockImplementation(async (file, args) =>
+        file === 'pgrep' && args[1] === '90001' ? '90002' : ''
+      );
+    await expect(stopProcessAndDescendantsAsync(job)).rejects.toThrow('exited unexpectedly');
+    expect(kill.mock.calls.filter(([, signal]) => signal === 'SIGTERM')).toEqual([
+      [90002, 'SIGTERM'],
+    ]);
+    child.emit('close', exitCode, null);
+  }
+);
+
+test('owned group retirement drains a child respawned outside the initial snapshot before close', async () => {
+  const job = commands.start('wrapper', [], undefined, true, true);
+  let oldChild = true;
+  let respawn = false;
+  const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+    if (pid === 90001 || pid === 90003) {
+      throw new Error('Do not probe an exited wrapper or guess a respawned PID.');
+    }
+    if (pid === -90001) {
+      if (!respawn) {
+        throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+      }
+      if (signal === 'SIGTERM') {
+        respawn = false;
+      }
+      return true;
+    }
+    if (!oldChild) {
+      throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+    }
+    if (signal === 'SIGTERM') {
+      oldChild = false;
+      respawn = true;
+      Object.assign(child, { exitCode: 143 });
+      child.emit('exit', 143, null);
+    }
+    return true;
+  });
+  jest
+    .spyOn(commands, 'runAsync')
+    .mockImplementation(async (file, args) =>
+      file === 'pgrep' && args[1] === '90001' ? '90002' : ''
+    );
+  let finished = false;
+  const stopping = stopProcessAndDescendantsAsync(job).then(() => {
+    finished = true;
+  });
+  await jest.advanceTimersByTimeAsync(1);
+  expect(respawn).toBe(false);
+  expect(finished).toBe(false);
+  expect(kill.mock.calls.filter(([, signal]) => signal === 'SIGTERM')).toEqual([
+    [90002, 'SIGTERM'],
+    [-90001, 'SIGTERM'],
+  ]);
+  child.emit('close', 143, null);
+  await stopping;
+});
+
+test('expected owned wrapper termination cannot bypass the sticky close timeout', async () => {
+  const job = commands.start('wrapper', [], undefined, true, true);
+  let stopped = false;
+  jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+    if (pid === -90001 || stopped) {
+      throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+    }
+    if (pid !== 90002) {
+      throw new Error('The exited wrapper must not be probed.');
+    }
+    if (signal === 'SIGTERM') {
+      stopped = true;
+      Object.assign(child, { exitCode: 143 });
+      child.emit('exit', 143, null);
+    }
+    return true;
+  });
+  jest
+    .spyOn(commands, 'runAsync')
+    .mockImplementation(async (file, args) =>
+      file === 'pgrep' && args[1] === '90001' ? '90002' : ''
+    );
+  const stopping = stopProcessAndDescendantsAsync(job).catch(error => error);
+  await jest.advanceTimersByTimeAsync(130_001);
+  expect((await stopping).message).toContain('did not finish closing');
+  child.emit('close', 143, null);
+  expect(() => commands.throwIfCommandCloseTimedOut()).toThrow('did not finish closing');
+});
+
+test('tries every known sibling before reporting a descendant drain failure', async () => {
+  const failure = new Error('first child could not be verified');
+  const signalled = new Set<number>();
+  jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+    if (signal === 'SIGTERM') {
+      signalled.add(pid);
+      return true;
+    }
+    if (pid === 90003 && signalled.has(pid)) {
+      throw Object.assign(new Error('gone'), { code: 'ESRCH' });
+    }
+    return true;
+  });
+  jest.spyOn(commands, 'runAsync').mockImplementation(async (file, args) => {
+    if (file === 'pgrep') {
+      return args[1] === '90001' ? '90002 90003' : '';
+    }
+    if (args[1] === '90002') {
+      throw failure;
+    }
+    return '';
+  });
+  await expect(
+    stopProcessAndDescendantsAsync({ child, resultPromise: Promise.resolve('') })
+  ).rejects.toBe(failure);
+  expect([...signalled]).toEqual([90002, 90003]);
+  expect(child.kill).not.toHaveBeenCalled();
+});
+
+test('rejects a process-group ID that does not belong to its owned child before any native probe', async () => {
+  const kill = jest.spyOn(process, 'kill');
+  const run = jest.spyOn(commands, 'runAsync');
+  await expect(
+    stopProcessAndDescendantsAsync({
+      child,
+      resultPromise: Promise.resolve(''),
+      processGroupId: 90002,
+    })
+  ).rejects.toThrow('does not belong');
+  expect(kill).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
 });

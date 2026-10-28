@@ -46,7 +46,8 @@ export function startTool(
   });
   const cancelAsync = async (): Promise<void> => {
     controller.abort();
-    await ready.catch(() => {});
+    // Readiness can reject before independent configuration has closed its child process.
+    await Promise.allSettled([ready, prepared]);
   };
   return {
     ready,
