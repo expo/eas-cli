@@ -34,14 +34,14 @@ it('requires advertised support before using the optional capture mode', async (
   jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce(
     JSON.stringify({
       'screenshot.capture': {
-        properties: { copyToDesktop: { type: 'boolean' }, automation: { type: 'boolean' } },
+        properties: { automation: { type: 'boolean' } },
       },
     })
   );
   await capture.prepareAsync(signal);
 });
 
-it('captures the selected active display without Desktop copies and removes only its own staging', async () => {
+it('captures the selected active display and removes only its own staging', async () => {
   await writeFile(path.join(staging, 'unrelated.png'), 'keep');
   jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
     expect(request).toEqual({
@@ -51,7 +51,6 @@ it('captures the selected active display without Desktop copies and removes only
       params: {
         udid: 'selected-udid',
         fileName: expect.stringMatching(/^serve-sim-screenshot-preview-.*\.png$/),
-        copyToDesktop: false,
         automation: true,
       },
       timeoutMs: 30_000,
