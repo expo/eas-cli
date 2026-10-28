@@ -1,5 +1,5 @@
 ---
-'@expo/simulator-launcher': minor
+'@expo/simulator-launcher': none
 ---
 
-Add helpers for warm Simulator state, service readiness and process cleanup. Check the started serve-sim and Argent processes before reporting readiness, and wait for owned processes and output to close during cleanup.
+Add the state, request command and service helpers for the warm Simulator launcher. The package stays private until #4722 adds its CLI entry point.
