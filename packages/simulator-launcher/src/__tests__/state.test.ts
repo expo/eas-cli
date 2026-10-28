@@ -15,7 +15,15 @@ import { deferred } from './helpers';
 const boot = 'boot-one';
 let root: string;
 const info = {
-  device: { udid: 'PHONE', name: 'iPhone 17', port: 3200 },
+  device: { udid: 'PHONE', name: 'iPhone 17' },
+  server: {
+    startupDevice: 'PHONE',
+    pid: 9001,
+    nativeStartTime: 'native-start',
+    port: 3200,
+    url: 'http://127.0.0.1:3200',
+    token: 'fixture-token',
+  },
   controllerPid: 9000,
   controllerStartTime: 'Thu Oct 22 10:00:00 2026',
   agentDeviceStateDir: '/agent',
@@ -225,4 +233,9 @@ test('stopping is not cleanup completion and polling stays bounded', async () =>
     waitForLauncherStateAsync(boot, state => state?.status === 'disabled', 1)
   ).rejects.toThrow('cleanup may still be running');
   expect((await readLauncherStateAsync(boot))?.status).toBe('stopping');
+});
+
+test('the single state record keeps server credentials private to its OS user', async () => {
+  await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));
+  expect((await fs.stat(LAUNCHER_STATE_FILE)).mode & 0o777).toBe(0o600);
 });

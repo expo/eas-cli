@@ -556,3 +556,82 @@ it('a concurrent stop cannot miss a secondary install failure while shared clean
     await secondary.catch(() => {});
   }
 });
+
+it('preinstalls all three configured devices from one shared archive through the session owner', async () => {
+  const { createWarmSimulatorSession } = await import('../commands/start');
+  const simulator = await import('../utils/simulator');
+  const serveSim = await import('../utils/serveSim');
+  const processes = await import('../utils/processes');
+  const agentDevice = await import('../utils/agentDevice');
+  const argent = await import('../utils/argent');
+  const devices = ['FIRST', 'SECOND', 'THIRD'].map(udid => ({ udid, name: `iPhone ${udid}` }));
+  const environment = { ...process.env };
+  process.env.EXPO_SIMULATOR_DEVICE = devices.map(device => device.udid).join(',');
+  process.env.AGENT_DEVICE_STATE_DIR = path.join(directory, 'agent');
+  process.env.ARGENT_EVENT_LOG = path.join(directory, 'argent-events');
+  jest.spyOn(simulator, 'listAvailableSimulatorsAsync').mockResolvedValue(devices);
+  jest.spyOn(simulator, 'waitForSimulatorBootAsync').mockResolvedValue();
+  jest.spyOn(simulator, 'disableApsdAsync').mockResolvedValue();
+  jest.spyOn(simulator, 'shutdownSimulatorAsync').mockResolvedValue();
+  jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
+  jest.spyOn(agentDevice, 'createAgentDeviceTool').mockReturnValue({
+    name: 'agent-device',
+    startAsync: async () => {},
+    stopAsync: async () => {},
+  });
+  jest
+    .spyOn(argent, 'createArgentTool')
+    .mockReturnValue({ name: 'argent', startAsync: async () => {}, stopAsync: async () => {} });
+  jest.spyOn(serveSim, 'startServeSim').mockReturnValue({
+    child: { pid: 90001 } as import('node:child_process').ChildProcess,
+    resultPromise: new Promise(() => {}),
+  });
+  jest.spyOn(serveSim, 'waitForServeSimReadyAsync').mockResolvedValue({
+    startupDevice: 'FIRST',
+    pid: 90001,
+    port: 3200,
+    nativeStartTime: 'start-time',
+    url: 'http://127.0.0.1:3200',
+    token: 'fixture-token',
+  });
+  const original = jest.mocked(commands.runAsync).getMockImplementation()!;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args, signal) => {
+    if (file === 'ps') {
+      return 'controller-start';
+    }
+    if (file === 'plutil') {
+      return args.includes('CFBundleIdentifier') ? 'host.exp.Exponent' : '58.0.7';
+    }
+    return original(file, args, signal);
+  });
+  const onFailure = jest.fn();
+  const session = createWarmSimulatorSession({
+    signal: controller.signal,
+    isReadyAsync: async () => true,
+    throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
+    onPreparationFailure: onFailure,
+    onBackgroundFailure: onFailure,
+  });
+  try {
+    await session.prepareAsync();
+    session.startExtraWarmupInBackground();
+    await until(() => installCalls().length === 3);
+    const claim = await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'THIRD' });
+    expect(claim.preinstalledExpoGo).toEqual({
+      udid: 'THIRD',
+      bundleIdentifier: 'host.exp.Exponent',
+      shortVersion: '58.0.7',
+      version: '58.0.7',
+    });
+    expect(installCalls().map(([, args]) => args[2])).toEqual(['FIRST', 'SECOND', 'THIRD']);
+    expect(new Set(installCalls().map(([, args]) => args[3])).size).toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(
+      jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file === '/usr/bin/tar')
+    ).toHaveLength(1);
+    expect(onFailure).not.toHaveBeenCalled();
+  } finally {
+    await session.stopAsync();
+    process.env = environment;
+  }
+});

@@ -56,6 +56,13 @@ it('stops agent-device mid-prepare without reporting it, and stops the daemon', 
   try {
     await new Promise(resolve => setImmediate(resolve));
     expect(commands.start).toHaveBeenCalledTimes(1);
+    expect(commands.start).toHaveBeenCalledWith(
+      'bunx',
+      expect.arrayContaining(['prepare', 'ios-runner']),
+      undefined,
+      false,
+      true
+    );
     // The prepare process is still running; the stop does not wait for it to exit by itself.
     await started.stopAsync();
     expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(prepare, true);
@@ -122,4 +129,34 @@ it('keeps both errors when the agent-device prepare and daemon stops fail', asyn
   const tool = createAgentDeviceTool();
   await tool.startAsync('PHONE', new AbortController().signal);
   await expect(tool.stopAsync()).rejects.toMatchObject({ errors: [prepareFailure, daemonFailure] });
+});
+
+it('drains independent tool preparation after serve-sim readiness rejects', async () => {
+  const prepared = deferred();
+  const failure = new Error('serve-sim readiness failed');
+  const tool: WarmTool = {
+    name: 'argent',
+    prepareAsync: () => prepared.promise,
+    startAsync: jest.fn(async () => {}),
+    stopAsync: jest.fn(async () => {}),
+  };
+  const started = startTool(
+    tool,
+    'PHONE',
+    Promise.reject(failure),
+    new AbortController().signal,
+    jest.fn()
+  );
+  await expect(started.ready).rejects.toBe(failure);
+  let stopped = false;
+  const stopping = started.stopAsync().then(() => {
+    stopped = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(stopped).toBe(false);
+  expect(tool.stopAsync).not.toHaveBeenCalled();
+  prepared.resolve();
+  await stopping;
+  expect(tool.startAsync).not.toHaveBeenCalled();
+  expect(tool.stopAsync).toHaveBeenCalledTimes(1);
 });

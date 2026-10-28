@@ -12,17 +12,21 @@ exec bunx @expo/simulator-launcher@latest start
 
 ## Commands
 
-- `start`: warm the default device in the foreground. Once its tools and Expo Go preinstall finish,
-  warm the remaining devices only while the session is still unclaimed.
-- `claim ENGINE [DEVICE]`: give one device to one job. Engines: `serve-sim`, `agent-device`, `argent`. No DEVICE means the first configured device. A matching warm device is reused;
-  its device and port are returned, and the other device is stopped in the background.
-  Otherwise the requested device boots while the old servers/tools stop. Old devices shut down
-  in the background, without delaying the replacement's startup.
+- `start`: run one orphan serve-sim for the configured devices. Its default device becomes ready
+  first; additional devices warm in the background. Argent and agent-device prestart on the default.
+- `claim ENGINE [DEVICE]`: reserve one job and return its selected device plus the existing server's
+  identity, port and credentials. Engines: `serve-sim`, `agent-device`, `argent`.
+  No DEVICE means the first configured device. Claim does not boot the selected device or wait for
+  its tool. Build-tools privately adopts that device on the existing serve-sim port.
+- `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
+  agent-device runner or prepare a runner for the selected device.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
 
 ```sh
 # Build-tools reads LAUNCHER_VERSION from the version recorded by start.
 bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
+# After private serve-sim adoption confirms the selected device and native ACK:
+bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" prepare-tools
 bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
 ```
 
@@ -32,8 +36,10 @@ once with the registry only when Bun cannot find that cached binary. Priming fai
 Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.
 
+This flow requires the serve-sim release supporting port-based device adoption.
+
 One durable state file, `/tmp/expo-simulator-startup.json`, holds the lifecycle, launcher version,
-selected device/port, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
+selected device, server credentials, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
 serializes updates; an abandoned lock fails closed. This private format requires a fresh VM.
 
 ## Environment
@@ -52,15 +58,18 @@ serializes updates; an abandoned lock fails closed. This private format requires
 
 - Ready means the default device booted, its apsd disable attempt finished and serve-sim answers.
   The second device may not have started yet. Its startup failure leaves the default available.
-  Claim waits for the selected device; job-time native,
-  version and authentication checks plus private serve-sim adoption remain authoritative.
+  Claim reserves a device; it does not report that device ready. Private adoption must confirm
+  the same server PID/port, selected-device readiness and native video/capture before tool setup
+  and app actions. Job-time version and authentication checks remain authoritative.
 - Agent-device prestarts on the default device only. A secondary claim prepares its runner after
-  the old tools stop. One device-independent Argent server is reused for the claimed device.
+  adoption and old-runner cleanup finish. One device-independent Argent server is reused for the claimed device.
 - Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
   Each initial device gets a preinstall attempt; ordinary failures
-  warn. Claim prevents new preinstalls and waits for a selected-device native install already in
-  flight. Unused-device preinstalls drain during background cleanup. Job app installs remain
+  warn. Claim prevents new preinstalls and joins native installs already in flight before
+  adoption may shut down an old device. Download/extraction cleanup drains at terminal stop. Job app installs remain
   authoritative. Replacements do not preinstall again. The VM image provides ffmpeg.
 - One start attempt and one accepted claim per boot. Failed cleanup never permits another session.
   Stop's caller timeout is not a global cleanup deadline or proof that teardown completed.
   A build-tools claim timeout uses normal startup only after confirmed terminal cleanup.
+
+Claim and tool JSON include credentials; capture them rather than streaming them to job logs.

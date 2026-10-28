@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
+import { waitForSimulatorCleanupAsync } from '../../utils/simulatorCleanup';
 export function createInstallBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -93,6 +94,7 @@ export async function installBuildAsync({
       );
     }
 
+    await waitForSimulatorCleanupAsync();
     logger.info(`Installing ${artifactPath} on the iOS Simulator.`);
     await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
     return { applicationIdentifier };
