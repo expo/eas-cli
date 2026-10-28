@@ -1,5 +1,15 @@
 # @expo/eas-json
 
+## 27.0.0
+
+No changes in this release.
+
+## 26.0.0
+
+### Minor Changes
+
+- Add `permissions.account.role` to build profiles to request a role for the build's `EXPO_TOKEN`. ([#4732](https://github.com/expo/eas-cli/pull/4732) by [@wschurman](https://github.com/wschurman))
+
 ## 25.3.0
 
 No changes in this release.

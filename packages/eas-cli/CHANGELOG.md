@@ -1,5 +1,36 @@
 # eas-cli
 
+## 27.0.0
+
+### Major Changes
+
+- Write the reason a command failed to stderr, next to the `command failed.` line, instead of to stdout. A program that reads the reason from stdout must read stderr instead. ([#4592](https://github.com/expo/eas-cli/pull/4592) by [@vonovak](https://github.com/vonovak))
+
+### Minor Changes
+
+- Send the `permissions.account.role` from the build profile to request a role for the build's `EXPO_TOKEN`. ([#4734](https://github.com/expo/eas-cli/pull/4734) by [@wschurman](https://github.com/wschurman))
+- Add `simulator:logs` to read and follow logs from an iOS simulator session and download saved logs after it stops. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Show permission guidance, including `permissions.account.role` in eas.json, when a build request fails with an authorization error. ([#4760](https://github.com/expo/eas-cli/pull/4760) by [@wschurman](https://github.com/wschurman))
+- Print the notice about eas-cli in project dependencies only when stderr is a terminal, so programs that read stderr get the command's error. ([#4591](https://github.com/expo/eas-cli/pull/4591) by [@vonovak](https://github.com/vonovak))
+- Show account roles and credential permission limits in `eas login` when you are already logged in. ([#4759](https://github.com/expo/eas-cli/pull/4759) by [@wschurman](https://github.com/wschurman))
+- Fix simulator control action help routing and show help when a flag is incomplete. ([#4681](https://github.com/expo/eas-cli/pull/4681) by [@gwdp](https://github.com/gwdp))
+- Require explicit `host:` simulator-host upload paths and report missing local files. ([#4683](https://github.com/expo/eas-cli/pull/4683) by [@gwdp](https://github.com/gwdp))
+
+  Missing local absolute paths now require the `host:` prefix. Actions that require upload IDs accept local files and reject host paths with an explanation.
+
+## 26.0.0
+
+### Patch Changes
+
+- Regenerate graphql code. ([#4692](https://github.com/expo/eas-cli/pull/4692) by [@wschurman](https://github.com/wschurman))
+- Read the app config fewer times in `eas build` and other project commands. An iOS build now runs `expo config` 2 times instead of 6. ([`78ba760`](https://github.com/expo/eas-cli/commit/78ba76001b67c9971236af1a1d02e46c2f82d24a) by [@vonovak](https://github.com/vonovak))
+- Share one GraphQL client between the project ID check and the command, so commands send one fewer app query. ([#4646](https://github.com/expo/eas-cli/pull/4646) by [@vonovak](https://github.com/vonovak))
+- Show why a simulator session failed in `eas simulator:get`, and add an `errors` array to its `--json` output. For an unknown error, `simulator:start` and `simulator:get` now show the failed step's error from the session logs. ([#4694](https://github.com/expo/eas-cli/pull/4694) by [@brentvatne](https://github.com/brentvatne))
+- Show why a simulator session failed in `eas simulator:start`, such as an unknown `--device` name, instead of only the session status. ([#4693](https://github.com/expo/eas-cli/pull/4693) by [@brentvatne](https://github.com/brentvatne))
+
 ## 25.3.0
 
 ### Minor Changes
