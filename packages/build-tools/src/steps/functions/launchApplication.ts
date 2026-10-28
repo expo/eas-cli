@@ -9,7 +9,6 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
-import { waitForSimulatorCleanupAsync } from '../../utils/simulatorCleanup';
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
 
@@ -84,7 +83,6 @@ export async function launchApplicationAsync({
   logger: bunyan;
 }): Promise<void> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    await waitForSimulatorCleanupAsync();
     logApplicationLaunch(logger, applicationIdentifier, launchArgs);
     await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier, ...launchArgs], {
       env,

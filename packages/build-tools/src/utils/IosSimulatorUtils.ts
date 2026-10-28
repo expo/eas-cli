@@ -7,7 +7,6 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { retryAsync } from './retry';
-import { waitForSimulatorCleanupAsync } from './simulatorCleanup';
 
 export type IosSimulatorUuid = string & z.BRAND<'IosSimulatorUuid'>;
 export type IosSimulatorName = string & z.BRAND<'IosSimulatorName'>;
@@ -60,7 +59,6 @@ export namespace IosSimulatorUtils {
   }: {
     env: NodeJS.ProcessEnv;
   }): Promise<IosSimulatorRuntime[]> {
-    await waitForSimulatorCleanupAsync();
     const { stdout } = await spawn('xcrun', ['simctl', 'list', 'runtimes', '--json'], { env });
     const { runtimes } = JSON.parse(stdout) as XcrunSimctlListRuntimesJsonOutput;
 
@@ -79,7 +77,6 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
     filter: 'available' | 'booted';
   }): Promise<SimulatorDevice[]> {
-    await waitForSimulatorCleanupAsync();
     const result = await spawn(
       'xcrun',
       ['simctl', 'list', 'devices', '--json', '--no-escape-slashes', filter],
@@ -122,7 +119,6 @@ export namespace IosSimulatorUtils {
     destinationDeviceName: IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     await spawn('xcrun', ['simctl', 'clone', sourceDeviceIdentifier, destinationDeviceName], {
       env,
     });
@@ -135,7 +131,6 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     try {
       const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
       const device = devices.find(
@@ -236,7 +231,6 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
     launchdEnvironment?: Record<string, string>;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     const bootEnv = { ...env };
     for (const [name, value] of Object.entries(launchdEnvironment)) {
       bootEnv[`SIMCTL_CHILD_${name}`] = value;
@@ -259,7 +253,6 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<{ udid: IosSimulatorUuid }> {
-    await waitForSimulatorCleanupAsync();
     const bootstatusResult = await spawn(
       'xcrun',
       ['simctl', 'bootstatus', deviceIdentifier, '-b'],
@@ -283,7 +276,6 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     const readinessScreenshotPath = path.join(os.tmpdir(), 'eas-simulator-readiness.png');
     await retryAsync(
       async () => {
@@ -326,7 +318,6 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     const launchctlDomains = ['user/foreground', 'system'];
     let lastError: unknown;
 
@@ -370,7 +361,6 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
     variables: Record<string, string>;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     // One invocation for every variable: each `simctl spawn` costs a few
     // hundred milliseconds on a device host, and this runs in the window
     // between `simctl boot` returning and launchd spawning the boot's
@@ -389,7 +379,6 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorName | IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<{ outputPath: string }> {
-    await waitForSimulatorCleanupAsync();
     const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ios-simulator-logs-'));
     const outputPath = path.join(outputDir, `${deviceIdentifier}.logarchive`);
 
@@ -411,7 +400,6 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorName | IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await waitForSimulatorCleanupAsync();
     await spawn('xcrun', ['simctl', 'shutdown', deviceIdentifier], { env });
     await spawn('xcrun', ['simctl', 'delete', deviceIdentifier], { env });
   }
@@ -426,7 +414,6 @@ export namespace IosSimulatorUtils {
     recordingSpawn: SpawnPromise<SpawnResult>;
     outputPath: string;
   }> {
-    await waitForSimulatorCleanupAsync();
     const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ios-screen-recording-'));
     const outputPath = path.join(outputDir, `${deviceIdentifier}.mov`);
     const recordingSpawn = spawn(
@@ -494,7 +481,6 @@ export namespace IosSimulatorUtils {
   }: {
     env: NodeJS.ProcessEnv;
   }): Promise<boolean> {
-    await waitForSimulatorCleanupAsync();
     try {
       const result = await spawn('ps', ['-eo', 'pid,comm'], { env });
 

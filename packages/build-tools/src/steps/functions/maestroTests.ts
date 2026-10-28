@@ -13,7 +13,6 @@ import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
-import { waitForSimulatorCleanupAsync } from '../../utils/simulatorCleanup';
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
@@ -348,10 +347,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           });
         }
         // Do not restart ADB or remove the override. This keeps Maestro in direct DADB mode.
-      }
-
-      if (platform === 'ios') {
-        await waitForSimulatorCleanupAsync();
       }
 
       for (let attempt = 0; attempt <= retries; attempt++) {
