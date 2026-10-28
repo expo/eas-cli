@@ -21,17 +21,14 @@ const VersionsSchema = z.object({
   ),
 });
 
-/** Claim forbids later installs; started native installs and the shared archive stay owned. */
-export function startExpoGoPreinstall(
-  udid: string,
-  boot: Promise<unknown>,
-  signal: AbortSignal,
-  reuseArchive = false
-): {
-  claimAsync(selectedUdid?: string): Promise<PreinstalledApp | undefined>;
+/**
+ * Downloads the latest stable Expo Go once, for every warm device. Claim forbids later installs;
+ * started native installs and the shared archive stay owned until claim or stop releases them.
+ */
+export function startExpoGoPreinstall(signal: AbortSignal): {
+  claimAsync(selectedUdid: string): Promise<PreinstalledApp | undefined>;
   preinstallOnDeviceAsync(udid: string, boot: Promise<unknown>, signal: AbortSignal): Promise<void>;
-  stopAsync(selectedUdid?: string): Promise<void>;
-  resultPromise: Promise<void>;
+  stopAsync(selectedUdid: string): Promise<void>;
 } {
   const downloadController = new AbortController();
   const downloadSignal = AbortSignal.any([
@@ -142,33 +139,19 @@ export function startExpoGoPreinstall(
       await fs.rm(await directory, { recursive: true, force: true });
     })());
   }
-  const initial = preinstallAsync(udid, boot, downloadSignal).catch(error => {
-    failures.set(udid, error);
-    throw error;
-  });
-  operations.add(initial);
-  const resultPromise = reuseArchive ? initial : initial.finally(cleanUpAsync);
-  void resultPromise.catch(error => {
-    failures.set(udid, error);
-  });
   return {
-    resultPromise,
     async preinstallOnDeviceAsync(target, boot, deviceSignal) {
       if (downloadController.signal.aborted || cleanup) {
-        return Promise.resolve();
+        return;
       }
       const operation = preinstallAsync(target, boot, deviceSignal).catch(error => {
         failures.set(target, error);
         throw error;
       });
       operations.add(operation);
-      const complete = operation.finally(cleanUpAsync);
-      void complete.catch(error => {
-        failures.set(target, error);
-      });
-      await complete;
+      await operation;
     },
-    async claimAsync(selectedUdid = udid) {
+    async claimAsync(selectedUdid) {
       downloadController.abort();
       void cleanUpAsync().catch(() => {});
       await installations.get(selectedUdid);
@@ -177,7 +160,7 @@ export function startExpoGoPreinstall(
       }
       return installed.get(selectedUdid);
     },
-    async stopAsync(selectedUdid = udid) {
+    async stopAsync(selectedUdid) {
       // The session owner must still confirm Simulator shutdown before publishing disabled.
       downloadController.abort();
       await cleanUpAsync();

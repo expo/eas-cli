@@ -30,7 +30,7 @@ function installCalls() {
 let directory: string;
 let archive: Buffer;
 let controller: AbortController;
-let warmup: ReturnType<typeof startExpoGoPreinstall> | undefined;
+let warmup: ReturnType<typeof startOn> | undefined;
 const stableUrl = 'https://example.test/Expo-Go-stable.tar.gz';
 const sdkVersions = {
   '57.0.0': {
@@ -49,6 +49,15 @@ const sdkVersions = {
     iosClientUrl: 'https://example.test/not-published.tar.gz',
   },
 };
+
+/** Starts the shared download and preinstalls on one device, as warmup does for each device. */
+function startOn(udid: string, boot: Promise<unknown>) {
+  const preinstall = startExpoGoPreinstall(controller.signal);
+  return {
+    ...preinstall,
+    resultPromise: preinstall.preinstallOnDeviceAsync(udid, boot, controller.signal),
+  };
+}
 
 beforeEach(async () => {
   directory = await fs.mkdtemp(path.join(os.tmpdir(), 'expo-go-unit-'));
@@ -75,14 +84,14 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   controller.abort();
-  await warmup?.stopAsync().catch(() => {});
+  await warmup?.stopAsync('UDID').catch(() => {});
   jest.restoreAllMocks();
   await fs.rm(directory, { recursive: true, force: true });
 });
 
 it('uses the website stable release policy, extracts flat contents as .app and installs only after boot', async () => {
   const boot = deferred();
-  warmup = startExpoGoPreinstall('UDID', boot.promise, controller.signal);
+  warmup = startOn('UDID', boot.promise);
   try {
     await until(() => jest.mocked(fetch).mock.calls.length === 2);
     expect(fetch).toHaveBeenLastCalledWith(
@@ -103,6 +112,9 @@ it('uses the website stable release policy, extracts flat contents as .app and i
     expect(args.slice(0, 3)).toEqual(['simctl', 'install', 'UDID']);
     expect(path.basename(args[3])).toBe('ExpoGo.app');
     expect(signal).toBeUndefined(); // Never cancel an in-flight installd transaction through simctl.
+    // The shared download stays until a claim or stop releases it; stop waits for the removal.
+    expect((await fs.stat(path.dirname(args[3]))).isDirectory()).toBe(true);
+    await warmup.stopAsync('UDID');
     await expect(fs.stat(path.dirname(args[3]))).rejects.toMatchObject({ code: 'ENOENT' });
   } finally {
     boot.resolve();
@@ -112,13 +124,13 @@ it('uses the website stable release policy, extracts flat contents as .app and i
 it('claim aborts a pending download without waiting for it, and a late fetch cannot install', async () => {
   const pending = deferred<Response>();
   jest.mocked(fetch).mockReturnValueOnce(pending.promise);
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   try {
     await until(() => jest.mocked(fetch).mock.calls.length > 0);
-    await warmup.claimAsync();
+    await warmup.claimAsync('UDID');
     expect(jest.mocked(fetch).mock.calls[0][1]?.signal?.aborted).toBe(true);
     pending.resolve(Response.json({ sdkVersions })); // Even an uncooperative late fetch cannot install.
-    await warmup.stopAsync();
+    await warmup.stopAsync('UDID');
     expect(installCalls()).toHaveLength(0);
     expect(
       (await fs.readdir(directory)).filter(name => name.startsWith('simulator-expo-go-'))
@@ -143,11 +155,11 @@ it('claim only waits for the native install; terminal stop also drains temporary
     .mockImplementation(async (file, args) =>
       file === '/usr/bin/tar' ? await runCommandAsync(file, args) : await installation.promise
     );
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   try {
     await until(() => installCalls().length > 0);
     let claimed = false;
-    const claiming = warmup.claimAsync().then(() => {
+    const claiming = warmup.claimAsync('UDID').then(() => {
       claimed = true;
     });
     await new Promise(resolve => setImmediate(resolve));
@@ -157,7 +169,7 @@ it('claim only waits for the native install; terminal stop also drains temporary
     expect(claimed).toBe(true);
     await until(() => cleanupStarted);
     let stopped = false;
-    const stopping = warmup.stopAsync().then(() => {
+    const stopping = warmup.stopAsync('UDID').then(() => {
       stopped = true;
     });
     await new Promise(resolve => setImmediate(resolve));
@@ -179,13 +191,13 @@ it('claim during extraction returns without waiting but cannot begin an install 
     await extraction.promise;
     return await runCommandAsync(file, args);
   });
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   try {
     await until(() => extracting);
-    await warmup.claimAsync();
+    await warmup.claimAsync('UDID');
     expect(installCalls()).toHaveLength(0);
     let stopped = false;
-    const stopping = warmup.stopAsync().then(() => {
+    const stopping = warmup.stopAsync('UDID').then(() => {
       stopped = true;
     });
     await new Promise(resolve => setImmediate(resolve));
@@ -218,10 +230,10 @@ it.each(['metadata', 'archive', 'install'])(
         throw Object.assign(new Error('install failed'), { code: 1 });
       });
     }
-    warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+    warmup = startOn('UDID', Promise.resolve());
     await warmup.resultPromise;
-    await warmup.claimAsync();
-    await warmup.stopAsync();
+    await warmup.claimAsync('UDID');
+    await warmup.stopAsync('UDID');
     expect(process.stderr.write).toHaveBeenCalledWith(
       expect.stringContaining('Could not preinstall Expo Go')
     );
@@ -249,10 +261,11 @@ it.each(['signal', 'close timeout', 'temp removal'])(
         throw error;
       });
     }
-    warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
-    await expect(warmup.resultPromise).rejects.toBe(error);
-    await expect(warmup.claimAsync()).rejects.toBe(error);
-    await expect(warmup.stopAsync()).rejects.toBe(error);
+    warmup = startOn('UDID', Promise.resolve());
+    await warmup.resultPromise.catch(() => {});
+    // The claim does not wait for the removal; stop does, and never confirms a failed one.
+    await warmup.claimAsync('UDID').catch(() => {});
+    await expect(warmup.stopAsync('UDID')).rejects.toBe(error);
   }
 );
 
@@ -306,13 +319,13 @@ it.each(['valid', 'traversal', 'malformed'] as const)(
       expect(extractor.child.kill('SIGSTOP')).toBe(true);
       return extractor;
     });
-    warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+    warmup = startOn('UDID', Promise.resolve());
     try {
       await until(() => extractor !== undefined);
-      await warmup.claimAsync(); // Only forbids new install; extraction remains owned and pending.
+      await warmup.claimAsync('UDID'); // Only forbids new install; extraction remains owned and pending.
       expect(extractorClosed).toBe(false);
       let stopped = false;
-      const stopping = warmup.stopAsync().then(() => {
+      const stopping = warmup.stopAsync('UDID').then(() => {
         stopped = true;
       });
       await new Promise(resolve => setImmediate(resolve));
@@ -350,10 +363,10 @@ it('keeps owned temp files and rejects terminal stop when extractor close is unc
     });
     throw failure;
   });
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   await expect(warmup.resultPromise).rejects.toBe(failure);
-  await expect(warmup.stopAsync()).rejects.toBe(failure);
-  await expect(warmup.claimAsync()).rejects.toBe(failure);
+  await expect(warmup.stopAsync('UDID')).rejects.toBe(failure);
+  await expect(warmup.claimAsync('UDID')).rejects.toBe(failure);
   expect(remove).not.toHaveBeenCalled();
   expect((await fs.readdir(directory)).some(name => name.startsWith('simulator-expo-go-'))).toBe(
     true
@@ -371,12 +384,13 @@ it.each(['traversal', 'malformed'] as const)(
             { name: '../escaped', contents: Buffer.from('unsafe') },
             { name: 'Info.plist', contents: Buffer.from('<plist>fixture</plist>') },
           ]);
-    warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+    warmup = startOn('UDID', Promise.resolve());
     await warmup.resultPromise;
     expect(installCalls()).toHaveLength(0);
     expect(process.stderr.write).toHaveBeenCalledWith(
       expect.stringContaining('Could not preinstall Expo Go')
     );
+    await warmup.stopAsync('UDID');
     expect(await fs.readdir(directory)).toEqual([]);
   }
 );
@@ -396,9 +410,9 @@ it('claim returns the identity read from the Expo Go it installed', async () => 
           ? `${plist[args[1]]}\n`
           : ''
     );
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   await warmup.resultPromise;
-  expect(await warmup.claimAsync()).toEqual({
+  expect(await warmup.claimAsync('UDID')).toEqual({
     udid: 'UDID',
     bundleIdentifier: 'host.exp.Exponent',
     shortVersion: '58.0.7',
@@ -420,19 +434,14 @@ it('claim returns no identity when the preinstall fails', async () => {
           ? Promise.reject(Object.assign(new Error('install failed'), { code: 1 }))
           : ''
     );
-  warmup = startExpoGoPreinstall('UDID', Promise.resolve(), controller.signal);
+  warmup = startOn('UDID', Promise.resolve());
   await warmup.resultPromise;
-  expect(await warmup.claimAsync()).toBeUndefined();
+  expect(await warmup.claimAsync('UDID')).toBeUndefined();
   expect(jest.mocked(commands.runAsync).mock.calls.some(([file]) => file === 'plutil')).toBe(false);
 });
 
-it('downloads and extracts once for two devices, then removes the shared app after both installs', async () => {
-  warmup = startExpoGoPreinstall(
-    'FIRST',
-    Promise.resolve(),
-    controller.signal,
-    /* reuseArchive */ true
-  );
+it('downloads and extracts once for two devices, then removes the shared app on stop', async () => {
+  warmup = startOn('FIRST', Promise.resolve());
   await warmup.resultPromise;
   const app = installCalls()[0][1][3];
   expect((await fs.stat(app)).isDirectory()).toBe(true);
@@ -445,32 +454,24 @@ it('downloads and extracts once for two devices, then removes the shared app aft
     ['FIRST', app],
     ['SECOND', app],
   ]);
+  const claimed = await warmup.claimAsync('SECOND');
+  await warmup.stopAsync('SECOND');
   await expect(fs.stat(app)).rejects.toMatchObject({ code: 'ENOENT' });
-  expect((await warmup.claimAsync('SECOND'))?.udid).toBe('SECOND');
+  expect(claimed?.udid).toBe('SECOND');
 });
 it('a claim prevents secondary preinstall from starting and releases the retained archive', async () => {
-  warmup = startExpoGoPreinstall(
-    'FIRST',
-    Promise.resolve(),
-    controller.signal,
-    /* reuseArchive */ true
-  );
+  warmup = startOn('FIRST', Promise.resolve());
   await warmup.resultPromise;
-  await warmup.claimAsync();
+  await warmup.claimAsync('FIRST');
   await warmup.preinstallOnDeviceAsync('SECOND', Promise.resolve(), controller.signal);
-  await warmup.stopAsync();
+  await warmup.stopAsync('FIRST');
   expect(installCalls()).toHaveLength(1);
   expect(await fs.readdir(directory)).toEqual([]);
 });
 it('claim and stop drain a secondary native install without cancelling its transaction', async () => {
   const install = deferred<string>();
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
-  warmup = startExpoGoPreinstall(
-    'FIRST',
-    Promise.resolve(),
-    controller.signal,
-    /* reuseArchive */ true
-  );
+  warmup = startOn('FIRST', Promise.resolve());
   await warmup.resultPromise;
   jest
     .mocked(commands.runAsync)
@@ -490,7 +491,7 @@ it('claim and stop drain a secondary native install without cancelling its trans
     install.resolve('');
     await claiming;
     await secondary;
-    await warmup.stopAsync();
+    await warmup.stopAsync('FIRST');
     expect(await fs.readdir(directory)).toEqual([]);
   } finally {
     install.resolve('');
@@ -501,7 +502,7 @@ it('claim and stop drain a secondary native install without cancelling its trans
 it.each(['signal', 'close timeout'])(
   'isolates a secondary %s failure from the already-installed default',
   async kind => {
-    warmup = startExpoGoPreinstall('FIRST', Promise.resolve(), controller.signal, true);
+    warmup = startOn('FIRST', Promise.resolve());
     await warmup.resultPromise;
     const failure = Object.assign(new Error('secondary install failed'), { code: null });
     const original = jest.mocked(commands.runAsync).getMockImplementation()!;
@@ -530,7 +531,7 @@ it.each(['signal', 'close timeout'])(
   }
 );
 it('a concurrent stop cannot miss a secondary install failure while shared cleanup drains', async () => {
-  warmup = startExpoGoPreinstall('FIRST', Promise.resolve(), controller.signal, true);
+  warmup = startOn('FIRST', Promise.resolve());
   await warmup.resultPromise;
   const installation = deferred<string>();
   const original = jest.mocked(commands.runAsync).getMockImplementation()!;
