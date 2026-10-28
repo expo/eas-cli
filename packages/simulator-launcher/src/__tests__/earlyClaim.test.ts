@@ -42,7 +42,6 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
       .spyOn(argent, 'createArgentTool')
       .mockReturnValue({ name: 'argent', startAsync: async () => {}, stopAsync: async () => {} });
     jest.spyOn(expoGo, 'startExpoGoPreinstall').mockReturnValue({
-      resultPromise: Promise.resolve(),
       preinstallOnDeviceAsync: async () => {},
       claimAsync: async () => undefined,
       stopAsync: async () => {},

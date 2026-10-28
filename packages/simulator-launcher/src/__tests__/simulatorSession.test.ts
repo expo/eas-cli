@@ -60,6 +60,17 @@ function createSession() {
   });
 }
 
+/** The default device's Expo Go preinstall finishes with `install`; later devices finish at once. */
+function mockDefaultExpoGoInstall(install: Promise<void>) {
+  const preinstall = {
+    preinstallOnDeviceAsync: jest.fn().mockReturnValueOnce(install).mockResolvedValue(undefined),
+    claimAsync: jest.fn(async () => undefined),
+    stopAsync: jest.fn(async () => {}),
+  };
+  jest.mocked(startExpoGoPreinstall).mockReturnValue(preinstall);
+  return preinstall;
+}
+
 beforeEach(() => {
   jest.resetAllMocks();
   env = { ...process.env };
@@ -99,7 +110,6 @@ beforeEach(() => {
     .mocked(disableApsdAsync)
     .mockImplementation(jest.requireActual('../utils/simulator').disableApsdAsync);
   jest.mocked(startExpoGoPreinstall).mockReturnValue({
-    resultPromise: Promise.resolve(),
     preinstallOnDeviceAsync: jest.fn(async () => {}),
     claimAsync: jest.fn(async () => undefined),
     stopAsync: jest.fn(async () => {}),
@@ -164,10 +174,7 @@ it('starts one orphan with all configured devices and keeps its identity separat
 it('publishes default readiness without joining Expo Go or requested-tool startup', async () => {
   const install = deferred();
   const preparing = deferred<string>();
-  jest.mocked(startExpoGoPreinstall).mockReturnValue({
-    ...startExpoGoPreinstall('unused', Promise.resolve(), controller.signal),
-    resultPromise: install.promise,
-  });
+  mockDefaultExpoGoInstall(install.promise);
   jest
     .mocked(commands.start)
     .mockImplementation((_file, args) =>
@@ -213,10 +220,7 @@ it('primes the exact version once before readiness and bounds two failed attempt
 it('does not begin secondary preinstall until default preinstall and tools finish', async () => {
   const installed = deferred();
   const prepared = deferred<string>();
-  const preinstall = startExpoGoPreinstall('unused', Promise.resolve(), controller.signal);
-  jest
-    .mocked(startExpoGoPreinstall)
-    .mockReturnValue({ ...preinstall, resultPromise: installed.promise });
+  const preinstall = mockDefaultExpoGoInstall(installed.promise);
   jest
     .mocked(commands.start)
     .mockImplementation((_file, args) =>
@@ -242,10 +246,7 @@ it('does not begin secondary preinstall until default preinstall and tools finis
 
 it('consumed claim forbids queued secondary preinstall', async () => {
   const installed = deferred();
-  const preinstall = startExpoGoPreinstall('unused', Promise.resolve(), controller.signal);
-  jest
-    .mocked(startExpoGoPreinstall)
-    .mockReturnValue({ ...preinstall, resultPromise: installed.promise });
+  const preinstall = mockDefaultExpoGoInstall(installed.promise);
   const session = createSession();
   await session.prepareAsync();
   session.startExtraWarmupInBackground();
@@ -253,7 +254,8 @@ it('consumed claim forbids queued secondary preinstall', async () => {
   installed.resolve();
   await session.stopAsync();
   expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
-  expect(preinstall.preinstallOnDeviceAsync).not.toHaveBeenCalled();
+  // Only the default device's preinstall ran; the claim stopped the queued secondary one.
+  expect(preinstall.preinstallOnDeviceAsync).toHaveBeenCalledTimes(1);
 });
 
 it('a secondary boot observation failure leaves the claimed default usable', async () => {
@@ -272,7 +274,7 @@ it('a secondary boot observation failure leaves the claimed default usable', asy
 
 it('claim latches preinstalls before async selection and joins only actual install promises', async () => {
   const installation = deferred<undefined>();
-  const preinstall = startExpoGoPreinstall('unused', Promise.resolve(), controller.signal);
+  const preinstall = startExpoGoPreinstall(controller.signal);
   jest
     .mocked(preinstall.claimAsync)
     .mockImplementation(udid =>
@@ -298,7 +300,7 @@ it('claim latches preinstalls before async selection and joins only actual insta
 
 it('unused preinstall failure does not reject a default claim, but terminal stop retains uncertainty', async () => {
   const failure = new Error('unused install not drained');
-  const preinstall = startExpoGoPreinstall('unused', Promise.resolve(), controller.signal);
+  const preinstall = startExpoGoPreinstall(controller.signal);
   jest.mocked(preinstall.claimAsync).mockImplementation(async udid => {
     if (udid === 'PHONE18') {
       throw failure;
@@ -322,7 +324,7 @@ it('unused preinstall failure does not reject a default claim, but terminal stop
 
 it('retains selected preinstall failure instead of handing over an uncertain install', async () => {
   const failure = new Error('selected install failed');
-  const preinstall = startExpoGoPreinstall('unused', Promise.resolve(), controller.signal);
+  const preinstall = startExpoGoPreinstall(controller.signal);
   jest.mocked(preinstall.claimAsync).mockRejectedValue(failure);
   const session = createSession();
   await session.prepareAsync();
@@ -495,6 +497,27 @@ it('does not repeat completed default-device setup after adoption', async () => 
   await session.claimAsync({ engine: 'serve-sim' });
   await session.prepareToolsAsync();
   expect(disableApsdAsync).not.toHaveBeenCalled();
+  await session.stopAsync();
+});
+
+it('runs the setup again for an extra device whose warmup the claim cancelled', async () => {
+  const session = createSession();
+  await session.prepareAsync();
+  const disable = jest
+    .mocked(disableApsdAsync)
+    .mockImplementation((udid, signal) =>
+      udid === 'PHONE18'
+        ? new Promise((_resolve, reject) =>
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+          )
+        : Promise.resolve()
+    );
+  session.startExtraWarmupInBackground();
+  await until(() => disable.mock.calls.some(([udid]) => udid === 'PHONE18'));
+  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
+  disable.mockResolvedValue(undefined);
+  await session.prepareToolsAsync();
+  expect(disable.mock.calls.filter(([udid]) => udid === 'PHONE18')).toHaveLength(2);
   await session.stopAsync();
 });
 

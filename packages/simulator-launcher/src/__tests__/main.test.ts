@@ -100,7 +100,6 @@ beforeEach(async () => {
     .mocked(startExpoGoPreinstall)
     .mockReset()
     .mockReturnValue({
-      resultPromise: Promise.resolve(),
       preinstallOnDeviceAsync: jest.fn(async () => {}),
       claimAsync: jest.fn(async () => undefined),
       stopAsync: jest.fn(async () => {}),
@@ -334,8 +333,8 @@ test('claim joins native Expo Go install while terminal stop also drains tempora
   const install = deferred<typeof info>();
   const cleanup = deferred();
   jest.mocked(startExpoGoPreinstall).mockReturnValue({
-    resultPromise: cleanup.promise,
-    preinstallOnDeviceAsync: jest.fn(async () => {}),
+    // The default device's preinstall stays open until its cleanup finishes.
+    preinstallOnDeviceAsync: jest.fn(() => cleanup.promise),
     claimAsync: jest.fn(() => install.promise),
     stopAsync: jest.fn(() => cleanup.promise),
   });
