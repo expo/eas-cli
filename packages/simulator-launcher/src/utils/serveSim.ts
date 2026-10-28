@@ -4,19 +4,30 @@ import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
-import { type ChildProcessHandle, commands } from './processes';
+import { type ChildProcessHandle, commands, isProcessOwnedByServiceAsync } from './processes';
+import { type WarmServer } from './state';
 
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
 // The job needs the token from this file; /readyz itself is not token-gated.
-const ServeSimStateSchema = z.object({ device: z.string(), url: z.string(), token: z.string() });
+const ServeSimStateSchema = z.object({
+  pid: z.number().int().min(2),
+  port: z.number().int().min(1).max(65535),
+  device: z.string(),
+  url: z.string(),
+  token: z.string().min(1),
+});
 
-export function startServeSim(udid: string, signal: AbortSignal, port = 3200): ChildProcessHandle {
+export function startServeSim(
+  devices: string[],
+  signal: AbortSignal,
+  port = 3200
+): ChildProcessHandle {
   signal.throwIfAborted();
   return commands.start(
     'bunx',
     [
       `@expo/serve-sim@${process.env.SERVE_SIM_VERSION || 'latest'}`,
-      udid,
+      ...devices,
       '--host',
       '127.0.0.1',
       '--port',
@@ -40,7 +51,7 @@ export function startServeSim(udid: string, signal: AbortSignal, port = 3200): C
     ],
     undefined,
     /* captureStdout */ false,
-    // Its own group lets replacement stop serve-sim and the children it respawns together.
+    // The orphan owns boot, device selection and its native children for this VM's job.
     /* detached */ true
   );
 }
@@ -51,7 +62,7 @@ export async function waitForServeSimReadyAsync(
   server: ChildProcessHandle,
   signal: AbortSignal,
   port = 3200
-): Promise<void> {
+): Promise<WarmServer> {
   const url = `http://127.0.0.1:${port}`;
   let exited = false;
   // Handle both outcomes: a rejection here would otherwise be unhandled and end the launcher.
@@ -59,14 +70,17 @@ export async function waitForServeSimReadyAsync(
     exited = true;
   };
   void server.resultPromise.then(markExited, markExited);
+  const throwIfExited = (): void => {
+    if (exited || server.child.exitCode != null || server.child.signalCode != null) {
+      throw new Error(`serve-sim exited before ${udid} became ready.`);
+    }
+  };
   const stateDirectory = process.env.SERVE_SIM_STATE_DIR || path.join(os.tmpdir(), 'serve-sim');
   const stateFile = path.join(stateDirectory, `server-${udid}.json`);
   const deadline = Date.now() + SERVE_SIM_READY_TIMEOUT_MS;
   for (;;) {
     signal.throwIfAborted();
-    if (exited) {
-      throw new Error(`serve-sim exited before ${udid} became ready.`);
-    }
+    throwIfExited();
     if (Date.now() >= deadline) {
       throw new Error(`Timed out waiting for serve-sim on ${udid} to become ready.`);
     }
@@ -78,20 +92,52 @@ export async function waitForServeSimReadyAsync(
     if (state && state.url !== url) {
       throw new Error(`serve-sim on ${udid} reports ${state.url}, not ${url}.`);
     }
-    try {
-      if (state) {
+    if (state && (state.port !== port || state.device.toUpperCase() !== udid.toUpperCase())) {
+      throw new Error('The warm serve-sim registration reports a different device or port.');
+    }
+    let readyForDevice = false;
+    if (state && (await isProcessOwnedByServiceAsync(state.pid, server.child, signal))) {
+      try {
         const response = await fetch(`${url}/readyz`, {
           signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
         });
         const ready = response.ok
           ? ((await response.json()) as { status?: string; device?: string })
           : {};
-        if (ready.status === 'ready' && ready.device?.toUpperCase() === udid.toUpperCase()) {
-          return;
-        }
+        readyForDevice =
+          ready.status === 'ready' && ready.device?.toUpperCase() === udid.toUpperCase();
+      } catch {
+        // serve-sim writes its state and answers /readyz only once it is listening.
       }
-    } catch {
-      // serve-sim writes its state and answers /readyz only once it is listening.
+    }
+    signal.throwIfAborted();
+    throwIfExited();
+    if (
+      readyForDevice &&
+      state &&
+      (await isProcessOwnedByServiceAsync(state.pid, server.child, signal))
+    ) {
+      signal.throwIfAborted();
+      throwIfExited();
+      const nativeStartTime = (
+        await commands.runAsync('ps', ['-p', String(state.pid), '-o', 'lstart='], signal)
+      ).trim();
+      signal.throwIfAborted();
+      throwIfExited();
+      if (
+        !nativeStartTime ||
+        !(await isProcessOwnedByServiceAsync(state.pid, server.child, signal))
+      ) {
+        throw new Error('The warm serve-sim process identity could not be confirmed.');
+      }
+      return {
+        startupDevice: udid,
+        pid: state.pid,
+        nativeStartTime,
+        port,
+        url,
+        token: state.token,
+      };
     }
     await sleepAsync(250, undefined, { signal });
   }
