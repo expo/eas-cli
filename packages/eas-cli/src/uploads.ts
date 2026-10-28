@@ -20,6 +20,13 @@ export interface PresignedPost {
   fields: Record<string, string>;
 }
 
+export interface UploadProgress {
+  file: string;
+  fileSize: number;
+  uploadedBytes: number;
+  elapsedMs: number;
+}
+
 export async function uploadFileAtPathToGCSAsync(
   graphqlClient: ExpoGraphqlClient,
   type: UploadSessionType,
@@ -88,7 +95,7 @@ export async function uploadAppScopedFileAtPathToGCSAsync(
 export async function uploadWithPresignedPostWithRetryAsync(
   file: string,
   presignedPost: PresignedPost,
-  onAssetUploadBegin: () => void
+  onAssetUploadBegin: (progress?: UploadProgress) => void
 ): Promise<Response> {
   return await promiseRetry(
     async retry => {
@@ -96,7 +103,7 @@ export async function uploadWithPresignedPostWithRetryAsync(
       let response: Response;
       try {
         onAssetUploadBegin();
-        response = await uploadWithPresignedPostAsync(file, presignedPost);
+        response = await uploadWithPresignedPostAsync(file, presignedPost, onAssetUploadBegin);
       } catch (e: any) {
         return retry(e);
       }
@@ -127,7 +134,8 @@ export async function uploadWithPresignedPostWithRetryAsync(
 
 async function uploadWithPresignedPostAsync(
   file: string,
-  presignedPost: PresignedPost
+  presignedPost: PresignedPost,
+  onProgress: (progress: UploadProgress) => void
 ): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
@@ -135,7 +143,15 @@ async function uploadWithPresignedPostAsync(
   for (const [fieldKey, fieldValue] of Object.entries(presignedPost.fields)) {
     form.append(fieldKey, fieldValue);
   }
-  form.append('file', fs.createReadStream(file), { knownLength: fileSize });
+  const readStream = fs.createReadStream(file);
+  form.append('file', readStream, { knownLength: fileSize });
+  const startTime = Date.now();
+  let uploadedBytes = 0;
+  onProgress({ file, fileSize, uploadedBytes, elapsedMs: 0 });
+  readStream.addListener('data', (chunk: Buffer | string) => {
+    uploadedBytes += Buffer.byteLength(chunk);
+    onProgress({ file, fileSize, uploadedBytes, elapsedMs: Date.now() - startTime });
+  });
   const formHeaders = form.getHeaders();
   return await fetch(presignedPost.url, {
     method: 'POST',

@@ -44,7 +44,7 @@ import {
   truncateString as truncateUpdateMessage,
   updatePublishPlatformToAppPlatform,
 } from '../update/utils';
-import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
+import { PresignedPost, UploadProgress, uploadWithPresignedPostWithRetryAsync } from '../uploads';
 import {
   expoCommandAsync,
   shouldUseVersionedExpoCLI,
@@ -496,7 +496,7 @@ export async function uploadAssetsAsync(
   onAssetUploadResultsChanged: (
     assetUploadResults: { asset: RawAsset & { storageKey: string }; finished: boolean }[]
   ) => void,
-  onAssetUploadBegin: () => void
+  onAssetUploadBegin: (progress?: UploadProgress) => void
 ): Promise<AssetUploadResult> {
   let assets: RawAsset[] = [];
   let platform: keyof FilteredCollectedAssets;
@@ -552,7 +552,7 @@ export async function uploadAssetsAsync(
   // Sign URLs in chunks (endpoint caps at 100), then upload all from one pool so it stays saturated.
   const uploadBatchAsync = async (
     assetsToUpload: AssetWithStorageKey[],
-    onBegin: () => void
+    onBegin: (progress?: UploadProgress) => void
   ): Promise<void> => {
     const signedAssets: { asset: AssetWithStorageKey; specification: string }[] = [];
     for (const assetChunk of chunk(assetsToUpload, 100)) {
