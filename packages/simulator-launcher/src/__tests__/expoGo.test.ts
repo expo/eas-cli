@@ -608,14 +608,12 @@ it('preinstalls all three configured devices from one shared archive through the
   const onFailure = jest.fn();
   const session = createWarmSimulatorSession({
     signal: controller.signal,
-    isReadyAsync: async () => true,
     throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
     onPreparationFailure: onFailure,
     onBackgroundFailure: onFailure,
   });
   try {
     await session.prepareAsync();
-    session.startExtraWarmupInBackground();
     await until(() => installCalls().length === 3);
     const claim = await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'THIRD' });
     expect(claim.preinstalledExpoGo).toEqual({

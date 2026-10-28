@@ -61,7 +61,6 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
     const onFailure = jest.fn(error => controller.abort(error));
     session = createWarmSimulatorSession({
       signal: controller.signal,
-      isReadyAsync: async () => true,
       throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
       onPreparationFailure: onFailure,
       onBackgroundFailure: onFailure,
