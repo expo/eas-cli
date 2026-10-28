@@ -437,6 +437,8 @@ it('starts an owned nonblocking apsd attempt after selected adoption and drains 
   const disable = jest.mocked(disableApsdAsync).mockImplementation(() => setup.promise);
   try {
     await session.prepareToolsAsync();
+    // The setup runs in the background.
+    await until(() => disable.mock.calls.some(([udid]) => udid === 'OTHER'));
     expect(disable).toHaveBeenCalledWith('OTHER', expect.any(AbortSignal));
     let stopped = false;
     const stopping = session.stopAsync().then(() => {
