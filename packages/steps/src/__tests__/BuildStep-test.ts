@@ -639,6 +639,19 @@ describe(BuildStep, () => {
         expect(abc?.value).toBe('d o m i n i k');
       });
 
+      it('collects an undeclared output named __proto__', async () => {
+        const command = 'set-output __proto__ value';
+        const step = new BuildStep(baseStepCtx, {
+          id: 'test1',
+          displayName: command,
+          command,
+        });
+        await step.executeAsync();
+        expect(Object.hasOwn(step.outputById, '__proto__')).toBe(true);
+        expect(step.getOutputValueByName('__proto__')).toBe('value');
+        expect(Object.getPrototypeOf(step.outputById)).toBe(Object.prototype);
+      });
+
       it('throws an error if some required outputs have not been set with set-output in script', async () => {
         const id = 'test1';
         const command = 'echo 123';

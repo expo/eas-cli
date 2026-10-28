@@ -355,17 +355,14 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private evaluateOwnStepInputs(): Record<string, unknown> {
-    return (
-      this.inputs?.reduce(
-        (acc, input) => {
-          acc[input.id] = input.getValue({
-            interpolationContext: this.getInterpolationContext(),
-            skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
-          });
-          return acc;
-        },
-        Object.create(null) as Record<string, unknown>
-      ) ?? {}
+    return Object.fromEntries(
+      (this.inputs ?? []).map(input => [
+        input.id,
+        input.getValue({
+          interpolationContext: this.getInterpolationContext(),
+          skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+        }),
+      ])
     );
   }
 
@@ -529,17 +526,17 @@ export class BuildStep extends BuildStepOutputAccessor {
             this.getLegacyStepOutputValue(path)
           );
     }
-    const vars = inputs.reduce(
-      (acc, input) => {
+    const vars = Object.fromEntries(
+      inputs.map(input => {
         const value = input.getValue({
           interpolationContext: this.getInterpolationContext(),
           skipLegacyOutputInterpolation,
         });
-        acc[input.id] =
-          typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
-        return acc;
-      },
-      Object.create(null) as Record<string, string>
+        return [
+          input.id,
+          typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? ''),
+        ];
+      })
     );
     const interpolatedWithInputsAndGlobalContext = interpolateWithInputs(
       this.ctx.global.interpolate(template),
@@ -566,7 +563,13 @@ export class BuildStep extends BuildStepOutputAccessor {
           stepDisplayName: this.displayName,
           required: false,
         });
-        this.outputById[outputId] = newOutput;
+        // Define instead of assign so ids like `__proto__` become own properties.
+        Object.defineProperty(this.outputById, outputId, {
+          value: newOutput,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
 
       const file = path.join(outputsDir, outputId);

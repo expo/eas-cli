@@ -167,6 +167,25 @@ describe(BuildStepGlobalContext, () => {
       expect(error).toBeInstanceOf(BuildStepRuntimeError);
       expect(error.message).toMatch(/Step "abc" does not exist/);
     });
+    it('throws an error if the step id is an inherited object property name', () => {
+      const ctx = createGlobalContextMock();
+      const error = getError<BuildStepRuntimeError>(() => {
+        ctx.getStepOutputValue('steps.constructor.def');
+      });
+      expect(error).toBeInstanceOf(BuildStepRuntimeError);
+      expect(error.message).toMatch(/Step "constructor" does not exist/);
+    });
+    it('resolves outputs of a step with id __proto__', () => {
+      const ctx = createGlobalContextMock();
+
+      const mockStep = mock<BuildStep>();
+      when(mockStep.id).thenReturn('__proto__');
+      when(mockStep.isCompositeFunctionInternal).thenReturn(false);
+      when(mockStep.getOutputValueByName('def')).thenReturn('ghi');
+      ctx.registerStep(instance(mockStep));
+
+      expect(ctx.getStepOutputValue('steps.__proto__.def')).toBe('ghi');
+    });
     it('calls getOutputValueByName on the step to get the output value', () => {
       const ctx = createGlobalContextMock();
 

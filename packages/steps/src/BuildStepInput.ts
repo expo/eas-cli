@@ -256,14 +256,5 @@ export function getDisallowedInputValueError(
 }
 
 export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
-  if (inputs === undefined) {
-    return Object.create(null);
-  }
-  return inputs.reduce(
-    (acc, input) => {
-      acc[input.id] = input;
-      return acc;
-    },
-    Object.create(null) as BuildStepInputById
-  );
+  return Object.fromEntries((inputs ?? []).map(input => [input.id, input]));
 }

@@ -324,7 +324,7 @@ async function importFunctionsAsync(
       const childConfig = await readAndValidateBuildFunctionsConfigFileAsync(childConfigPath);
       const childDir = path.dirname(childConfigPath);
       for (const functionName in childConfig.functions) {
-        if (!(functionName in importedFunctions)) {
+        if (!Object.hasOwn(importedFunctions, functionName)) {
           const f = childConfig.functions[functionName];
           if (f.path) {
             f.path = maybeResolveCustomFunctionRelativePath(childDir, f.path);

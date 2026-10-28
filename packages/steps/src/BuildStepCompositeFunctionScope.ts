@@ -152,13 +152,14 @@ export class BuildStepCompositeFunctionScope {
 
   // Workflow hides prefixed ids; re-expose the call's children under their local ids.
   private buildStepsView(): JobInterpolationContext['steps'] {
-    const view: JobInterpolationContext['steps'] = {};
-    for (const [localId, child] of this.childrenByLocalId) {
-      view[localId] = {
-        outputs: Object.fromEntries(child.outputs.map(output => [output.id, output.rawValue])),
-      };
-    }
-    return view;
+    return Object.fromEntries(
+      [...this.childrenByLocalId].map(([localId, child]) => [
+        localId,
+        {
+          outputs: Object.fromEntries(child.outputs.map(output => [output.id, output.rawValue])),
+        },
+      ])
+    );
   }
 
   private buildInputsObject(base: JobInterpolationContext): Record<string, unknown> {

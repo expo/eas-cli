@@ -59,7 +59,7 @@ export class BuildStepGlobalContext {
   public readonly baseLogger: bunyan;
   private didCheckOut = false;
   private _hasAnyPreviousStepFailed = false;
-  private stepById: Record<string, BuildStepOutputAccessor> = {};
+  private readonly stepById = new Map<string, BuildStepOutputAccessor>();
   // Prefixed expansion steps, omitted from the workflow steps view.
   private internalStepIds = new Set<string>();
   constructor(
@@ -101,7 +101,7 @@ export class BuildStepGlobalContext {
 
   private buildStepsInterpolationMap(): StaticJobInterpolationContext['steps'] {
     return Object.fromEntries(
-      Object.values(this.stepById)
+      [...this.stepById.values()]
         .filter(step => !this.internalStepIds.has(step.id))
         .map(step => [
           step.id,
@@ -117,7 +117,7 @@ export class BuildStepGlobalContext {
   }
 
   public registerStep(step: BuildStep): void {
-    this.stepById[step.id] = step;
+    this.stepById.set(step.id, step);
     if (step.isCompositeFunctionInternal) {
       this.internalStepIds.add(step.id);
     }
@@ -125,10 +125,11 @@ export class BuildStepGlobalContext {
 
   public getStepOutputValue(path: string): string | undefined {
     const { stepId, outputId } = parseOutputPath(path);
-    if (!(stepId in this.stepById) || this.internalStepIds.has(stepId)) {
+    const step = this.stepById.get(stepId);
+    if (!step || this.internalStepIds.has(stepId)) {
       throw new BuildStepRuntimeError(`Step "${stepId}" does not exist.`);
     }
-    return this.stepById[stepId].getOutputValueByName(outputId);
+    return step.getOutputValueByName(outputId);
   }
 
   public getInterpolationContext(): JobInterpolationContext {
@@ -266,9 +267,7 @@ export class BuildStepGlobalContext {
   public serialize(): SerializedBuildStepGlobalContext {
     return {
       stepsInternalBuildDirectory: this.stepsInternalBuildDirectory,
-      stepById: Object.fromEntries(
-        Object.entries(this.stepById).map(([id, step]) => [id, step.serialize()])
-      ),
+      stepById: Object.fromEntries([...this.stepById].map(([id, step]) => [id, step.serialize()])),
       internalStepIds: [...this.internalStepIds],
       provider: {
         projectSourceDirectory: this.provider.projectSourceDirectory,
@@ -300,7 +299,7 @@ export class BuildStepGlobalContext {
     };
     const ctx = new BuildStepGlobalContext(deserializedProvider, serialized.skipCleanup);
     for (const [id, stepOutputAccessor] of Object.entries(serialized.stepById)) {
-      ctx.stepById[id] = BuildStepOutputAccessor.deserialize(stepOutputAccessor);
+      ctx.stepById.set(id, BuildStepOutputAccessor.deserialize(stepOutputAccessor));
     }
     ctx.internalStepIds = new Set(serialized.internalStepIds ?? []);
     ctx.stepsInternalBuildDirectory = serialized.stepsInternalBuildDirectory;
