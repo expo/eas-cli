@@ -49,10 +49,8 @@ export function startServeSim(
       '--disable-share',
       '--quiet',
     ],
-    undefined,
-    /* captureStdout */ false,
     // The orphan owns boot, device selection and its native children for this VM's job.
-    /* detached */ true
+    { detached: true }
   );
 }
 

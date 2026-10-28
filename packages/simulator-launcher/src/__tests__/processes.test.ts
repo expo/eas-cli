@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 test('captures output and waits for close rather than wrapper exit', async () => {
-  const job = commands.start('command', [], undefined, true);
+  const job = commands.start('command', [], { captureStdout: true });
   let finished = false;
   const result = job.resultPromise.then(output => {
     finished = true;
@@ -436,7 +436,7 @@ test.each([
 ])(
   'owned-group wrapper exit after intentional child stop still drains siblings and owned close: %j',
   async exit => {
-    const job = commands.start('wrapper', [], undefined, true, true);
+    const job = commands.start('wrapper', [], { captureStdout: true, detached: true });
     const signalled = new Set<number>();
     jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       if (pid === -90001 || signalled.has(pid)) {
@@ -472,7 +472,7 @@ test.each([
 );
 
 test('an owned group cannot excuse wrapper exit before descendant discovery or intentional signals', async () => {
-  const job = commands.start('wrapper', [], undefined, true, true);
+  const job = commands.start('wrapper', [], { captureStdout: true, detached: true });
   const kill = jest.spyOn(process, 'kill');
   jest.spyOn(commands, 'runAsync').mockImplementation(async () => {
     Object.assign(child, { exitCode: 143 });
@@ -489,7 +489,7 @@ test('an owned group cannot excuse wrapper exit before descendant discovery or i
 test.each([0, 143])(
   'wrapper exit %s before the first intentional signal remains a failure even for an owned group',
   async exitCode => {
-    const job = commands.start('wrapper', [], undefined, true, true);
+    const job = commands.start('wrapper', [], { captureStdout: true, detached: true });
     let signalled = false;
     const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       if (pid === 90001 || pid === -90001) {
@@ -520,7 +520,7 @@ test.each([0, 143])(
 );
 
 test('owned group retirement drains a child respawned outside the initial snapshot before close', async () => {
-  const job = commands.start('wrapper', [], undefined, true, true);
+  const job = commands.start('wrapper', [], { captureStdout: true, detached: true });
   let oldChild = true;
   let respawn = false;
   const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
@@ -568,7 +568,7 @@ test('owned group retirement drains a child respawned outside the initial snapsh
 });
 
 test('expected owned wrapper termination cannot bypass the sticky close timeout', async () => {
-  const job = commands.start('wrapper', [], undefined, true, true);
+  const job = commands.start('wrapper', [], { captureStdout: true, detached: true });
   let stopped = false;
   jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
     if (pid === -90001 || stopped) {

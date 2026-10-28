@@ -290,7 +290,7 @@ it.each(['valid', 'traversal', 'malformed'] as const)(
       }
       return await remove(file, options);
     });
-    jest.spyOn(commands, 'start').mockImplementation((file, args, signal, capture) => {
+    jest.spyOn(commands, 'start').mockImplementation((file, args, options) => {
       expect(file).toBe('/usr/bin/tar');
       expect(args).toEqual([
         '-xzf',
@@ -298,8 +298,8 @@ it.each(['valid', 'traversal', 'malformed'] as const)(
         '-C',
         expect.stringMatching(/\/ExpoGo.app$/),
       ]);
-      expect(signal).toBeUndefined();
-      extractor = start(file, args, signal, capture);
+      expect(options?.signal).toBeUndefined();
+      extractor = start(file, args, options);
       extractor.child.once('close', () => {
         extractorClosed = true;
       });
