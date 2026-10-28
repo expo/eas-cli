@@ -66,7 +66,8 @@ it('stops agent-device mid-prepare without reporting it, and stops the daemon', 
     expect(stopProcessAndDescendantsAsync).toHaveBeenCalledWith(prepare, true);
     expect(commands.runAsync).toHaveBeenCalledWith(
       'bunx',
-      expect.arrayContaining(['daemon', 'stop'])
+      expect.arrayContaining(['daemon', 'stop']),
+      expect.any(AbortSignal)
     );
     expect(onFailure).not.toHaveBeenCalled();
   } finally {
@@ -84,7 +85,8 @@ it('stops the agent-device daemon even when the prepare process cannot be stoppe
   await expect(tool.stopAsync()).rejects.toBe(failure);
   expect(commands.runAsync).toHaveBeenCalledWith(
     'bunx',
-    expect.arrayContaining(['daemon', 'stop'])
+    expect.arrayContaining(['daemon', 'stop']),
+    expect.any(AbortSignal)
   );
   // The prepare process stays owned, so a later stop tries it again.
   await tool.stopAsync();
