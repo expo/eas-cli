@@ -2,6 +2,23 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.1.0](https://github.com/expo/eas-cli/releases/tag/v27.1.0) - 2026-10-28
+
+### 🎉 New features
+
+- [eas-cli] Display queued workflow runs: `workflow:run --wait` and `workflow:status` show a run waiting for its concurrency group and the run blocking it, and `workflow:cancel` includes queued runs in its selection list. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Upload the workflow files that `uses` jobs reference, including nested ones, when running a local workflow file with `eas workflow:run`. ([#4769](https://github.com/expo/eas-cli/pull/4769) by [@sswrk](https://github.com/sswrk))
+
+### 🐛 Bug fixes
+
+- [build-tools] Explain App Store Connect error 90189 as a duplicate build number. ([#3461](https://github.com/expo/eas-cli/pull/3461) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Fail the command when EAS CLI cannot pull environment variables from EAS servers, instead of continuing without them. ([#4774](https://github.com/expo/eas-cli/pull/4774) by [@wschurman](https://github.com/wschurman))
+- [eas-cli] Format the generated root changelog before committing a release. ([#4773](https://github.com/expo/eas-cli/pull/4773) by [@gwdp](https://github.com/gwdp))
+- [build-tools][worker] Put the `NPM_TOKEN` registry credential in the builder's npm user config on EAS Build (`~/.npmrc`, or the file `NPM_CONFIG_USERCONFIG` names), where pnpm 10.34.2+ and 11.5.3+ still expand `${NPM_TOKEN}` (they ignore it in a project-level `.npmrc`). Explain what to change when the project's pnpm version needs a newer Node.js than the build runs, including when eas.json sets `node` or `pnpm`. ([#4729](https://github.com/expo/eas-cli/pull/4729) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Install `@expo/repack-app` for the `eas/repack` step with npm in a sandbox that sees only `PATH` and its own `HOME`, so the build machine's npm and Yarn configuration cannot break the install, fetch it through the EAS npm cache when the job uses one, and show the installer output in the build log. The step no longer looks the version up separately before installing. When the npm cache fails, the install retries against the public registry like the project install does; the `eas/run_agent` agent CLI install shares the same helper and gains the same retry. ([#4728](https://github.com/expo/eas-cli/pull/4728) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Honor the `--non-interactive` flag in `workflow:cancel`; it was parsed but never applied, so automation could hang on the interactive picker. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Stop reporting a finish time for workflow runs that have not finished: `workflow:runs` reports `finishedAt` only for runs in a final status. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+
 ## [27.0.0](https://github.com/expo/eas-cli/releases/tag/v27.0.0) - 2026-10-27
 
 ### 🛠 Breaking changes
