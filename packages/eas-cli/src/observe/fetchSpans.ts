@@ -1,9 +1,12 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  AppObserveOrderDirection,
   AppObservePlatform,
   AppObserveSpan,
   AppObserveSpanKind,
   AppObserveSpanListFilter,
+  AppObserveSpanListOrderBy,
+  AppObserveSpanListOrderByField,
   AppObserveSpanStatusCode,
   PageInfo,
 } from '../graphql/generated';
@@ -28,6 +31,11 @@ export interface FetchSpansOptions {
   minDurationMs?: number;
   rootOnly?: boolean;
 }
+
+export const NEWEST_SPANS_FIRST: AppObserveSpanListOrderBy = {
+  field: AppObserveSpanListOrderByField.StartTimestamp,
+  direction: AppObserveOrderDirection.Desc,
+};
 
 export interface FetchSpansResult {
   spans: AppObserveSpan[];
@@ -61,6 +69,7 @@ export async function fetchObserveSpansAsync(
     appId,
     filter,
     first: options.limit,
+    orderBy: NEWEST_SPANS_FIRST,
     ...(options.after && { after: options.after }),
   });
 }

@@ -1,6 +1,8 @@
 import {
+  AppObserveOrderDirection,
   AppObservePlatform,
   AppObserveSpanKind,
+  AppObserveSpanListOrderByField,
   AppObserveSpanStatusCode,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
@@ -35,6 +37,19 @@ describe(fetchObserveSpansAsync, () => {
     expect(callArgs.filter).toEqual({
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
+    });
+  });
+
+  it('always asks for spans newest first', async () => {
+    await fetchObserveSpansAsync(mockGraphqlClient, 'project-123', {
+      limit: 25,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+
+    expect(mockSpanListAsync.mock.calls[0][1].orderBy).toEqual({
+      field: AppObserveSpanListOrderByField.StartTimestamp,
+      direction: AppObserveOrderDirection.Desc,
     });
   });
 
