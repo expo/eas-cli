@@ -137,6 +137,14 @@ describe(buildObserveSpanNamesTable, () => {
     expect(output).not.toContain('truncated');
   });
 
+  it('strips control characters from span names', () => {
+    const output = buildObserveSpanNamesTable([
+      makeSpanName('GET\u001b[2J', AppObserveSpanKind.Client, 1),
+    ]);
+    expect(output).not.toContain('\u001b[2J');
+    expect(output).toContain('GET');
+  });
+
   it('notes truncation', () => {
     const output = buildObserveSpanNamesTable([makeSpanName('GET', AppObserveSpanKind.Client, 1)], {
       isTruncated: true,
@@ -171,6 +179,18 @@ describe(buildObserveSpansTable, () => {
     expect(row).toContain('iOS 17.0');
     expect(output).toContain('eas observe:trace <Trace ID>');
     expect(output).not.toContain('Next page');
+  });
+
+  it('strips control characters from span names and hosts', () => {
+    const span = makeSpan({
+      name: 'GET\u001b[2J',
+      http: { ...makeSpan().http!, urlHost: 'api.example.com\u0007' },
+    });
+    const output = buildObserveSpansTable([span], noNextPage);
+    expect(output).not.toContain('\u001b[2J');
+    expect(output).not.toContain('\u0007');
+    expect(output).toContain('GET');
+    expect(output).toContain('api.example.com');
   });
 
   it('titles the table by session when a session filter is set', () => {
@@ -320,6 +340,20 @@ describe(buildObserveTraceTable, () => {
     expect(output).toContain('500ms');
     expect(output).toContain('2.50s');
     expect(output).not.toContain('more spans');
+  });
+
+  it('strips control characters from the device, span names, and URLs', () => {
+    const span = makeSpan({
+      name: 'GET\u001b[2J',
+      deviceModel: 'iPhone\u0007 15',
+      http: { ...makeSpan().http!, urlFull: 'https://api.example.com/\u001b[Husers' },
+    });
+    const output = buildObserveTraceTable(makeTrace([span]));
+    expect(output).not.toContain('\u001b[2J');
+    expect(output).not.toContain('\u001b[H');
+    expect(output).not.toContain('\u0007');
+    expect(output).toContain('Device:      iPhone 15');
+    expect(output).toContain('https://api.example.com/[Husers');
   });
 
   it('notes truncation', () => {

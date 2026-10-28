@@ -103,6 +103,15 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).toContain('status=ERROR error=NSURLErrorTimedOut');
   });
 
+  it('strips control characters from a span row name', () => {
+    const output = buildObserveSessionEventsTable([
+      makeSpanEntry({ name: 'GET\u001b[2J', urlHost: 'api.example.com\u0007', urlFull: null }),
+    ]);
+    expect(output).not.toContain('\u001b[2J');
+    expect(output).not.toContain('\u0007');
+    expect(output).toContain('GET[2J api.example.com');
+  });
+
   it('names spans in the "more available" note', () => {
     const output = buildObserveSessionEventsTable([makeSpanEntry()], { hasMoreSpans: true });
     expect(output).toContain('More spans are available for this session');

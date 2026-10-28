@@ -7,6 +7,7 @@ import {
   PageInfo,
 } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
+import { sanitizeTerminalText } from '../utils/terminalText';
 import { buildTimeRangeDescription, formatLogTimestamp } from './formatUtils';
 
 export function formatSpanDuration(durationMs: number): string {
@@ -163,7 +164,11 @@ export function buildObserveSpanNamesTable(
   }
 
   const headers = ['Span Name', 'Kind', 'Count'];
-  const rows: string[][] = names.map(n => [n.name, n.kind, n.count.toLocaleString()]);
+  const rows: string[][] = names.map(n => [
+    sanitizeTerminalText(n.name),
+    n.kind,
+    n.count.toLocaleString(),
+  ]);
 
   const lines: string[] = [];
 
@@ -226,11 +231,11 @@ export function buildObserveSpansTable(
 
   const rows: string[][] = spans.map(span => [
     formatLogTimestamp(span.startTimestamp),
-    span.name,
+    sanitizeTerminalText(span.name),
     formatSpanDuration(span.durationMs),
     span.statusCode,
     formatSpanHttpStatus(span),
-    span.http?.urlHost ?? '-',
+    sanitizeTerminalText(span.http?.urlHost ?? '-'),
     `${span.appVersion} (${span.appBuildNumber})`,
     `${span.deviceOs} ${span.deviceOsVersion}`,
     span.traceId,
@@ -325,7 +330,7 @@ export function buildObserveTraceTable(trace: AppObserveTrace): string {
     `Started:     ${formatLogTimestamp(first.startTimestamp)}`,
     `Spans:       ${rows.length}${trace.isTruncated ? ' (truncated)' : ''}`,
     `App version: ${first.appVersion} (${first.appBuildNumber})`,
-    `Device:      ${first.deviceModel} · ${first.deviceOs} ${first.deviceOsVersion}`,
+    `Device:      ${sanitizeTerminalText(first.deviceModel)} · ${first.deviceOs} ${first.deviceOsVersion}`,
     `Session:     ${sessionId ?? '-'}`,
     ''
   );
@@ -337,10 +342,10 @@ export function buildObserveTraceTable(trace: AppObserveTrace): string {
   const tableRows: string[][] = rows.map(({ span, depth }) => [
     formatSpanDuration(new Date(span.startTimestamp).getTime() - traceStartMs),
     formatSpanDuration(span.durationMs),
-    `${'  '.repeat(depth)}${span.name}`,
+    `${'  '.repeat(depth)}${sanitizeTerminalText(span.name)}`,
     span.statusCode,
     formatSpanHttpStatus(span),
-    span.http?.urlFull ?? '-',
+    sanitizeTerminalText(span.http?.urlFull ?? '-'),
   ]);
   lines.push(renderTextTable(headers, tableRows));
 

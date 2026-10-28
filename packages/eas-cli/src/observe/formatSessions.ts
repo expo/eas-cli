@@ -6,6 +6,7 @@ import { formatSpanDuration, formatSpanUrlPath } from './formatSpans';
 import { formatLogTimestamp } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
 import renderTextTable from '../utils/renderTextTable';
+import { sanitizeTerminalText } from '../utils/terminalText';
 
 export interface BuildSessionEventsOptions {
   metadata?: SessionMetadata | null;
@@ -19,9 +20,12 @@ function formatEntryName(entry: SessionEventEntry): string {
     const name = getMetricDisplayName(entry.name);
     return entry.routeName ? `${name} · ${entry.routeName}` : name;
   }
-  if (entry.source === 'span' && entry.urlHost) {
+  if (entry.source === 'span') {
+    if (!entry.urlHost) {
+      return sanitizeTerminalText(entry.name);
+    }
     const path = entry.urlFull ? formatSpanUrlPath(entry.urlFull) : '';
-    return `${entry.name} ${entry.urlHost}${path}`;
+    return sanitizeTerminalText(`${entry.name} ${entry.urlHost}${path}`);
   }
   return entry.name;
 }
