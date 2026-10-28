@@ -103,7 +103,7 @@ describe(createRunAgentBuildFunction, () => {
     );
     const npmEnv = installMock.mock.calls[0][2]!.env!;
     const agentEnv = spawnMock.mock.calls[0][2].env!;
-    expect(Object.keys(npmEnv).sort()).toEqual(['HOME', 'LANG', 'PATH', 'TMPDIR']);
+    expect(Object.keys(npmEnv).sort()).toEqual(['HOME', 'PATH']);
     expect(Object.keys(agentEnv).sort()).toEqual([
       'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
       'CLAUDE_CODE_OAUTH_TOKEN',

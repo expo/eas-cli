@@ -22,6 +22,7 @@ import {
   getPreviewApiAccess,
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
+  stripTerminalControlCharacters,
 } from '../utils';
 
 const agentDeviceConfig = {
@@ -964,5 +965,21 @@ describe('embed instructions', () => {
   it('says nothing about embedding without frame ancestors', () => {
     expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain('embed the preview');
     expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain('tok-1');
+  });
+});
+
+describe(stripTerminalControlCharacters, () => {
+  it('removes terminal escapes and all control characters by default', () => {
+    expect(stripTerminalControlCharacters('\u001b[31mhello\u001b[0m\u0007\n\tworld\u009b')).toBe(
+      'helloworld'
+    );
+  });
+
+  it('keeps newlines and tabs when requested', () => {
+    expect(
+      stripTerminalControlCharacters('\u001b[31mhello\u001b[0m\u0007\n\tworld', {
+        keepNewlinesAndTabs: true,
+      })
+    ).toBe('hello\n\tworld');
   });
 });

@@ -19,7 +19,7 @@ export type WorkflowRunResult = {
   triggerType: WorkflowTriggerType;
   trigger: string | null;
   startedAt: string;
-  finishedAt: string;
+  finishedAt: string | null;
   workflowId: string;
   workflowName: string | null;
   workflowFileName: string;
