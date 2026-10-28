@@ -81,6 +81,20 @@ describe('StepsConfigParser local composite functions', () => {
       );
     });
 
+    it('rejects an input named __proto__', async () => {
+      const error = await getErrorAsync<BuildConfigError>(() =>
+        parseCompositeFunctions({
+          catalog: {
+            [SETUP]: compositeFunctionReadingInput({ name: '__proto__', type: 'string' }),
+          },
+          steps: [{ uses: SETUP, id: 'setup' }],
+          externalFunctions: [passThroughFunction()],
+        })
+      );
+      expect(error).toBeInstanceOf(BuildConfigError);
+      expect(error.message).toMatch(/declares input "__proto__", which is not supported/);
+    });
+
     // Required-ness is a static presence check, like for regular function steps.
     // Whether a provided interpolation resolves to a value is not validated.
     it('treats a required input set to an interpolation as provided, even one resolving to undefined', async () => {

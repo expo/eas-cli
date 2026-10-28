@@ -811,6 +811,25 @@ describe(validateConfig, () => {
         );
         expect(error.message).toMatch(/"functions.abc.inputs\[6\].defaultValue" must be a object/);
       });
+      test('__proto__ as a function input name', () => {
+        const buildConfig = {
+          build: {
+            steps: ['abc'],
+          },
+          functions: {
+            abc: {
+              inputs: ['__proto__', { name: '__proto__' }],
+              command: 'echo 123',
+            },
+          },
+        };
+
+        const error = getError<Error>(() => {
+          validateConfig(BuildConfigSchema, buildConfig);
+        });
+        expect(error.message).toMatch(/"functions.abc.inputs\[0\]" must not be "__proto__"/);
+        expect(error.message).toMatch(/"functions.abc.inputs\[1\].name" must not be "__proto__"/);
+      });
       test('valid default and allowed values for function inputs', () => {
         const buildConfig = {
           build: {

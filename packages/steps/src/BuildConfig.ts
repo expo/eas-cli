@@ -87,12 +87,17 @@ export type BuildFunctionInputs = (
 )[];
 export type BuildFunctionOutputs = BuildStepOutputs;
 
+// Config validation strips `__proto__` keys from call inputs, so an input with that name could never be set.
+const BuildFunctionInputNameSchema = Joi.string()
+  .invalid('__proto__')
+  .messages({ 'any.invalid': '{{#label}} must not be "__proto__"' });
+
 const BuildFunctionInputsSchema = Joi.array().items(
   Joi.alternatives().conditional(Joi.ref('.'), {
     is: Joi.string(),
-    then: Joi.string().required(),
+    then: BuildFunctionInputNameSchema.required(),
     otherwise: Joi.object({
-      name: Joi.string().required(),
+      name: BuildFunctionInputNameSchema.required(),
       defaultValue: Joi.when('allowedValues', {
         is: Joi.exist(),
         then: Joi.valid(Joi.in('allowedValues')).messages({

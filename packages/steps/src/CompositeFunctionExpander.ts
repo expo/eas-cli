@@ -403,6 +403,12 @@ export class CompositeFunctionExpander {
               allowedValues: declared.allowed_values,
               defaultValue: declared.default_value,
             };
+      // Config validation strips `__proto__` keys from `with:`, so this input could never be set.
+      if (definition.name === '__proto__') {
+        throw new BuildConfigError(
+          `Composite function "${compositeFunctionPath}" declares input "__proto__", which is not supported.`
+        );
+      }
       const input = new BuildStepInput(this.ctx, {
         id: definition.name,
         stepDisplayName: compositeFunctionPath,
