@@ -71,7 +71,12 @@ export async function setupAsync<TJob extends BuildJob>(
       }
     );
 
-    await setUpNpmrcAsync(ctx, ctx.logger);
+    await setUpNpmrcAsync({
+      projectTargetDirectory: ctx.buildDirectory,
+      workingDirectory: ctx.getReactNativeProjectDirectory(),
+      env: ctx.env,
+      logger: ctx.logger,
+    });
     if (ctx.job.platform === Platform.IOS && ctx.env.EAS_BUILD_RUNNER === 'eas-build') {
       await deleteXcodeEnvLocalIfExistsAsync(ctx as BuildContext<Ios.Job>);
     }

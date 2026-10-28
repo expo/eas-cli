@@ -44,6 +44,10 @@ jest.mock('../../../ora', () => ({
   }),
 }));
 jest.mock('../../../utils/json');
+jest.mock('fs-extra', () => {
+  const actual = jest.requireActual<typeof import('fs-extra')>('fs-extra');
+  return { ...actual, stat: jest.fn(actual.stat) };
+});
 
 type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 
@@ -236,12 +240,23 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it('explains local and explicit host upload paths without running an action', async () => {
+    await createCommand(['media.add', '--help', '--id', 'session-123']).runAsync();
+
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      '  File paths are local. Use host:/absolute/path for files on the simulator host.'
+    );
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('prints the host action schema as JSON for help', async () => {
     await createCommand(['app.install', '--help', '--json', '--id', 'session-123']).runAsync();
 
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       action: 'app.install',
       ...catalog['app.install'],
+      description: expect.stringContaining('host:/absolute/path'),
     });
     expect(actionRequests()).toEqual([]);
     expect(close).toHaveBeenCalledTimes(1);
@@ -328,6 +343,39 @@ describe(SimulatorControl, () => {
     ]);
   });
 
+  it('rejects host paths for ID-only uploads and does not advertise them', async () => {
+    served = {
+      ...catalog,
+      'app.file.upload': {
+        type: 'object',
+        properties: { uploadId: { type: 'string' } },
+        upload: 'uploadId',
+        uploadAs: 'id',
+      },
+    };
+    await expect(
+      createCommand(['app.file.upload', 'host:/tmp/a.json', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('requires a local file');
+    expect(actionRequests()).toEqual([]);
+    await createCommand(['app.file.upload', '--help', '--id', 'session-123']).runAsync();
+    const lines = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
+    expect(lines.join('\n')).not.toContain('host:/absolute/path');
+    expect(lines.join('\n')).toContain('requires a local file');
+    await createCommand(['app.file.upload', '--help', '--json', '--id', 'session-123']).runAsync();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining('requires a local file'),
+      })
+    );
+  });
+
+  it('explains how to upload a local filename beginning with host:', async () => {
+    await expect(
+      createCommand(['media.add', 'host:photo.png', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('./host:photo.png');
+    expect(actionRequests()).toEqual([]);
+  });
+
   it('keeps an upload that the action goes on reading', async () => {
     const localFile = path.join(tmpDir, 'feed.mp4');
     await fs.writeFile(localFile, 'video bytes');
@@ -395,17 +443,65 @@ describe(SimulatorControl, () => {
     expect(actionRequests()).toEqual([]);
   });
 
-  it('passes a path that is not a local file through unchanged', async () => {
-    actionResult = ok('');
+  it('refuses a missing absolute local file without running an action', async () => {
+    const missing = path.join(tmpDir, 'missing.png');
+    await expect(
+      createCommand(['media.add', missing, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('does not exist on this computer');
+    expect(actionRequests()).toEqual([]);
+  });
 
-    await createCommand([
-      'app.install',
-      '/Users/runner/MyApp.ipa',
-      '--id',
-      'session-123',
-    ]).runAsync();
+  it('preserves a local filesystem failure without sending an action', async () => {
+    const denied = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    const stat = jest
+      .mocked<(path: string) => Promise<fs.Stats>>(fs.stat)
+      .mockRejectedValueOnce(denied);
+    try {
+      await expect(
+        createCommand([
+          'media.add',
+          path.join(tmpDir, 'private.png'),
+          '--id',
+          'session-123',
+        ]).runAsync()
+      ).rejects.toBe(denied);
+      expect(actionRequests()).toEqual([]);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      stat
+        .mockReset()
+        .mockImplementation(jest.requireActual<typeof import('fs-extra')>('fs-extra').stat);
+    }
+  });
 
-    expect(actionRequests()).toEqual([['app.install', { path: '/Users/runner/MyApp.ipa' }]]);
+  it('passes an explicit host path through without uploading a matching local file', async () => {
+    const localFile = path.join(tmpDir, 'existing.png');
+    await fs.writeFile(localFile, 'local bytes');
+    await createCommand(['media.add', `host:${localFile}`, '--id', 'session-123']).runAsync();
+    expect(actionRequests()).toEqual([['media.add', { path: localFile }]]);
+  });
+
+  it.each(['host:relative.png', 'host:'])('rejects a non-absolute host path: %s', async value => {
+    await expect(
+      createCommand(['media.add', value, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('absolute');
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it('uploads a local filename beginning with host: when explicitly relative', async () => {
+    const previous = process.cwd();
+    await fs.writeFile(path.join(tmpDir, 'host:photo.png'), 'png bytes');
+    try {
+      process.chdir(tmpDir);
+      await createCommand(['media.add', './host:photo.png', '--id', 'session-123']).runAsync();
+      expect(actionRequests().map(([action]) => action)).toEqual([
+        'upload.append',
+        'media.add',
+        'upload.remove',
+      ]);
+    } finally {
+      process.chdir(previous);
+    }
   });
 
   it('downloads the file an action returns', async () => {
@@ -443,7 +539,14 @@ describe(SimulatorControl, () => {
   it('lists the actions as JSON when no action is provided', async () => {
     await createCommand(['--id', 'session-123', '--json']).runAsync();
 
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'app.install': expect.objectContaining({
+          description: expect.stringContaining('host:/absolute/path'),
+        }),
+        'hardwareKeyboard.set': catalog['hardwareKeyboard.set'],
+      })
+    );
     expect(actionRequests()).toEqual([]);
   });
 
