@@ -39,9 +39,7 @@ export function createAgentDeviceTool(): WarmTool {
           '240000',
           '--json',
         ],
-        undefined,
-        false,
-        /* detached */ true
+        { detached: true }
       );
       await untilAbortedAsync(prepareProcess.resultPromise, signal);
     },

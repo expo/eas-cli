@@ -59,9 +59,7 @@ it('stops agent-device mid-prepare without reporting it, and stops the daemon', 
     expect(commands.start).toHaveBeenCalledWith(
       'bunx',
       expect.arrayContaining(['prepare', 'ios-runner']),
-      undefined,
-      false,
-      true
+      { detached: true }
     );
     // The prepare process is still running; the stop does not wait for it to exit by itself.
     await started.stopAsync();
