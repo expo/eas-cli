@@ -172,7 +172,7 @@ beforeEach(() => {
   jest.mocked(runServeSimActionWithResultAsync).mockResolvedValue(
     JSON.stringify({
       'screenshot.capture': {
-        properties: { copyToDesktop: { type: 'boolean' }, purpose: { const: 'session-preview' } },
+        properties: { copyToDesktop: { type: 'boolean' }, automation: { type: 'boolean' } },
       },
     })
   );

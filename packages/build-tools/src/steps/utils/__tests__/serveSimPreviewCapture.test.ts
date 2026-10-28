@@ -34,7 +34,7 @@ it('requires advertised support before using the optional capture mode', async (
   jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce(
     JSON.stringify({
       'screenshot.capture': {
-        properties: { copyToDesktop: { type: 'boolean' }, purpose: { const: 'session-preview' } },
+        properties: { copyToDesktop: { type: 'boolean' }, automation: { type: 'boolean' } },
       },
     })
   );
@@ -52,7 +52,7 @@ it('captures the selected active display without Desktop copies and removes only
         udid: 'selected-udid',
         fileName: expect.stringMatching(/^serve-sim-screenshot-preview-.*\.png$/),
         copyToDesktop: false,
-        purpose: 'session-preview',
+        automation: true,
       },
       timeoutMs: 30_000,
       signal,
