@@ -40,7 +40,6 @@ const argent = handle(12);
 let controller: AbortController;
 let env: NodeJS.ProcessEnv;
 let onPreparationFailure: jest.Mock;
-let onBackgroundFailure: jest.Mock;
 const starts = (word: string) =>
   jest.mocked(commands.start).mock.calls.filter(([, args]) => args.includes(word));
 function createSession() {
@@ -48,7 +47,6 @@ function createSession() {
     signal: controller.signal,
     throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
     onPreparationFailure,
-    onBackgroundFailure,
   });
 }
 
@@ -60,7 +58,6 @@ beforeEach(() => {
   process.env.ARGENT_EVENT_LOG = '/fixture/argent-events';
   controller = new AbortController();
   onPreparationFailure = jest.fn(error => controller.abort(error));
-  onBackgroundFailure = jest.fn(error => controller.abort(error));
   jest.mocked(commands.runAsync).mockImplementation(async (_file, args) => {
     if (args.includes('devices')) {
       return JSON.stringify({ devices: { ios: [defaultDevice, secondary, otherDevice] } });
@@ -145,7 +142,7 @@ it('starts one orphan with all configured devices and keeps its identity separat
   expect(shutdownSimulatorAsync).toHaveBeenCalledWith('OTHER');
 });
 
-it('primes the exact version once before readiness and bounds two failed attempts', async () => {
+it('primes the exact version once before readiness', async () => {
   const priming = deferred<string>();
   const run = jest.mocked(commands.runAsync).getMockImplementation()!;
   jest
@@ -255,6 +252,22 @@ it('serve-sim tool preparation does not gate on unused tool stops, but terminal 
   await stopping;
 });
 
+it('a failed unused-tool stop after the claim keeps the session and the stop retries it', async () => {
+  jest
+    .mocked(stopProcessAndDescendantsAsync)
+    .mockImplementationOnce(async () => {})
+    .mockRejectedValueOnce(new Error('the tool is still running'));
+  const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim' });
+  await until(() => warning.mock.calls.some(([text]) => String(text).includes('retrying at stop')));
+  await session.prepareToolsAsync();
+  expect(controller.signal.aborted).toBe(false);
+  await session.stopAsync();
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+});
+
 it('starts an owned nonblocking apsd attempt after selected adoption and drains it before shutdown', async () => {
   const session = createSession();
   await session.prepareAsync();
@@ -299,7 +312,6 @@ it('warns on ordinary adopted-device apsd failure without failing the claimed se
   await session.prepareToolsAsync();
   await session.stopAsync();
   expect(onPreparationFailure).not.toHaveBeenCalled();
-  expect(onBackgroundFailure).not.toHaveBeenCalled();
   expect(warning.mock.calls.map(([text]) => text).join('')).toContain(
     'Could not disable apsd on OTHER; continuing'
   );

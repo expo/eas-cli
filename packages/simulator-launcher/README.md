@@ -20,8 +20,8 @@ exec bunx @expo/simulator-launcher@latest start
 
 Build-tools uses the package version recorded by `start` for `claim`, `prepare-tools` and `stop`.
 There is no copied bundle. Warmup primes Bun's exact-version cache before ready, with two attempts
-of up to 30 seconds. Calls use `--no-install`; only a cache-resolution failure retries against the
-registry. Priming failures warn. Stop before start disables startup for this VM boot.
+of up to 30 seconds. Build-tools calls use `--no-install`; only a cache-resolution failure retries
+against the registry. Priming failures warn. Stop before start disables startup for this VM boot.
 
 The single private record `/tmp/expo-simulator-startup.json` contains lifecycle, launcher version,
 selected device, controller and server identity, credentials and tool paths. A boot-scoped lock
