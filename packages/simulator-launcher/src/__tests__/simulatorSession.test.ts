@@ -425,10 +425,12 @@ it('serve-sim tool preparation does not gate on unused tool stops, but terminal 
 });
 
 it('a failed unused-tool stop after the claim keeps the session and the stop retries it', async () => {
-  jest
-    .mocked(stopProcessAndDescendantsAsync)
-    .mockImplementationOnce(async () => {})
-    .mockRejectedValueOnce(new Error('the tool is still running'));
+  const failure = new Error('Argent is still running');
+  const stop = jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async handle => {
+    if (handle === argent) {
+      throw failure;
+    }
+  });
   const warning = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   const session = createSession();
   await session.prepareAsync();
@@ -436,7 +438,9 @@ it('a failed unused-tool stop after the claim keeps the session and the stop ret
   await until(() => warning.mock.calls.some(([text]) => String(text).includes('retrying at stop')));
   await session.prepareToolsAsync();
   expect(controller.signal.aborted).toBe(false);
-  await session.stopAsync();
+  // The retry fails too, so the stop reports it.
+  await expect(session.stopAsync()).rejects.toMatchObject({ errors: [failure] });
+  expect(stop.mock.calls.filter(([handle]) => handle === argent)).toHaveLength(2);
   expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
 });
 

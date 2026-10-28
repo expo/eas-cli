@@ -57,7 +57,8 @@ serializes updates; an abandoned lock fails closed. This private format requires
 ## Boundaries
 
 - Ready means the default device booted and serve-sim answers. The apsd step and the Expo Go
-  preinstall run in the background; a claim waits for the apsd step before it returns.
+  preinstall run in the background. A claim of the default device waits for its apsd step before
+  it returns; for another device, the step runs in the background after adoption.
   The second device may not have started yet. Its startup failure leaves the default available.
   Claim reserves a device; it does not report that device ready. Private adoption must confirm
   the same server PID/port, selected-device readiness and native video/capture before tool setup
