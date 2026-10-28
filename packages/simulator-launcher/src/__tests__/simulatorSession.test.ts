@@ -53,7 +53,6 @@ const starts = (word: string) =>
 function createSession() {
   return createWarmSimulatorSession({
     signal: controller.signal,
-    isReadyAsync: async () => true,
     throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
     onPreparationFailure,
     onBackgroundFailure,
@@ -228,7 +227,6 @@ it('does not begin secondary preinstall until default preinstall and tools finis
     );
   const session = createSession();
   await session.prepareAsync();
-  session.startExtraWarmupInBackground();
   await new Promise(resolve => setImmediate(resolve));
   expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
   installed.resolve();
@@ -249,7 +247,6 @@ it('consumed claim forbids queued secondary preinstall', async () => {
   const preinstall = mockDefaultExpoGoInstall(installed.promise);
   const session = createSession();
   await session.prepareAsync();
-  session.startExtraWarmupInBackground();
   await session.claimAsync({ engine: 'serve-sim' });
   installed.resolve();
   await session.stopAsync();
@@ -262,7 +259,6 @@ it('a secondary boot observation failure leaves the claimed default usable', asy
   jest.mocked(waitForSimulatorBootAsync).mockRejectedValue(new Error('optional boot failed'));
   const session = createSession();
   await session.prepareAsync();
-  session.startExtraWarmupInBackground();
   await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 1);
   await expect(session.claimAsync({ engine: 'serve-sim' })).resolves.toMatchObject({
     device: defaultDevice,
@@ -447,24 +443,6 @@ it('serve-sim tool preparation does not gate on unused tool stops, but terminal 
   await stopping;
 });
 
-it('does not start secondary native work if claim wins during the readiness check', async () => {
-  const check = deferred<boolean>();
-  const session = createWarmSimulatorSession({
-    signal: controller.signal,
-    isReadyAsync: () => check.promise,
-    throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
-    onPreparationFailure,
-    onBackgroundFailure,
-  });
-  await session.prepareAsync();
-  session.startExtraWarmupInBackground();
-  await new Promise(resolve => setImmediate(resolve));
-  await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
-  check.resolve(true);
-  await session.stopAsync();
-  expect(waitForSimulatorBootAsync).not.toHaveBeenCalled();
-});
-
 it('starts an owned nonblocking apsd attempt after selected adoption and drains it before shutdown', async () => {
   const session = createSession();
   await session.prepareAsync();
@@ -500,6 +478,24 @@ it('does not repeat completed default-device setup after adoption', async () => 
   await session.stopAsync();
 });
 
+it('does not report a background failure when a stop aborts the default setup', async () => {
+  const disable = jest
+    .mocked(disableApsdAsync)
+    .mockImplementation(
+      (_udid, signal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+        )
+    );
+  const session = createSession();
+  const preparing = session.prepareAsync().catch(() => {});
+  await until(() => disable.mock.calls.length > 0);
+  await session.stopAsync();
+  await preparing;
+  await new Promise(resolve => setImmediate(resolve));
+  expect(onBackgroundFailure).not.toHaveBeenCalled();
+});
+
 it('runs the setup again for an extra device whose warmup the claim cancelled', async () => {
   const session = createSession();
   await session.prepareAsync();
@@ -512,7 +508,6 @@ it('runs the setup again for an extra device whose warmup the claim cancelled', 
           )
         : Promise.resolve()
     );
-  session.startExtraWarmupInBackground();
   await until(() => disable.mock.calls.some(([udid]) => udid === 'PHONE18'));
   await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'PHONE18' });
   disable.mockResolvedValue(undefined);
