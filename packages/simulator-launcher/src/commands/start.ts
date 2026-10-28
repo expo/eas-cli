@@ -275,44 +275,37 @@ export function createWarmSimulatorSession({
   let toolRetirement: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
 
   /**
-   * Starts the setup of each device and returns at once: disable apsd, then preinstall Expo Go.
-   * Each device waits for its boot by serve-sim, or for `ready` when given. Nothing waits for the
-   * setup; claim and stop join it. An aborted setup can run again.
+   * Sets up each device once `ready` settles and the device booted: disable apsd, then preinstall
+   * Expo Go. Claim and stop join the apsd steps. An aborted setup can run again.
    */
-  function startSimulatorsSetup(
+  async function startSimulatorsSetupAsync(
     udids: string[],
     setupSignal: AbortSignal,
-    ready?: Promise<unknown>
-  ): void {
-    for (const udid of udids) {
-      if (simulatorSetups.has(udid)) {
-        continue;
-      }
-      // serve-sim boots every device; the launcher only waits for it.
-      const booted = ready ?? waitForSimulatorBootAsync(udid, setupSignal);
-      const apsd = booted.then(async () => {
-        setupSignal.throwIfAborted();
-        await disableApsdAsync(udid, setupSignal).catch(error => {
-          setupSignal.throwIfAborted();
-          process.stderr.write(`Could not disable apsd on ${udid}; continuing: ${error}\n`);
-        });
-      });
-      simulatorSetups.set(udid, apsd);
-      void apsd.catch(() => {
-        if (simulatorSetups.get(udid) === apsd) {
-          simulatorSetups.delete(udid);
+    ready: Promise<unknown>
+  ): Promise<void> {
+    await Promise.all(
+      udids.map(async udid => {
+        if (simulatorSetups.has(udid)) {
+          return;
         }
-      });
-      // Ask for the install only once the device booted, so a cancelled device never queues one.
-      // Stop reports an install that could not be confirmed.
-      void booted
-        .then(() => expoGo?.preinstallOnDeviceAsync(udid, Promise.resolve(), setupSignal))
-        .catch(error => {
-          if (!setupSignal.aborted) {
-            process.stderr.write(`Could not preinstall Expo Go on ${udid}: ${error}\n`);
+        // serve-sim boots every device; the launcher only waits for it.
+        const apsd = ready.then(async () => {
+          await waitForSimulatorBootAsync(udid, setupSignal);
+          await disableApsdAsync(udid, setupSignal).catch(error => {
+            setupSignal.throwIfAborted();
+            process.stderr.write(`Could not disable apsd on ${udid}; continuing: ${error}\n`);
+          });
+        });
+        simulatorSetups.set(udid, apsd);
+        void apsd.catch(() => {
+          if (simulatorSetups.get(udid) === apsd) {
+            simulatorSetups.delete(udid);
           }
         });
-    }
+        await apsd;
+        await expoGo?.preinstallOnDeviceAsync(udid, Promise.resolve(), setupSignal);
+      })
+    );
   }
 
   /** Joins every setup's launchctl commands, including cancelled ones. */
@@ -386,15 +379,13 @@ export function createWarmSimulatorSession({
       startedTools.set(tool, startTool(tool, first.udid, ready, signal, onPreparationFailure));
     }
     const warmupSignal = AbortSignal.any([signal, warmup.signal]);
-    startSimulatorsSetup([first.udid], warmupSignal, ready);
-    // The other devices wait until the default device's tools are ready, so they never delay it.
-    // A claim or stop before then skips them.
-    void Promise.allSettled([...startedTools.values()].map(tool => tool.ready)).then(() => {
+    startSimulatorsSetupAsync(
+      warmDevices.map(device => device.udid),
+      warmupSignal,
+      ready
+    ).catch(error => {
       if (!warmupSignal.aborted) {
-        startSimulatorsSetup(
-          warmDevices.slice(1).map(device => device.udid),
-          warmupSignal
-        );
+        process.stderr.write(`Could not finish Simulator warmup; continuing: ${error}\n`);
       }
     });
     launcherCachePriming = primeLauncherCacheAsync();
@@ -478,7 +469,7 @@ export function createWarmSimulatorSession({
       }
       // A replacement device, or an extra one whose warmup the claim cancelled, still needs its
       // setup. A finished setup is reused. This runs in the background but is joined before teardown.
-      startSimulatorsSetup([info.device.udid], signal, Promise.resolve());
+      startSimulatorsSetupAsync([info.device.udid], signal, Promise.resolve()).catch(() => {});
       const tool = warmTools.find(tool => tool.name === request!.engine);
       if (tool?.name === 'agent-device' && !startedTools.has(tool)) {
         const results = await toolRetirement;
