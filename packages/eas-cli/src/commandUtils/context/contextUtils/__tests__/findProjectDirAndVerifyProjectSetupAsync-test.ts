@@ -11,8 +11,16 @@ jest.mock('fs');
 
 jest.mock('../../../../prompts');
 
+const originalStderrIsTTY = process.stderr.isTTY;
+
 beforeEach(() => {
   jest.resetAllMocks();
+  // The dependency notice prints once per process and only to a terminal, so keep it unspent.
+  process.stderr.isTTY = false;
+});
+
+afterAll(() => {
+  process.stderr.isTTY = originalStderrIsTTY;
 });
 
 describe(findProjectRootAsync, () => {
@@ -113,5 +121,34 @@ describe(findProjectDirAndVerifyProjectSetupAsync, () => {
       '/app'
     );
     await expect(findProjectDirAndVerifyProjectSetupAsync({ cwd: '/app' })).resolves.not.toThrow();
+  });
+});
+
+describe('eas-cli dependency notice', () => {
+  beforeEach(() => {
+    vol.reset();
+    vol.fromJSON(
+      {
+        './eas.json': JSON.stringify({}),
+        './package.json': JSON.stringify({ devDependencies: { 'eas-cli': '*' } }),
+      },
+      '/app'
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('prints the notice only when stderr is a terminal', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    process.stderr.isTTY = false;
+    await findProjectDirAndVerifyProjectSetupAsync({ cwd: '/app' });
+    expect(warn).not.toHaveBeenCalled();
+
+    process.stderr.isTTY = true;
+    await findProjectDirAndVerifyProjectSetupAsync({ cwd: '/app' });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('in your project dependencies'));
   });
 });

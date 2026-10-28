@@ -148,7 +148,11 @@ export default class SimulatorControl extends EasCommand {
 
   private printCatalog(catalog: HostActionCatalog, jsonFlag: boolean): void {
     if (jsonFlag) {
-      printJsonOnlyOutput(catalog);
+      printJsonOnlyOutput(
+        Object.fromEntries(
+          Object.entries(catalog).map(([name, entry]) => [name, withUploadPathHelp(entry)])
+        )
+      );
       return;
     }
     const names = Object.keys(catalog).sort();
@@ -167,7 +171,7 @@ export default class SimulatorControl extends EasCommand {
 
   private printActionHelp(action: string, entry: HostActionCatalogEntry, jsonFlag: boolean): void {
     if (jsonFlag) {
-      printJsonOnlyOutput({ ...entry, action });
+      printJsonOnlyOutput({ ...withUploadPathHelp(entry), action });
       return;
     }
     Log.newLine();
@@ -197,6 +201,11 @@ export default class SimulatorControl extends EasCommand {
       Log.log(
         '  Action arguments refer to the simulator host. Use --output for the local filename.'
       );
+    }
+    const uploadHelp = uploadPathHelp(entry);
+    if (uploadHelp) {
+      Log.newLine();
+      Log.log(`  ${uploadHelp}`);
     }
     Log.newLine();
   }
@@ -270,8 +279,24 @@ export default class SimulatorControl extends EasCommand {
   }
 }
 
+function uploadPathHelp(entry: HostActionCatalogEntry): string | undefined {
+  if (!entry.upload) {
+    return undefined;
+  }
+  return entry.uploadAs === 'id'
+    ? 'This action requires a local file to upload. host: paths are not supported.'
+    : 'File paths are local. Use host:/absolute/path for files on the simulator host.';
+}
+
+function withUploadPathHelp(entry: HostActionCatalogEntry): HostActionCatalogEntry {
+  const help = uploadPathHelp(entry);
+  return help
+    ? { ...entry, description: [entry.description, help].filter(Boolean).join('\n\n') }
+    : entry;
+}
+
 async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {} }: HostActionCatalogEntry,
+  { upload: param, uploadWhen = {}, uploadAs }: HostActionCatalogEntry,
   params: Record<string, unknown>
 ): Promise<{ param: string; path: string } | null> {
   const value = param ? params[param] : undefined;
@@ -279,13 +304,33 @@ async function findLocalUploadAsync(
   if (!param || typeof value !== 'string' || !applies) {
     return null;
   }
-  const stat = await fs.stat(value).catch(() => null);
+  if (value.startsWith('host:')) {
+    if (uploadAs === 'id') {
+      throw new Error(
+        'This action requires a local file to upload; host: paths are not supported.'
+      );
+    }
+    const hostPath = value.slice('host:'.length);
+    if (!path.posix.isAbsolute(hostPath)) {
+      throw new Error(
+        `A host: path must be absolute, for example host:/tmp/app.tar.gz. For a local filename beginning with host:, use ./${value}.`
+      );
+    }
+    params[param] = hostPath;
+    return null;
+  }
+  const stat = await fs.stat(value).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+      return null;
+    }
+    throw error;
+  });
   if (stat?.isDirectory()) {
     throw new Error(`${value} is a folder. Pass the path of a file.`);
   }
-  if (!stat && !path.isAbsolute(value)) {
+  if (!stat) {
     throw new Error(
-      `${value} does not exist on this computer. Pass the path of a local file, or an absolute path on the simulator host.`
+      `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
     );
   }
   return stat ? { param, path: value } : null;

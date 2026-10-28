@@ -1,8 +1,10 @@
 import { type bunyan } from '@expo/logger';
+import turtleSpawnAsync from '@expo/turtle-spawn';
 import assert from 'node:assert';
 import fg from 'fast-glob';
 import { vol } from 'memfs';
 import path from 'node:path';
+import resolveFrom from 'resolve-from';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createTestAndroidJob, createTestIosJob } from '../../../__tests__/utils/job';
@@ -17,15 +19,98 @@ import {
 } from '../repack';
 
 jest.mock('fs');
-jest.mock('@expo/spawn-async');
+jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@expo/repack-app');
-jest.mock('resolve-from', () => jest.fn((_, moduleName) => moduleName));
+jest.mock('resolve-from', () => jest.fn(() => '@expo/repack-app'));
 jest.mock('../../utils/ios/credentials/manager');
 
 describe(createRepackBuildFunction, () => {
+  beforeEach(() => {
+    jest.mocked(turtleSpawnAsync).mockImplementation((async (_command: string, args: string[]) => {
+      const sandbox = args[args.indexOf('--prefix') + 1];
+      const packageName = args[args.length - 1].replace(/@[^@/]*$/, '');
+      vol.fromJSON({
+        [path.join(sandbox, 'node_modules', packageName, 'package.json')]: JSON.stringify({
+          version: '2.0.0-next.1',
+        }),
+      });
+    }) as unknown as typeof turtleSpawnAsync);
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
     vol.reset();
+  });
+
+  it('installs the repack package with npm in a sandbox whose env is only PATH and HOME, through the npm cache registry', async () => {
+    const globalCtx = createGlobalContextMock({
+      staticContextContent: {
+        job: {},
+      },
+    });
+    globalCtx.updateEnv({
+      PATH: '/usr/local/bin:/usr/bin',
+      EAS_BUILD_NPM_CACHE_URL: 'https://npm-cache.expo.test',
+      NPM_TOKEN: 'secret',
+    });
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: 'ios',
+        source_app_path: '/path/to/source_app.ipa',
+        repack_package: '@scope/fork',
+        repack_version: 'next',
+      },
+    });
+    const logInfo = jest.spyOn(repackStep.ctx.logger, 'info');
+
+    await repackStep.executeAsync();
+
+    const [installCall] = jest.mocked(turtleSpawnAsync).mock.calls;
+    const npmEnv = installCall[2]?.env;
+    assert(npmEnv);
+    expect(Object.keys(npmEnv).sort()).toEqual(['HOME', 'PATH']);
+    expect(npmEnv.PATH).toMatch(/\/usr\/local\/bin:\/usr\/bin$/);
+    expect(installCall).toEqual([
+      'npm',
+      [
+        'install',
+        '--prefix',
+        npmEnv.HOME,
+        '--no-save',
+        '--package-lock=false',
+        '--no-audit',
+        '--no-fund',
+        '--no-update-notifier',
+        '--registry',
+        'https://npm-cache.expo.test',
+        '@scope/fork@next',
+      ],
+      { env: npmEnv, logger: repackStep.ctx.logger },
+    ]);
+    expect(logInfo).toHaveBeenCalledWith('Using repack from: @scope/fork@next (2.0.0-next.1)');
+    expect(resolveFrom).toHaveBeenCalledWith(npmEnv.HOME, '@scope/fork');
+  });
+
+  it('installs the repack package from the default registry when the job has no npm cache', async () => {
+    const globalCtx = createGlobalContextMock({
+      staticContextContent: {
+        job: {},
+      },
+    });
+    globalCtx.updateEnv({ PATH: '/usr/local/bin:/usr/bin' });
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: 'ios',
+        source_app_path: '/path/to/source_app.ipa',
+      },
+    });
+
+    await repackStep.executeAsync();
+
+    const [installCall] = jest.mocked(turtleSpawnAsync).mock.calls;
+    expect(installCall[1]).not.toContain('--registry');
   });
 
   it('should set generated output path for successful repack', async () => {
