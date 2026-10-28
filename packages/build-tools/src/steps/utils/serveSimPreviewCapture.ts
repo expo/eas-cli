@@ -29,10 +29,9 @@ export function createServeSimPreviewCapture({
     async prepareAsync(signal: AbortSignal): Promise<void> {
       const catalog = JSON.parse(await action('actions.describe', {}, signal));
       const properties = catalog?.['screenshot.capture']?.properties;
-      const purpose = properties?.purpose;
       if (
         properties?.copyToDesktop?.type !== 'boolean' ||
-        !(purpose?.const === 'session-preview' || purpose?.enum?.includes('session-preview'))
+        properties?.automation?.type !== 'boolean'
       ) {
         throw new Error('This serve-sim version does not support session preview captures.');
       }
@@ -48,7 +47,7 @@ export function createServeSimPreviewCapture({
         port,
         token,
         action: 'screenshot.capture',
-        params: { udid: device, fileName, copyToDesktop: false, purpose: 'session-preview' },
+        params: { udid: device, fileName, copyToDesktop: false, automation: true },
         timeoutMs: 30_000,
         signal,
         drainAfterDispatch: true,
