@@ -124,7 +124,7 @@ describe(AscApiClient, () => {
       const mapped = mixed ? error.errors[0] : error;
       expect(mapped).toBeInstanceOf(SystemError);
       expect(mapped).toMatchObject({
-        trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
+        trackingCode: 'EAS_ASC_SERVER_ERROR',
         cause: known,
       });
       if (mixed) {

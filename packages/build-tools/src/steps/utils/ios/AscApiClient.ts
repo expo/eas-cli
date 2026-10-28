@@ -630,9 +630,9 @@ export class AscApiClient {
           if (response.status === 500 && ascError.code === 'UNEXPECTED_ERROR') {
             return new SystemError(
               'App Store Connect returned an unexpected server error. ' +
-                'Check Apple’s service status at https://developer.apple.com/system-status/ and the build status in App Store Connect before submitting again. ' +
+                'Check Apple’s service status at https://developer.apple.com/system-status/ and verify whether the requested operation completed in App Store Connect before trying again. ' +
                 'If the error continues, try again later or contact Apple Developer Support.',
-              { cause: ascError, trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR' }
+              { cause: ascError, trackingCode: 'EAS_ASC_SERVER_ERROR' }
             );
           }
           if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
