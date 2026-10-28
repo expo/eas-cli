@@ -7,6 +7,7 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { retryAsync } from './retry';
+import { waitForWarmSimulatorCleanupAsync } from './warmSimulatorCleanup';
 
 export type IosSimulatorUuid = string & z.BRAND<'IosSimulatorUuid'>;
 export type IosSimulatorName = string & z.BRAND<'IosSimulatorName'>;
@@ -119,6 +120,7 @@ export namespace IosSimulatorUtils {
     destinationDeviceName: IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
+    await waitForWarmSimulatorCleanupAsync(env);
     await spawn('xcrun', ['simctl', 'clone', sourceDeviceIdentifier, destinationDeviceName], {
       env,
     });
@@ -231,6 +233,7 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
     launchdEnvironment?: Record<string, string>;
   }): Promise<void> {
+    await waitForWarmSimulatorCleanupAsync(env);
     const bootEnv = { ...env };
     for (const [name, value] of Object.entries(launchdEnvironment)) {
       bootEnv[`SIMCTL_CHILD_${name}`] = value;
@@ -253,6 +256,7 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<{ udid: IosSimulatorUuid }> {
+    await waitForWarmSimulatorCleanupAsync(env);
     const bootstatusResult = await spawn(
       'xcrun',
       ['simctl', 'bootstatus', deviceIdentifier, '-b'],
