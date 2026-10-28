@@ -200,6 +200,26 @@ test('two job claims acquire only one ready session and the result includes its 
   await expect(claimAsync(boot, 'serve-sim')).rejects.toThrow('available');
 });
 
+test('a claim fails when the launcher hands over a different device than requested', async () => {
+  await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));
+  const claim = claimAsync(boot, 'serve-sim', 'iPad Pro');
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
+  await expect(claim).rejects.toThrow('claimed iPhone 17, not iPad Pro');
+});
+
+test('an interrupted claim reports the launcher error', async () => {
+  await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));
+  const claim = claimAsync(boot, 'serve-sim');
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({
+    ...state!,
+    status: 'stopping',
+    error: 'serve-sim exited',
+  }));
+  await expect(claim).rejects.toThrow('cleanup may still be running. serve-sim exited');
+});
+
 test.each([
   [undefined, undefined],
   ['unsupported', undefined],

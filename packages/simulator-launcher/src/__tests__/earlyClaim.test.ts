@@ -30,6 +30,7 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
     jest
       .spyOn(simulator, 'listAvailableSimulatorsAsync')
       .mockResolvedValue([{ udid: 'DUO', name: 'iPhone Duo' }]);
+    jest.spyOn(simulator, 'waitForSimulatorBootAsync').mockResolvedValue();
     jest.spyOn(simulator, 'disableApsdAsync').mockResolvedValue();
     const shutdown = jest.spyOn(simulator, 'shutdownSimulatorAsync').mockResolvedValue();
     const stopServer = jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
@@ -63,7 +64,6 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
       signal: controller.signal,
       throwIfStoppingAsync: async () => controller.signal.throwIfAborted(),
       onPreparationFailure: onFailure,
-      onBackgroundFailure: onFailure,
     });
     await session.prepareAsync();
     expect(await session.claimAsync({ engine: 'serve-sim' })).toMatchObject({

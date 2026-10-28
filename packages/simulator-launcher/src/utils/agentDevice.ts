@@ -52,15 +52,20 @@ export function createAgentDeviceTool(): WarmTool {
         );
       }
       // The daemon outlives the prepare process, so it stops even if the prepare stop failed.
+      // A stop that cannot finish fails instead of blocking cleanup forever.
       await commands
-        .runAsync('bunx', [
-          packageSpec(),
-          'daemon',
-          'stop',
-          '--clean',
-          '--state-dir',
-          process.env.AGENT_DEVICE_STATE_DIR!,
-        ])
+        .runAsync(
+          'bunx',
+          [
+            packageSpec(),
+            'daemon',
+            'stop',
+            '--clean',
+            '--state-dir',
+            process.env.AGENT_DEVICE_STATE_DIR!,
+          ],
+          AbortSignal.timeout(120_000)
+        )
         .catch(error => errors.push(error));
       if (errors.length > 1) {
         throw new AggregateError(errors, 'agent-device could not be stopped.');

@@ -31,7 +31,7 @@ bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
 ```
 
 There is no copied launcher bundle. Build-tools uses the recorded package version for claim/stop;
-Warmup primes Bun’s exact-version cache before ready, with two attempts of up to 30 seconds. Claim/stop use `--no-install`, retrying
+Warmup primes Bun’s exact-version cache before ready, with two attempts of up to 30 seconds. Its claim/stop calls use `--no-install`, retrying
 once with the registry only when Bun cannot find that cached binary. Priming failures warn.
 Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.

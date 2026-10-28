@@ -27,7 +27,9 @@ export async function claimAsync(
     bootUuid,
     state => {
       if (!state || state.status === 'stopping' || state.status === 'disabled') {
-        throw new Error('Simulator preparation was interrupted; cleanup may still be running.');
+        throw new Error(
+          `Simulator preparation was interrupted; cleanup may still be running.${state?.error ? ` ${state.error}` : ''}`
+        );
       }
       if (
         state.controllerPid !== acquired.controllerPid ||
@@ -40,7 +42,14 @@ export async function claimAsync(
     },
     420_000
   );
-  WarmSessionInfoSchema.parse(claimed);
+  const { device } = WarmSessionInfoSchema.parse(claimed);
+  if (
+    requestedDevice &&
+    device.name !== requestedDevice &&
+    device.udid.toLowerCase() !== requestedDevice.toLowerCase()
+  ) {
+    throw new Error(`The Simulator launcher claimed ${device.name}, not ${requestedDevice}.`);
+  }
   process.stdout.write(`${JSON.stringify(claimed)}\n`);
   return 0;
 }
