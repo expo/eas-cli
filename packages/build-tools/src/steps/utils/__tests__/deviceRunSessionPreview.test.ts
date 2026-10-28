@@ -315,10 +315,8 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
           }) as ReturnType<typeof spawn>;
         }
         return (async () => {
-          if (command === 'xcrun') {
-            expect(args.slice(0, 4)).toEqual(['simctl', 'io', 'selected-device', 'screenshot']);
-            await writeFile(args[4], Uint8Array.from(png));
-          } else if (command === 'sips') {
+          expect(command).not.toBe('xcrun');
+          if (command === 'sips') {
             expect(args.slice(0, 2)).toEqual(['-Z', '320']);
             expect(await readFile(args[2])).toEqual(png);
             await writeFile(args[args.indexOf('--out') + 1], Uint8Array.from(resized));
@@ -340,6 +338,10 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
         await captureDeviceRunSessionPreviewAsync({
           runtimePlatform,
           device,
+          captureIosScreenshotAsync: async (file, signal) => {
+            signal.throwIfAborted();
+            await writeFile(file, Uint8Array.from(png));
+          },
           env: {},
           signal: new AbortController().signal,
         })
@@ -372,6 +374,9 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
       captureDeviceRunSessionPreviewAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         device: 'device',
+        captureIosScreenshotAsync: async () => {
+          throw new Error('capture failed');
+        },
         env: {},
         signal: new AbortController().signal,
       })
