@@ -16,7 +16,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import {
+  runServeSimActionAsync,
+  runServeSimActionWithResultAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
 
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -65,6 +69,20 @@ it('authenticates the upgrade, waits for ready, and sends the action once', asyn
   await runServeSimActionAsync(request());
   expect(upgrades).toEqual([{ url: '/exec-ws', protocol: `serve-sim.token.${token}` }]);
   expect(actions).toEqual([{ id: 1, action: 'app.install', params: request().params }]);
+});
+
+it('returns action stdout over the same authenticated channel', async () => {
+  server.on('connection', (socket, upgrade) => {
+    expect(upgrade.url).toBe('/exec-ws');
+    expect(upgrade.headers['sec-websocket-protocol']).toBe(`serve-sim.token.${token}`);
+    socket.send(JSON.stringify({ ready: true }));
+    socket.on('message', () => {
+      socket.send(JSON.stringify({ id: 1, stdout: '{"catalog":true}', stderr: '', exitCode: 0 }));
+    });
+  });
+  await expect(
+    runServeSimActionWithResultAsync({ ...request(), action: 'actions.describe', params: {} })
+  ).resolves.toBe('{"catalog":true}');
 });
 
 it.each([
@@ -135,6 +153,55 @@ it('aborts an in-flight action without resending it', async () => {
     'session stopped'
   );
   expect(attempts).toBe(1);
+});
+
+it('cancels before dispatch while waiting for ready in drain mode', async () => {
+  const controller = new AbortController();
+  const actions = jest.fn();
+  server.on('connection', socket => {
+    socket.on('message', actions);
+    controller.abort(new Error('stopped before ready'));
+    socket.send(JSON.stringify({ ready: true }));
+  });
+  await expect(
+    runServeSimActionWithResultAsync({
+      ...request(),
+      signal: controller.signal,
+      drainAfterDispatch: true,
+    })
+  ).rejects.toThrow('stopped before ready');
+  expect(actions).not.toHaveBeenCalled();
+});
+
+it('drains dispatched actions after cancellation in drain mode', async () => {
+  const controller = new AbortController();
+  let reply!: () => void;
+  let dispatched!: () => void;
+  const ready = new Promise<void>(resolve => {
+    dispatched = resolve;
+  });
+  server.on('connection', socket => {
+    socket.send(JSON.stringify({ ready: true }));
+    socket.on('message', () => {
+      reply = () => socket.send(JSON.stringify({ id: 1, stdout: 'completed', exitCode: 0 }));
+      dispatched();
+    });
+  });
+  let settled = false;
+  const action = runServeSimActionWithResultAsync({
+    ...request(),
+    signal: controller.signal,
+    drainAfterDispatch: true,
+  });
+  void action.finally(() => {
+    settled = true;
+  });
+  await ready;
+  controller.abort(new Error('stopped after dispatch'));
+  await new Promise(resolve => setImmediate(resolve));
+  expect(settled).toBe(false);
+  reply();
+  await expect(action).resolves.toBe('completed');
 });
 
 it('does not connect when already aborted', async () => {
