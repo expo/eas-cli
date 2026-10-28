@@ -392,7 +392,7 @@ describe('commitBuildUploadFileAsync', () => {
     await expect(
       AscApiUtils.commitBuildUploadFileAsync({ client, fileId: 'file', logger })
     ).rejects.toMatchObject(
-      code === 'NOT_AUTHORIZED' ? { errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_AUTH' } : { status, code }
+      code === 'NOT_AUTHORIZED' ? { errorCode: 'EAS_ASC_INVALID_AUTH' } : { status, code }
     );
   });
 

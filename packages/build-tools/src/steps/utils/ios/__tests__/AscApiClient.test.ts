@@ -99,7 +99,7 @@ describe(AscApiClient, () => {
         .catch(error => error);
       const mapped = mixed ? error.errors[0] : error;
       expect(mapped).toBeInstanceOf(UserError);
-      expect(mapped).toMatchObject({ errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_AUTH', cause: known });
+      expect(mapped).toMatchObject({ errorCode: 'EAS_ASC_INVALID_AUTH', cause: known });
       if (mixed) {
         expect(error).toBeInstanceOf(AggregateError);
         expect(error.errors[1]).toBeInstanceOf(AscApiRequestError);

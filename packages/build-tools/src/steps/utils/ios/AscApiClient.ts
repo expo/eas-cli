@@ -619,7 +619,7 @@ export class AscApiClient {
         const errors = parsedAscErrorResponse.value.errors.map(ascError => {
           if (response.status === 401 && ascError.code === 'NOT_AUTHORIZED') {
             return new UserError(
-              'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+              'EAS_ASC_INVALID_AUTH',
               'App Store Connect rejected the API authentication credentials. ' +
                 'Check that the API key is active and belongs to the correct App Store Connect account. ' +
                 'If the key is stored in EAS credentials, replace or reconfigure it. ' +
