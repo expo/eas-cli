@@ -442,6 +442,10 @@ export function createWarmSimulatorSession({
       await Promise.allSettled(preinstalls.values());
       // Adoption can release an old device; join cancelled launchctl commands before it does.
       await joinSimulatorSetupsAsync();
+      if (sameDevice) {
+        // warmup.abort() may have cancelled the default device's apsd step; finish it now.
+        await startSimulatorsSetupAsync([selected.udid], signal, Promise.resolve()).catch(() => {});
+      }
       const preinstalledExpoGo = await preinstalls.get(selected.udid);
       info = { ...info, device: selected };
       return { device: selected, ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}) };

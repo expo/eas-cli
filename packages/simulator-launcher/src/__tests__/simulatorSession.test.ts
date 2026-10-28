@@ -479,15 +479,23 @@ it('does not repeat completed default-device setup after adoption', async () => 
 
 it('reports ready before apsd finishes, but the claim waits for it', async () => {
   const disabled = deferred();
-  jest.mocked(disableApsdAsync).mockImplementation(() => disabled.promise);
+  // The claim cancels warmup, which aborts the first attempt; the claim then runs it again.
+  const disable = jest.mocked(disableApsdAsync).mockImplementation(
+    (_udid, signal) =>
+      new Promise((resolve, reject) => {
+        void disabled.promise.then(resolve);
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      })
+  );
+  const defaultCalls = () => disable.mock.calls.filter(([udid]) => udid === 'DUO').length;
   const session = createSession();
   await session.prepareAsync();
-  expect(disableApsdAsync).toHaveBeenCalledWith('DUO', expect.any(AbortSignal));
+  await until(() => defaultCalls() === 1);
   let claimed = false;
   const claiming = session.claimAsync({ engine: 'serve-sim' }).then(() => {
     claimed = true;
   });
-  await new Promise(resolve => setImmediate(resolve));
+  await until(() => defaultCalls() === 2);
   expect(claimed).toBe(false);
   disabled.resolve();
   await claiming;
