@@ -11,9 +11,7 @@ export async function startOwnedWrapperAsync() {
   const job = commands.start(
     process.execPath,
     [path.join(__dirname, 'stop-wrapper.cjs'), path.join(__dirname, 'stop-leaf.cjs'), readyPath],
-    undefined,
-    true,
-    true
+    { captureStdout: true, detached: true }
   );
   const realKill = process.kill.bind(process);
   const stop = stopProcessAndDescendantsAsync;

@@ -67,9 +67,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           '--idle-timeout',
           '0',
         ],
-        undefined,
-        false,
-        /* detached */ true
+        { detached: true }
       );
       const server = serverProcess;
       let ready = false;

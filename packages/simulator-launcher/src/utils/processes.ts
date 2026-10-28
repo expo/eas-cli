@@ -13,10 +13,16 @@ export const commands = {
   start(
     file: string,
     args: string[],
-    signal?: AbortSignal,
-    captureStdout = false,
-    /** Lead a new process group, so terminateProcessGroupAsync can signal the whole tree. */
-    detached = false
+    {
+      signal,
+      captureStdout = false,
+      detached = false,
+    }: {
+      signal?: AbortSignal;
+      captureStdout?: boolean;
+      /** Lead a new process group so cleanup can stop children that respawn. */
+      detached?: boolean;
+    } = {}
   ): ChildProcessHandle {
     const child = spawn(file, args, {
       stdio: captureStdout ? ['ignore', 'pipe', 'inherit'] : 'inherit',
@@ -71,7 +77,7 @@ export const commands = {
     };
   },
   async runAsync(file: string, args: string[], signal?: AbortSignal): Promise<string> {
-    return await commands.start(file, args, signal, /* captureStdout */ true).resultPromise;
+    return await commands.start(file, args, { signal, captureStdout: true }).resultPromise;
   },
   throwIfCommandCloseTimedOut(): void {
     if (commandCloseDrainError) {
@@ -306,7 +312,7 @@ export async function stopProcessAndDescendantsAsync(
 
 /**
  * Stops a process group that has nothing to finalize. The handle must lead its own group
- * (`commands.start(..., detached)`), so children spawned or respawned during the stop are
+ * (`commands.start(..., { detached: true })`), so children spawned or respawned during the stop are
  * signalled too, and the group ID cannot be reused while any member is alive.
  */
 export async function terminateProcessGroupAsync(

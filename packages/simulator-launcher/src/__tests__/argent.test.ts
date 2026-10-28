@@ -58,13 +58,9 @@ it('does not report ready until its owned server answers the authenticated tools
   expect(ready).toBe(false);
   response.resolve(new Response(JSON.stringify({ tools: [] })));
   await started;
-  expect(commands.start).toHaveBeenCalledWith(
-    'bunx',
-    expect.arrayContaining(['server', 'start']),
-    undefined,
-    false,
-    true
-  );
+  expect(commands.start).toHaveBeenCalledWith('bunx', expect.arrayContaining(['server', 'start']), {
+    detached: true,
+  });
   expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:3201/tools', {
     headers: { Authorization: 'Bearer fixture-token' },
     signal: expect.any(AbortSignal),

@@ -133,9 +133,8 @@ beforeEach(async () => {
     jobs.push(job);
     return job;
   });
-  jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
   // Fixture PIDs are fake; never signal them.
-  jest.spyOn(processes, 'terminateProcessGroupAsync').mockResolvedValue();
+  jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
   jest.spyOn(serveSim, 'waitForServeSimReadyAsync').mockResolvedValue({
     startupDevice: 'PHONE',
     pid: 90000,

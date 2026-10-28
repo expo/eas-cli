@@ -97,10 +97,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   }
   async function throwIfStoppingAsync(): Promise<void> {
     signal.throwIfAborted();
-    const state = requireOwnedState(await readLauncherStateAsync(bootUuid));
-    if (state.status === 'stopping' || state.status === 'disabled') {
-      requestShutdown();
-    }
+    requireOwnedState(await readLauncherStateAsync(bootUuid));
     signal.throwIfAborted();
   }
   const session = createWarmSimulatorSession({
@@ -300,7 +297,7 @@ export function createWarmSimulatorSession({
     return setup;
   }
 
-  async function resolveDeviceAsync(selector?: string): Promise<SimulatorDevice> {
+  async function resolveDeviceAsync(selector: string): Promise<SimulatorDevice> {
     for (let attempt = 0; ; attempt++) {
       const matches = selectSimulators(availableDevices, selector);
       if (matches.length === 1) {
@@ -308,7 +305,7 @@ export function createWarmSimulatorSession({
       }
       if (matches.length > 1 || attempt === 1) {
         throw new Error(
-          `Could not select one available Simulator for ${selector ?? 'the default iPhone'}. Use an exact available device name or UDID.`
+          `Could not select one available Simulator for ${selector}. Use an exact available device name or UDID.`
         );
       }
       await throwIfStoppingAsync();
@@ -509,7 +506,6 @@ export function createWarmSimulatorSession({
       if (tool) {
         await startedTools.get(tool)!.ready;
       }
-      // In particular, Appium cannot start WDA until old XCTest retirement succeeded.
     },
     async stopAsync() {
       stopping = true;
