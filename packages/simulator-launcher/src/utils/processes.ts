@@ -1,7 +1,12 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
-export type ChildProcessHandle = { child: ChildProcess; resultPromise: Promise<string> };
+export type ChildProcessHandle = {
+  child: ChildProcess;
+  resultPromise: Promise<string>;
+  /** Present only when this child was started as the leader of its own process group. */
+  processGroupId?: number;
+};
 let commandCloseDrainError: Error | undefined;
 
 export const commands = {
@@ -59,7 +64,11 @@ export const commands = {
       });
     });
     void resultPromise.catch(() => {}); // Observe long-lived launches before startup joins or cleanup await them.
-    return { child, resultPromise };
+    return {
+      child,
+      resultPromise,
+      ...(detached && child.pid ? { processGroupId: child.pid } : {}),
+    };
   },
   async runAsync(file: string, args: string[], signal?: AbortSignal): Promise<string> {
     return await commands.start(file, args, signal, /* captureStdout */ true).resultPromise;
@@ -70,6 +79,44 @@ export const commands = {
     }
   },
 };
+
+/** Checks ancestry only while the service's owned child is still alive. */
+export async function isProcessOwnedByServiceAsync(
+  pid: number,
+  child: ChildProcess,
+  signal: AbortSignal
+): Promise<boolean> {
+  const seen = new Set<number>();
+  for (let depth = 0; depth < 32; depth++) {
+    signal.throwIfAborted();
+    if (
+      !Number.isSafeInteger(pid) ||
+      pid <= 1 ||
+      !child.pid ||
+      child.exitCode != null ||
+      child.signalCode != null ||
+      seen.has(pid)
+    ) {
+      return false;
+    }
+    if (pid === child.pid) {
+      return true;
+    }
+    seen.add(pid);
+    try {
+      pid = Number(
+        (await commands.runAsync('ps', ['-p', String(pid), '-o', 'ppid='], signal)).trim()
+      );
+    } catch (error) {
+      signal.throwIfAborted();
+      if ((error as { code?: unknown }).code === 1) {
+        return false;
+      }
+      throw error;
+    }
+  }
+  return false;
+}
 
 /** EPERM means the process exists but cannot be signalled, as for an exited one awaiting reap. */
 function isProcessRunning(pid: number): boolean {
@@ -134,7 +181,8 @@ async function isProcessGroupRunningAsync(groupId: number): Promise<boolean> {
 async function stopProcessTreeAsync(
   pid: number,
   deadlineMs: number,
-  ownedChildProcess?: ChildProcess
+  ownedChildProcess?: ChildProcess,
+  stopIntent?: { child: ChildProcess; descendantSignalled: boolean }
 ): Promise<void> {
   const children = await commands.runAsync('pgrep', ['-P', String(pid)]).catch(error => {
     if (error.code !== 1) {
@@ -150,15 +198,24 @@ async function stopProcessTreeAsync(
       'A Simulator service launcher exited before its child processes could be identified; cleanup could not be confirmed.'
     );
   }
-  for (const child of children.trim().split(/\s+/).filter(Boolean)) {
-    await stopProcessTreeAsync(Number(child), deadlineMs);
+  const descendants = await Promise.allSettled(
+    children
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(child => stopProcessTreeAsync(Number(child), deadlineMs, undefined, stopIntent))
+  );
+  const failedDescendant = descendants.find(result => result.status === 'rejected');
+  if (failedDescendant?.status === 'rejected') {
+    throw failedDescendant.reason;
   }
   if (
     ownedChildProcess &&
     (ownedChildProcess.exitCode != null || ownedChildProcess.signalCode != null)
   ) {
-    // Stopping a descendant can make its wrapper exit normally. Never probe that PID again.
-    if (ownedChildProcess.exitCode === 0) {
+    // A wrapper can propagate its deliberately stopped child's nonzero status. The caller still
+    // requires the owned group to drain and the owned close event; never probe this PID again.
+    if (stopIntent ? stopIntent.descendantSignalled : ownedChildProcess.exitCode === 0) {
       return;
     }
     throw new Error(
@@ -168,6 +225,8 @@ async function stopProcessTreeAsync(
   if (!isProcessRunning(pid)) {
     return;
   }
+  const wrapperWasRunning =
+    stopIntent && stopIntent.child.exitCode == null && stopIntent.child.signalCode == null;
   try {
     if (ownedChildProcess) {
       if (!ownedChildProcess.kill('SIGTERM')) {
@@ -175,8 +234,13 @@ async function stopProcessTreeAsync(
           'A Simulator service launcher exited before it could be stopped safely; cleanup could not be confirmed.'
         );
       }
-    } else if (!signalProcess(pid, 'SIGTERM')) {
-      return;
+    } else {
+      if (!signalProcess(pid, 'SIGTERM')) {
+        return;
+      }
+      if (stopIntent && wrapperWasRunning) {
+        stopIntent.descendantSignalled = true;
+      }
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
@@ -184,16 +248,20 @@ async function stopProcessTreeAsync(
     }
     return;
   }
-  while (isProcessRunning(pid)) {
+  // ChildProcess is authoritative once its exit is observed; the numeric PID could be reused.
+  const hasExited = (): boolean =>
+    ownedChildProcess !== undefined &&
+    (ownedChildProcess.exitCode != null || ownedChildProcess.signalCode != null);
+  while (!hasExited() && isProcessRunning(pid)) {
     const state = await commands
       .runAsync('ps', ['-p', String(pid), '-o', 'state='])
       .catch(error => {
-        if (error.code === 1 && !isProcessRunning(pid)) {
+        if (error.code === 1 && (hasExited() || !isProcessRunning(pid))) {
           return '';
         }
         throw error;
       });
-    if (state.trim().startsWith('Z') || !isProcessRunning(pid)) {
+    if (hasExited() || state.trim().startsWith('Z') || !isProcessRunning(pid)) {
       return;
     }
     if (Date.now() >= deadlineMs) {
@@ -210,8 +278,22 @@ export async function stopProcessAndDescendantsAsync(
   allowCompletedProcess = false
 ): Promise<void> {
   const { child } = processHandle;
+  const groupId = processHandle.processGroupId;
+  if (groupId !== undefined && groupId !== child.pid) {
+    throw new Error('The Simulator service process group does not belong to its owned launcher.');
+  }
   if (child.pid && child.exitCode == null && child.signalCode == null) {
-    await stopProcessTreeAsync(child.pid, Date.now() + 130_000, child);
+    await stopProcessTreeAsync(
+      child.pid,
+      Date.now() + 130_000,
+      child,
+      groupId === undefined ? undefined : { child, descendantSignalled: false }
+    );
+    if (groupId !== undefined) {
+      // A supervisor can respawn children after the initial snapshot. Its exclusive group must
+      // also be empty; draining only the children we discovered is not sufficient.
+      await terminateProcessGroupAsync(processHandle);
+    }
   } else if (child.pid && !allowCompletedProcess) {
     // Never inspect a reused wrapper PID or infer that its descendants have also exited.
     throw new Error(

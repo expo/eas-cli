@@ -30,3 +30,44 @@ test('rejects two selectors for the same device', () => {
 test.each(['', '  ', '\n'])('keeps the default iPhone for blank configuration %j', selectors => {
   expect(selectWarmupSimulators(devices, selectors)).toEqual([devices[1]]);
 });
+
+test('observes an orphan-owned boot without requesting a new boot', async () => {
+  const { commands } = await import('../utils/processes');
+  const { waitForSimulatorBootAsync } = await import('../utils/simulator');
+  const run = jest
+    .spyOn(commands, 'runAsync')
+    .mockImplementation(async (_file, args) =>
+      args.includes('devices')
+        ? JSON.stringify({ devices: { ios: [{ udid: 'DUO', state: 'Booted' }] } })
+        : ''
+    );
+  try {
+    await waitForSimulatorBootAsync('DUO', new AbortController().signal);
+    expect(run).toHaveBeenCalledWith(
+      'xcrun',
+      ['simctl', 'bootstatus', 'DUO'],
+      expect.any(AbortSignal)
+    );
+    expect(run.mock.calls.some(([, args]) => args.includes('-b') || args.includes('boot'))).toBe(
+      false
+    );
+  } finally {
+    run.mockRestore();
+  }
+});
+
+test('a claim can cancel boot observation without issuing a native command', async () => {
+  const { commands } = await import('../utils/processes');
+  const { waitForSimulatorBootAsync } = await import('../utils/simulator');
+  const run = jest
+    .spyOn(commands, 'runAsync')
+    .mockRejectedValue(new Error('unexpected native command'));
+  const cancel = new AbortController();
+  cancel.abort(new Error('claimed'));
+  try {
+    await expect(waitForSimulatorBootAsync('DUO', cancel.signal)).rejects.toThrow('claimed');
+    expect(run).not.toHaveBeenCalled();
+  } finally {
+    run.mockRestore();
+  }
+});

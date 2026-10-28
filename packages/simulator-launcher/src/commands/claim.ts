@@ -44,3 +44,35 @@ export async function claimAsync(
   process.stdout.write(`${JSON.stringify(claimed)}\n`);
   return 0;
 }
+
+/** Continue the consumed claim after private serve-sim adoption, without acquiring another job. */
+export async function prepareToolsAsync(bootUuid: string): Promise<number> {
+  const acquired = await updateLauncherStateAsync(bootUuid, state => {
+    if (state?.status !== 'claimed') {
+      throw new Error('Claim and adopt the warm Simulator session before preparing its tools.');
+    }
+    WarmSessionInfoSchema.parse(state);
+    return { ...state, prepareToolsRequested: true };
+  });
+  const ready = await waitForLauncherStateAsync(
+    bootUuid,
+    state => {
+      if (
+        !state ||
+        state.status !== 'claimed' ||
+        state.controllerPid !== acquired.controllerPid ||
+        state.controllerStartTime !== acquired.controllerStartTime ||
+        state.device?.udid !== acquired.device?.udid ||
+        state.engine !== acquired.engine
+      ) {
+        throw new Error(
+          'Warm Simulator tool preparation was interrupted; cleanup may still be running.'
+        );
+      }
+      return state.toolsReady === true;
+    },
+    420_000
+  );
+  process.stdout.write(`${JSON.stringify(ready)}\n`);
+  return 0;
+}

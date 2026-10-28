@@ -1,4 +1,5 @@
 import { BuildContext, BuildContextOptions, LogBuffer, RuntimeSettings } from '@expo/build-tools';
+import { setSimulatorCleanupPromise } from '@expo/build-tools/dist/utils/simulatorCleanup';
 import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
@@ -43,7 +44,9 @@ export async function createBuildContext<TJob extends Job>({
     environment: config.env,
     env: job.builderEnvironment?.env,
   });
-  void maybeStopWarmSimulatorAsync(job).catch(err => {
+  const simulatorCleanup = maybeStopWarmSimulatorAsync(job);
+  setSimulatorCleanupPromise(simulatorCleanup);
+  void simulatorCleanup.catch(err => {
     childLogger.warn({ err }, 'Could not stop warm Simulator services.');
   });
   await prepareRuntimeEnvironmentConfigFiles();

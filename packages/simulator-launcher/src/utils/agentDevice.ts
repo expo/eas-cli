@@ -21,22 +21,28 @@ export function createAgentDeviceTool(): WarmTool {
     name: 'agent-device',
     async startAsync(udid, signal) {
       signal.throwIfAborted();
-      prepareProcess = commands.start('bunx', [
-        packageSpec(),
-        'prepare',
-        'ios-runner',
-        '--platform',
-        'ios',
-        '--udid',
-        udid,
-        '--daemon-server-mode',
-        'http',
-        '--daemon-transport',
-        'http',
-        '--timeout',
-        '240000',
-        '--json',
-      ]);
+      prepareProcess = commands.start(
+        'bunx',
+        [
+          packageSpec(),
+          'prepare',
+          'ios-runner',
+          '--platform',
+          'ios',
+          '--udid',
+          udid,
+          '--daemon-server-mode',
+          'http',
+          '--daemon-transport',
+          'http',
+          '--timeout',
+          '240000',
+          '--json',
+        ],
+        undefined,
+        false,
+        /* detached */ true
+      );
       await untilAbortedAsync(prepareProcess.resultPromise, signal);
     },
     async stopAsync() {

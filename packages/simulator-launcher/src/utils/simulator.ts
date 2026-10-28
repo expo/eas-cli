@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { commands } from './processes';
 import { type SimulatorDevice, SimulatorDeviceSchema } from './state';
@@ -69,11 +70,25 @@ export function selectWarmupSimulators(
   });
 }
 
-export async function bootSimulatorAsync(udid: string, signal: AbortSignal): Promise<void> {
-  await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid, '-b'], signal).catch(async () => {
+/** Observe an orphan-owned warm boot without starting another boot or killing it on claim. */
+export async function waitForSimulatorBootAsync(udid: string, signal: AbortSignal): Promise<void> {
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
     signal.throwIfAborted();
-    await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid], signal);
-  });
+    const { devices } = SimulatorStatesSchema.parse(
+      JSON.parse(await commands.runAsync('xcrun', ['simctl', 'list', 'devices', '--json'], signal))
+    );
+    if (
+      Object.values(devices)
+        .flat()
+        .some(device => device.udid === udid && device.state === 'Booted')
+    ) {
+      await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid], signal);
+      return;
+    }
+    await sleepAsync(250, undefined, { signal });
+  }
+  throw new Error(`Timed out waiting for serve-sim to boot Simulator ${udid}.`);
 }
 
 /** `simctl shutdown` fails for a device that is already shut down; that device is done. */

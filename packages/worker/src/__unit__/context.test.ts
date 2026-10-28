@@ -1,4 +1,5 @@
 import { RuntimeSettings } from '@expo/build-tools';
+import { waitForSimulatorCleanupAsync } from '@expo/build-tools/dist/utils/simulatorCleanup';
 import { ManagedArtifactType, Platform, Workflow } from '@expo/eas-build-job';
 
 import config from '../config';
@@ -8,6 +9,11 @@ import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
 import { uploadSourceMapAsync, uploadWorkflowArtifactAsync } from '../upload';
 
+jest.mock(
+  '@expo/build-tools/dist/utils/simulatorCleanup',
+  () => jest.requireActual('../../../build-tools/src/utils/simulatorCleanup'),
+  { virtual: true }
+);
 jest.mock('../warmSimulator');
 jest.mock('../env', () => ({
   getBuildEnv: jest.fn(() => ({
@@ -79,9 +85,18 @@ describe(createBuildContext.name, () => {
         jest.mocked(maybeStopWarmSimulatorAsync).mock.invocationCallOrder[0]
       );
       expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
+      let used = false;
+      const using = waitForSimulatorCleanupAsync().then(() => {
+        used = true;
+      });
+      const observedUse = expect(using).rejects.toBeDefined();
+      await Promise.resolve();
+      expect(used).toBe(false);
       const error = new Error('Late Simulator shutdown failure');
       failStop(error);
-      await Promise.resolve();
+      await observedUse;
+      await expect(waitForSimulatorCleanupAsync()).rejects.toBe(error);
+      expect(used).toBe(false);
       expect(childLogger.warn).toHaveBeenCalledWith(
         { err: error },
         'Could not stop warm Simulator services.'
@@ -100,6 +115,7 @@ describe(createBuildContext.name, () => {
       { err: error },
       'Could not stop warm Simulator services.'
     );
+    await expect(waitForSimulatorCleanupAsync()).rejects.toBe(error);
     expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
     expect(getBuildEnv).toHaveBeenCalledTimes(1);
   });

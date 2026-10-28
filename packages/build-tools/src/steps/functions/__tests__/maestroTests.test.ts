@@ -7,6 +7,7 @@ import path from 'path';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { CustomBuildContext } from '../../../customBuildContext';
+import { setSimulatorCleanupPromise } from '../../../utils/simulatorCleanup';
 import * as discovery from '../maestroFlowDiscovery';
 import * as parser from '../maestroResultParser';
 import * as maestroScreenshots from '../maestroScreenshots';
@@ -97,6 +98,24 @@ describe('createMaestroTestsBuildFunction', () => {
     mockedRunnerHarvest.mockResolvedValue([]);
     mockUploadArtifact.mockReset();
     mockUploadArtifact.mockResolvedValue({ artifactId: 'artifact-1' });
+  });
+
+  it('preserves a numeric-status cleanup failure without retrying it as a Maestro result', async () => {
+    const error = Object.assign(new Error('Warm Simulator cleanup was not confirmed'), {
+      status: 1,
+    });
+    const cleanup = Promise.reject(error);
+    void cleanup.catch(() => {});
+    setSimulatorCleanupPromise(cleanup);
+    try {
+      const step = createStep({ flow_path: ['a.yaml'], platform: 'ios', retries: 2 });
+      await expect(step.executeAsync()).rejects.toBe(error);
+      expect(mockedSpawn).not.toHaveBeenCalled();
+      expect(mockedHarvest).not.toHaveBeenCalled();
+      expect(mockedRunnerHarvest).not.toHaveBeenCalled();
+    } finally {
+      setSimulatorCleanupPromise(Promise.resolve());
+    }
   });
 
   it('exports a factory that returns a BuildFunction instance', () => {

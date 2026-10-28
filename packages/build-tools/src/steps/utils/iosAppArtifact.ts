@@ -39,3 +39,5 @@ export async function readIosApplicationIdentifierAsync({
   }
   return applicationIdentifier;
 }
+
+export type IosAppIdentity = { bundleIdentifier: string; shortVersion: string; version: string };

@@ -10,8 +10,13 @@ export const SimulatorDeviceSchema = z.object({
   udid: NonBlankStringSchema,
   name: NonBlankStringSchema,
 });
-export const WarmSimulatorDeviceSchema = SimulatorDeviceSchema.extend({
+export const WarmServerSchema = z.object({
+  startupDevice: NonBlankStringSchema,
+  pid: z.number().int().gt(1),
+  nativeStartTime: NonBlankStringSchema,
   port: z.number().int().min(1).max(65535),
+  url: z.string().url(),
+  token: NonBlankStringSchema,
 });
 export const ClaimInputSchema = z.object({
   engine: z.enum(['serve-sim', 'agent-device', 'argent']),
@@ -26,28 +31,27 @@ export const PreinstalledAppSchema = z.object({
 });
 export const WarmSessionInfoSchema = z.object({
   // The default before claim, then the device selected for the job.
-  device: WarmSimulatorDeviceSchema,
+  device: SimulatorDeviceSchema,
+  server: WarmServerSchema,
   controllerPid: z.number().int().gt(1),
   controllerStartTime: NonBlankStringSchema,
   agentDeviceStateDir: NonBlankStringSchema,
   argentEventLogPath: NonBlankStringSchema,
 });
 export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
-  // A versionless record can still be stopped; claims require complete port metadata.
-  device: SimulatorDeviceSchema.extend({
-    port: WarmSimulatorDeviceSchema.shape.port.optional(),
-  }).optional(),
   bootUuid: NonBlankStringSchema,
   launcherVersion: NonBlankStringSchema.optional(),
   status: z.enum(['starting', 'ready', 'claiming', 'claimed', 'stopping', 'disabled']),
   ...ClaimInputSchema.partial().shape,
   preinstalledExpoGo: PreinstalledAppSchema.optional(),
+  prepareToolsRequested: z.boolean().optional(),
+  toolsReady: z.boolean().optional(),
   error: z.string().optional(),
 });
 export type ClaimInput = z.infer<typeof ClaimInputSchema>;
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
-export type WarmSimulatorDevice = z.infer<typeof WarmSimulatorDeviceSchema>;
+export type WarmServer = z.infer<typeof WarmServerSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
 export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
 
@@ -96,7 +100,8 @@ export async function updateLauncherStateAsync(
     if (state.bootUuid !== bootUuid) {
       throw new Error('Simulator state belongs to a different VM boot.');
     }
-    await fs.writeFile(temporaryPath, `${JSON.stringify(state)}\n`, { flag: 'wx' });
+    // The claimed server credentials belong to this OS user, like serve-sim's own registry.
+    await fs.writeFile(temporaryPath, `${JSON.stringify(state)}\n`, { flag: 'wx', mode: 0o600 });
     signal?.throwIfAborted();
     await fs.rename(temporaryPath, LAUNCHER_STATE_FILE);
     return state;
