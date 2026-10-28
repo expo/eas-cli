@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { commands } from './processes';
 import { type SimulatorDevice, SimulatorDeviceSchema } from './state';

@@ -6,7 +6,7 @@ export type WarmTool = {
   /** Work without Simulator access, such as configuration; runs as soon as the tool starts. */
   prepareAsync?(signal: AbortSignal): Promise<void>;
   /**
-   * Runs once serve-sim is ready, since it spawns into the Simulator; resolves when ready. It must
+   * Starts after serve-sim is ready and resolves when the tool is ready. It must
    * settle promptly once `signal` aborts: claim-time stops wait for it.
    */
   startAsync(udid: string, signal: AbortSignal): Promise<void>;
