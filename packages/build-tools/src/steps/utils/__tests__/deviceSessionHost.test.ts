@@ -145,7 +145,7 @@ beforeEach(() => {
   jest.mocked(runServeSimActionWithResultAsync).mockResolvedValue(
     JSON.stringify({
       'screenshot.capture': {
-        properties: { copyToDesktop: { type: 'boolean' }, automation: { type: 'boolean' } },
+        properties: { automation: { type: 'boolean' } },
       },
     })
   );
