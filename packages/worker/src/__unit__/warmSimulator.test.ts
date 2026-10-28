@@ -7,6 +7,7 @@ import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 jest.mock('@expo/turtle-spawn');
 jest.mock('node:fs/promises', () => ({ access: jest.fn(), readFile: jest.fn() }));
 
+const baseJob = {} as Job;
 const originalPlatform = process.platform;
 const startup = '/usr/local/share/vm-tools/startup.sh';
 const state = '/tmp/expo-simulator-startup.json';
@@ -87,8 +88,9 @@ it('does nothing on non-Darwin', async () => {
 });
 it('keeps warmup only for the job opt-in, independently of the host flag', async () => {
   await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_USE_WARM_SIMULATOR: '1' } },
-  } as Job);
+    ...baseJob,
+    builderEnvironment: { image: 'test-image', env: { EAS_USE_WARM_SIMULATOR: '1' } },
+  });
   expect(fs.access).not.toHaveBeenCalled();
   expect(spawn).not.toHaveBeenCalled();
   process.env.EAS_USE_WARM_SIMULATOR = '1';
@@ -122,8 +124,9 @@ it.each([startup, state])('fails closed if checking %s fails', async inaccessibl
 it('preserves the job package-manager override and environment', async () => {
   process.env.EAS_OVERRIDE_PACKAGE_MANAGER = 'bun';
   await maybeStopWarmSimulatorAsync({
-    builderEnvironment: { env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' } },
-  } as Job);
+    ...baseJob,
+    builderEnvironment: { image: 'test-image', env: { EAS_OVERRIDE_PACKAGE_MANAGER: 'npm' } },
+  });
   expect(spawn).toHaveBeenCalledWith('npx', ['--yes', '@expo/simulator-launcher@latest', 'stop'], {
     env: expect.objectContaining({ EAS_OVERRIDE_PACKAGE_MANAGER: 'npm', PATH: process.env.PATH }),
     stdio: 'pipe',
