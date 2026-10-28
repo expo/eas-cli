@@ -85,6 +85,7 @@ async function mainAsync(): Promise<void> {
   runWithOutput('yarn', ['install', '--mode=update-lockfile']);
   runWithOutput('yarn', ['workspace', 'eas-cli', 'run', 'version']);
   await updateRootChangelogAsync(section);
+  runWithOutput('yarn', ['exec', 'oxfmt', 'CHANGELOG.md']);
 
   const tag = `v${version}`;
   if (!isPublishingRun()) {

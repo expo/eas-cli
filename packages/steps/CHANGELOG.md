@@ -1,5 +1,13 @@
 # @expo/steps
 
+## 27.1.0
+
+No changes in this release.
+
+## 27.0.0
+
+No changes in this release.
+
 ## 26.0.0
 
 ### Patch Changes

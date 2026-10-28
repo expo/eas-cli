@@ -34,11 +34,6 @@ import {
   getFreeTierLimitCheckoutExperiment,
   maybeOfferFreeTierLimitCheckoutAsync,
 } from './freeTierLimitCheckout';
-import {
-  FreeTierLimitAgentGuidanceExperiment,
-  getFreeTierLimitAgentGuidanceExperiment,
-  maybeAppendFreeTierLimitAgentGuidanceAsync,
-} from './freeTierLimitGuidance';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import {
@@ -236,7 +231,6 @@ export async function prepareBuildRequestForPlatformAsync<
           error,
           job.platform,
           ctx.accountName,
-          getFreeTierLimitAgentGuidanceExperiment(ctx),
           getFreeTierLimitCheckoutExperiment(ctx)
         );
       }
@@ -263,7 +257,6 @@ export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
   accountName?: string,
-  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment,
   freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
 ): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
@@ -283,11 +276,7 @@ export async function handleBuildRequestErrorAsync(
     if (!isFreeTierLimitError) {
       throw new ErrorClass(message);
     }
-    const limitMessage = await maybeAppendFreeTierLimitAgentGuidanceAsync(
-      `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
-      platform,
-      freeTierLimitAgentGuidanceExperiment
-    );
+    const limitMessage = `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`;
     const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
       limitMessage,
       freeTierLimitCheckoutExperiment

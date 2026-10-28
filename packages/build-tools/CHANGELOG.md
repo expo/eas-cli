@@ -1,5 +1,24 @@
 # @expo/build-tools
 
+## 27.1.0
+
+### Patch Changes
+
+- Explain App Store Connect error 90189 as a duplicate build number. ([#3461](https://github.com/expo/eas-cli/pull/3461) by [@sjchmiela](https://github.com/sjchmiela))
+- Put the `NPM_TOKEN` registry credential in the builder's npm user config on EAS Build (`~/.npmrc`, or the file `NPM_CONFIG_USERCONFIG` names), where pnpm 10.34.2+ and 11.5.3+ still expand `${NPM_TOKEN}` (they ignore it in a project-level `.npmrc`). Explain what to change when the project's pnpm version needs a newer Node.js than the build runs, including when eas.json sets `node` or `pnpm`. ([#4729](https://github.com/expo/eas-cli/pull/4729) by [@hSATAC](https://github.com/hSATAC))
+- Install `@expo/repack-app` for the `eas/repack` step with npm in a sandbox that sees only `PATH` and its own `HOME`, so the build machine's npm and Yarn configuration cannot break the install, fetch it through the EAS npm cache when the job uses one, and show the installer output in the build log. The step no longer looks the version up separately before installing. When the npm cache fails, the install retries against the public registry like the project install does; the `eas/run_agent` agent CLI install shares the same helper and gains the same retry. ([#4728](https://github.com/expo/eas-cli/pull/4728) by [@hSATAC](https://github.com/hSATAC))
+
+## 27.0.0
+
+### Patch Changes
+
+- Keep the launched app open when an Appium iOS session starts. ([#4699](https://github.com/expo/eas-cli/pull/4699) by [@gwdp](https://github.com/gwdp))
+- Run Appium through the prepared Full Disk Access helper when available on macOS. ([#4622](https://github.com/expo/eas-cli/pull/4622) by [@gwdp](https://github.com/gwdp))
+- Identify the build or application archive when a download fails, and explain when the archive is no longer available. ([#4703](https://github.com/expo/eas-cli/pull/4703) by [@gwdp](https://github.com/gwdp))
+- Run apsd setup in the background without delaying iOS app launch or preview readiness. ([#4706](https://github.com/expo/eas-cli/pull/4706) by [@gwdp](https://github.com/gwdp))
+- Handle a device session stopped during startup as normal cleanup instead of reporting a startup error. ([#4716](https://github.com/expo/eas-cli/pull/4716) by [@gwdp](https://github.com/gwdp))
+- Support idle timeouts for iOS web-preview-only sessions, resetting the timer when preview input arrives. ([#4731](https://github.com/expo/eas-cli/pull/4731) by [@gwdp](https://github.com/gwdp))
+
 ## 26.0.0
 
 ### Major Changes

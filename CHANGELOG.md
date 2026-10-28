@@ -2,6 +2,55 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.1.0](https://github.com/expo/eas-cli/releases/tag/v27.1.0) - 2026-10-28
+
+### 🎉 New features
+
+- [eas-cli] Display queued workflow runs: `workflow:run --wait` and `workflow:status` show a run waiting for its concurrency group and the run blocking it, and `workflow:cancel` includes queued runs in its selection list. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Upload the workflow files that `uses` jobs reference, including nested ones, when running a local workflow file with `eas workflow:run`. ([#4769](https://github.com/expo/eas-cli/pull/4769) by [@sswrk](https://github.com/sswrk))
+
+### 🐛 Bug fixes
+
+- [build-tools] Explain App Store Connect error 90189 as a duplicate build number. ([#3461](https://github.com/expo/eas-cli/pull/3461) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Fail the command when EAS CLI cannot pull environment variables from EAS servers, instead of continuing without them. ([#4774](https://github.com/expo/eas-cli/pull/4774) by [@wschurman](https://github.com/wschurman))
+- [eas-cli] Format the generated root changelog before committing a release. ([#4773](https://github.com/expo/eas-cli/pull/4773) by [@gwdp](https://github.com/gwdp))
+- [build-tools][worker] Put the `NPM_TOKEN` registry credential in the builder's npm user config on EAS Build (`~/.npmrc`, or the file `NPM_CONFIG_USERCONFIG` names), where pnpm 10.34.2+ and 11.5.3+ still expand `${NPM_TOKEN}` (they ignore it in a project-level `.npmrc`). Explain what to change when the project's pnpm version needs a newer Node.js than the build runs, including when eas.json sets `node` or `pnpm`. ([#4729](https://github.com/expo/eas-cli/pull/4729) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Install `@expo/repack-app` for the `eas/repack` step with npm in a sandbox that sees only `PATH` and its own `HOME`, so the build machine's npm and Yarn configuration cannot break the install, fetch it through the EAS npm cache when the job uses one, and show the installer output in the build log. The step no longer looks the version up separately before installing. When the npm cache fails, the install retries against the public registry like the project install does; the `eas/run_agent` agent CLI install shares the same helper and gains the same retry. ([#4728](https://github.com/expo/eas-cli/pull/4728) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Honor the `--non-interactive` flag in `workflow:cancel`; it was parsed but never applied, so automation could hang on the interactive picker. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Stop reporting a finish time for workflow runs that have not finished: `workflow:runs` reports `finishedAt` only for runs in a final status. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+
+## [27.0.0](https://github.com/expo/eas-cli/releases/tag/v27.0.0) - 2026-10-27
+
+### 🛠 Breaking changes
+
+- [eas-cli] Write the reason a command failed to stderr, next to the `command failed.` line, instead of to stdout. A program that reads the reason from stdout must read stderr instead. ([#4592](https://github.com/expo/eas-cli/pull/4592) by [@vonovak](https://github.com/vonovak))
+
+### 🎉 New features
+
+- [eas-cli] Send the `permissions.account.role` from the build profile to request a role for the build's `EXPO_TOKEN`. ([#4734](https://github.com/expo/eas-cli/pull/4734) by [@wschurman](https://github.com/wschurman))
+- [eas-cli] Add `simulator:logs` to read and follow logs from an iOS simulator session and download saved logs after it stops. ([#4545](https://github.com/expo/eas-cli/pull/4545) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Keep the launched app open when an Appium iOS session starts. ([#4699](https://github.com/expo/eas-cli/pull/4699) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Run Appium through the prepared Full Disk Access helper when available on macOS. ([#4622](https://github.com/expo/eas-cli/pull/4622) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Show permission guidance, including `permissions.account.role` in eas.json, when a build request fails with an authorization error. ([#4760](https://github.com/expo/eas-cli/pull/4760) by [@wschurman](https://github.com/wschurman))
+- [eas-cli] Print the notice about eas-cli in project dependencies only when stderr is a terminal, so programs that read stderr get the command's error. ([#4591](https://github.com/expo/eas-cli/pull/4591) by [@vonovak](https://github.com/vonovak))
+- [eas-cli] Show account roles and credential permission limits in `eas login` when you are already logged in. ([#4759](https://github.com/expo/eas-cli/pull/4759) by [@wschurman](https://github.com/wschurman))
+- [build-tools] Identify the build or application archive when a download fails, and explain when the archive is no longer available. ([#4703](https://github.com/expo/eas-cli/pull/4703) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Run apsd setup in the background without delaying iOS app launch or preview readiness. ([#4706](https://github.com/expo/eas-cli/pull/4706) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Fix simulator control action help routing and show help when a flag is incomplete. ([#4681](https://github.com/expo/eas-cli/pull/4681) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Require explicit `host:` simulator-host upload paths and report missing local files. ([#4683](https://github.com/expo/eas-cli/pull/4683) by [@gwdp](https://github.com/gwdp))
+
+  Missing local absolute paths now require the `host:` prefix. Actions that require upload IDs accept local files and reject host paths with an explanation.
+
+- [build-tools] Handle a device session stopped during startup as normal cleanup instead of reporting a startup error. ([#4716](https://github.com/expo/eas-cli/pull/4716) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Support idle timeouts for iOS web-preview-only sessions, resetting the timer when preview input arrives. ([#4731](https://github.com/expo/eas-cli/pull/4731) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
+- [eas-cli] Run the GraphQL schema and generated code check on pull requests to any base branch, including stacked pull requests. ([#4763](https://github.com/expo/eas-cli/pull/4763) by [@wschurman](https://github.com/wschurman))
+
 ## [26.0.0](https://github.com/expo/eas-cli/releases/tag/v26.0.0) - 2026-10-26
 
 ### 🛠 Breaking changes
