@@ -15931,6 +15931,7 @@ export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'Root
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput> | WorkflowReferencedFileInput>;
 }>;
 
 
