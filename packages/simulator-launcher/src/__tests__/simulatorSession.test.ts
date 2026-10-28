@@ -478,6 +478,23 @@ it('does not repeat completed default-device setup after adoption', async () => 
   await session.stopAsync();
 });
 
+it('reports ready before apsd finishes, but the claim waits for it', async () => {
+  const disabled = deferred();
+  jest.mocked(disableApsdAsync).mockImplementation(() => disabled.promise);
+  const session = createSession();
+  await session.prepareAsync();
+  expect(disableApsdAsync).toHaveBeenCalledWith('DUO', expect.any(AbortSignal));
+  let claimed = false;
+  const claiming = session.claimAsync({ engine: 'serve-sim' }).then(() => {
+    claimed = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(claimed).toBe(false);
+  disabled.resolve();
+  await claiming;
+  await session.stopAsync();
+});
+
 it('does not report a background failure when a stop aborts the default setup', async () => {
   const disable = jest
     .mocked(disableApsdAsync)
