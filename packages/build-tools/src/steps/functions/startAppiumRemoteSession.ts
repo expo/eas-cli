@@ -345,31 +345,37 @@ export function createStartAppiumRemoteSessionBuildFunction(
         } finally {
           startupAbortController.abort(new Error('Appium session ended.'));
           const appiumStopErrors: unknown[] = [];
+          const appiumTeardown = (async () => {
+            try {
+              await eventCollection?.stopAsync();
+            } finally {
+              try {
+                await appiumProcess?.stopAsync();
+              } catch (error) {
+                appiumStopErrors.push(error);
+                throw error;
+              } finally {
+                if (appiumHome) {
+                  await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                }
+              }
+            }
+          })();
           await finishRemoteSessionAsync({
             logger,
             sessionFailed,
             teardown: [
               ['Appium tunnel', appiumTunnel?.stopAsync()],
+              ['Appium server', appiumTeardown],
               [
-                'Appium server',
-                (async () => {
-                  try {
-                    await eventCollection?.stopAsync();
-                  } finally {
-                    try {
-                      await appiumProcess?.stopAsync();
-                    } catch (error) {
-                      appiumStopErrors.push(error);
-                      throw error;
-                    } finally {
-                      if (appiumHome) {
-                        await fs.promises.rm(appiumHome, { recursive: true, force: true });
-                      }
-                    }
+                'session host',
+                hostStartup?.then(async result => {
+                  if (warmSession) {
+                    await Promise.allSettled([appiumTeardown]);
                   }
-                })(),
+                  await result.value?.finishAsync();
+                }),
               ],
-              ['session host', hostStartup?.then(result => result.value?.finishAsync())],
             ],
           });
           if (sessionError instanceof WarmSessionAdoptionError && appiumStopErrors.length) {
