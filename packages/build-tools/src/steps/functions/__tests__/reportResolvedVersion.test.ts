@@ -56,6 +56,26 @@ uses-permission: name='android.permission.INTERNET'`;
       appBuildVersion: '1',
     });
   });
+
+  it('keeps an unescaped apostrophe in versionName', () => {
+    const output = `package: name='com.example' versionCode='1' versionName='1.0-O'Brien' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34'
+sdkVersion:'21'`;
+
+    expect(parseAaptOutput(output)).toEqual({
+      appVersion: "1.0-O'Brien",
+      appBuildVersion: '1',
+    });
+  });
+
+  it('keeps a versionName that contains a quote and an equals sign', () => {
+    const output = `package: name='com.example' versionCode='1' versionName='1.0' build=beta'
+sdkVersion:'21'`;
+
+    expect(parseAaptOutput(output)).toEqual({
+      appVersion: "1.0' build=beta",
+      appBuildVersion: '1',
+    });
+  });
 });
 
 describe(parseManifestXml, () => {
@@ -237,10 +257,12 @@ describe(createReportResolvedVersionBuildFunction, () => {
   function createStep({
     env,
     archivePath,
+    workingDirectory,
     mutationResult = { data: {}, error: undefined },
   }: {
     env: Record<string, string>;
     archivePath?: string;
+    workingDirectory?: string;
     mutationResult?: { data?: unknown; error?: Error };
   }): { step: BuildStep; mutation: jest.Mock } {
     const mutation = jest.fn(() => ({ toPromise: async () => mutationResult }));
@@ -256,9 +278,34 @@ describe(createReportResolvedVersionBuildFunction, () => {
       new CustomBuildContext(ctx)
     ).createBuildStepFromFunctionCall(createGlobalContextMock({}), {
       callInputs: archivePath ? { application_archive_path: archivePath } : {},
+      workingDirectory,
     });
     return { step, mutation };
   }
+
+  it('resolves a relative archive path against the step working directory', async () => {
+    mockedSpawnAsync.mockResolvedValue({
+      stdout: `package: name='com.example.app' versionCode='42' versionName='2.5.0'`,
+      stderr: '',
+    } as any);
+    const { step, mutation } = createStep({
+      env: { EAS_BUILD_ID: 'build-id' },
+      archivePath: 'android/app/build/outputs/apk/release/app-release.apk',
+      workingDirectory: './my-app',
+    });
+
+    await step.executeAsync();
+
+    const expectedPath = path.join(
+      step.ctx.workingDirectory,
+      'android/app/build/outputs/apk/release/app-release.apk'
+    );
+    expect(path.isAbsolute(expectedPath)).toBe(true);
+    expect(mockedSpawnAsync).toHaveBeenCalledWith('aapt2', ['dump', 'badging', expectedPath], {
+      stdio: 'pipe',
+    });
+    expect(mutation).toHaveBeenCalledTimes(1);
+  });
 
   it('reports the resolved versions for the build', async () => {
     mockedSpawnAsync.mockResolvedValue({

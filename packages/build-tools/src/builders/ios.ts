@@ -260,7 +260,8 @@ async function buildInnerAsync(
           `Updated resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
         );
       }
-    } catch (err) {
+    } catch (err: any) {
+      Sentry.capture('Failed to update resolved version', err);
       ctx.logger.warn({ err }, 'Failed to update resolved version (non-fatal)');
     }
   });

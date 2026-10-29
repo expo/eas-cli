@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import { parseInfoPlistBuffer, readIpaInfoAsync } from './readIpaInfo';
 import { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 
 export function createReportResolvedVersionBuildFunction(
   ctx: CustomBuildContext<BuildJob>
@@ -31,11 +32,12 @@ export function createReportResolvedVersionBuildFunction(
     ],
     fn: async (stepCtx, { inputs }) => {
       try {
-        const archivePath = inputs.application_archive_path.value as string | undefined;
-        if (!archivePath) {
+        const archivePathInput = inputs.application_archive_path.value as string | undefined;
+        if (!archivePathInput) {
           stepCtx.logger.info('No application archive path provided, skipping.');
           return;
         }
+        const archivePath = path.resolve(stepCtx.workingDirectory, archivePathInput);
 
         const buildId = ctx.env.EAS_BUILD_ID;
         if (!buildId) {
@@ -64,7 +66,9 @@ export function createReportResolvedVersionBuildFunction(
 
         stepCtx.logger.info('Updated resolved version on EAS.');
       } catch (err) {
-        stepCtx.logger.warn('Failed to update resolved version (non-fatal):', err);
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sentry.capture('Failed to update resolved version', error);
+        stepCtx.logger.warn({ err: error }, 'Failed to update resolved version (non-fatal)');
       }
     },
   });
@@ -143,7 +147,11 @@ async function extractVersionFromAabAsync(
 }
 
 export function parseAaptOutput(output: string): { appVersion?: string; appBuildVersion?: string } {
-  const versionNameMatch = output.match(/versionName='([^']+)'/);
+  // aapt2 does not escape apostrophes inside versionName, so stop at the next known
+  // badging field (or the end of the line) rather than at the first closing quote.
+  const versionNameMatch = output.match(
+    /versionName='(.*?)'(?= platformBuildVersionName=| platformBuildVersionCode=| compileSdkVersion=|\s*$)/m
+  );
   const versionCodeMatch = output.match(/versionCode='([^']+)'/);
 
   return {
