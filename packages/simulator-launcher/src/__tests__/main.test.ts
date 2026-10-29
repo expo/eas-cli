@@ -290,6 +290,37 @@ test('the post-adopt preparation command uses the consumed claim and returns too
   expect(await completion).toBeUndefined();
 });
 
+test('prepare-tools returns the validated Argent identity past an earlier stale same-port record', async () => {
+  jest
+    .mocked(createArgentTool)
+    .mockImplementation(jest.requireActual('../utils/argent').createArgentTool);
+  await fs.writeFile(
+    path.join(root, '.argent/tool-server-old.json'),
+    JSON.stringify({ pid: 90099, port: 3201, token: 'stale-token' })
+  );
+  jest
+    .spyOn(fs, 'readdir')
+    .mockResolvedValue(['tool-server-old.json', 'tool-server.json'] as never);
+  jest
+    .mocked(processes.isProcessOwnedByServiceAsync)
+    .mockImplementation(async pid => pid !== 90099);
+  const [completion] = await beginSession();
+  await status('ready');
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'argent');
+  await prepareToolsAsync(boot);
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    toolsReady: true,
+    tools: { pid: 90002, port: 3201, token: 'fixture-token' },
+  });
+  expect(fetch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ headers: { Authorization: 'Bearer stale-token' } })
+  );
+  await stopAsync(boot);
+  expect(await completion).toBeUndefined();
+});
+
 test('stop during post-adopt preparation prevents toolsReady and waits for owned drain', async () => {
   const [completion] = await beginSession();
   await status('ready');

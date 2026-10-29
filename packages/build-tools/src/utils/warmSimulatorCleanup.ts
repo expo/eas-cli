@@ -1,8 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 const LAUNCHER_STATE_FILE = '/tmp/expo-simulator-startup.json';
+const STARTUP_SCRIPT = '/usr/local/share/vm-tools/startup.sh';
 
 /**
  * The worker stops warmup in the background for a job that does not use the warm Simulator. Wait
@@ -26,10 +28,10 @@ export async function waitForWarmSimulatorCleanupAsync(
     try {
       state = JSON.parse(await fs.readFile(LAUNCHER_STATE_FILE, 'utf8'));
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT' && !existsSync(STARTUP_SCRIPT)) {
         return;
       }
-      // An unreadable record counts as unfinished cleanup until the deadline.
+      // Warmup may still be loading; only disabled confirms cleanup on an enabled VM.
       state = {};
     }
     if (state.status === 'disabled') {

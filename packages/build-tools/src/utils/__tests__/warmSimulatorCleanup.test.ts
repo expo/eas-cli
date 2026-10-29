@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { waitForWarmSimulatorCleanupAsync } from '../warmSimulatorCleanup';
 
 const STATE_FILE = '/tmp/expo-simulator-startup.json';
+const STARTUP_SCRIPT = '/usr/local/share/vm-tools/startup.sh';
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
 
 async function writeStateAsync(state: object): Promise<void> {
@@ -19,6 +20,30 @@ afterEach(() => {
 
 it('continues at once on a VM without warmup', async () => {
   await expect(waitForWarmSimulatorCleanupAsync({})).resolves.toBeUndefined();
+});
+
+it('waits for cleanup when warmup is installed but has not written state yet', async () => {
+  await fs.mkdir('/usr/local/share/vm-tools', { recursive: true });
+  await fs.writeFile(STARTUP_SCRIPT, '');
+  let finished = false;
+  const waiting = waitForWarmSimulatorCleanupAsync({}, { pollMs: 5 }).then(() => {
+    finished = true;
+  });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  expect(finished).toBe(false);
+  await writeStateAsync({ status: 'starting' });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  expect(finished).toBe(false);
+  await writeStateAsync({ status: 'disabled' });
+  await waiting;
+});
+
+it('times out when installed warmup never writes state', async () => {
+  await fs.mkdir('/usr/local/share/vm-tools', { recursive: true });
+  await fs.writeFile(STARTUP_SCRIPT, '');
+  await expect(waitForWarmSimulatorCleanupAsync({}, { timeoutMs: 20, pollMs: 5 })).rejects.toThrow(
+    'Warm Simulator cleanup did not finish; the Simulator cannot be used.'
+  );
 });
 
 it('waits until the launcher records that cleanup finished', async () => {

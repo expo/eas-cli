@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { IosSimulatorUtils } from '../IosSimulatorUtils';
 import { retryAsync } from '../retry';
+import { waitForWarmSimulatorCleanupAsync } from '../warmSimulatorCleanup';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -14,6 +15,7 @@ jest.mock('@expo/turtle-spawn', () => ({
 jest.mock('../retry', () => ({
   retryAsync: jest.fn(async fn => await fn(0)),
 }));
+jest.mock('../warmSimulatorCleanup');
 
 const mockedSpawn = jest.mocked(spawn);
 
@@ -21,6 +23,7 @@ describe('IosSimulatorUtils', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+    jest.mocked(waitForWarmSimulatorCleanupAsync).mockReset().mockResolvedValue(undefined);
   });
 
   describe(IosSimulatorUtils.getAvailableRuntimesAsync, () => {
@@ -150,6 +153,30 @@ describe('IosSimulatorUtils', () => {
         return { stdout: '', stderr: '' } as any;
       }) as any);
     }
+
+    it('waits for warm cleanup before checking device state and writing accessibility prefs', async () => {
+      let finishCleanup: (() => void) | undefined;
+      jest.mocked(waitForWarmSimulatorCleanupAsync).mockImplementationOnce(
+        async () =>
+          await new Promise<void>(resolve => {
+            finishCleanup = resolve;
+          })
+      );
+      mockAvailableDevices([device()]);
+
+      const setup = IosSimulatorUtils.enableAccessibilitySettingsAsync({
+        deviceIdentifier: device().udid as any,
+        env: {},
+      });
+      expect(mockedSpawn).not.toHaveBeenCalled();
+      expect(finishCleanup).toBeDefined();
+      finishCleanup?.();
+      await setup;
+
+      expect(mockedSpawn).toHaveBeenCalledWith('plutil', expect.anything(), {
+        env: {},
+      });
+    });
 
     it('writes accessibility prefs for an exact shutdown simulator match', async () => {
       mockAvailableDevices([
