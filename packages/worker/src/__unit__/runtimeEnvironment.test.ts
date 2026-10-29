@@ -144,6 +144,29 @@ describe('prepareRuntimeEnvironment', () => {
     }
   );
 
+  it('queries package-manager versions in parallel before applying tool overrides', async () => {
+    mockProcessPlatform('linux');
+    const resolveVersion = new Map<string, (value: SpawnResult) => void>();
+    jest.mocked(spawn).mockImplementation((command, args) => {
+      if (['yarn', 'pnpm', 'bun'].includes(command) && args[0] === '--version') {
+        return new Promise(resolve => resolveVersion.set(command, resolve));
+      }
+      return Promise.resolve(spawnResult);
+    });
+
+    const preparing = prepareRuntimeEnvironment(ctx, { corepack: true }, false /* skipIfTest */);
+    expect([...resolveVersion.keys()]).toEqual(['yarn', 'pnpm', 'bun']);
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+
+    resolveVersion.get('pnpm')!({ ...spawnResult, stdout: '9.0.0\n' });
+    resolveVersion.get('bun')!({ ...spawnResult, stdout: '1.0.0\n' });
+    await Promise.resolve();
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+    resolveVersion.get('yarn')!({ ...spawnResult, stdout: '1.22.0\n' });
+    await preparing;
+    expect(spawn).toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+  });
+
   describe('installNode', () => {
     describe('prepareRuntimeEnvironment', () => {
       beforeEach(() => {
