@@ -9,6 +9,7 @@ import { runWarmSimulatorSessionAsync, startAsync } from '../commands/start';
 import { stopAsync } from '../commands/stop';
 import { mainAsync } from '../main';
 import { createArgentTool } from '../utils/argent';
+import { startExpoGoPreinstall } from '../utils/expoGo';
 import { type ChildProcessHandle, commands } from '../utils/processes';
 import * as processes from '../utils/processes';
 import * as serveSim from '../utils/serveSim';
@@ -21,6 +22,7 @@ import {
 } from '../utils/state';
 import { deferred, until } from './helpers';
 
+jest.mock('../utils/expoGo');
 jest.mock('../utils/argent');
 const boot = 'boot-one';
 let root: string;
@@ -94,6 +96,14 @@ beforeEach(async () => {
   process.env.ARGENT_EVENT_LOG = path.join(root, 'argent-events');
   active = [];
   jobs = [];
+  jest
+    .mocked(startExpoGoPreinstall)
+    .mockReset()
+    .mockReturnValue({
+      preinstallOnDeviceAsync: jest.fn(async () => {}),
+      claimAsync: jest.fn(async () => undefined),
+      stopAsync: jest.fn(async () => {}),
+    });
   jest.spyOn(commands, 'runAsync').mockImplementation(async (file, args) => {
     if (file === '/usr/sbin/sysctl') {
       return boot;
@@ -280,6 +290,37 @@ test('the post-adopt preparation command uses the consumed claim and returns too
   expect(await completion).toBeUndefined();
 });
 
+test('prepare-tools returns the validated Argent identity past an earlier stale same-port record', async () => {
+  jest
+    .mocked(createArgentTool)
+    .mockImplementation(jest.requireActual('../utils/argent').createArgentTool);
+  await fs.writeFile(
+    path.join(root, '.argent/tool-server-old.json'),
+    JSON.stringify({ pid: 90099, port: 3201, token: 'stale-token' })
+  );
+  jest
+    .spyOn(fs, 'readdir')
+    .mockResolvedValue(['tool-server-old.json', 'tool-server.json'] as never);
+  jest
+    .mocked(processes.isProcessOwnedByServiceAsync)
+    .mockImplementation(async pid => pid !== 90099);
+  const [completion] = await beginSession();
+  await status('ready');
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'argent');
+  await prepareToolsAsync(boot);
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    toolsReady: true,
+    tools: { pid: 90002, port: 3201, token: 'fixture-token' },
+  });
+  expect(fetch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ headers: { Authorization: 'Bearer stale-token' } })
+  );
+  await stopAsync(boot);
+  expect(await completion).toBeUndefined();
+});
+
 test('stop during post-adopt preparation prevents toolsReady and waits for owned drain', async () => {
   const [completion] = await beginSession();
   await status('ready');
@@ -310,6 +351,51 @@ test('stop during post-adopt preparation prevents toolsReady and waits for owned
     expect(await completion).toBeUndefined();
   } finally {
     release.resolve();
+  }
+});
+
+test('claim does not wait for the Expo Go install; prepare-tools does, and stop drains cleanup', async () => {
+  const info = {
+    udid: 'PHONE',
+    bundleIdentifier: 'host.exp.Exponent',
+    shortVersion: '58.0.7',
+    version: '58.0.7',
+  };
+  const install = deferred<typeof info>();
+  const cleanup = deferred();
+  jest.mocked(startExpoGoPreinstall).mockReturnValue({
+    // The default device's preinstall stays open until its cleanup finishes.
+    preinstallOnDeviceAsync: jest.fn(() => cleanup.promise),
+    claimAsync: jest.fn(() => install.promise),
+    stopAsync: jest.fn(() => cleanup.promise),
+  });
+  const [completion] = await beginSession();
+  await status('ready');
+  jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  try {
+    await claimAsync(boot, 'serve-sim');
+    expect(await readLauncherStateAsync(boot)).not.toHaveProperty('preinstalledExpoGo');
+    let prepared = false;
+    const preparing = prepareToolsAsync(boot).then(() => {
+      prepared = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(prepared).toBe(false);
+    install.resolve(info);
+    await preparing;
+    expect(await readLauncherStateAsync(boot)).toMatchObject({
+      toolsReady: true,
+      preinstalledExpoGo: info,
+    });
+    const stopping = stopAsync(boot);
+    await status('stopping');
+    expect((await readLauncherStateAsync(boot))?.status).not.toBe('disabled');
+    cleanup.resolve();
+    await stopping;
+    await completion;
+  } finally {
+    install.resolve(info);
+    cleanup.resolve();
   }
 });
 

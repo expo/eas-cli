@@ -18,9 +18,17 @@ export const WarmServerSchema = z.object({
   url: z.string().url(),
   token: NonBlankStringSchema,
 });
+const ToolServerSchema = WarmServerSchema.pick({ pid: true, port: true, token: true });
 export const ClaimInputSchema = z.object({
   engine: z.enum(['serve-sim', 'agent-device', 'argent']),
   requestedDevice: NonBlankStringSchema.optional(),
+});
+/** The Expo Go this launcher installed on `udid` and never launched. */
+export const PreinstalledAppSchema = z.object({
+  udid: NonBlankStringSchema,
+  bundleIdentifier: NonBlankStringSchema,
+  shortVersion: z.string(),
+  version: z.string(),
 });
 export const WarmSessionInfoSchema = z.object({
   // The default before claim, then the device selected for the job.
@@ -36,15 +44,19 @@ export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   launcherVersion: NonBlankStringSchema.optional(),
   status: z.enum(['starting', 'ready', 'claiming', 'claimed', 'stopping', 'disabled']),
   ...ClaimInputSchema.partial().shape,
+  preinstalledExpoGo: PreinstalledAppSchema.optional(),
   prepareToolsRequested: z.boolean().optional(),
   toolsReady: z.boolean().optional(),
+  tools: ToolServerSchema.optional(),
   error: z.string().optional(),
 });
 export type ClaimInput = z.infer<typeof ClaimInputSchema>;
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
 export type WarmServer = z.infer<typeof WarmServerSchema>;
+export type ToolServer = z.infer<typeof ToolServerSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
+export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
 
 export async function readLauncherStateAsync(bootUuid: string): Promise<LauncherState | undefined> {
   let contents: string;

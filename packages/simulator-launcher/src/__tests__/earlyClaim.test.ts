@@ -14,6 +14,7 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
     const processes = await import('../utils/processes');
     const agentDevice = await import('../utils/agentDevice');
     const argent = await import('../utils/argent');
+    const expoGo = await import('../utils/expoGo');
     const controller = new AbortController();
     const running = commands.runAsync.bind(commands);
     process.env.EXPO_SIMULATOR_DEVICE = 'DUO';
@@ -29,6 +30,7 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
     jest
       .spyOn(simulator, 'listAvailableSimulatorsAsync')
       .mockResolvedValue([{ udid: 'DUO', name: 'iPhone Duo' }]);
+    jest.spyOn(simulator, 'waitForSimulatorBootAsync').mockResolvedValue();
     jest.spyOn(simulator, 'disableApsdAsync').mockResolvedValue();
     const shutdown = jest.spyOn(simulator, 'shutdownSimulatorAsync').mockResolvedValue();
     const stopServer = jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockResolvedValue();
@@ -40,6 +42,11 @@ it('an early claim survives unused-tool wrapper exit while the selected server a
     jest
       .spyOn(argent, 'createArgentTool')
       .mockReturnValue({ name: 'argent', startAsync: async () => {}, stopAsync: async () => {} });
+    jest.spyOn(expoGo, 'startExpoGoPreinstall').mockReturnValue({
+      preinstallOnDeviceAsync: async () => {},
+      claimAsync: async () => undefined,
+      stopAsync: async () => {},
+    });
     jest.spyOn(serveSim, 'startServeSim').mockReturnValue({
       child: { pid: 90001 } as import('node:child_process').ChildProcess,
       resultPromise: new Promise(() => {}),

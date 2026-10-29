@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { commands } from './processes';
 import { type SimulatorDevice, SimulatorDeviceSchema } from './state';
@@ -36,6 +37,58 @@ export function selectSimulators(devices: SimulatorDevice[], selector?: string):
         .filter(device => device.name.startsWith('iPhone'))
         .sort((a, b) => a.name.length - b.name.length)
         .slice(0, 1);
+}
+
+/** Resolve every configured warm device before native work; the first is the claim default. */
+export function selectWarmupSimulators(
+  devices: SimulatorDevice[],
+  selectors?: string
+): SimulatorDevice[] {
+  const entries = !selectors?.trim()
+    ? [undefined]
+    : selectors.split(',').map(value => value.trim());
+  const selected = new Set<string>();
+  return entries.map(selector => {
+    if (selector === '') {
+      throw new Error('EXPO_SIMULATOR_DEVICE must contain nonempty device names or UDIDs.');
+    }
+    const matches = selectSimulators(devices, selector);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Expected one available Simulator for ${selector ?? 'the default iPhone'}, found ${matches.length}. Use an exact device name or UDID.`
+      );
+    }
+    const device = matches[0];
+    const udid = device.udid.toLowerCase();
+    if (selected.has(udid)) {
+      throw new Error(
+        `Simulator ${device.name} (${device.udid}) appears more than once in EXPO_SIMULATOR_DEVICE.`
+      );
+    }
+    selected.add(udid);
+    return device;
+  });
+}
+
+/** Observe an orphan-owned warm boot without starting another boot or killing it on claim. */
+export async function waitForSimulatorBootAsync(udid: string, signal: AbortSignal): Promise<void> {
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    signal.throwIfAborted();
+    const { devices } = SimulatorStatesSchema.parse(
+      JSON.parse(await commands.runAsync('xcrun', ['simctl', 'list', 'devices', '--json'], signal))
+    );
+    if (
+      Object.values(devices)
+        .flat()
+        .some(device => device.udid === udid && device.state === 'Booted')
+    ) {
+      await commands.runAsync('xcrun', ['simctl', 'bootstatus', udid], signal);
+      return;
+    }
+    await sleepAsync(250, undefined, { signal });
+  }
+  throw new Error(`Timed out waiting for serve-sim to boot Simulator ${udid}.`);
 }
 
 /** `simctl shutdown` fails for a device that is already shut down; that device is done. */

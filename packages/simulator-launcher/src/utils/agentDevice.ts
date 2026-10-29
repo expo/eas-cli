@@ -8,10 +8,10 @@ const packageSpec = (): string => `agent-device@${process.env.AGENT_DEVICE_VERSI
 
 /** `prepare ios-runner` builds and starts the runner and its daemon; it exits once both are up. */
 export function createAgentDeviceTool(): WarmTool {
-  process.env.AGENT_DEVICE_STATE_DIR ||= path.join(
+  const stateDir = (process.env.AGENT_DEVICE_STATE_DIR ||= path.join(
     os.homedir(),
     'Library/Caches/expo-simulator-startup/agent-device'
-  );
+  ));
   process.env.AGENT_DEVICE_RETAIN_ARTIFACTS ||= '1';
   process.env.AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS ||= '0';
   process.env.AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS ||= '0';
@@ -56,14 +56,7 @@ export function createAgentDeviceTool(): WarmTool {
       await commands
         .runAsync(
           'bunx',
-          [
-            packageSpec(),
-            'daemon',
-            'stop',
-            '--clean',
-            '--state-dir',
-            process.env.AGENT_DEVICE_STATE_DIR!,
-          ],
+          [packageSpec(), 'daemon', 'stop', '--clean', '--state-dir', stateDir],
           AbortSignal.timeout(120_000)
         )
         .catch(error => errors.push(error));
