@@ -68,15 +68,34 @@ export async function prepareControlActionAsync(
     await assertLocalFileAsync(localFile.path);
   } else if (localFileMode === 'auto' && param && applies && typeof params[param] === 'string') {
     const value = params[param];
-    const localPath = resolveLocalPath(value);
-    const stat = await fs.stat(localPath).catch(() => null);
-    if (stat) {
+    if (value.startsWith('host:')) {
+      if (entry.uploadAs === 'id') {
+        throw new Error(
+          'This action requires a local file to upload; host: paths are not supported.'
+        );
+      }
+      const hostPath = value.slice('host:'.length);
+      if (!path.posix.isAbsolute(hostPath)) {
+        throw new Error(
+          `A host: path must be absolute, for example host:/tmp/app.tar.gz. For a local filename beginning with host:, use ./${value}.`
+        );
+      }
+      params[param] = hostPath;
+    } else {
+      const localPath = resolveLocalPath(value);
+      const stat = await fs.stat(localPath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+          return null;
+        }
+        throw error;
+      });
+      if (!stat) {
+        throw new Error(
+          `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
+        );
+      }
       await assertLocalFileAsync(localPath, stat);
       localFile = { param, path: localPath };
-    } else if (!path.isAbsolute(value)) {
-      throw new Error(
-        `${value} does not exist on this computer. Pass the path of a local file, or an absolute path on the simulator host.`
-      );
     }
   }
   return {

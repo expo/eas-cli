@@ -466,47 +466,6 @@ function withUploadPathHelp(entry: HostActionCatalogEntry): HostActionCatalogEnt
     : entry;
 }
 
-async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {}, uploadAs }: HostActionCatalogEntry,
-  params: Record<string, unknown>
-): Promise<{ param: string; path: string } | null> {
-  const value = param ? params[param] : undefined;
-  const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
-  if (!param || typeof value !== 'string' || !applies) {
-    return null;
-  }
-  if (value.startsWith('host:')) {
-    if (uploadAs === 'id') {
-      throw new Error(
-        'This action requires a local file to upload; host: paths are not supported.'
-      );
-    }
-    const hostPath = value.slice('host:'.length);
-    if (!path.posix.isAbsolute(hostPath)) {
-      throw new Error(
-        `A host: path must be absolute, for example host:/tmp/app.tar.gz. For a local filename beginning with host:, use ./${value}.`
-      );
-    }
-    params[param] = hostPath;
-    return null;
-  }
-  const stat = await fs.stat(value).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
-      return null;
-    }
-    throw error;
-  });
-  if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass the path of a file.`);
-  }
-  if (!stat) {
-    throw new Error(
-      `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
-    );
-  }
-  return stat ? { param, path: value } : null;
-}
-
 function formatElapsed(startedAt: number): string {
   return formatMilliseconds(Date.now() - startedAt) || '<1s';
 }

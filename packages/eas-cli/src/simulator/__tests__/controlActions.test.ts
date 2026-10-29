@@ -159,7 +159,7 @@ describe('control action preparation and execution', () => {
     expect(requestAsync).not.toHaveBeenCalled();
   });
 
-  it('preserves direct local-path heuristics and does not infer uploads in explicit mode', async () => {
+  it('uses explicit host paths and does not infer uploads in explicit mode', async () => {
     const localFile = path.join(tmpDir, 'fixture.json');
     expect(
       (
@@ -174,7 +174,7 @@ describe('control action preparation and execution', () => {
       (
         await prepareControlActionAsync(catalog, {
           action: 'media',
-          params: { path: remotePath },
+          params: { path: `host:${remotePath}` },
         })
       ).localFile
     ).toBeUndefined();

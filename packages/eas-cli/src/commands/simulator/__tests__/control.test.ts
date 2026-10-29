@@ -509,7 +509,9 @@ describe(SimulatorControl, () => {
     mockPrintJsonOnlyOutput.mockClear();
     jest.mocked(fetchHostActionDeviceAsync).mockClear();
     await createCommand(['--list', '--id', 'session-123', '--json']).runAsync();
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ 'hardwareKeyboard.set': catalog['hardwareKeyboard.set'] })
+    );
     expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
   });
 
@@ -763,7 +765,14 @@ describe(SimulatorControl, () => {
       await createCommand(['--id', 'session-123', ...flags]).runAsync();
       expect(actionRequests()).toEqual([]);
       if (flags.includes('--json')) {
-        expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(catalog);
+        expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            'app.install': expect.objectContaining({
+              description: expect.stringContaining('host:/absolute/path'),
+            }),
+            'hardwareKeyboard.set': catalog['hardwareKeyboard.set'],
+          })
+        );
       } else {
         expect(Log.log).toHaveBeenCalledWith(
           'For action usage: eas simulator:control <action> --help'
