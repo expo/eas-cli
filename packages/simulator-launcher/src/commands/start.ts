@@ -120,12 +120,13 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   });
   async function prepareDefaultDeviceAsync(): Promise<void> {
     await throwIfStoppingAsync();
-    warm = await session.prepareAsync();
+    const prepared = await session.prepareAsync();
+    warm = prepared;
     await updateLauncherStateAsync(
       bootUuid,
       state => ({
         ...requireOwnedState(state, 'starting'),
-        ...warm!,
+        ...prepared,
         status: 'ready',
       }),
       signal
@@ -381,13 +382,18 @@ export function createWarmSimulatorSession({
     });
     launcherCachePriming = primeLauncherCacheAsync();
     const [serverInfo] = await Promise.all([ready, launcherCachePriming]);
+    const agentDeviceStateDir = process.env.AGENT_DEVICE_STATE_DIR;
+    const argentEventLogPath = process.env.ARGENT_EVENT_LOG;
+    if (!agentDeviceStateDir || !argentEventLogPath) {
+      throw new Error('The warm Simulator tool paths are not configured.');
+    }
     info = {
       device: first,
       server: serverInfo,
       controllerPid: process.pid,
       controllerStartTime,
-      agentDeviceStateDir: process.env.AGENT_DEVICE_STATE_DIR!,
-      argentEventLogPath: process.env.ARGENT_EVENT_LOG!,
+      agentDeviceStateDir,
+      argentEventLogPath,
     };
     return info;
   }
@@ -438,13 +444,14 @@ export function createWarmSimulatorSession({
       return { device: selected };
     },
     async prepareToolsAsync() {
-      if (!request || stopping) {
+      if (!request || stopping || !server) {
         throw new Error('Claim a warm Simulator session before preparing its tools.');
       }
+      const { engine } = request;
       // This phase cannot start a runner against the old device before private adoption finishes.
       const adopted = await waitForServeSimReadyAsync(
         info.device.udid,
-        server!,
+        server,
         signal,
         info.server.port
       );
@@ -459,7 +466,7 @@ export function createWarmSimulatorSession({
       // A device outside the warm list still needs its setup. A started setup is reused. This
       // runs in the background but is joined before teardown.
       startSimulatorsSetupAsync([info.device.udid], Promise.resolve()).catch(() => {});
-      const tool = warmTools.find(tool => tool.name === request!.engine);
+      const tool = warmTools.find(tool => tool.name === engine);
       if (tool?.name === 'agent-device' && !startedTools.has(tool)) {
         const results = await toolRetirement;
         const failed = results.find(result => result.status === 'rejected');
@@ -468,14 +475,19 @@ export function createWarmSimulatorSession({
         }
       }
       await throwIfStoppingAsync();
-      if (tool && !startedTools.has(tool)) {
-        startedTools.set(
-          tool,
-          startTool(tool, info.device.udid, Promise.resolve(), signal, onPreparationFailure)
-        );
-      }
       if (tool) {
-        await startedTools.get(tool)!.ready;
+        let started = startedTools.get(tool);
+        if (!started) {
+          started = startTool(
+            tool,
+            info.device.udid,
+            Promise.resolve(),
+            signal,
+            onPreparationFailure
+          );
+          startedTools.set(tool, started);
+        }
+        await started.ready;
       }
       // The job installs its app after this, so a running Expo Go install must finish first.
       const preinstalledExpoGo = await selectedPreinstall;
