@@ -49,7 +49,11 @@ import {
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
-import { readIosApplicationIdentifierAsync } from './iosAppArtifact';
+import {
+  type IosAppIdentity,
+  isPreinstalledExpoGoAsync,
+  readIosApplicationIdentifierAsync,
+} from './iosAppArtifact';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -421,6 +425,8 @@ export type DeviceSessionServer = {
   turnArgs: Promise<string[]>;
   /** Cold iOS setup runs after control readiness, alongside app installation and before launch. */
   setupSimulatorAsync?(options: { signal: AbortSignal; logger: bunyan }): Promise<void>;
+  /** An app the server's launcher installed and never launched. */
+  preinstalledApp?: IosAppIdentity;
   /** Another session can start on this machine, so an unconfirmed tunnel close fails cleanup. */
   requiresPreviewRetirement: boolean;
   startAsync(launch: DeviceSessionServerLaunch): Promise<DetachedProcessHandle>;
@@ -893,8 +899,22 @@ async function startDeviceSessionHostInternalAsync(
           signal: startup.signal,
         });
       // The bundle that has not run yet: just installed, or preinstalled and never launched.
-      let notYetLaunched: string | undefined;
-      if (app.installAppPath) {
+      let notYetLaunched =
+        !app.installAppPath && app.launchAppIdentifier === server.preinstalledApp?.bundleIdentifier
+          ? server.preinstalledApp?.bundleIdentifier
+          : undefined;
+      if (
+        app.installAppPath &&
+        server.preinstalledApp &&
+        (await isPreinstalledExpoGoAsync({
+          appPath: app.installAppPath,
+          preinstalled: server.preinstalledApp,
+          env,
+        }))
+      ) {
+        logger.info('This Expo Go version is already installed on the Simulator.');
+        notYetLaunched = server.preinstalledApp.bundleIdentifier;
+      } else if (app.installAppPath) {
         const staged = await stageServeSimAppAsync(app.installAppPath, serveSimTmpdir);
         stagedAppDirectory = staged.directory;
         signal?.throwIfAborted();
