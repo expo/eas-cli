@@ -3,7 +3,7 @@ import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { PassThrough } from 'node:stream';
 import { setTimeout } from 'node:timers/promises';
 
@@ -581,7 +581,7 @@ test('does not request adopted video when job recording is disabled', async () =
 });
 
 test.each(['complete', 'failed'])(
-  'collects an adopted %s recording after host shutdown without a control request',
+  'collects an adopted %s recording unchanged after host shutdown without a control request',
   async status => {
     let releaseDevices!: (devices: never[]) => void;
     jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockImplementation(
@@ -605,10 +605,12 @@ test.each(['complete', 'failed'])(
     releaseDevices([{ udid, name: 'iPhone 17 Pro', runtimeDisplayName: 'iOS 26.4' }] as never);
     await setTimeout(20);
     expect(spawn).not.toHaveBeenCalled();
-    await writeFile(
-      `${recording.output}/session.json`,
-      JSON.stringify({ recording: 'recording.mp4', status })
-    );
+    const manifest = JSON.stringify({
+      recording: 'recording.mp4',
+      status,
+      ...(status === 'failed' && { error: 'Recording interrupted; partial footage preserved.' }),
+    });
+    await writeFile(`${recording.output}/session.json`, manifest);
     jest.mocked(turtleFetch).mockRejectedValue(new Error('serve-sim has stopped'));
     expect(await IosSimulatorRecordingUtils.finishAsync({ logger })).toEqual([
       {
@@ -618,11 +620,84 @@ test.each(['complete', 'failed'])(
         directory: recording.output,
       },
     ]);
+    expect(await readFile(`${recording.output}/session.json`, 'utf8')).toBe(manifest);
     expect(turtleFetch).not.toHaveBeenCalled();
   }
 );
 
-test('does not publish an adopted recording without a manifest', async () => {
+test('waits for an adopted recording manifest when its MP4 already exists', async () => {
+  jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+    udid,
+    deviceName: 'iPhone 17 Pro',
+    serverToken: 'job-token',
+  });
+  if (!recording) {
+    throw new Error('Expected the adopted recording output.');
+  }
+  await writeFile(`${recording.output}/recording.mp4`, 'partial footage');
+  let finished = false;
+  const finishing = IosSimulatorRecordingUtils.finishAsync({ logger }).then(recordings => {
+    finished = true;
+    return recordings;
+  });
+  await setTimeout(20);
+  expect(finished).toBe(false);
+  const manifest = JSON.stringify({ recording: 'recording.mp4' });
+  await writeFile(`${recording.output}/session.json`, manifest);
+
+  expect(await finishing).toEqual([
+    {
+      udid,
+      deviceName: 'iPhone 17 Pro',
+      runtimeDisplayName: 'iOS 26.4',
+      directory: recording.output,
+    },
+  ]);
+  expect(await readFile(`${recording.output}/session.json`, 'utf8')).toBe(manifest);
+  expect(logger.warn).not.toHaveBeenCalled();
+  expect(turtleFetch).not.toHaveBeenCalled();
+  expect(spawn).not.toHaveBeenCalled();
+});
+
+test('bounds the manifest wait for an adopted MP4 and reports missing metadata', async () => {
+  let currentTime = Date.now();
+  jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+  jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+    udid,
+    deviceName: 'iPhone 17 Pro',
+    serverToken: 'job-token',
+  });
+  if (!recording) {
+    throw new Error('Expected the adopted recording output.');
+  }
+  await writeFile(`${recording.output}/recording.mp4`, 'partial footage');
+  let finished = false;
+  const finishing = IosSimulatorRecordingUtils.finishAsync({ logger }).then(recordings => {
+    finished = true;
+    return recordings;
+  });
+  await setTimeout(50);
+  expect(finished).toBe(false);
+  currentTime += 311_000;
+
+  expect(await finishing).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { recorderOutput: '' },
+    'Screen recording for iPhone 17 Pro ended without a manifest; its footage cannot be uploaded.'
+  );
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'iOS Simulator screen recording ended without a manifest',
+    { level: 'warning', extras: { deviceName: 'iPhone 17 Pro' } }
+  );
+  expect(turtleFetch).not.toHaveBeenCalled();
+  expect(spawn).not.toHaveBeenCalled();
+});
+
+test('does not wait for an empty adopted recording reservation', async () => {
   jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
   await IosSimulatorRecordingUtils.startAsync({ env, logger });
   await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
