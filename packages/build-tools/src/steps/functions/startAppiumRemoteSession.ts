@@ -357,10 +357,10 @@ export function createStartAppiumRemoteSessionBuildFunction(
                     await eventCollection?.stopAsync();
                   } finally {
                     try {
-                      await appiumProcess?.stopAsync().catch(error => {
-                        appiumStopErrors.push(error);
-                        throw error;
-                      });
+                      await appiumProcess?.stopAsync();
+                    } catch (error) {
+                      appiumStopErrors.push(error);
+                      throw error;
                     } finally {
                       if (appiumHome) {
                         await fs.promises.rm(appiumHome, { recursive: true, force: true });
