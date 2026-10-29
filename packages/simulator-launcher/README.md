@@ -45,6 +45,7 @@ serializes updates; an abandoned lock fails closed. This private format requires
 ## Environment
 
 - `EXPO_SIMULATOR_STARTUP=1` enables warmup.
+- `EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0` turns off the Expo Go preinstall.
 - `EXPO_SIMULATOR_DEVICE` is a comma-separated list of exact device names or UDIDs. Entries are
   trimmed and must each identify one available device. The first is the default. Unset keeps
   the shortest available iPhone name, as does an empty or blank value. Empty list entries, missing,
@@ -57,8 +58,8 @@ serializes updates; an abandoned lock fails closed. This private format requires
 ## Boundaries
 
 - Ready means the default device booted and serve-sim answers. The apsd step and the Expo Go
-  preinstall run in the background on every listed device. A claim waits for the apsd step of its
-  device; the other devices' setup keeps running, and stop joins it.
+  preinstall run in the background on every listed device. A claim does not wait for them; stop
+  joins them.
   The second device may not have started yet. Its startup failure leaves the default available.
   Claim reserves a device; it does not report that device ready. Private adoption must confirm
   the same server PID/port, selected-device readiness and native video/capture before tool setup
@@ -66,9 +67,10 @@ serializes updates; an abandoned lock fails closed. This private format requires
 - Agent-device prestarts on the default device only. A secondary claim prepares its runner after
   adoption and old-runner cleanup finish. One device-independent Argent server is reused for the claimed device.
 - Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
-  Each initial device gets a preinstall attempt; ordinary failures
-  warn. Claim prevents new preinstalls and joins native installs already in flight before
-  adoption may shut down an old device. Download/extraction cleanup drains at terminal stop. Job app installs remain
+  Each initial device gets a preinstall attempt; ordinary failures warn. Claim prevents new
+  preinstalls. `prepare-tools` waits for an install still running on the claimed device and
+  reports its version, because the job installs its app next. Installs on other devices finish in
+  the background; terminal stop drains them and the download cleanup. Job app installs remain
   authoritative. Replacements do not preinstall again. The VM image provides ffmpeg.
 - One start attempt and one accepted claim per boot. Failed cleanup never permits another session.
   Stop's caller timeout is not a global cleanup deadline or proof that teardown completed.

@@ -614,8 +614,9 @@ it('preinstalls all three configured devices from one shared archive through the
   try {
     await session.prepareAsync();
     await until(() => installCalls().length === 3);
-    const claim = await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'THIRD' });
-    expect(claim.preinstalledExpoGo).toEqual({
+    await session.claimAsync({ engine: 'serve-sim', requestedDevice: 'THIRD' });
+    const prepared = await session.prepareToolsAsync();
+    expect(prepared.preinstalledExpoGo).toEqual({
       udid: 'THIRD',
       bundleIdentifier: 'host.exp.Exponent',
       shortVersion: '58.0.7',
