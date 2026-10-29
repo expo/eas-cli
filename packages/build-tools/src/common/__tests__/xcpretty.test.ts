@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import spawnAsync from '@expo/spawn-async';
 import { ExpoRunFormatter } from '@expo/xcpretty';
 import fg from 'fast-glob';
+import { vol } from 'memfs';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
@@ -57,6 +58,47 @@ describe(XcodeBuildLogger, () => {
     expect(logger.info).toHaveBeenCalledWith('line1');
     expect(logger.info).toHaveBeenCalledWith('line2');
     expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+
+  it('flushes the final incomplete compiler error when the log reader is interrupted', async () => {
+    const { ExpoRunFormatter: RealFormatter } =
+      jest.requireActual<typeof import('@expo/xcpretty')>('@expo/xcpretty');
+    jest.mocked(ExpoRunFormatter.create).mockImplementation(RealFormatter.create);
+
+    let rejectReader!: (error: Error) => void;
+    const spawnPromise = Object.assign(
+      new Promise<never>((_resolve, reject) => {
+        rejectReader = reject;
+      }),
+      {
+        child: {
+          stdout,
+          kill: () =>
+            rejectReader(Object.assign(new Error('tail interrupted'), { signal: 'SIGINT' })),
+        },
+      }
+    );
+    jest.mocked(spawnAsync).mockReturnValue(spawnPromise as any);
+    const diagnostics =
+      '/project/First.swift:12:3: error: first compiler error\n' +
+      '    /project/Last.swift:20:4: error: final compiler error\n';
+    vol.fromJSON({ '/logs/build.log': diagnostics });
+    const logger = createMockLogger();
+    const buildLogger = new XcodeBuildLogger(logger, '/project');
+    await buildLogger.watchLogFiles('/logs');
+    stdout.emit('data', diagnostics);
+
+    await buildLogger.flush();
+
+    const output = jest
+      .mocked(logger.info)
+      .mock.calls.map(([line]) => String(line))
+      .join('\n');
+    expect(output).toContain('first compiler error');
+    expect(output).toContain('final compiler error');
+    expect(output).toContain('Last.swift:20:4');
+    expect(output).toContain('2 error(s)');
+    expect(output.match(/final compiler error/g)).toHaveLength(1);
   });
 
   it('falls back to raw logs when the formatter throws', async () => {
