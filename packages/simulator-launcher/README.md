@@ -69,8 +69,9 @@ serializes updates; an abandoned lock fails closed. This private format requires
 - Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
   Each initial device gets a preinstall attempt; ordinary failures warn. Claim prevents new
   preinstalls. `prepare-tools` waits for an install still running on the claimed device and
-  reports its version, because the job installs its app next. Installs on other devices finish in
-  the background; terminal stop drains them and the download cleanup. Job app installs remain
+  reports its version, because the job installs its app next. Installs on other devices continue;
+  adoption may shut such a device down, and its install then fails with a warning. Terminal stop
+  drains them and the download cleanup. Job app installs remain
   authoritative. Replacements do not preinstall again. The VM image provides ffmpeg.
 - One start attempt and one accepted claim per boot. Failed cleanup never permits another session.
   Stop's caller timeout is not a global cleanup deadline or proof that teardown completed.

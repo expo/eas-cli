@@ -109,9 +109,7 @@ export function startExpoGoPreinstall(signal: AbortSignal): {
           if (error.code === null) {
             throw error;
           }
-          process.stderr.write(
-            `Could not preinstall Expo Go; the job will install its requested app: ${error}\n`
-          );
+          process.stderr.write(`Could not preinstall Expo Go on ${target}: ${error}\n`);
         }
       );
       installations.set(target, installation);
@@ -122,9 +120,7 @@ export function startExpoGoPreinstall(signal: AbortSignal): {
         throw error;
       }
       if (!installSignal.aborted) {
-        process.stderr.write(
-          `Could not preinstall Expo Go; the job will install its requested app: ${error}\n`
-        );
+        process.stderr.write(`Could not preinstall Expo Go on ${target}: ${error}\n`);
       }
     }
   }
