@@ -144,7 +144,7 @@ export async function restoreCcacheAsync({
   const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
   const cachePath = getCcachePath(env);
   const cachePaths = [cachePath];
-  if (platform === Platform.IOS) {
+  if (target.platform === Platform.IOS) {
     const expoModulesJsiCachePath = getExpoModulesJsiXcframeworkCachePath(env);
     await fs.promises.mkdir(expoModulesJsiCachePath, { recursive: true });
     cachePaths.push(expoModulesJsiCachePath);
