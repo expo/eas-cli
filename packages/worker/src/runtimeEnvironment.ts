@@ -1,4 +1,8 @@
-import { BuildContext, RuntimeSettings } from '@expo/build-tools';
+import {
+  BuildContext,
+  RuntimeSettings,
+  detectPnpmUnsupportedNodeVersionError,
+} from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
@@ -276,7 +280,8 @@ async function installPnpm({
   } catch (err: any) {
     ctx.logger.error({ err }, `Failed to install pnpm ${versionToInstall}\n`);
     if (ctx.metadata?.requiredPackageManager === 'pnpm') {
-      throw new SystemDepsInstallError('pnpm');
+      const output = [err.stdout, err.stderr].filter(Boolean).join('\n');
+      throw detectPnpmUnsupportedNodeVersionError(output) ?? new SystemDepsInstallError('pnpm');
     } else {
       ctx.markBuildPhaseHasWarnings();
       ctx.logger.warn(
