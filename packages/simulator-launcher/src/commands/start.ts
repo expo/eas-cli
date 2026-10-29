@@ -34,10 +34,8 @@ const LAUNCHER_VERSION: string = require('../../package.json').version;
 
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
-  claimAsync(
-    request: ClaimInput
-  ): Promise<{ device: SimulatorDevice; preinstalledExpoGo?: PreinstalledApp }>;
-  prepareToolsAsync(): Promise<void>;
+  claimAsync(request: ClaimInput): Promise<{ device: SimulatorDevice }>;
+  prepareToolsAsync(): Promise<{ preinstalledExpoGo?: PreinstalledApp }>;
   stopAsync(): Promise<void>;
 };
 
@@ -139,7 +137,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
       const state = requireOwnedState(await readLauncherStateAsync(bootUuid));
       if (state.status === 'claiming') {
         const request = ClaimInputSchema.parse(state);
-        const { device, preinstalledExpoGo } = await session.claimAsync(request);
+        const { device } = await session.claimAsync(request);
         // Stop can arrive during native work; recheck ownership under the state lock.
         await updateLauncherStateAsync(
           bootUuid,
@@ -155,7 +153,6 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
               ...owned,
               status: 'claimed',
               device,
-              ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
             };
           },
           signal
@@ -208,11 +205,12 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
       while (!signal.aborted) {
         const state = requireOwnedState(await readLauncherStateAsync(bootUuid), 'claimed');
         if (state.prepareToolsRequested && !state.toolsReady) {
-          await session.prepareToolsAsync();
+          const prepared = await session.prepareToolsAsync();
           await updateLauncherStateAsync(
             bootUuid,
             current => ({
               ...requireOwnedState(current, 'claimed'),
+              ...prepared,
               toolsReady: true,
             }),
             signal
@@ -264,6 +262,7 @@ export function createWarmSimulatorSession({
   let request: ClaimInput | undefined;
   let stopping = false;
   let expoGo: ReturnType<typeof startExpoGoPreinstall> | undefined;
+  let selectedPreinstall: Promise<PreinstalledApp | undefined> = Promise.resolve(undefined);
   let launcherCachePriming: Promise<void> = Promise.resolve();
   let toolRetirement: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
 
@@ -280,8 +279,11 @@ export function createWarmSimulatorSession({
         if (simulatorSetups.has(udid)) {
           return;
         }
-        // serve-sim boots every device; the launcher only waits for it.
-        const booted = ready.then(() => waitForSimulatorBootAsync(udid, signal));
+        // serve-sim boots every device; its ready already covers the default device's boot.
+        const booted =
+          udid === warmDevices[0]?.udid
+            ? ready
+            : ready.then(() => waitForSimulatorBootAsync(udid, signal));
         const apsd = booted.then(() =>
           disableApsdAsync(udid, signal).catch(error => {
             signal.throwIfAborted();
@@ -363,7 +365,9 @@ export function createWarmSimulatorSession({
     }
     const ready = waitForServeSimReadyAsync(first.udid, server, signal);
     void ready.catch(() => {});
-    expoGo = startExpoGoPreinstall(signal);
+    if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
+      expoGo = startExpoGoPreinstall(signal);
+    }
     for (const tool of warmTools) {
       startedTools.set(tool, startTool(tool, first.udid, ready, signal, onPreparationFailure));
     }
@@ -397,11 +401,11 @@ export function createWarmSimulatorSession({
         throw new Error('This warm Simulator session has already been claimed or is stopping.');
       }
       request = input;
-      // Latch every installation before any asynchronous selection. Only an already-started
-      // native install may delay adoption, which can shut down any of the previous devices.
+      // Latch every installation before any asynchronous selection, so no new one starts.
+      // Installs already running continue; stop joins them.
       const preinstalls = new Map(
         warmDevices.map(device => {
-          const result = expoGo!.claimAsync(device.udid);
+          const result = expoGo?.claimAsync(device.udid) ?? Promise.resolve(undefined);
           void result.catch(() => {});
           return [device.udid, result] as const;
         })
@@ -427,13 +431,10 @@ export function createWarmSimulatorSession({
             });
           })
       );
-      // A failed unused install is retained for terminal cleanup, without killing the claim.
-      await Promise.allSettled(preinstalls.values());
-      // Setup on the other devices keeps running; stop joins it.
-      await simulatorSetups.get(selected.udid)?.catch(() => {});
-      const preinstalledExpoGo = await preinstalls.get(selected.udid);
+      // The claim does not wait for warmup work; prepare-tools waits for this device's install.
+      selectedPreinstall = preinstalls.get(selected.udid) ?? Promise.resolve(undefined);
       info = { ...info, device: selected };
-      return { device: selected, ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}) };
+      return { device: selected };
     },
     async prepareToolsAsync() {
       if (!request || stopping) {
@@ -475,6 +476,9 @@ export function createWarmSimulatorSession({
       if (tool) {
         await startedTools.get(tool)!.ready;
       }
+      // The job installs its app after this, so a running Expo Go install must finish first.
+      const preinstalledExpoGo = await selectedPreinstall;
+      return preinstalledExpoGo ? { preinstalledExpoGo } : {};
     },
     async stopAsync() {
       stopping = true;

@@ -323,7 +323,7 @@ test('stop during post-adopt preparation prevents toolsReady and waits for owned
   }
 });
 
-test('claim joins native Expo Go install while terminal stop also drains temporary cleanup', async () => {
+test('claim does not wait for the Expo Go install; prepare-tools does, and stop drains cleanup', async () => {
   const info = {
     udid: 'PHONE',
     bundleIdentifier: 'host.exp.Exponent',
@@ -341,13 +341,19 @@ test('claim joins native Expo Go install while terminal stop also drains tempora
   const [completion] = await beginSession();
   await status('ready');
   jest.spyOn(process.stdout, 'write').mockReturnValue(true);
-  const claiming = claimAsync(boot, 'serve-sim');
   try {
-    await status('claiming');
+    await claimAsync(boot, 'serve-sim');
+    expect(await readLauncherStateAsync(boot)).not.toHaveProperty('preinstalledExpoGo');
+    let prepared = false;
+    const preparing = prepareToolsAsync(boot).then(() => {
+      prepared = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(prepared).toBe(false);
     install.resolve(info);
-    await claiming;
+    await preparing;
     expect(await readLauncherStateAsync(boot)).toMatchObject({
-      status: 'claimed',
+      toolsReady: true,
       preinstalledExpoGo: info,
     });
     const stopping = stopAsync(boot);

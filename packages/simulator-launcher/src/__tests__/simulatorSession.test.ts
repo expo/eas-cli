@@ -224,7 +224,7 @@ it('consumed claim forbids the secondary preinstall of a device still booting', 
   });
   const session = createSession();
   await session.prepareAsync();
-  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 2);
+  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 1);
   await session.claimAsync({ engine: 'serve-sim' });
   await session.stopAsync();
   expect(preinstall.preinstallOnDeviceAsync).not.toHaveBeenCalledWith(
@@ -242,7 +242,9 @@ it('a secondary boot observation failure leaves the claimed default usable', asy
     );
   const session = createSession();
   await session.prepareAsync();
-  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 2);
+  // serve-sim's ready covers the default device's boot; only the second device is checked.
+  await until(() => jest.mocked(waitForSimulatorBootAsync).mock.calls.length === 1);
+  expect(waitForSimulatorBootAsync).toHaveBeenCalledWith('PHONE18', expect.any(AbortSignal));
   await expect(session.claimAsync({ engine: 'serve-sim' })).resolves.toMatchObject({
     device: defaultDevice,
   });
@@ -250,7 +252,7 @@ it('a secondary boot observation failure leaves the claimed default usable', asy
   await session.stopAsync();
 });
 
-it('claim latches preinstalls before async selection and joins only actual install promises', async () => {
+it('claim latches preinstalls before async selection; prepare-tools waits for the selected install', async () => {
   const installation = deferred<undefined>();
   const preinstall = startExpoGoPreinstall(controller.signal);
   jest
@@ -260,19 +262,18 @@ it('claim latches preinstalls before async selection and joins only actual insta
     );
   const session = createSession();
   await session.prepareAsync();
-  let claimed = false;
-  const claiming = session
-    .claimAsync({ engine: 'serve-sim', requestedDevice: 'iPhone 18' })
-    .then(value => {
-      claimed = true;
-      return value;
-    });
+  const claiming = session.claimAsync({ engine: 'serve-sim', requestedDevice: 'iPhone 18' });
   expect(preinstall.claimAsync).toHaveBeenCalledWith('DUO');
   expect(preinstall.claimAsync).toHaveBeenCalledWith('PHONE18');
-  await new Promise(resolve => setImmediate(resolve));
-  expect(claimed).toBe(false);
-  installation.resolve(undefined);
   expect((await claiming).device).toEqual(secondary);
+  let prepared = false;
+  const preparing = session.prepareToolsAsync().then(() => {
+    prepared = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(prepared).toBe(false);
+  installation.resolve(undefined);
+  await preparing;
   await session.stopAsync();
 });
 
@@ -299,13 +300,24 @@ it('unused preinstall failure does not reject a default claim, but terminal stop
   expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
 });
 
+it('EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0 skips the Expo Go preinstall', async () => {
+  process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO = '0';
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'serve-sim' });
+  await expect(session.prepareToolsAsync()).resolves.toEqual({});
+  expect(startExpoGoPreinstall).not.toHaveBeenCalled();
+  await session.stopAsync();
+});
+
 it('retains selected preinstall failure instead of handing over an uncertain install', async () => {
   const failure = new Error('selected install failed');
   const preinstall = startExpoGoPreinstall(controller.signal);
   jest.mocked(preinstall.claimAsync).mockRejectedValue(failure);
   const session = createSession();
   await session.prepareAsync();
-  await expect(session.claimAsync({ engine: 'serve-sim' })).rejects.toBe(failure);
+  await session.claimAsync({ engine: 'serve-sim' });
+  await expect(session.prepareToolsAsync()).rejects.toBe(failure);
   await session.stopAsync();
 });
 
@@ -481,7 +493,7 @@ it('does not repeat completed default-device setup after adoption', async () => 
   await session.stopAsync();
 });
 
-it('reports ready before apsd finishes; the claim waits for it and keeps other setups running', async () => {
+it('reports ready before apsd finishes; the claim does not wait for it and stop joins it', async () => {
   const disabled = deferred();
   const signals = new Map<string, AbortSignal>();
   const disable = jest.mocked(disableApsdAsync).mockImplementation(
@@ -497,18 +509,15 @@ it('reports ready before apsd finishes; the claim waits for it and keeps other s
   const session = createSession();
   await session.prepareAsync();
   await until(() => signals.has('DUO') && signals.has('PHONE18'));
-  let claimed = false;
-  const claiming = session.claimAsync({ engine: 'serve-sim' }).then(() => {
-    claimed = true;
-  });
-  await new Promise(resolve => setImmediate(resolve));
-  expect(claimed).toBe(false);
-  disabled.resolve();
-  await claiming;
-  expect(disable.mock.calls.filter(([udid]) => udid === 'DUO')).toHaveLength(1);
+  // The claim returns while both apsd steps still run; stop cancels and joins them.
+  await session.claimAsync({ engine: 'serve-sim' });
+  expect(signals.get('DUO')!.aborted).toBe(false);
   expect(signals.get('PHONE18')!.aborted).toBe(false);
   await session.stopAsync();
+  expect(disable.mock.calls.filter(([udid]) => udid === 'DUO')).toHaveLength(1);
+  expect(signals.get('DUO')!.aborted).toBe(true);
   expect(signals.get('PHONE18')!.aborted).toBe(true);
+  disabled.resolve();
 });
 
 it('does not report a background failure when a stop aborts the default setup', async () => {
