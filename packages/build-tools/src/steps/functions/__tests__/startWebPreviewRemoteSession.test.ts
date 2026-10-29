@@ -316,6 +316,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       logger,
       timeoutMs: 60_000,
       signal: expect.any(AbortSignal),
+      onStartupError: expect.any(Function),
       ...(selectsXcode
         ? {
             iosSimulatorUdid: 'SELECTED-IOS-UDID',
