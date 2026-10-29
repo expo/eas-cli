@@ -115,6 +115,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartArgentRemoteSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAppiumRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
