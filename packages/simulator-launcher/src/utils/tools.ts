@@ -1,4 +1,4 @@
-import { type ClaimInput } from './state';
+import { type ClaimInput, type ToolServer } from './state';
 
 /** A tool the warm session can hand to one job. */
 export type WarmTool = {
@@ -9,7 +9,7 @@ export type WarmTool = {
    * Starts after serve-sim is ready and resolves when the tool is ready. It must
    * settle promptly once `signal` aborts: claim-time stops wait for it.
    */
-  startAsync(udid: string, signal: AbortSignal): Promise<void>;
+  startAsync(udid: string, signal: AbortSignal): Promise<ToolServer | void>;
   /**
    * Stops the tool and its native state after its startup settled. A handle whose stop failed stays
    * owned and is never restarted, so a later stop retries it.
@@ -18,7 +18,7 @@ export type WarmTool = {
 };
 
 export type StartedTool = {
-  ready: Promise<void>;
+  ready: Promise<ToolServer | void>;
   /** Cancels a startup that is still running, without stopping the tool. */
   cancelAsync(): Promise<void>;
   stopAsync(): Promise<void>;

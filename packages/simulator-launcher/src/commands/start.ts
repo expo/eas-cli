@@ -24,6 +24,7 @@ import {
   type LauncherState,
   type PreinstalledApp,
   type SimulatorDevice,
+  type ToolServer,
   type WarmSessionInfo,
   readLauncherStateAsync,
   updateLauncherStateAsync,
@@ -35,7 +36,7 @@ const LAUNCHER_VERSION: string = require('../../package.json').version;
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
   claimAsync(request: ClaimInput): Promise<{ device: SimulatorDevice }>;
-  prepareToolsAsync(): Promise<{ preinstalledExpoGo?: PreinstalledApp }>;
+  prepareToolsAsync(): Promise<{ preinstalledExpoGo?: PreinstalledApp; tools?: ToolServer }>;
   stopAsync(): Promise<void>;
 };
 
@@ -475,6 +476,7 @@ export function createWarmSimulatorSession({
         }
       }
       await throwIfStoppingAsync();
+      let tools: ToolServer | void = undefined;
       if (tool) {
         let started = startedTools.get(tool);
         if (!started) {
@@ -487,11 +489,14 @@ export function createWarmSimulatorSession({
           );
           startedTools.set(tool, started);
         }
-        await started.ready;
+        tools = await started.ready;
       }
       // The job installs its app after this, so a running Expo Go install must finish first.
       const preinstalledExpoGo = await selectedPreinstall;
-      return preinstalledExpoGo ? { preinstalledExpoGo } : {};
+      return {
+        ...(preinstalledExpoGo ? { preinstalledExpoGo } : {}),
+        ...(tools ? { tools } : {}),
+      };
     },
     async stopAsync() {
       stopping = true;

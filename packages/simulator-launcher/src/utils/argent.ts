@@ -129,7 +129,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
               throw failure;
             }
             ready = true;
-            return;
+            return state;
           }
         }
         await sleepAsync(250, undefined, { signal });

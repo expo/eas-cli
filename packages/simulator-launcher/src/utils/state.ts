@@ -18,6 +18,7 @@ export const WarmServerSchema = z.object({
   url: z.string().url(),
   token: NonBlankStringSchema,
 });
+const ToolServerSchema = WarmServerSchema.pick({ pid: true, port: true, token: true });
 export const ClaimInputSchema = z.object({
   engine: z.enum(['serve-sim', 'agent-device', 'argent']),
   requestedDevice: NonBlankStringSchema.optional(),
@@ -46,12 +47,14 @@ export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   preinstalledExpoGo: PreinstalledAppSchema.optional(),
   prepareToolsRequested: z.boolean().optional(),
   toolsReady: z.boolean().optional(),
+  tools: ToolServerSchema.optional(),
   error: z.string().optional(),
 });
 export type ClaimInput = z.infer<typeof ClaimInputSchema>;
 export type LauncherState = z.infer<typeof LauncherStateSchema>;
 export type WarmSessionInfo = z.infer<typeof WarmSessionInfoSchema>;
 export type WarmServer = z.infer<typeof WarmServerSchema>;
+export type ToolServer = z.infer<typeof ToolServerSchema>;
 export type SimulatorDevice = z.infer<typeof SimulatorDeviceSchema>;
 export type PreinstalledApp = z.infer<typeof PreinstalledAppSchema>;
 
