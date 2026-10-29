@@ -1,8 +1,10 @@
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 
 import { createColdIosSessionAsync } from '../coldIosSession';
 import { spawnDetached } from '../remoteDeviceRunSession';
 
+jest.mock('@expo/turtle-spawn');
 jest.mock('../remoteDeviceRunSession', () => ({
   fetchWebPreviewTurnArgsAsync: jest.fn(async () => []),
   findAvailablePortAsync: jest.fn(async () => 3200),
@@ -27,6 +29,7 @@ async function startServerAsync(signal?: AbortSignal) {
 }
 
 beforeEach(async () => {
+  jest.mocked(spawn).mockResolvedValue({ stdout: 'current-boot\n' } as never);
   Object.defineProperty(process, 'platform', { value: 'darwin' });
   await fs.mkdir('/tmp', { recursive: true });
   await fs.writeFile(STATE_FILE, JSON.stringify({ status: 'stopping' }));
@@ -39,7 +42,7 @@ it('starts serve-sim only after warm Simulator cleanup finished', async () => {
   const starting = startServerAsync();
   await new Promise(resolve => setTimeout(resolve, 600));
   expect(spawnDetached).not.toHaveBeenCalled();
-  await fs.writeFile(STATE_FILE, JSON.stringify({ status: 'disabled' }));
+  await fs.writeFile(STATE_FILE, JSON.stringify({ status: 'disabled', bootUuid: 'current-boot' }));
   await starting;
   expect(spawnDetached).toHaveBeenCalledTimes(1);
 });
