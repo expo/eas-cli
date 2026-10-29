@@ -271,6 +271,54 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'preserves an earlier prepared %s host failure when Stop arrives during cleanup',
+    async runtimePlatform => {
+      const failure = new Error('Host became ready without a session token');
+      let cleanupEntered!: () => void;
+      const entered = new Promise<void>(resolve => {
+        cleanupEntered = resolve;
+      });
+      let finishCleanup!: () => void;
+      const cleanup = new Promise<void>(resolve => {
+        finishCleanup = resolve;
+      });
+      jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(async (_ctx, options) => {
+        options.onStartupError?.(failure);
+        cleanupEntered();
+        await cleanup;
+        throw failure;
+      });
+      const running = Promise.resolve(
+        createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+          {
+            logger: { info: jest.fn(), warn: jest.fn() },
+            global: { runtimePlatform },
+          } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: undefined },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {},
+          } as never
+        )
+      );
+      running.catch(() => {});
+      try {
+        await entered;
+        jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+      } finally {
+        finishCleanup();
+      }
+      await expect(running).rejects.toBe(failure);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('reports an early exit with output and stops Argent before opening tunnels', async () => {
     const stopError = new Error('drain timed out');
     const stopServer = jest.fn().mockRejectedValue(stopError);

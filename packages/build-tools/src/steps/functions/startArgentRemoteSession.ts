@@ -202,7 +202,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
             timeoutMs: STARTUP_TIMEOUT_MS,
             signal: startup.signal,
-            onStartupError: iosStartup ? error => startup.abort(error) : undefined,
+            onStartupError: error => startup.abort(error),
             ...launch,
             networkCapture,
             networkCaptureFields,
