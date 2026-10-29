@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import * as jose from 'jose';
 import nock from 'nock';
 
@@ -100,6 +100,33 @@ describe(AscApiClient, () => {
       const mapped = mixed ? error.errors[0] : error;
       expect(mapped).toBeInstanceOf(UserError);
       expect(mapped).toMatchObject({ errorCode: 'EAS_ASC_INVALID_AUTH', cause: known });
+      if (mixed) {
+        expect(error).toBeInstanceOf(AggregateError);
+        expect(error.errors[1]).toBeInstanceOf(AscApiRequestError);
+        expect(error.errors[1].code).toBe('OTHER_ERROR');
+      }
+      expect(scope.isDone()).toBe(true);
+    }
+  );
+
+  it.each([false, true])(
+    'explains UNEXPECTED_ERROR without losing other errors (mixed: %s)',
+    async mixed => {
+      const known = { status: '500', code: 'UNEXPECTED_ERROR' };
+      const other = { status: '500', code: 'OTHER_ERROR' };
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/apps/app')
+        .query(true)
+        .reply(500, { errors: mixed ? [known, other] : [known] });
+      const error = await client
+        .getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
+        .catch(error => error);
+      const mapped = mixed ? error.errors[0] : error;
+      expect(mapped).toBeInstanceOf(SystemError);
+      expect(mapped).toMatchObject({
+        trackingCode: 'EAS_ASC_SERVER_ERROR',
+        cause: known,
+      });
       if (mixed) {
         expect(error).toBeInstanceOf(AggregateError);
         expect(error.errors[1]).toBeInstanceOf(AscApiRequestError);
