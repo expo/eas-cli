@@ -120,6 +120,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+          warm: warmSession !== undefined,
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
           deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,

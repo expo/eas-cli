@@ -189,3 +189,23 @@ describe('serve-sim Simulator preparation', () => {
     ).rejects.toThrow('Could not find an iPhone');
   });
 });
+
+it('leaves warm guard enrollment to serve-sim without cold injection or shutdown', async () => {
+  jest
+    .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+    .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
+  jest
+    .mocked(IosSimulatorUtils.resolveUdidAsync)
+    .mockResolvedValue('selected-udid' as IosSimulatorUuid);
+  const result = await resolveIosSessionStartupAsync({
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    deviceIdentifier: 'selected-udid',
+    warm: true,
+    env: {},
+    logger: createMockLogger(),
+  });
+  expect(result.iosStartup?.bootEnv).toBeUndefined();
+  expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
+  expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
+  expect(spawn).not.toHaveBeenCalled();
+});

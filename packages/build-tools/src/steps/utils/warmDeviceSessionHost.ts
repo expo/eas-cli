@@ -4,6 +4,7 @@ import spawn from '@expo/turtle-spawn';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 import { type DeviceSessionServer } from './deviceSessionHost';
+import { readLocalEgressHandoffAsync } from './localEgress';
 import { fetchWebPreviewTurnArgsAsync } from './remoteDeviceRunSession';
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from './warmIosSession';
 
@@ -37,6 +38,8 @@ export function createWarmDeviceSessionServer(
     stopAsync,
     async startAsync({ command, args, env, signal }) {
       try {
+        const localEgress = await readLocalEgressHandoffAsync();
+        const policyArgs = [localEgress ? '--enable' : '--disable', 'egressGuard'];
         // serve-sim starts this job's recording when it adopts the device.
         const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
           udid,
@@ -47,11 +50,15 @@ export function createWarmDeviceSessionServer(
           ? ['--recording-output', recording.output, '--recording-id', recording.recordingId]
           : [];
         const timeout = AbortSignal.timeout(360_000);
-        await spawn(command, [...args, '--single-device', udid, '--adopt', ...recordingArgs], {
-          env,
-          stdio: 'pipe',
-          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-        });
+        await spawn(
+          command,
+          [...args, '--single-device', udid, '--adopt', ...policyArgs, ...recordingArgs],
+          {
+            env,
+            stdio: 'pipe',
+            signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+          }
+        );
         await warm.prepareToolsAsync(signal);
       } catch {
         signal?.throwIfAborted();
