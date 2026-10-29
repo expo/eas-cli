@@ -336,8 +336,9 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
         .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
       jest.mocked(turtleFetch).mockResolvedValue({ ok: false } as never);
       jest.mocked(timersPromises.setTimeout).mockImplementationOnce((async (ms, value, options) => {
+        const sleeping = jest.requireActual('node:timers/promises').setTimeout(ms, value, options);
         jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
-        return jest.requireActual('node:timers/promises').setTimeout(ms, value, options);
+        return sleeping;
       }) as typeof timersPromises.setTimeout);
       await expect(
         runSessionAsync(
