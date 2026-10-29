@@ -63,8 +63,8 @@ export function createWarmDeviceSessionServer(
 }
 
 /**
- * Runs an iOS session on the warm Simulator when the job can claim it, else cold. After an
- * adoption failure, it stops warmup and runs the session cold.
+ * Runs an iOS session on the warm Simulator when the job can claim it, else cold. After a
+ * callback failure, it stops warmup. Only an adoption failure can retry cold.
  */
 export async function runOnWarmIosSimulatorAsync<T>(
   claim: Parameters<typeof tryClaimWarmIosSessionAsync>[0],
@@ -77,11 +77,18 @@ export async function runOnWarmIosSimulatorAsync<T>(
   try {
     return await run(warm);
   } catch (error) {
+    try {
+      await warm.process.stopAsync();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Could not stop the warm Simulator after failure.'
+      );
+    }
     if (!(error instanceof WarmSessionAdoptionError)) {
       throw error;
     }
     claim.logger.warn('Could not adopt the warm Simulator; starting a cold Simulator.');
-    await warm.process.stopAsync();
     claim.signal?.throwIfAborted();
     return await run(undefined);
   }
