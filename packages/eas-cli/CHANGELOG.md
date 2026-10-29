@@ -1,5 +1,17 @@
 # eas-cli
 
+## 27.2.0
+
+### Minor Changes
+
+- Add an experiment that suggests Expo Update to coding agents after a build when the Free plan account is within 5 builds of the platform limit. ([#4758](https://github.com/expo/eas-cli/pull/4758) by [@williamgrosset](https://github.com/williamgrosset))
+- Add `eas observe:traces` to list request trace spans (or a summary of span names and counts), `eas observe:trace` to display one trace as a span tree, and span rows in the `eas observe:session` timeline. ([#4772](https://github.com/expo/eas-cli/pull/4772) by [@kadikraman](https://github.com/kadikraman))
+- Show a one-time Expo Simulators hint after a successful build. ([#4768](https://github.com/expo/eas-cli/pull/4768) by [@FiberJW](https://github.com/FiberJW))
+
+### Patch Changes
+
+- Remove the Free plan build limit guidance experiment for coding agents from `eas build`. ([#4757](https://github.com/expo/eas-cli/pull/4757) by [@williamgrosset](https://github.com/williamgrosset))
+
 ## 27.1.0
 
 ### Minor Changes

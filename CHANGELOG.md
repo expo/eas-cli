@@ -2,6 +2,37 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.2.0](https://github.com/expo/eas-cli/releases/tag/v27.2.0) - 2026-10-29
+
+### 🎉 New features
+
+- [build-tools] Use single-device previews when the session already has a valid device ID. ([#4733](https://github.com/expo/eas-cli/pull/4733) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add an experiment that suggests Expo Update to coding agents after a build when the Free plan account is within 5 builds of the platform limit. ([#4758](https://github.com/expo/eas-cli/pull/4758) by [@williamgrosset](https://github.com/williamgrosset))
+- [eas-cli] Add `eas observe:traces` to list request trace spans (or a summary of span names and counts), `eas observe:trace` to display one trace as a span tree, and span rows in the `eas observe:session` timeline. ([#4772](https://github.com/expo/eas-cli/pull/4772) by [@kadikraman](https://github.com/kadikraman))
+- [simulator-launcher] Accept a comma-separated list of warm Simulators in `EXPO_SIMULATOR_DEVICE`; the first is the default. One serve-sim serves every listed device on one port. After the default device is ready, warmup preinstalls the latest stable Expo Go from one download and tries to disable apsd on the other devices, until a job claims one. A claim can select any listed device and reports its preinstalled Expo Go. ([#4764](https://github.com/expo/eas-cli/pull/4764) by [@gwdp](https://github.com/gwdp))
+- [simulator-launcher] Add `@expo/simulator-launcher`, which warms an iOS Simulator at VM boot and hands it to one EAS job (`start`, `claim`, `prepare-tools`, `stop`). ([#4722](https://github.com/expo/eas-cli/pull/4722) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Show a one-time Expo Simulators hint after a successful build. ([#4768](https://github.com/expo/eas-cli/pull/4768) by [@FiberJW](https://github.com/FiberJW))
+- [vm-tools] Add a macOS startup script loader that runs `/usr/local/share/vm-tools/startup.sh` once per VM boot. ([#4725](https://github.com/expo/eas-cli/pull/4725) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Explain missing background task identifiers reported by App Store Connect. ([#3465](https://github.com/expo/eas-cli/pull/3465) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Explain App Store Connect NOT_AUTHORIZED responses in the shared API client. ([#3462](https://github.com/expo/eas-cli/pull/3462) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Explain App Store Connect UNEXPECTED_ERROR responses in the shared API client. ([#3467](https://github.com/expo/eas-cli/pull/3467) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Explain missing app icons reported by App Store Connect, including codes 90022 and 90023, while preserving Apple’s validation details. ([#3466](https://github.com/expo/eas-cli/pull/3466) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] List failed Google Play commit attempts in order, including network failures, when the outcome is uncertain. ([#4660](https://github.com/expo/eas-cli/pull/4660) by [@sjchmiela](https://github.com/sjchmiela))
+- [worker] Run package-manager version queries in parallel during worker preparation. ([#4710](https://github.com/expo/eas-cli/pull/4710) by [@gwdp](https://github.com/gwdp))
+- [worker] Start the Xcode version check in the background during worker tool preparation. Apply the Xcode 26.0 upload workaround when the query finishes, without delaying job startup. ([#4707](https://github.com/expo/eas-cli/pull/4707) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Fix a five-minute cleanup delay when a device session is canceled during startup and its screen recorder fails before connecting. ([#4761](https://github.com/expo/eas-cli/pull/4761) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Remove the Free plan build limit guidance experiment for coding agents from `eas build`. ([#4757](https://github.com/expo/eas-cli/pull/4757) by [@williamgrosset](https://github.com/williamgrosset))
+- [worker] Allow jobs to skip installing the CocoaPods cache proxy with EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN=1. ([#4709](https://github.com/expo/eas-cli/pull/4709) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Handle TURN requests for a stopped device session without reporting a warning. ([#4762](https://github.com/expo/eas-cli/pull/4762) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Preserve indented and incomplete Xcode compiler errors in formatted build logs, including the final diagnostic when logging stops. ([#4365](https://github.com/expo/eas-cli/pull/4365) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🧹 Chores
+
+- [simulator-launcher] Add the state, request command and service helpers for the warm Simulator launcher. The package stays private until #4722 adds its CLI entry point. ([#4766](https://github.com/expo/eas-cli/pull/4766) by [@gwdp](https://github.com/gwdp))
+
 ## [27.1.0](https://github.com/expo/eas-cli/releases/tag/v27.1.0) - 2026-10-28
 
 ### 🎉 New features

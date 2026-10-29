@@ -1,6 +1,6 @@
 {
   "name": "@expo/vm-tools",
-  "version": "27.1.0",
+  "version": "27.2.0",
   "description": "VM startup script loader",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
