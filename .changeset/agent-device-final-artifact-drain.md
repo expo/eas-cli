@@ -2,4 +2,4 @@
 '@expo/build-tools': patch
 ---
 
-Upload agent-device session artifacts created after the last periodic inventory before the daemon stops.
+Upload the final agent-device session artifacts before stopping the daemon, including sessions that reuse a warm Simulator.

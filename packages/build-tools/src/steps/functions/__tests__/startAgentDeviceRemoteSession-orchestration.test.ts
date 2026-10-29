@@ -83,10 +83,7 @@ const NO_CAPTURE: CaptureInputs = { networkCapture: false, networkCaptureFields:
 async function runAsync(
   logger: { info: jest.Mock; warn: jest.Mock; child: jest.Mock },
   runtimePlatform: BuildRuntimePlatform,
-  capture: CaptureInputs = NO_CAPTURE,
-  disableShare = false,
-  privatePreviewUrl?: string,
-  maxIdleTimeMinutes?: number
+  options: Partial<Parameters<typeof runAgentDeviceRemoteSessionAsync>[1]> = {}
 ): Promise<void> {
   await runAgentDeviceRemoteSessionAsync(ctx, {
     env: {},
@@ -98,16 +95,15 @@ async function runAsync(
       ngrokAuthtoken: 'ngrok-token',
     },
     packageVersion: undefined,
-    maxIdleTimeMinutes,
+    maxIdleTimeMinutes: undefined,
     maxDurationSeconds: undefined,
-    capture,
-    disableShare,
-    privatePreviewUrl,
-    tasks: createStartupTasks(logger as never),
+    capture: NO_CAPTURE,
+    tasks: createStartupTasks(logger as never, options.signal),
     device:
       runtimePlatform === BuildRuntimePlatform.DARWIN
         ? { iosSimulatorUdid: 'selected-udid', application: Promise.resolve() }
         : { booted: Promise.resolve(), ready: Promise.resolve() },
+    ...options,
   });
 }
 
@@ -244,40 +240,76 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('uploads an artifact created after the last periodic inventory before the daemon stops', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-    const { pollAgentDeviceArtifactsForUploadAsync: pollActual } = jest.requireActual<
-      typeof import('../../utils/agentDeviceArtifacts')
-    >('../../utils/agentDeviceArtifacts');
-    jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockImplementation(pollActual);
-    const { Response } = jest.requireActual<typeof import('node-fetch')>('node-fetch');
-    const artifacts: { id: string; filename: string }[] = [];
-    let inventories = 0;
-    jest.mocked(fetch).mockImplementation(async url => {
-      if (String(url).endsWith('/artifacts')) {
-        inventories += 1;
-        return new Response(JSON.stringify({ artifacts }));
-      }
-      return new Response(Readable.from([Buffer.from('screenshot')]));
-    });
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
-      while (inventories === 0) {
-        await new Promise(resolve => setTimeout(resolve, 5));
-      }
-      // The next periodic inventory is 5 seconds away, so only the final one can see this file.
-      artifacts.push({ id: 'late', filename: 'late.png' });
-    });
+  it.each([false, true])(
+    'finishes the final artifact upload before stopping its owner (warm=%s)',
+    async warm => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+      const { pollAgentDeviceArtifactsForUploadAsync: pollActual } = jest.requireActual<
+        typeof import('../../utils/agentDeviceArtifacts')
+      >('../../utils/agentDeviceArtifacts');
+      jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockImplementation(pollActual);
+      const { Response } = jest.requireActual<typeof import('node-fetch')>('node-fetch');
+      const artifacts: { id: string; filename: string }[] = [];
+      let releaseUpload = () => {};
+      const pendingUpload = new Promise<void>(resolve => {
+        releaseUpload = resolve;
+      });
+      let markUploadStarted = () => {};
+      const uploadStarted = new Promise<void>(resolve => {
+        markUploadStarted = resolve;
+      });
+      jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementationOnce(async () => {
+        markUploadStarted();
+        await pendingUpload;
+      });
+      let inventories = 0;
+      jest.mocked(fetch).mockImplementation(async url => {
+        if (String(url).endsWith('/artifacts')) {
+          inventories += 1;
+          return new Response(JSON.stringify({ artifacts }));
+        }
+        return new Response(Readable.from([Buffer.from('screenshot')]));
+      });
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
+        while (inventories === 0) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        // The next periodic inventory is 5 seconds away, so only the final one can see this file.
+        artifacts.push({ id: 'late', filename: 'late.png' });
+      });
 
-    await runAsync(logger, BuildRuntimePlatform.LINUX);
+      const running = runAsync(
+        logger,
+        warm ? BuildRuntimePlatform.DARWIN : BuildRuntimePlatform.LINUX,
+        {
+          warm: warm
+            ? ({
+                agentDeviceStateDir: '/warm/agent',
+                tools: { port: 4310, token: 'warm-token' },
+              } as WarmIosSession)
+            : undefined,
+        }
+      );
+      try {
+        await uploadStarted;
+        expect(mockDaemonStopAsync).not.toHaveBeenCalled();
+        if (warm) {
+          expect(mockPreviewStopAsync).not.toHaveBeenCalled();
+        }
+      } finally {
+        releaseUpload();
+        await running;
+      }
 
-    expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
-      ctx,
-      expect.objectContaining({ artifactId: 'late', filename: 'late.png' })
-    );
-    expect(
-      jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.invocationCallOrder[0]
-    ).toBeLessThan(mockDaemonStopAsync.mock.invocationCallOrder[0]);
-  });
+      expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({ artifactId: 'late', filename: 'late.png' })
+      );
+      expect(inventories).toBe(2);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockDaemonStopAsync).toHaveBeenCalledTimes(warm ? 0 : 1);
+    }
+  );
 
   it('stops the daemon when the final artifact drain fails', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
@@ -291,6 +323,88 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       expect.objectContaining({ stopPollingSignal: expect.any(AbortSignal) })
     );
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])(
+    'stops the warm host after a failed drain (collector startup fails=%s)',
+    async startupFails => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+      const drainFailure = new Error('drain failed');
+      const startupFailure = new Error('event collector failed');
+      jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockRejectedValueOnce(drainFailure);
+      if (startupFails) {
+        jest.mocked(startAgentDeviceEventCollectionAsync).mockRejectedValueOnce(startupFailure);
+      }
+      await expect(
+        runAsync(logger, BuildRuntimePlatform.DARWIN, {
+          warm: {
+            agentDeviceStateDir: '/warm/agent',
+            tools: { port: 4310, token: 'warm-token' },
+          } as WarmIosSession,
+        })
+      ).rejects.toBe(startupFails ? startupFailure : drainFailure);
+      expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+      expect(mockDaemonStopAsync).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: drainFailure },
+        'Could not stop the agent-device daemon during remote session teardown.'
+      );
+    }
+  );
+
+  it('cancels a warm upload and drains its poller before stopping the host', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const controller = new AbortController();
+    const cancellation = new Error('job cancelled');
+    const { pollAgentDeviceArtifactsForUploadAsync: pollActual } = jest.requireActual<
+      typeof import('../../utils/agentDeviceArtifacts')
+    >('../../utils/agentDeviceArtifacts');
+    const pollingFinished = jest.fn();
+    jest
+      .mocked(pollAgentDeviceArtifactsForUploadAsync)
+      .mockImplementation((...args) => pollActual(...args).finally(pollingFinished));
+    const { Response } = jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockImplementation(async url =>
+        String(url).endsWith('/artifacts')
+          ? new Response(JSON.stringify({ artifacts: [{ id: 'active', filename: 'active.png' }] }))
+          : new Response(Readable.from(['png']))
+      );
+    let markUploadStarted = () => {};
+    const uploadStarted = new Promise<void>(resolve => {
+      markUploadStarted = resolve;
+    });
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { signal }) => {
+        markUploadStarted();
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
+      });
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementationOnce(async () => {
+      await uploadStarted;
+      controller.abort(cancellation);
+      throw cancellation;
+    });
+    await expect(
+      runAsync(logger, BuildRuntimePlatform.DARWIN, {
+        signal: controller.signal,
+        warm: {
+          agentDeviceStateDir: '/warm/agent',
+          tools: { port: 4310, token: 'warm-token' },
+        } as WarmIosSession,
+      })
+    ).rejects.toBe(cancellation);
+    expect(pollingFinished).toHaveBeenCalledTimes(1);
+    expect(pollingFinished.mock.invocationCallOrder[0]).toBeLessThan(
+      mockPreviewStopAsync.mock.invocationCallOrder[0]
+    );
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockDaemonStopAsync).not.toHaveBeenCalled();
   });
 
   it('redacts learned daemon credentials in arbitrary output and retained diagnostics', async () => {
@@ -322,7 +436,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     } as never);
     jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(previewInputAt);
 
-    await runAsync(logger, BuildRuntimePlatform.LINUX, NO_CAPTURE, false, undefined, 5);
+    await runAsync(logger, BuildRuntimePlatform.LINUX, { maxIdleTimeMinutes: 5 });
 
     const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
     expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
@@ -333,8 +447,7 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
     await runAsync(logger, BuildRuntimePlatform.DARWIN, {
-      networkCapture: true,
-      networkCaptureFields: ['header'],
+      capture: { networkCapture: true, networkCaptureFields: ['header'] },
     });
 
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
@@ -345,13 +458,10 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
 
   it('hands a private preview choice to the session host', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-    await runAsync(
-      logger,
-      BuildRuntimePlatform.DARWIN,
-      NO_CAPTURE,
-      true,
-      'https://expo.dev/private-preview'
-    );
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      disableShare: true,
+      privatePreviewUrl: 'https://expo.dev/private-preview',
+    });
     expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
