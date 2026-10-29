@@ -150,7 +150,7 @@ export function isEligibleForFreeTierNearLimitAgentUpdatesTip(
 }
 
 /**
- * A platform is eligible when its project is not set up for EAS Update. Development builds load
+ * A platform is eligible when its project is not set up for Expo Update. Development builds load
  * JavaScript from the dev server, so the tip does not apply to them.
  */
 export function isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip(
@@ -212,8 +212,8 @@ export function formatFreeTierNearLimitAgentUpdatesTip({
 }: FreeTierPlatformBuildUsage & { platform: AppPlatform }): string {
   const platformName = appPlatformDisplayNames[platform];
   return [
-    `Tip: this account has used ${used} of ${limit} ${platformName} builds on the Free plan this period. This project isn't set up for EAS Update, so every change needs a new build.`,
-    'With EAS Update, JavaScript, styling and image changes reach installed builds without a new build. Setup takes effect from the next build, so it saves the most builds if done now.',
+    `Tip: this account has used ${used} of ${limit} ${platformName} builds on the Free plan this period. This project isn't set up for Expo Update, so every change needs a new build.`,
+    'With Expo Update, JavaScript, styling and image changes reach installed builds without a new build. Setup takes effect from the next build, so it saves the most builds if done now.',
     'Next: eas update:configure --non-interactive, then build once more.',
     'Tell the user: this adds expo-updates and changes app.json and eas.json.',
     `Docs: ${EAS_UPDATE_GETTING_STARTED_URL}`,
@@ -270,7 +270,7 @@ export async function markFreeTierNearLimitAgentUpdatesTipShownAsync(
 }
 
 /**
- * After finished builds, suggests EAS Update to coding agents whose Free plan account is close to
+ * After finished builds, suggests Expo Update to coding agents whose Free plan account is close to
  * the platform build limit. The exposure logs only when every eligibility check passed, so both
  * arms see the same population. The treatment arm prints the tip, logs the tip event, then
  * writes the marker, so a failed write means at most a repeated tip. Fails open on any error.
@@ -335,10 +335,10 @@ export async function maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
         );
       } catch (error: any) {
         // The tip was shown. A missing marker means at most a repeated tip, so keep going.
-        Log.debug('Failed to mark the EAS Update tip as shown:', error?.message ?? error);
+        Log.debug('Failed to mark the Expo Update tip as shown:', error?.message ?? error);
       }
     }
   } catch (error: any) {
-    Log.debug('Failed to run the EAS Update tip check:', error?.message ?? error);
+    Log.debug('Failed to run the Expo Update tip check:', error?.message ?? error);
   }
 }

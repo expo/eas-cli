@@ -69,8 +69,8 @@ const ANDROID_KEY = 'free-tier-near-limit-agent-updates-tip-shown/account-id/and
 const IOS_KEY = 'free-tier-near-limit-agent-updates-tip-shown/account-id/ios';
 
 const ANDROID_TIP_11_OF_15 = [
-  "Tip: this account has used 11 of 15 Android builds on the Free plan this period. This project isn't set up for EAS Update, so every change needs a new build.",
-  'With EAS Update, JavaScript, styling and image changes reach installed builds without a new build. Setup takes effect from the next build, so it saves the most builds if done now.',
+  "Tip: this account has used 11 of 15 Android builds on the Free plan this period. This project isn't set up for Expo Update, so every change needs a new build.",
+  'With Expo Update, JavaScript, styling and image changes reach installed builds without a new build. Setup takes effect from the next build, so it saves the most builds if done now.',
   'Next: eas update:configure --non-interactive, then build once more.',
   'Tell the user: this adds expo-updates and changes app.json and eas.json.',
   'Docs: https://docs.expo.dev/eas-update/getting-started/',
@@ -424,17 +424,17 @@ describe(isEligibleForFreeTierNearLimitAgentUpdatesTip, () => {
 });
 
 describe(isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip, () => {
-  it('accepts a project without EAS Update', () => {
+  it('accepts a project without Expo Update', () => {
     expect(isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip(project())).toBe(true);
   });
 
-  it('accepts a project with expo-updates installed but no EAS Update URL', () => {
+  it('accepts a project with expo-updates installed but no Expo Update URL', () => {
     jest.mocked(isExpoUpdatesInstalled).mockReturnValue(true);
 
     expect(isPlatformEligibleForFreeTierNearLimitAgentUpdatesTip(project())).toBe(true);
   });
 
-  it('rejects a project that is already set up for EAS Update', () => {
+  it('rejects a project that is already set up for Expo Update', () => {
     jest.mocked(isExpoUpdatesInstalled).mockReturnValue(true);
     jest.mocked(isUsingEASUpdate).mockReturnValue(true);
 
@@ -638,7 +638,7 @@ describe(maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync, () => {
   });
 
   it('checks each platform against its own build context', async () => {
-    // Only the iOS build evaluated a config with the EAS Update URL.
+    // Only the iOS build evaluated a config with the Expo Update URL.
     jest.mocked(isExpoUpdatesInstalled).mockReturnValue(true);
     jest.mocked(isUsingEASUpdate).mockImplementation(exp => exp === IOS_EXP);
     jest
