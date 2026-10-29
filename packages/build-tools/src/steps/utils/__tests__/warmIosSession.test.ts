@@ -115,11 +115,6 @@ it.each([
   ],
   ['a pinned package version', { packageVersion: '1.2.3' }, () => {}],
   ['a job Simulator setting', { env: { ...env, SIMCTL_CHILD_FOO: '1' } }, () => {}],
-  [
-    'a local egress session',
-    {},
-    () => jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 1 } as never),
-  ],
 ])('stops warmup and returns nothing for %s', async (_name, options, setup) => {
   setup();
   await expect(
@@ -139,5 +134,22 @@ it('rejects when warmup cleanup cannot be confirmed', async () => {
 it('stops the claimed session once', async () => {
   const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
   await Promise.all([session!.process.stopAsync(), session!.process.stopAsync()]);
+  expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+});
+
+it('claims a local egress job without stopping warmup', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+  await expect(
+    tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger })
+  ).resolves.toBeDefined();
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('stops warmup before claiming when the egress handoff is malformed', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockRejectedValue(new Error('malformed handoff'));
+  await expect(
+    tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger })
+  ).resolves.toBeUndefined();
+  expect(runSimulatorLauncherAsync).not.toHaveBeenCalled();
   expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
 });

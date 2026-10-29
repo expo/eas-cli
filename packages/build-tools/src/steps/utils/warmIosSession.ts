@@ -63,9 +63,8 @@ export async function tryClaimWarmIosSessionAsync({
     if (setting) {
       throw new Error(`${setting} needs a cold start.`);
     }
-    if (await readLocalEgressHandoffAsync()) {
-      throw new Error('A local egress session needs a cold start.');
-    }
+    // Validate the handoff before claiming; serve-sim owns the warm guard policy.
+    await readLocalEgressHandoffAsync();
     const claimArgs = ['claim', engine, ...(requestedDevice ? [requestedDevice] : [])];
     const claim = ClaimSchema.parse(
       JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal }))
