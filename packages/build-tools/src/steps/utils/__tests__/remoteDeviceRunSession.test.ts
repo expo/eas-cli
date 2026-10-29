@@ -983,7 +983,7 @@ describe(startNgrokTunnelAsync, () => {
 
     expect(ngrok.forward).toHaveBeenCalledWith(
       expect.objectContaining({
-        addr: 4321,
+        addr: expect.any(Number),
         authtoken: 'token',
         domain: expect.stringMatching(/^web-preview-[a-f0-9]{32}\.eas-simulator\.ngrok\.dev$/),
       })
@@ -1300,7 +1300,10 @@ describe(startDeviceSessionHostAsync, () => {
         recordingDirectory,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
     await host.finishAsync();
@@ -1436,7 +1439,10 @@ describe(startDeviceSessionHostAsync, () => {
         packageVersion,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
     await host.finishAsync();

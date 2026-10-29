@@ -2,6 +2,8 @@ import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import * as ngrok from '@ngrok/ngrok';
 import { randomBytes } from 'node:crypto';
+import { once } from 'node:events';
+import { type AddressInfo, type Socket, createConnection, createServer } from 'node:net';
 import { clearTimeout, setTimeout } from 'node:timers';
 
 import { turtleFetch } from '../../utils/turtleFetch';
@@ -39,15 +41,52 @@ export async function startNgrokTunnelAsync({
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   const controller = new AbortController();
   const { signal } = controller;
+  const sockets = new Set<Socket>();
+  const target = createServer({ allowHalfOpen: true }, client => {
+    if (signal.aborted) {
+      client.destroy();
+      return;
+    }
+    const upstream = createConnection({ host: '127.0.0.1', port, allowHalfOpen: true });
+    for (const socket of [client, upstream]) {
+      sockets.add(socket);
+      socket.on('error', () => {
+        client.destroy();
+        upstream.destroy();
+      });
+      socket.on('close', () => sockets.delete(socket));
+    }
+    client.pipe(upstream).pipe(client);
+  });
+  target.listen(0, '127.0.0.1');
+  await once(target, 'listening');
+  target.unref();
+  signal.addEventListener(
+    'abort',
+    () => {
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+    },
+    { once: true }
+  );
   const config: ngrok.Config = {
-    addr: port,
+    addr: (target.address() as AddressInfo).port,
     authtoken,
     domain,
     ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
   };
 
+  const ownedListeners = new Set<ngrok.Listener>();
   const retiredListeners = new Set<ngrok.Listener>();
   const closingListeners = new Map<ngrok.Listener, Promise<void>>();
+  let pendingOpen: Promise<ngrok.Listener> | undefined;
+  let currentListener: ngrok.Listener | undefined;
+  function releaseTarget(): void {
+    if (signal.aborted && !pendingOpen && ownedListeners.size === 0 && target.listening) {
+      target.close();
+    }
+  }
 
   async function closeAsync(
     listener: ngrok.Listener,
@@ -63,6 +102,8 @@ export async function startNgrokTunnelAsync({
         () => {
           closingListeners.delete(listener);
           retiredListeners.delete(listener);
+          ownedListeners.delete(listener);
+          releaseTarget();
         },
         () => closingListeners.delete(listener)
       );
@@ -113,7 +154,6 @@ export async function startNgrokTunnelAsync({
     }
   }
 
-  let pendingOpen: Promise<ngrok.Listener> | undefined;
   async function openAsync(forceNewSession = false): Promise<ngrok.Listener> {
     if (pendingOpen) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
@@ -135,18 +175,22 @@ export async function startNgrokTunnelAsync({
               ...config,
               ...(forceNewSession ? { force_new_session: true } : {}),
             })
+            .then(listener => {
+              acquired = listener;
+              ownedListeners.add(listener);
+              return listener;
+            })
             .finally(() => {
               pendingOpen = undefined;
             });
           pendingOpen = opening;
           void opening
-            .then(listener => {
-              acquired = listener;
+            .then(() => {
               if (openSignal.aborted) {
                 retireAcquired();
               }
             })
-            .catch(() => {});
+            .catch(() => releaseTarget());
           const listener = await opening;
           openSignal.throwIfAborted();
           return listener;
@@ -159,11 +203,19 @@ export async function startNgrokTunnelAsync({
   }
 
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
-  let currentListener: ngrok.Listener | undefined = await openAsync();
-  const publicUrl = currentListener.url();
-  if (!publicUrl) {
-    await closeAsync(currentListener, signal);
-    throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
+  let publicUrl: string | null;
+  try {
+    currentListener = await openAsync();
+    publicUrl = currentListener.url();
+    if (!publicUrl) {
+      await closeAsync(currentListener, signal);
+      currentListener = undefined;
+      throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
+    }
+  } catch (error) {
+    controller.abort();
+    releaseTarget();
+    throw error;
   }
 
   const url = publicUrl;
@@ -293,6 +345,7 @@ export async function startNgrokTunnelAsync({
             await retireListenersAsync(stopSignal);
           }
         );
+        releaseTarget();
       })()),
   };
 }

@@ -1,7 +1,9 @@
 import { type bunyan } from '@expo/logger';
 import * as ngrok from '@ngrok/ngrok';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
-import { type AddressInfo } from 'node:net';
+import WebSocket, { WebSocketServer } from 'ws';
+import { type AddressInfo, createConnection, createServer as createTcpServer } from 'node:net';
 
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startNgrokTunnelAsync } from '../ngrokTunnel';
@@ -35,7 +37,7 @@ let initial: ReturnType<typeof listener>;
 let replacement: ReturnType<typeof listener>;
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
   jest.clearAllMocks();
   initial = listener();
   replacement = listener();
@@ -105,7 +107,7 @@ it('reopens after three failed public probes with a healthy local service, prese
     expect(initial.close).toHaveBeenCalledTimes(1);
     expect(ngrok.forward).toHaveBeenCalledTimes(2);
     expect(jest.mocked(ngrok.forward).mock.calls[1][0]).toEqual({
-      addr: 4321,
+      addr: expect.any(Number),
       authtoken: 'token',
       domain: 'web-preview-fixed.example.test',
       request_header_add: ['Host:localhost:4321'],
@@ -686,4 +688,186 @@ it('recovers using actual HTTP health probes with a local ngrok adapter', async 
     );
   }
   expect(next.close).toHaveBeenCalledTimes(1);
+});
+
+it('blocks HTTP and existing WebSockets on Stop even when ngrok cannot close', async () => {
+  jest.useRealTimers();
+  const actualFetch = jest.requireActual<typeof import('node-fetch')>('node-fetch').default;
+  let requests = 0;
+  let messages = 0;
+  const backend = createServer((_request, response) => {
+    requests++;
+    response.end('owned backend');
+  });
+  const websockets = new WebSocketServer({ server: backend });
+  websockets.on('connection', socket => {
+    socket.on('message', data => {
+      messages++;
+      socket.send(data);
+    });
+  });
+  backend.listen(0, '127.0.0.1');
+  await once(backend, 'listening');
+  const backendPort = (backend.address() as AddressInfo).port;
+  const tunnel = await startNgrokTunnelAsync({
+    ...options,
+    port: backendPort,
+    healthCheck: undefined,
+  });
+  const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr;
+  const targetUrl = `http://127.0.0.1:${targetPort}`;
+  const socket = new WebSocket(`ws://127.0.0.1:${targetPort}`);
+  const opened = once(socket, 'open');
+  try {
+    expect(await (await actualFetch(targetUrl)).text()).toBe('owned backend');
+    await opened;
+    const echoed = once(socket, 'message');
+    socket.send('before-stop');
+    expect((await echoed)[0].toString()).toBe('before-stop');
+    const closed = once(socket, 'close');
+    initial.close.mockRejectedValue(new Error('agent disconnected'));
+    const stopping = tunnel.stopAsync();
+    const rejected = expect(stopping).rejects.toThrow('stop timed out after 4000ms');
+    await expect(actualFetch(targetUrl, { timeout: 1_000 })).rejects.toThrow();
+    await closed;
+    expect(requests).toBe(1);
+    expect(messages).toBe(1);
+    expect(await (await actualFetch(`http://127.0.0.1:${backendPort}`)).text()).toBe(
+      'owned backend'
+    );
+    await rejected;
+    await expect(actualFetch(targetUrl, { timeout: 1_000 })).rejects.toThrow();
+    expect(requests).toBe(2);
+    expect(messages).toBe(1);
+    const competing = createTcpServer();
+    const conflict = once(competing, 'error');
+    competing.listen(targetPort as number, '127.0.0.1');
+    expect((await conflict)[0]).toMatchObject({ code: 'EADDRINUSE' });
+  } finally {
+    socket.terminate();
+    for (const client of websockets.clients) {
+      client.terminate();
+    }
+    websockets.close();
+    backend.closeAllConnections();
+    await new Promise<void>(resolve => backend.close(() => resolve()));
+    await tunnel.stopAsync().catch(() => {});
+  }
+});
+
+it('releases its local target when initial tunnel creation fails', async () => {
+  jest.useRealTimers();
+  jest.mocked(ngrok.forward).mockReset().mockRejectedValue(new Error('forward failed'));
+  await expect(startNgrokTunnelAsync(options)).rejects.toThrow('forward failed');
+  const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr;
+  const server = createServer();
+  server.listen(targetPort as number, '127.0.0.1');
+  await once(server, 'listening');
+  await new Promise<void>(resolve => server.close(() => resolve()));
+});
+
+it('preserves a full response for a half-closed slow reader', async () => {
+  jest.useRealTimers();
+  const payload = Buffer.alloc(4 * 1024 * 1024, 37);
+  const backend = createTcpServer({ allowHalfOpen: true }, socket => {
+    socket.resume();
+    socket.on('end', () => socket.end(payload));
+  });
+  backend.listen(0, '127.0.0.1');
+  await once(backend, 'listening');
+  const tunnel = await startNgrokTunnelAsync({
+    ...options,
+    port: (backend.address() as AddressInfo).port,
+    healthCheck: undefined,
+  });
+  const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr as number;
+  const socket = createConnection({ host: '127.0.0.1', port: targetPort, allowHalfOpen: true });
+  try {
+    const chunks: Buffer[] = [];
+    socket.on('data', chunk => chunks.push(chunk));
+    const ended = once(socket, 'end');
+    socket.pause();
+    socket.end('request');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    socket.resume();
+    await ended;
+    expect(Buffer.concat(chunks).equals(payload)).toBe(true);
+  } finally {
+    socket.destroy();
+    await tunnel.stopAsync();
+    await new Promise<void>(resolve => backend.close(() => resolve()));
+  }
+});
+
+it.each(['resolve', 'reject'])(
+  'releases the target after timed-out startup later %s',
+  async outcome => {
+    let resolveOpening!: (value: ngrok.Listener) => void;
+    let rejectOpening!: (error: Error) => void;
+    jest
+      .mocked(ngrok.forward)
+      .mockReset()
+      .mockReturnValue(
+        new Promise((resolve, reject) => {
+          resolveOpening = resolve;
+          rejectOpening = reject;
+        })
+      );
+    const opening = startNgrokTunnelAsync(options);
+    const rejected = expect(opening).rejects.toThrow('open timed out');
+    await new Promise<void>(resolve => setImmediate(resolve));
+    await jest.advanceTimersByTimeAsync(15_000);
+    await rejected;
+    const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr as number;
+    if (outcome === 'resolve') {
+      resolveOpening(replacement as never);
+    } else {
+      rejectOpening(new Error('forward failed'));
+    }
+    await jest.advanceTimersByTimeAsync(0);
+    const server = createTcpServer();
+    server.listen(targetPort, '127.0.0.1');
+    await once(server, 'listening');
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+);
+
+it('drains a full upload when the backend ends its response early', async () => {
+  jest.useRealTimers();
+  const payload = Buffer.alloc(4 * 1024 * 1024, 51);
+  let received!: Buffer;
+  let receivedRequest!: () => void;
+  const completed = new Promise<void>(resolve => {
+    receivedRequest = resolve;
+  });
+  const backend = createTcpServer({ allowHalfOpen: true }, socket => {
+    const chunks: Buffer[] = [];
+    socket.on('data', chunk => chunks.push(chunk));
+    socket.on('end', () => {
+      received = Buffer.concat(chunks);
+      receivedRequest();
+    });
+    socket.pause();
+    socket.end('early response');
+    setTimeout(() => socket.resume(), 100);
+  });
+  backend.listen(0, '127.0.0.1');
+  await once(backend, 'listening');
+  const tunnel = await startNgrokTunnelAsync({
+    ...options,
+    port: (backend.address() as AddressInfo).port,
+    healthCheck: undefined,
+  });
+  const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr as number;
+  const socket = createConnection({ host: '127.0.0.1', port: targetPort, allowHalfOpen: true });
+  try {
+    socket.resume();
+    socket.end(payload);
+    await completed;
+    expect(received.equals(payload)).toBe(true);
+  } finally {
+    socket.destroy();
+    await tunnel.stopAsync();
+    await new Promise<void>(resolve => backend.close(() => resolve()));
+  }
 });
