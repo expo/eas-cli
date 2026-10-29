@@ -199,8 +199,7 @@ export type Account = {
    * Whether the account turned on environment variable protection. When protection is on,
    * reading, using, creating, changing, or deleting an environment variable whose environments are
    * exclusively production needs the PUBLISH_PROTECTED permission, whatever its visibility, in
-   * every project of the account. Expo can also turn protection on for an account; this field
-   * does not show that.
+   * every project of the account.
    */
   environmentVariableProtectionEnabled: Scalars['Boolean']['output'];
   /** Environment variables for an account */
@@ -1100,6 +1099,7 @@ export type ActivityTimelineProjectActivity = {
 
 export enum ActivityTimelineProjectActivityType {
   Build = 'BUILD',
+  DeviceRunSession = 'DEVICE_RUN_SESSION',
   Submission = 'SUBMISSION',
   Update = 'UPDATE',
   Worker = 'WORKER',
@@ -2487,11 +2487,13 @@ export type AppObserve = {
    * @deprecated Use overview.stability instead.
    */
   overviewStability: AppObserveOverviewStability;
-  /** One session's metrics and logs for the timeline (ENG-26160). Unknown session ids yield empty lists. */
+  /** One session's metrics, logs and spans for the timeline (ENG-26160). Unknown session ids yield empty lists. */
   session: AppObserveSession;
   /** @deprecated Use metrics.timeSeries instead. */
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
+  /** Trace spans: today the HTTP request spans recorded with the SDK's networkTraces option (ENG-28448). */
+  traces: AppObserveTraces;
   /**
    * Approximate count of unique users (`eas_client_id`) with at least one
    * supported-metric event in `[startTime, endTime)`. Uses a ClickHouse
@@ -3923,6 +3925,8 @@ export type AppObserveSession = {
   logs: AppObserveLogConnection;
   /** Metric samples in the session. */
   metrics: AppObserveMetricConnection;
+  /** Trace spans in the session. Defaults to oldest first. */
+  spans: AppObserveSpanConnection;
 };
 
 
@@ -3942,6 +3946,194 @@ export type AppObserveSession_MetricsArgs = {
   last?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
 };
+
+
+export type AppObserveSession_SpansArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveSessionSpanFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+};
+
+/** Filters for the spans of one session. The session already bounds the query. */
+export type AppObserveSessionSpanFilter = {
+  hosts?: InputMaybe<Array<Scalars['String']['input']>>;
+  httpStatusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
+  kinds?: InputMaybe<Array<AppObserveSpanKind>>;
+  minDurationMs?: InputMaybe<Scalars['Float']['input']>;
+  names?: InputMaybe<Array<Scalars['String']['input']>>;
+  rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
+};
+
+export type AppObserveSpan = {
+  __typename?: 'AppObserveSpan';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appIdentifier: Scalars['String']['output'];
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  /** Span attributes other than those extracted to dedicated fields. */
+  attributes: Array<AppObserveEventProperty>;
+  clientVersion?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceLanguageTag?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  droppedAttributesCount: Scalars['Int']['output'];
+  droppedEventsCount: Scalars['Int']['output'];
+  /** Span links are not stored; this counts the links received. */
+  droppedLinksCount: Scalars['Int']['output'];
+  /** Keeps sub-millisecond precision. */
+  durationMs: Scalars['Float']['output'];
+  easClientId: Scalars['String']['output'];
+  endTimestamp: Scalars['DateTime']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  events: Array<AppObserveSpanEvent>;
+  expoSdkVersion?: Maybe<Scalars['String']['output']>;
+  /** Null when the span is not an HTTP request span. */
+  http?: Maybe<AppObserveSpanHttp>;
+  id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
+  kind: AppObserveSpanKind;
+  /** Per the producer's semantic conventions: the HTTP method for request spans. */
+  name: Scalars['String']['output'];
+  /** Null for a root span. */
+  parentSpanId?: Maybe<Scalars['String']['output']>;
+  reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  spanId: Scalars['String']['output'];
+  startTimestamp: Scalars['DateTime']['output'];
+  statusCode: AppObserveSpanStatusCode;
+  statusMessage?: Maybe<Scalars['String']['output']>;
+  traceId: Scalars['String']['output'];
+};
+
+export type AppObserveSpanAttributeFilter = {
+  key: Scalars['String']['input'];
+  value: Scalars['String']['input'];
+};
+
+export type AppObserveSpanConnection = {
+  __typename?: 'AppObserveSpanConnection';
+  edges: Array<AppObserveSpanEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveSpanEdge = {
+  __typename?: 'AppObserveSpanEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveSpan;
+};
+
+export type AppObserveSpanEvent = {
+  __typename?: 'AppObserveSpanEvent';
+  /** The event's attributes as a JSON object. */
+  attributes: Scalars['JSON']['output'];
+  name: Scalars['String']['output'];
+  timestamp: Scalars['DateTime']['output'];
+};
+
+/** HTTP request fields of a span, from the OpenTelemetry HTTP client semantic conventions. */
+export type AppObserveSpanHttp = {
+  __typename?: 'AppObserveSpanHttp';
+  /** Set when the request failed before a response: an NSURLError code on iOS, an exception class on Android. */
+  errorType?: Maybe<Scalars['String']['output']>;
+  method?: Maybe<Scalars['String']['output']>;
+  protocolVersion?: Maybe<Scalars['String']['output']>;
+  /** On-the-wire bytes including headers. */
+  requestSize?: Maybe<Scalars['Int']['output']>;
+  responseSize?: Maybe<Scalars['Int']['output']>;
+  /** Null when the request got no response. */
+  statusCode?: Maybe<Scalars['Int']['output']>;
+  /** Credentials and signing query parameters are redacted at ingestion. */
+  urlFull?: Maybe<Scalars['String']['output']>;
+  urlHost?: Maybe<Scalars['String']['output']>;
+};
+
+export enum AppObserveSpanKind {
+  Client = 'CLIENT',
+  Consumer = 'CONSUMER',
+  Internal = 'INTERNAL',
+  Producer = 'PRODUCER',
+  Server = 'SERVER',
+  Unspecified = 'UNSPECIFIED'
+}
+
+export type AppObserveSpanListFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  /** At most 5. Matches spans whose attribute has exactly this value. */
+  attributeFilters?: InputMaybe<Array<AppObserveSpanAttributeFilter>>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** HTTP request spans to any of these hosts. */
+  hosts?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** HTTP request spans with any of these response status codes. */
+  httpStatusCodes?: InputMaybe<Array<Scalars['Int']['input']>>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  kinds?: InputMaybe<Array<AppObserveSpanKind>>;
+  minDurationMs?: InputMaybe<Scalars['Float']['input']>;
+  /** Span names, such as GET or POST. The cheapest filter: span name is in the table's sort key. */
+  names?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  /** Only spans with no parent. */
+  rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime: Scalars['DateTime']['input'];
+  statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
+  /** 32-character hex trace id. */
+  traceId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type AppObserveSpanListOrderBy = {
+  direction: AppObserveOrderDirection;
+  field: AppObserveSpanListOrderByField;
+};
+
+export enum AppObserveSpanListOrderByField {
+  StartTimestamp = 'START_TIMESTAMP'
+}
+
+export type AppObserveSpanName = {
+  __typename?: 'AppObserveSpanName';
+  count: Scalars['Int']['output'];
+  kind: AppObserveSpanKind;
+  name: Scalars['String']['output'];
+};
+
+export type AppObserveSpanNames = {
+  __typename?: 'AppObserveSpanNames';
+  /** True when more names exist than were returned (top-N truncation). */
+  isTruncated: Scalars['Boolean']['output'];
+  names: Array<AppObserveSpanName>;
+};
+
+export type AppObserveSpanNamesInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Maximum names to return, 1 to 500. Defaults to 100. */
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  /** Filter to these platforms. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export enum AppObserveSpanStatusCode {
+  Error = 'ERROR',
+  Ok = 'OK',
+  Unset = 'UNSET'
+}
 
 /** Stability-tile filters. No release filters: the tiles always span all versions. */
 export type AppObserveStabilityInput = {
@@ -4004,6 +4196,70 @@ export type AppObserveTimeSeriesStatistics = {
   p80?: Maybe<Scalars['Float']['output']>;
   p90?: Maybe<Scalars['Float']['output']>;
   p99?: Maybe<Scalars['Float']['output']>;
+};
+
+export type AppObserveTrace = {
+  __typename?: 'AppObserveTrace';
+  id: Scalars['ID']['output'];
+  /** True when the trace has more spans than were returned. */
+  isTruncated: Scalars['Boolean']['output'];
+  /** Oldest first. The root span, when present, is the one with no parent. */
+  spans: Array<AppObserveSpan>;
+};
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces = {
+  __typename?: 'AppObserveTraces';
+  /** Distinct span names and kinds with counts over the time range, most frequent first. */
+  names: AppObserveSpanNames;
+  /** A single span by id. Null when missing or aged out of retention. */
+  span?: Maybe<AppObserveSpan>;
+  /** Individual spans. Defaults to newest first. */
+  spans: AppObserveSpanConnection;
+  /** All spans of one trace by its 32-character hex trace id. Null when unknown or aged out of retention. */
+  trace?: Maybe<AppObserveTrace>;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_NamesArgs = {
+  input: AppObserveSpanNamesInput;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_SpanArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_SpansArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter: AppObserveSpanListFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+};
+
+
+/**
+ * Trace spans (app_traces rows, one per span). Today the SDK records only HTTP request spans; the
+ * API is generic so other span producers can be added without a schema change.
+ */
+export type AppObserveTraces_TraceArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type AppObserveUpdate = {
@@ -7104,8 +7360,10 @@ export type DeploymentsMutation_DeleteWorkerDeploymentByIdentifierArgs = {
   deploymentIdentifier: Scalars['ID']['input'];
 };
 
-export type DeviceRunSession = {
+export type DeviceRunSession = ActivityTimelineProjectActivity & {
   __typename?: 'DeviceRunSession';
+  activityTimestamp: Scalars['DateTime']['output'];
+  actor?: Maybe<Actor>;
   app: App;
   /**
    * Direct application archive URL installed and launched for this session. Null when
@@ -13923,6 +14181,13 @@ export type WorkflowJob = {
   __typename?: 'WorkflowJob';
   allDeviceTestCaseResults: Array<WorkflowDeviceTestCaseResult>;
   approvals: Array<WorkflowJobApproval>;
+  /**
+   * The workflow run started by a WORKFLOW_CALL job. Null for other job types, while the
+   * called run is not created yet, and for a failed call that never started a run. A call
+   * job copied by "re-run from failed jobs" resolves to the called run of the attempt it
+   * was copied from.
+   */
+  childWorkflowRun?: Maybe<WorkflowRun>;
   createdAt: Scalars['DateTime']['output'];
   credentialsAppleDeviceRegistrationRequest?: Maybe<AppleDeviceRegistrationRequest>;
   /**
@@ -14058,6 +14323,7 @@ export enum WorkflowJobType {
   Custom = 'CUSTOM',
   Deploy = 'DEPLOY',
   Doc = 'DOC',
+  Email = 'EMAIL',
   Fingerprint = 'FINGERPRINT',
   GetBuild = 'GET_BUILD',
   GithubComment = 'GITHUB_COMMENT',
@@ -14104,6 +14370,11 @@ export type WorkflowQuery_ByIdArgs = {
   workflowId: Scalars['ID']['input'];
 };
 
+export type WorkflowReferencedFileInput = {
+  fileName: Scalars['String']['input'];
+  yamlConfig: Scalars['String']['input'];
+};
+
 export type WorkflowRevision = {
   __typename?: 'WorkflowRevision';
   blobSha: Scalars['String']['output'];
@@ -14123,6 +14394,12 @@ export type WorkflowRevisionEdge = {
 
 export type WorkflowRevisionInput = {
   fileName: Scalars['String']['input'];
+  /**
+   * Other workflow files of the project that `uses` jobs reference, by bare file name.
+   * Required when the workflow has `uses` jobs. Every uploaded file is stored as a
+   * revision and pinned on the run, whether or not a job calls it.
+   */
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput>>;
   yamlConfig: Scalars['String']['input'];
 };
 
@@ -14149,6 +14426,7 @@ export type WorkflowRevisionMutation_GetWorkflowRevisionsFromGitRefArgs = {
 
 export type WorkflowRevisionMutation_ValidateWorkflowYamlConfigArgs = {
   appId: Scalars['ID']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput>>;
   yamlConfig: Scalars['String']['input'];
 };
 
@@ -14174,6 +14452,12 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   actor?: Maybe<Actor>;
   app: App;
   /**
+   * The run currently holding the concurrency group this run is waiting for.
+   * Null for runs that are not waiting, and briefly null while the group's
+   * next run is being promoted.
+   */
+  blockingWorkflowRun?: Maybe<WorkflowRun>;
+  /**
    * Why the server canceled this run. Null for manually canceled runs and for
    * runs canceled before the reason was recorded.
    */
@@ -14192,6 +14476,11 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   jobs: Array<WorkflowJob>;
   /** Snapshot of the workflow's name at run creation. */
   name: Scalars['String']['output'];
+  /**
+   * The WORKFLOW_CALL job of another run that started this run. Null for runs started by
+   * a trigger, a manual dispatch or a retry. Called runs are omitted from run lists.
+   */
+  parentWorkflowJob?: Maybe<WorkflowJob>;
   pullRequestNumber?: Maybe<Scalars['Int']['output']>;
   requestedGitRef?: Maybe<Scalars['String']['output']>;
   retriedWorkflowRun?: Maybe<WorkflowRun>;
@@ -14207,7 +14496,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonConcurrencyGroupQueueFull | WorkflowRunCancelReasonConcurrencyGroupReplaced | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14216,6 +14505,24 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupQueueFull = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupQueueFull';
+  /**
+   * The waiting-run capacity the concurrency group's queue was at when this
+   * run arrived.
+   */
+  maximumWaitingRuns: Scalars['Int']['output'];
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupReplaced = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupReplaced';
+  /**
+   * The newer run that took this run's place in the concurrency group's waiting
+   * slot. Null if that run no longer exists.
+   */
+  replacingWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunCancelReasonWorkflowCall = {
@@ -15589,6 +15896,14 @@ export type CreateAppScopedUploadSessionMutationVariables = Exact<{
 
 export type CreateAppScopedUploadSessionMutation = { __typename?: 'RootMutation', uploadSession: { __typename?: 'UploadSession', createAppScopedUploadSession: any } };
 
+export type SetUserPreferenceMutationVariables = Exact<{
+  key: Scalars['String']['input'];
+  value: Scalars['JSON']['input'];
+}>;
+
+
+export type SetUserPreferenceMutation = { __typename?: 'RootMutation', userPreference: { __typename?: 'UserPreferenceMutation', set: { __typename?: 'UserPreference', id: string, key: string, value: any } } };
+
 export type CreateWebhookMutationVariables = Exact<{
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
@@ -15624,6 +15939,7 @@ export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'Root
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput> | WorkflowReferencedFileInput>;
 }>;
 
 
@@ -15680,6 +15996,14 @@ export type AccountFullUsageQueryVariables = Exact<{
 
 
 export type AccountFullUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, status?: string | null, nextInvoice?: any | null, nextInvoiceAmountDueCents?: number | null, recurringCents?: number | null, price: number, concurrencies?: { __typename?: 'Concurrencies', total: number, android: number, ios: number } | null, addons: Array<{ __typename?: 'AddonDetails', id: string, name: string, quantity?: number | null }>, upcomingInvoice?: { __typename?: 'Invoice', id: string, total: number, lineItems: Array<{ __typename?: 'InvoiceLineItem', id: string, description: string, amount: number, period: { __typename?: 'InvoicePeriod', start: any, end: any } }> } | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', MEDIUM_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, MEDIUM_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_UPDATE: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_SIMULATOR: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, unavailableServiceUsageMetrics: Array<{ __typename?: 'UnavailableServiceUsageMetric', service: EasService }>, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, IOS_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, ANDROID_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }> } } } };
+
+export type AccountFreeTierBuildUsageQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+  currentDate: Scalars['DateTime']['input'];
+}>;
+
+
+export type AccountFreeTierBuildUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null }> } } } } };
 
 export type AccountUsageForOverageWarningQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -15752,7 +16076,7 @@ export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
 }>;
 
 
-export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -16221,13 +16545,41 @@ export type AppObserveSessionEventsQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
   metricsOrderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
   logsOrderBy?: InputMaybe<AppObserveLogsOrderBy>;
+  spansOrderBy?: InputMaybe<AppObserveSpanListOrderBy>;
 }>;
 
 
 export type AppObserveSessionEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', session: { __typename?: 'AppObserveSession', id: string, metrics: { __typename?: 'AppObserveMetricConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveMetricEdge', node: { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> }, logs: { __typename?: 'AppObserveLogConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveLogEdge', node:
                 | { __typename: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
                 | { __typename: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
-               }> } } } } } };
+               }> }, spans: { __typename?: 'AppObserveSpanConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveSpanEdge', node: { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> } }> } } } } } };
+
+export type AppObserveSpanListQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter: AppObserveSpanListFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+}>;
+
+
+export type AppObserveSpanListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', spans: { __typename?: 'AppObserveSpanConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveSpanEdge', cursor: string, node: { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> } }> } } } } } };
+
+export type AppObserveSpanNamesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  input: AppObserveSpanNamesInput;
+}>;
+
+
+export type AppObserveSpanNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', names: { __typename?: 'AppObserveSpanNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveSpanName', name: string, kind: AppObserveSpanKind, count: number }> } } } } } };
+
+export type AppObserveTraceByIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type AppObserveTraceByIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', trace?: { __typename?: 'AppObserveTrace', id: string, isTruncated: boolean, spans: Array<{ __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> }> } | null } } } } };
 
 export type AppObserveMetricByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -16461,6 +16813,13 @@ export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?
         | { __typename: 'User', username: string, id: string }
        | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
 
+export type UserPreferenceByKeyQueryVariables = Exact<{
+  key: Scalars['String']['input'];
+}>;
+
+
+export type UserPreferenceByKeyQuery = { __typename?: 'RootQuery', userPreference: { __typename?: 'UserPreferenceQuery', get?: { __typename?: 'UserPreference', id: string, key: string, value: any } | null } };
+
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -16598,7 +16957,7 @@ export type WorkflowRunByIdWithJobsQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, blockingWorkflowRun?: { __typename?: 'WorkflowRun', id: string, name: string, status: WorkflowRunStatus } | null, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
             | { __typename: 'PartnerActor', id: string, displayName: string }
             | { __typename: 'Robot', id: string, displayName: string }
             | { __typename: 'SSOUser', id: string, displayName: string }
@@ -16618,7 +16977,7 @@ export type WorkflowRunsForAppIdFileNameAndStatusQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -16751,6 +17110,8 @@ export type AppObserveErrorGroupFragment = { __typename?: 'AppObserveErrorGroup'
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
 
+export type AppObserveSpanFragment = { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> };
+
 export type PostHogOrganizationConnectionFragment = { __typename?: 'PostHogOrganizationConnection', id: string, posthogOrganizationIdentifier: string, posthogOrganizationName: string, posthogRegion: PostHogRegion, createdAt: any, updatedAt: any };
 
 export type PostHogProjectFragment = { __typename?: 'PostHogProject', id: string, posthogProjectIdentifier: string, posthogProjectName: string, posthogProjectToken: string, posthogHost: string, createdAt: any, updatedAt: any, posthogOrganizationConnection: { __typename?: 'PostHogOrganizationConnection', id: string, posthogOrganizationIdentifier: string, posthogOrganizationName: string, posthogRegion: PostHogRegion, createdAt: any, updatedAt: any } };
@@ -16810,7 +17171,7 @@ export type WorkflowJobFragment = { __typename?: 'WorkflowJob', id: string, key:
       | { __typename: 'User', id: string, displayName: string }
      | null, app: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, updateChannel?: { __typename?: 'UpdateChannel', id: string, name: string } | null, runtime?: { __typename?: 'Runtime', id: string, version: string } | null, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> };
 
-export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
     | { __typename: 'PartnerActor', id: string }
     | { __typename: 'Robot', firstName?: string | null, id: string }
     | { __typename: 'SSOUser', username: string, id: string }

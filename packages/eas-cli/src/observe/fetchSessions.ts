@@ -5,6 +5,8 @@ import {
   AppObserveMetric,
   AppObserveMetricsListOrderByField,
   AppObserveOrderDirection,
+  AppObserveSpan,
+  AppObserveSpanListOrderByField,
   AppObserveUserEvent,
   AppObserveUserEventListOrderByField,
 } from '../graphql/generated';
@@ -13,7 +15,7 @@ import { fetchObserveCustomEventsAsync } from './fetchCustomEvents';
 import { fetchObserveEventsAsync, resolveOrderBy } from './fetchEvents';
 
 export interface SessionEventEntry {
-  source: 'metric' | 'log';
+  source: 'metric' | 'log' | 'span';
   id: string;
   timestamp: string;
   sessionId: string;
@@ -36,6 +38,17 @@ export interface SessionEventEntry {
   severityNumber?: number | null;
   properties?: Array<{ key: string; value: string; type: string }>;
   environment?: string | null;
+  // span-only fields
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string | null;
+  durationMs?: number;
+  statusCode?: string;
+  httpMethod?: string | null;
+  httpStatusCode?: number | null;
+  httpErrorType?: string | null;
+  urlHost?: string | null;
+  urlFull?: string | null;
 }
 
 function metricEventToEntry(event: AppObserveMetric): SessionEventEntry {
@@ -107,6 +120,35 @@ function errorToEntry(event: AppObserveError): SessionEventEntry {
   };
 }
 
+function spanToEntry(span: AppObserveSpan): SessionEventEntry {
+  return {
+    source: 'span',
+    id: span.id,
+    timestamp: span.startTimestamp,
+    sessionId: span.sessionId ?? '',
+    name: span.name,
+    appVersion: span.appVersion,
+    appBuildNumber: span.appBuildNumber,
+    appUpdateId: span.appUpdateId ?? null,
+    deviceModel: span.deviceModel,
+    deviceOs: span.deviceOs,
+    deviceOsVersion: span.deviceOsVersion,
+    countryCode: span.countryCode ?? null,
+    easClientId: span.easClientId,
+    environment: span.environment ?? null,
+    traceId: span.traceId,
+    spanId: span.spanId,
+    parentSpanId: span.parentSpanId ?? null,
+    durationMs: span.durationMs,
+    statusCode: span.statusCode,
+    httpMethod: span.http?.method ?? null,
+    httpStatusCode: span.http?.statusCode ?? null,
+    httpErrorType: span.http?.errorType ?? null,
+    urlHost: span.http?.urlHost ?? null,
+    urlFull: span.http?.urlFull ?? null,
+  };
+}
+
 function sessionLogToEntry(log: AppObserveSessionLog): SessionEventEntry {
   return log.__typename === 'AppObserveError' ? errorToEntry(log) : userEventToEntry(log);
 }
@@ -133,6 +175,7 @@ export interface FetchSessionEventsResult {
   metadata: SessionMetadata | null;
   hasMoreMetricEvents: boolean;
   hasMoreLogEvents: boolean;
+  hasMoreSpans: boolean;
 }
 
 // A syntactically valid UUID that matches no real session, used only to trip
@@ -160,9 +203,8 @@ export async function fetchObserveSessionEventsAsync(
   appId: string,
   options: FetchSessionEventsOptions
 ): Promise<FetchSessionEventsResult> {
-  const { metrics, logs, metricsPageInfo, logsPageInfo } = await ObserveQuery.sessionEventsAsync(
-    graphqlClient,
-    {
+  const { metrics, logs, spans, metricsPageInfo, logsPageInfo, spansPageInfo } =
+    await ObserveQuery.sessionEventsAsync(graphqlClient, {
       appId,
       id: options.sessionId,
       first: options.limit,
@@ -174,12 +216,17 @@ export async function fetchObserveSessionEventsAsync(
         field: AppObserveLogsOrderByField.Timestamp,
         direction: AppObserveOrderDirection.Asc,
       },
-    }
-  );
+      spansOrderBy: {
+        field: AppObserveSpanListOrderByField.StartTimestamp,
+        direction: AppObserveOrderDirection.Asc,
+      },
+    });
 
-  const entries = [...metrics.map(metricEventToEntry), ...logs.map(sessionLogToEntry)].sort(
-    (a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0)
-  );
+  const entries = [
+    ...metrics.map(metricEventToEntry),
+    ...logs.map(sessionLogToEntry),
+    ...spans.map(spanToEntry),
+  ].sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
 
   let metadata: SessionMetadata | null = null;
   if (entries.length > 0) {
@@ -202,6 +249,7 @@ export async function fetchObserveSessionEventsAsync(
     metadata,
     hasMoreMetricEvents: metricsPageInfo.hasNextPage,
     hasMoreLogEvents: logsPageInfo.hasNextPage,
+    hasMoreSpans: spansPageInfo.hasNextPage,
   };
 }
 

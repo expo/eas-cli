@@ -45,7 +45,7 @@ const PICKER_CANDIDATE_LIMIT = 25;
 
 export default class ObserveSession extends EasCommand {
   static override description =
-    'display the timeline of metric and log events for a specific session';
+    'display the timeline of metric, log, and request trace span events for a specific session';
 
   static override args = {
     sessionId: Args.string({
@@ -129,7 +129,7 @@ export default class ObserveSession extends EasCommand {
       });
     }
 
-    const { entries, metadata, hasMoreMetricEvents, hasMoreLogEvents } =
+    const { entries, metadata, hasMoreMetricEvents, hasMoreLogEvents, hasMoreSpans } =
       await withObservePlanGateHandlingAsync(() =>
         fetchObserveSessionEventsAsync(graphqlClient, projectId, {
           sessionId,
@@ -144,7 +144,8 @@ export default class ObserveSession extends EasCommand {
           sessionId,
           metadata,
           hasMoreMetricEvents,
-          hasMoreLogEvents
+          hasMoreLogEvents,
+          hasMoreSpans
         )
       );
     } else {
@@ -154,6 +155,7 @@ export default class ObserveSession extends EasCommand {
           metadata,
           hasMoreMetricEvents,
           hasMoreLogEvents,
+          hasMoreSpans,
         })
       );
     }

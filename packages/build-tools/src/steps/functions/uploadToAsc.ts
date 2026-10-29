@@ -262,6 +262,45 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               }
             );
           }
+          if (isRedundantBinaryUploadError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
+              `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
+                'App Store Connect requires unique build numbers within each app version (version train). ' +
+                'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.' +
+                `\n\nApp Store Connect errors:\n${itemizeMessages(errors)}`,
+              {
+                docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+                cause: state,
+              }
+            );
+          }
+          if (isMissingBackgroundTaskIdentifiersError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_MISSING_BG_TASK_IDENTIFIERS',
+              'Build upload was rejected by App Store Connect because Info.plist is missing `BGTaskSchedulerPermittedIdentifiers` while `UIBackgroundModes` includes `processing`. ' +
+                'In an Expo project, add `BGTaskSchedulerPermittedIdentifiers` to `ios.infoPlist` in your app config and include every background task identifier the app schedules. ' +
+                'If you do not use Continuous Native Generation (CNG), add the same key to the native target Info.plist. Then rebuild and submit again.' +
+                `\n\nApp Store Connect errors:\n${itemizeMessages(errors)}`,
+              {
+                docsUrl: 'https://docs.expo.dev/versions/latest/config/app/#infoplist',
+                cause: state,
+              }
+            );
+          }
+          if (isMissingAppIconsError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_MISSING_APP_ICONS',
+              'Build upload was rejected by App Store Connect because required app icons are missing or misconfigured in one of the iOS bundles. ' +
+                'In an Expo project, check your icon config (`expo.icon`, `ios.icon`) and any custom native targets or plugins that create extra bundles, such as watch extensions. ' +
+                'Make sure the affected target has the required icon assets and Info.plist icon keys (for example `CFBundleIconName` / `CFBundleIconFiles`), then rebuild and submit again.' +
+                `\n\nApp Store Connect errors:\n${itemizeMessages(errors)}`,
+              {
+                docsUrl: 'https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/',
+                cause: state,
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -342,6 +381,21 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
 
 export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
   return messages.length > 0 && messages.every(message => message.code === '90725');
+}
+
+export function isRedundantBinaryUploadError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90189');
+}
+
+export function isMissingBackgroundTaskIdentifiersError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90771');
+}
+
+export function isMissingAppIconsError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 &&
+    messages.every(message => ['90022', '90023', '90391', '90713'].includes(message.code))
+  );
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {

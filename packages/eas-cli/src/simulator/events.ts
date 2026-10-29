@@ -1,7 +1,6 @@
-import { stripVTControlCharacters } from 'util';
-
 import { type DeviceRunSessionEvent, parseDeviceRunSessionEvents } from '@expo/eas-build-job';
 
+import { stripTerminalControlCharacters } from './utils';
 import fetch, { RequestError } from '../fetch';
 import { formatMilliseconds } from '../utils/timer';
 
@@ -108,13 +107,4 @@ function getScreenshotFilename(event: DeviceRunSessionEvent): string | undefined
     return undefined;
   }
   return event.data.path.split(/[\\/]/).at(-1);
-}
-
-function stripTerminalControlCharacters(value: string): string {
-  return [...stripVTControlCharacters(value)]
-    .filter(character => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint >= 0x20 && !(codePoint >= 0x7f && codePoint <= 0x9f);
-    })
-    .join('');
 }

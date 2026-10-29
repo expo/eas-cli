@@ -4,6 +4,7 @@ import path from 'path';
 
 import { BuildContext } from '../context';
 import { Sentry } from '../sentry';
+import { NpmCacheRegistryInstallError, isNpmCacheInstallFailure } from '../utils/npmCacheRegistry';
 import { PackageManager, findPackagerRootDir } from '../utils/packageManager';
 import { isUsingModernYarnVersion } from '../utils/project';
 
@@ -196,10 +197,6 @@ export function resolvePackagerDir(ctx: BuildContext<Job>): string {
   return packagerRunDir;
 }
 
-function isNpmCacheInstallFailure(err: unknown, npmCacheUrl: string): boolean {
-  return getErrorOutput(err).includes(npmCacheUrl);
-}
-
 function isNpmCacheRegistryErrorLine(line: string, npmCacheUrl: string): boolean {
   return (
     line.includes(npmCacheUrl) &&
@@ -207,24 +204,9 @@ function isNpmCacheRegistryErrorLine(line: string, npmCacheUrl: string): boolean
   );
 }
 
-function getErrorOutput(err: unknown): string {
-  if (!(err instanceof Error)) {
-    return '';
-  }
-  const { stdout, stderr } = err as Error & { stdout?: string; stderr?: string };
-  return [stdout, stderr].filter(Boolean).join('\n');
-}
-
 class NpmCacheRegistryNonFatalError extends SystemError {
   override name = 'NpmCacheRegistryNonFatalError';
   constructor() {
     super('Non-fatal npm cache registry error during dependency install');
-  }
-}
-
-class NpmCacheRegistryInstallError extends SystemError {
-  override name = 'NpmCacheRegistryInstallError';
-  constructor(cause: unknown) {
-    super('Failed to install dependencies using npm cache registry', { cause });
   }
 }

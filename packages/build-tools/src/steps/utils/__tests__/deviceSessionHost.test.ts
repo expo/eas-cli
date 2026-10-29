@@ -25,6 +25,7 @@ import {
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from '../deviceRunSessionScreenRecordings';
 import {
+  captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
@@ -70,6 +71,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 jest.mock('../deviceRunSessionPreview', () => ({
   ...jest.requireActual('../deviceRunSessionPreview'),
   ensureMacosPreviewEncoderInstalledAsync: jest.fn(),
+  captureDeviceRunSessionPreviewAsync: jest.fn(),
   startDeviceRunSessionPreview: jest.fn(),
 }));
 jest.mock('../deviceRunSessionScreenRecordings', () => ({
@@ -192,6 +194,91 @@ afterEach(async () => {
       rm(entry, { recursive: true, force: true })
     )
   );
+});
+
+it.each([undefined, '', 'invalid serial', 'all', 'booted'])(
+  'starts Hub without adding a device restriction for %j',
+  async previewDeviceId => {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      previewDeviceId,
+    });
+    try {
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].args).not.toContain('--single-device');
+    } finally {
+      await host.finishAsync();
+    }
+  }
+);
+
+it('uses the supplied Android serial for Hub and thumbnails without selecting another device', async () => {
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: 'no-device-id' }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    previewDeviceId: 'emulator-5556',
+  });
+  try {
+    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    expect(
+      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+    ).toEqual(['--single-device', 'emulator-5556']);
+    await new Promise(resolve => setImmediate(resolve));
+    await jest
+      .mocked(startDeviceRunSessionPreview)
+      .mock.calls[0][0].captureAsync(new AbortController().signal);
+    expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ device: 'emulator-5556' })
+    );
+  } finally {
+    await host.finishAsync();
+  }
+});
+
+it('pins an already-booted iOS preview without taking over boot or setup', async () => {
+  const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: udid }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    previewDeviceId: udid,
+  });
+  try {
+    const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    expect(
+      args.slice(args.indexOf('--single-device'), args.indexOf('--single-device') + 2)
+    ).toEqual(['--single-device', udid]);
+    expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
+    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+  } finally {
+    await host.finishAsync();
+  }
+});
+
+it('rejects readiness on a different Simulator from the selected preview target', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      previewDeviceId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
+    })
+  ).rejects.toThrow('but this session requested AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA');
+  expect(stopServer).toHaveBeenCalled();
 });
 
 it('targets the selected Simulator in the serve-sim invocation', () => {

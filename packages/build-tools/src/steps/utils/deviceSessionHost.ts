@@ -56,6 +56,8 @@ import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulat
 import { createStartupTasks } from './startupTasks';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
+const IOS_SIMULATOR_UDID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const ANDROID_DEVICE_SERIAL = /^(?!all$|booted$)[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
 const SERVE_SIM_MAX_DIMENSION = '1600';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
@@ -158,6 +160,9 @@ export function createServeSimArgs({
   return [
     createServeSimPackageSpec(packageVersion),
     ...(iosSimulatorUdid ? [iosSimulatorUdid] : []),
+    ...(iosSimulatorUdid && IOS_SIMULATOR_UDID.test(iosSimulatorUdid)
+      ? ['--single-device', iosSimulatorUdid]
+      : []),
     '--port',
     String(port),
     '--host',
@@ -199,6 +204,7 @@ export function createServeSimArgs({
 
 export function createExpoDeviceHubArgs({
   port,
+  device,
   turnArgs = [],
   websiteArgs = [],
   frameAncestorArgs: frameArgs = [],
@@ -207,6 +213,7 @@ export function createExpoDeviceHubArgs({
   recordingDirectory,
 }: {
   port: number;
+  device?: string;
   turnArgs?: string[];
   websiteArgs?: string[];
   frameAncestorArgs?: string[];
@@ -216,6 +223,7 @@ export function createExpoDeviceHubArgs({
 }): string[] {
   return [
     createExpoDeviceHubPackageSpec(packageVersion),
+    ...(device && ANDROID_DEVICE_SERIAL.test(device) ? ['--single-device', device] : []),
     '--port',
     String(port),
     '--host',
@@ -388,6 +396,8 @@ type DeviceSessionHostOptions = {
   /** Origins whose pages may call the preview host's API, in addition to the website origins. */
   corsOrigins?: string[];
   iosSimulatorUdid?: string;
+  /** Selected preview target; does not enable Simulator boot or setup. */
+  previewDeviceId?: string;
   installAppPath?: string;
   bootEnv?: Record<string, string>;
   application?: Promise<ServeSimApplicationOptions | void>;
@@ -432,6 +442,7 @@ async function startDeviceSessionHostInternalAsync(
     signal,
     packageVersion,
     iosSimulatorUdid,
+    previewDeviceId,
     installAppPath,
     application,
     onStartupError,
@@ -480,6 +491,10 @@ async function startDeviceSessionHostInternalAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
+  const deviceIdPattern = isAndroid ? ANDROID_DEVICE_SERIAL : IOS_SIMULATOR_UDID;
+  const validPreviewDevice =
+    previewDeviceId && deviceIdPattern.test(previewDeviceId) ? previewDeviceId : undefined;
+  const previewDevice = isAndroid ? validPreviewDevice : (iosSimulatorUdid ?? validPreviewDevice);
   const recording: AndroidSessionRecording | null = isAndroid
     ? {
         deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
@@ -507,6 +522,7 @@ async function startDeviceSessionHostInternalAsync(
     isAndroid
       ? createExpoDeviceHubArgs({
           port,
+          device: previewDevice,
           turnArgs,
           packageVersion,
           recordingDirectory: recording?.directory,
@@ -518,7 +534,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           turnArgs,
           packageVersion,
-          iosSimulatorUdid,
+          iosSimulatorUdid: previewDevice,
           websiteArgs: websiteOriginArgs(env),
           frameAncestorArgs: frameAncestorArgs(frameAncestors),
           corsOriginArgs: corsOriginArgs(corsOrigins),
@@ -763,9 +779,9 @@ async function startDeviceSessionHostInternalAsync(
     }
     logger.info(`Waiting for ${serverName} to become ready.`);
     const device = (await readiness).enforceValue();
-    if (iosSimulatorUdid && device.toLowerCase() !== iosSimulatorUdid.toLowerCase()) {
+    if (!isAndroid && previewDevice && device.toLowerCase() !== previewDevice.toLowerCase()) {
       throw new SystemError(
-        `serve-sim became ready on ${device}, but this session requested ${iosSimulatorUdid}.`
+        `serve-sim became ready on ${device}, but this session requested ${previewDevice}.`
       );
     }
     hostReady = true;
@@ -808,7 +824,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               runtimePlatform,
-              device,
+              device: previewDevice ?? device,
               env,
               signal,
             }),
