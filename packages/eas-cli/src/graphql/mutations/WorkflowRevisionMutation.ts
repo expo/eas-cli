@@ -8,6 +8,7 @@ import {
   GetOrCreateWorkflowRevisionFromGitRefMutationVariables,
   ValidateWorkflowYamlConfigMutation,
   ValidateWorkflowYamlConfigMutationVariables,
+  WorkflowReferencedFileInput,
   WorkflowRevision,
 } from '../generated';
 
@@ -72,24 +73,35 @@ export namespace WorkflowRevisionMutation {
     {
       appId,
       yamlConfig,
+      referencedFiles,
     }: {
       appId: string;
       yamlConfig: string;
+      referencedFiles?: WorkflowReferencedFileInput[];
     }
   ): Promise<void> {
     await withErrorHandlingAsync(
       graphqlClient
         .mutation<ValidateWorkflowYamlConfigMutation, ValidateWorkflowYamlConfigMutationVariables>(
           gql`
-            mutation ValidateWorkflowYamlConfig($appId: ID!, $yamlConfig: String!) {
+            mutation ValidateWorkflowYamlConfig(
+              $appId: ID!
+              $yamlConfig: String!
+              $referencedFiles: [WorkflowReferencedFileInput!]
+            ) {
               workflowRevision {
-                validateWorkflowYamlConfig(appId: $appId, yamlConfig: $yamlConfig)
+                validateWorkflowYamlConfig(
+                  appId: $appId
+                  yamlConfig: $yamlConfig
+                  referencedFiles: $referencedFiles
+                )
               }
             }
           `,
           {
             appId,
             yamlConfig,
+            referencedFiles,
           }
         )
         .toPromise()
