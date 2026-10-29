@@ -184,7 +184,10 @@ function createStepsForIosSimulatorBuild({
     runFastlane,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ).createBuildStepFromFunctionCall(globalCtx, {
+      id: 'find_and_upload_build_artifacts',
+      workingDirectory,
+    }),
     createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
       globalCtx,
       {
@@ -315,7 +318,10 @@ function createStepsForIosBuildWithCredentials({
     runFastlane,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ).createBuildStepFromFunctionCall(globalCtx, {
+      id: 'find_and_upload_build_artifacts',
+      workingDirectory,
+    }),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
@@ -425,7 +431,10 @@ function createStepsForAndroidBuildWithoutCredentials({
     runGradle,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ).createBuildStepFromFunctionCall(globalCtx, {
+      id: 'find_and_upload_build_artifacts',
+      workingDirectory,
+    }),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
@@ -541,7 +550,10 @@ function createStepsForAndroidBuildWithCredentials({
       : []),
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
+    ).createBuildStepFromFunctionCall(globalCtx, {
+      id: 'find_and_upload_build_artifacts',
+      workingDirectory,
+    }),
     ...(shouldUploadEmbeddedBundle({
       env: globalCtx.env,
       metadata: globalCtx.staticContext.metadata,
