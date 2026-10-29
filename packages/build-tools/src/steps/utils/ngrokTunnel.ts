@@ -290,6 +290,7 @@ export async function startNgrokTunnelAsync({
               currentListener = undefined;
             }
             await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
+            await retireListenersAsync(stopSignal);
           }
         );
       })()),

@@ -195,6 +195,33 @@ it('closes a listener that finishes opening after shutdown, with idempotent clea
   expect(ngrok.forward).toHaveBeenCalledTimes(2);
 });
 
+it('waits for a replacement acquired during shutdown to finish closing', async () => {
+  failPublicProbes();
+  let resolveOpening!: (value: ngrok.Listener) => void;
+  let resolveClose!: () => void;
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockResolvedValueOnce(initial as never)
+    .mockReturnValueOnce(new Promise(resolve => (resolveOpening = resolve)));
+  replacement.close.mockReturnValue(new Promise<void>(resolve => (resolveClose = resolve)));
+  const tunnel = await startNgrokTunnelAsync(options);
+  await jest.advanceTimersByTimeAsync(45_000);
+  let stopped = false;
+  const stopping = tunnel.stopAsync().then(() => {
+    stopped = true;
+  });
+  await jest.advanceTimersByTimeAsync(0);
+  resolveOpening(replacement as never);
+  await jest.advanceTimersByTimeAsync(0);
+  const stoppedBeforeClose = stopped;
+  resolveClose();
+  await jest.advanceTimersByTimeAsync(250);
+  await stopping;
+  expect(stoppedBeforeClose).toBe(false);
+  expect(replacement.close).toHaveBeenCalledTimes(1);
+});
+
 it.each([0, 4, 5, 10])('retires a reopen cancelled after %s promise turns', async turns => {
   failPublicProbes();
   let resolveOpening!: (value: ngrok.Listener) => void;
