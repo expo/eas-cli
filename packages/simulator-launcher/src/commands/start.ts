@@ -252,7 +252,7 @@ export function createWarmSimulatorSession({
   const warmTools = [createAgentDeviceTool(), createArgentTool(onPreparationFailure)];
   const startedTools = new Map<WarmTool, StartedTool>();
   const ownedDevices = new Set<string>();
-  // Each device's apsd step; claim and stop join them.
+  // Each device's apsd step; only the terminal stop joins them.
   const simulatorSetups = new Map<string, Promise<void>>();
   let preparation: Promise<WarmSessionInfo> | undefined;
   let server: ChildProcessHandle | undefined;
@@ -268,7 +268,7 @@ export function createWarmSimulatorSession({
 
   /**
    * Sets up each device once `ready` settles and the device booted: disable apsd and preinstall
-   * Expo Go in parallel. Claim waits for its device's apsd step; stop joins them all.
+   * Expo Go in parallel. Claim does not wait for this; stop joins it.
    */
   async function startSimulatorsSetupAsync(
     udids: string[],
@@ -402,7 +402,8 @@ export function createWarmSimulatorSession({
       }
       request = input;
       // Latch every installation before any asynchronous selection, so no new one starts.
-      // Installs already running continue; stop joins them.
+      // Installs already running continue. Adoption may shut down an unused device during its
+      // install, which then fails with a warning; stop joins them all.
       const preinstalls = new Map(
         warmDevices.map(device => {
           const result = expoGo?.claimAsync(device.udid) ?? Promise.resolve(undefined);
