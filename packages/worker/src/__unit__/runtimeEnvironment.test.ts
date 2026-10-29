@@ -359,6 +359,56 @@ describe('prepareRuntimeEnvironment', () => {
       );
     });
   });
+
+  describe('installPnpm', () => {
+    const pnpmCtx = { ...ctx, metadata: { requiredPackageManager: 'pnpm' } };
+
+    function mockPnpmReinstallFailure(stderr: string): void {
+      let hasProbedPreinstalledPnpm = false;
+      jest.mocked(spawn).mockImplementation((cmd, args) => {
+        if (cmd === 'pnpm' && args[0] === '--version') {
+          if (!hasProbedPreinstalledPnpm) {
+            hasProbedPreinstalledPnpm = true;
+            return Promise.resolve(spawnResult);
+          }
+          return Promise.reject(
+            Object.assign(new Error('pnpm --version exited with non-zero code: 1'), {
+              stdout: '',
+              stderr,
+            })
+          );
+        }
+        return Promise.resolve(spawnResult);
+      });
+    }
+
+    it('throws the pnpm Node.js version error instead of the generic install error when the reinstalled pnpm cannot run on the build Node.js', async () => {
+      mockPnpmReinstallFailure(
+        [
+          'warn: This version of pnpm requires at least Node.js v22.13',
+          'warn: The current version of Node.js is v20.18.0',
+          'Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite',
+        ].join('\n')
+      );
+
+      await expect(
+        prepareRuntimeEnvironment(pnpmCtx, { pnpm: '11.27.0' }, false)
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_BUILD_PNPM_UNSUPPORTED_NODE_VERSION_ERROR',
+        message: expect.stringContaining(
+          'requires Node.js 22.13.0 or newer, but runs Node.js 20.18.0'
+        ),
+      });
+    });
+
+    it('reports a pnpm install failure without the Node.js banner as a generic install error', async () => {
+      mockPnpmReinstallFailure('pnpm: command not found');
+
+      await expect(
+        prepareRuntimeEnvironment(pnpmCtx, { pnpm: '11.27.0' }, false)
+      ).rejects.toMatchObject({ errorCode: 'EAS_BUILD_SYSTEM_DEPS_INSTALL_ERROR' });
+    });
+  });
 });
 
 function mockProcessPlatform(platform: NodeJS.Platform): void {

@@ -34,6 +34,7 @@ export { formatSecondsForLog } from './utils/formatDuration';
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
+export { detectPnpmUnsupportedNodeVersionError } from './buildErrors/pnpmUnsupportedNodeVersionError';
 
 export { parseGradleProfile, formatGradleProfileReport } from './android/gradleProfile';
 export type { GradleProfileTask } from './android/gradleProfile';
