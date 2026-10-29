@@ -21,6 +21,8 @@ import {
 } from '../../utils/remoteDeviceRunSession';
 import { createProcessOutput } from '../../utils/processOutput';
 import { type StartupTasks, createStartupTasks } from '../../utils/startupTasks';
+import { createWarmDeviceSessionServer } from '../../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../../utils/warmIosSession';
 import { runAgentDeviceRemoteSessionAsync } from '../startAgentDeviceRemoteSession';
 
 // The daemon entry path and the state directory are resolved from the home directory when
@@ -42,6 +44,7 @@ jest.mock('../../utils/agentDeviceEvents', () => ({
   startAgentDeviceEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/warmDeviceSessionHost');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   getDeviceRunSessionIdOrThrow: jest.fn(),
@@ -193,6 +196,46 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
     expect(mockEventCollectionStopAsync).toHaveBeenCalledTimes(1);
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the warm daemon after adoption and starts no daemon of its own', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const warmServer = { port: 3200 } as never;
+    jest.mocked(createWarmDeviceSessionServer).mockReturnValue(warmServer);
+    const warm = {
+      agentDeviceStateDir: '/warm/agent',
+      tools: { pid: 20, port: 4310, token: 'warm-token' },
+    } as WarmIosSession;
+    await runAgentDeviceRemoteSessionAsync(ctx, {
+      env: {},
+      logger: logger as never,
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      sessionEnv: {
+        deviceRunSessionId: 'device-run-session-id',
+        ngrokTunnelDomain: 'tunnel.example.com',
+        ngrokAuthtoken: 'ngrok-token',
+      },
+      packageVersion: undefined,
+      maxIdleTimeMinutes: undefined,
+      maxDurationSeconds: undefined,
+      capture: NO_CAPTURE,
+      tasks: createStartupTasks(logger as never),
+      warm,
+      device: { iosSimulatorUdid: 'UDID', application: Promise.resolve() },
+    });
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, expect.anything(), warmServer);
+    expect(startNgrokTunnelAsync).toHaveBeenCalledWith(expect.objectContaining({ port: 4310 }));
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({ agentDeviceRemoteSessionToken: 'warm-token' }),
+      })
+    );
+    expect(startAgentDeviceEventCollectionAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ stateDir: '/warm/agent' })
+    );
+    expect(mockEventCollectionStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 
   it('redacts learned daemon credentials in arbitrary output and retained diagnostics', async () => {

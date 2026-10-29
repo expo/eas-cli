@@ -24,6 +24,11 @@ import {
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
+import {
+  createWarmDeviceSessionServer,
+  runOnWarmIosSimulatorAsync,
+} from '../../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../../utils/warmIosSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 
@@ -50,6 +55,7 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/warmDeviceSessionHost');
 jest.mock('../../utils/iosAppArtifact', () => ({
   ...jest.requireActual('../../utils/iosAppArtifact'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
@@ -603,6 +609,72 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       expect(logger.info).toHaveBeenCalledWith({ source: 'stderr' }, `${label} [REDACTED]`);
     }
     expect(JSON.stringify(logger.info.mock.calls)).not.toContain('secret');
+  });
+
+  it('uses the warm Argent server and drains its artifacts before stopping the host', async () => {
+    const ctx = {} as unknown as CustomBuildContext;
+    const warmServer = { port: 3200 } as never;
+    const warm = {
+      device: { udid: 'WARM-UDID', name: 'iPhone 17' },
+      argentEventLogPath: '/warm/argent-events',
+      tools: { pid: 30, port: 3201, token: 'warm-token' },
+    } as WarmIosSession;
+    jest.mocked(createWarmDeviceSessionServer).mockReturnValue(warmServer);
+    jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation((_claim, run) => run(warm));
+    let releaseArtifacts = () => {};
+    const artifactsDrained = new Promise<void>(resolve => {
+      releaseArtifacts = resolve;
+    });
+    let pollingStarted = () => {};
+    const polling = new Promise<void>(resolve => {
+      pollingStarted = resolve;
+    });
+    jest.mocked(pollArgentArtifactsForUploadAsync).mockImplementationOnce(async () => {
+      pollingStarted();
+      await artifactsDrained;
+    });
+    const buildFunction = createStartArgentRemoteSessionBuildFunction(ctx, { warm: true });
+    expect(buildFunction.id).toBe('start_warm_argent_remote_session');
+    if (!buildFunction.fn) {
+      throw new Error('Expected the Argent session function.');
+    }
+    const running = buildFunction.fn(
+      {
+        logger: { info: jest.fn(), warn: jest.fn() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as unknown as BuildStepContext,
+      {
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+          max_duration_seconds: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    try {
+      await polling;
+      await new Promise<void>(resolve => setImmediate(resolve));
+      expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+      expect(mockPreviewStopAsync).not.toHaveBeenCalled();
+    } finally {
+      releaseArtifacts();
+      await running;
+    }
+    expect(spawn).not.toHaveBeenCalled();
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(ctx, expect.anything(), warmServer);
+    expect(startNgrokTunnelAsync).toHaveBeenCalledWith(expect.objectContaining({ port: 3201 }));
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({ toolsAuthToken: 'warm-token' }),
+      })
+    );
+    expect(startArgentEventCollectionAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ eventLogPath: '/warm/argent-events' })
+    );
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
   });
 
   it('hands the launch inputs to serve-sim and announces them on an iOS session', async () => {

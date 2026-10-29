@@ -4,18 +4,23 @@ import spawn from '@expo/turtle-spawn';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { fetchWebPreviewTurnArgsAsync } from '../remoteDeviceRunSession';
-import { WarmSessionAdoptionError, createWarmDeviceSessionServer } from '../warmDeviceSessionHost';
-import { type WarmIosSession } from '../warmIosSession';
+import {
+  WarmSessionAdoptionError,
+  createWarmDeviceSessionServer,
+  runOnWarmIosSimulatorAsync,
+} from '../warmDeviceSessionHost';
+import { type WarmIosSession, tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('../IosSimulatorRecordingUtils');
+jest.mock('../warmIosSession');
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
   fetchWebPreviewTurnArgsAsync: jest.fn(),
 }));
 
 const ctx = {} as CustomBuildContext;
-const logger = {} as bunyan;
+const logger = { warn: jest.fn() } as unknown as bunyan;
 let warm: WarmIosSession;
 
 function launch(signal?: AbortSignal) {
@@ -111,4 +116,49 @@ it('reports a cancellation as a cancellation', async () => {
   await expect(
     createWarmDeviceSessionServer(ctx, logger, warm).startAsync(launch(controller.signal))
   ).rejects.toThrow('cancelled');
+});
+
+describe(runOnWarmIosSimulatorAsync, () => {
+  const claim = { engine: 'serve-sim' as const, env: {}, logger };
+
+  it('runs cold when there is no warm Simulator to claim', async () => {
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(undefined);
+    const run = jest.fn().mockResolvedValue('cold');
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('cold');
+    expect(run).toHaveBeenCalledWith(undefined);
+  });
+
+  it('runs on the claimed warm Simulator', async () => {
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+    const run = jest.fn().mockResolvedValue('warm');
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('warm');
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith(warm);
+  });
+
+  it('stops warmup and runs cold after an adoption failure', async () => {
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+    const run = jest
+      .fn()
+      .mockRejectedValueOnce(new WarmSessionAdoptionError())
+      .mockResolvedValueOnce('cold');
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('cold');
+    expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('does not run cold after a failure during the session', async () => {
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+    const run = jest.fn().mockRejectedValue(new Error('session failed'));
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toThrow('session failed');
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not run cold when warmup cleanup fails', async () => {
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+    jest.mocked(warm.process.stopAsync).mockRejectedValue(new Error('cleanup failed'));
+    const run = jest.fn().mockRejectedValue(new WarmSessionAdoptionError());
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toThrow('cleanup failed');
+    expect(run).toHaveBeenCalledTimes(1);
+  });
 });
