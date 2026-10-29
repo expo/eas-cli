@@ -62,7 +62,7 @@ export function startTool(
 /** Rejects once `signal` aborts, so a stop never waits for `promise` to settle on its own. */
 export async function untilAbortedAsync<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
-  let abort!: () => void;
+  let abort: (() => void) | undefined;
   const aborted = new Promise<never>((_resolve, reject) => {
     abort = () => reject(signal.reason);
     signal.addEventListener('abort', abort, { once: true });
@@ -70,6 +70,8 @@ export async function untilAbortedAsync<T>(promise: Promise<T>, signal: AbortSig
   try {
     return await Promise.race([promise, aborted]);
   } finally {
-    signal.removeEventListener('abort', abort);
+    if (abort) {
+      signal.removeEventListener('abort', abort);
+    }
   }
 }
