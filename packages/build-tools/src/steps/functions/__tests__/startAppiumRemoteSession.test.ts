@@ -323,6 +323,80 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it.each([
+    [BuildRuntimePlatform.LINUX, false],
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.DARWIN, true],
+  ])(
+    'handles Stop during the readiness retry sleep on %s with startup=%s',
+    async (runtimePlatform, bootSimulator) => {
+      stopAppium.mockResolvedValue(undefined);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+      jest.mocked(turtleFetch).mockResolvedValue({ ok: false } as never);
+      jest.mocked(timersPromises.setTimeout).mockImplementationOnce((async (ms, value, options) => {
+        jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+        return jest.requireActual('node:timers/promises').setTimeout(ms, value, options);
+      }) as typeof timersPromises.setTimeout);
+      await expect(
+        runSessionAsync(
+          logger,
+          undefined,
+          runtimePlatform,
+          bootSimulator
+            ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-device' } }
+            : {}
+        )
+      ).resolves.toBeUndefined();
+      expect(stopAppium).toHaveBeenCalledTimes(1);
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not open the preview after Stop while the Appium tunnel is opening', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    let tunnelEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      tunnelEntered = resolve;
+    });
+    let finishTunnel!: () => void;
+    const pendingTunnel = new Promise<void>(resolve => {
+      finishTunnel = resolve;
+    });
+    const stopTunnel = jest.fn();
+    jest.mocked(startNgrokTunnelAsync).mockImplementationOnce(async () => {
+      tunnelEntered();
+      await pendingTunnel;
+      return { url: 'https://appium.example.com', subdomainId: 'appium', stopAsync: stopTunnel };
+    });
+    const openPreviewAsync = jest.fn();
+    const finishHost = jest.fn();
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync,
+      finishAsync: finishHost,
+      getLastPreviewActivityAt: jest.fn(),
+    });
+    const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+      boot_simulator: { value: true },
+      device_identifier: { value: 'chosen-device' },
+    });
+    running.catch(() => {});
+    try {
+      await entered;
+      jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    } finally {
+      finishTunnel();
+    }
+    await expect(running).resolves.toBeUndefined();
+    expect(openPreviewAsync).not.toHaveBeenCalled();
+    expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(finishHost).toHaveBeenCalledTimes(1);
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])(
     'preserves preview settings with Simulator startup %s',
     async bootSimulator => {

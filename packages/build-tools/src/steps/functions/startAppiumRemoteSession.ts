@@ -278,6 +278,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+        startup.signal.throwIfAborted();
         const webPreview = await sessionHost.openPreviewAsync({
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
@@ -544,7 +545,12 @@ async function waitForAppiumReadyAsync({
       }
     } catch {}
     signal.throwIfAborted();
-    await setTimeoutAsync(1_000, undefined, { signal });
+    try {
+      await setTimeoutAsync(1_000, undefined, { signal });
+    } catch (error) {
+      signal.throwIfAborted();
+      throw error;
+    }
   }
   const output = appiumProcess.getOutput();
   throw new SystemError(
