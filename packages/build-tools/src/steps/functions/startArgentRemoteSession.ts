@@ -12,7 +12,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
-import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -21,6 +20,7 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { validateControllerVersion } from '../utils/controllerVersion';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
@@ -129,7 +129,12 @@ export function createStartArgentRemoteSessionBuildFunction(
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
+      validateControllerVersion({
+        packageName: ARGENT_PACKAGE_NAME,
+        minimumVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
+        packageVersion,
+        logger,
+      });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
@@ -194,6 +199,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
           corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
           timeoutMs: STARTUP_TIMEOUT_MS,
+          preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
           signal: startupSignal,
           onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
           ...launch,
@@ -350,10 +356,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
-        const webPreview = await sessionHost.openPreviewAsync({
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-        });
+        const webPreview = await sessionHost.openPreviewAsync();
         logger.info(
           webPreview.sharePageUrl
             ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
@@ -460,36 +463,6 @@ export async function stopArgentEventCollectionSafelyAsync({
       extras: { deviceRunSessionId },
     });
     logger.warn({ err: error }, 'Could not finish argent session event collection.');
-  }
-}
-
-export function warnIfArgentPackageVersionCannotBeVerified({
-  packageVersion,
-  logger,
-}: {
-  packageVersion: string | undefined;
-  logger: bunyan;
-}): void {
-  if (!packageVersion || packageVersion === 'latest') {
-    return;
-  }
-
-  const validVersion = semver.valid(packageVersion);
-  if (!validVersion) {
-    logger.warn(
-      `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer, ` +
-        `but package_version "${packageVersion}" is not an exact semver version that EAS can verify. ` +
-        `Continuing and letting the package manager resolve it.`
-    );
-    return;
-  }
-
-  if (semver.lt(validVersion, MIN_ARGENT_REMOTE_SESSION_VERSION)) {
-    throw new SystemError(
-      `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer. ` +
-        `The requested package_version "${packageVersion}" is too old for the EAS remote-session API. ` +
-        `Use "latest" or pass an exact version >= ${MIN_ARGENT_REMOTE_SESSION_VERSION}.`
-    );
   }
 }
 

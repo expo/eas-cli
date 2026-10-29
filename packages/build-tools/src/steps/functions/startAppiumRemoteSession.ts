@@ -163,6 +163,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+          preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
           disableShare: inputs.public_preview?.value === false,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
           frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
@@ -283,10 +284,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
-        const webPreview = await sessionHost.openPreviewAsync({
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-        });
+        const webPreview = await sessionHost.openPreviewAsync();
 
         const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,

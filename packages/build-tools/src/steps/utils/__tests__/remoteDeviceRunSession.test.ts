@@ -1089,7 +1089,13 @@ describe(startDeviceSessionHostAsync, () => {
   beforeEach(() => {
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
     jest.mocked(spawn).mockReset();
-    jest.mocked(ngrok.forward).mockReset();
+    jest
+      .mocked(ngrok.forward)
+      .mockReset()
+      .mockResolvedValue({
+        url: () => 'https://preview.example.test',
+        close: jest.fn().mockResolvedValue(undefined),
+      } as never);
     jest.mocked(turtleFetch).mockReset();
     jest
       .mocked(readServeSimServersAsync)
@@ -1152,6 +1158,7 @@ describe(startDeviceSessionHostAsync, () => {
   it('gives serve-sim its recording grace period on shutdown', async () => {
     const spawnDetachedSpy = jest.spyOn(remoteDeviceRunSession, 'spawnDetached');
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1169,6 +1176,7 @@ describe(startDeviceSessionHostAsync, () => {
     'passes private sharing flags directly to serve-sim version %s',
     async packageVersion => {
       const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env,
         logger: createLoggerMock(),
@@ -1197,6 +1205,7 @@ describe(startDeviceSessionHostAsync, () => {
     const privatePreviewUrl =
       'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1204,7 +1213,7 @@ describe(startDeviceSessionHostAsync, () => {
       disableShare: true,
       privatePreviewUrl,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const serveSimArgs = jest
       .mocked(spawn)
@@ -1224,13 +1233,14 @@ describe(startDeviceSessionHostAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       disableShare: true,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const serveSimArgs = jest
       .mocked(spawn)
@@ -1257,13 +1267,14 @@ describe(startDeviceSessionHostAsync, () => {
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
     expect(spawnCalls[0]).toEqual([
@@ -1317,12 +1328,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
@@ -1352,12 +1364,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: { ...env, EXPO_STAGING: '1' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewPageUrl).toMatch(
       /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
@@ -1377,6 +1390,7 @@ describe(startDeviceSessionHostAsync, () => {
 
     await expect(
       startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env,
         logger: createLoggerMock(),
@@ -1394,12 +1408,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewToken).toBe('hub-token');
     const [, args] = jest.mocked(spawn).mock.calls.find(([command]) => command === 'npx')!;
@@ -1416,13 +1431,14 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1455,13 +1471,14 @@ describe(startDeviceSessionHostAsync, () => {
 
     const bunEnv = { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' };
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: bunEnv,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion: '4.5.6',
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1490,12 +1507,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1521,6 +1539,7 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1547,6 +1566,7 @@ describe(startDeviceSessionHostAsync, () => {
   it('refuses to launch an application on Linux, where expo-device-hub cannot', async () => {
     await expect(
       startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.LINUX,
         env,
         logger: createLoggerMock(),
