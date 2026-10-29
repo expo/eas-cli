@@ -308,35 +308,41 @@ export async function runAgentDeviceRemoteSessionAsync(
     // everything that was started.
     await Promise.allSettled([agentDeviceStartup, sessionHostStartup, deviceReady]);
     const startedDaemon = daemonProcess;
+    const toolTeardown = (async () => {
+      try {
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+      } finally {
+        try {
+          // The final inventory reads from the daemon, so it finishes before the daemon stops.
+          stopArtifactPolling.abort();
+          await artifactUploads;
+        } finally {
+          await startedDaemon?.stopAsync();
+        }
+      }
+    })();
     await finishRemoteSessionAsync({
       logger,
       sessionFailed,
       teardown: [
         ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        ['agent-device daemon', toolTeardown],
         [
-          'agent-device daemon',
-          (startedDaemon || eventCollection) &&
-            (async () => {
-              try {
-                if (eventCollection) {
-                  await stopAgentDeviceEventCollectionSafelyAsync({
-                    eventCollection,
-                    deviceRunSessionId,
-                    logger,
-                  });
-                }
-              } finally {
-                try {
-                  // The final inventory reads from the daemon, so it finishes before the daemon stops.
-                  stopArtifactPolling.abort();
-                  await artifactUploads;
-                } finally {
-                  await startedDaemon?.stopAsync();
-                }
-              }
-            })(),
+          'session host',
+          (async () => {
+            if (warm) {
+              // The warm host owns the daemon too; keep it alive through the final downloads.
+              await Promise.allSettled([toolTeardown]);
+            }
+            await sessionHost?.finishAsync();
+          })(),
         ],
-        ['session host', sessionHost?.finishAsync()],
       ],
     });
   }
