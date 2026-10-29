@@ -1974,7 +1974,7 @@
           },
           {
             "name": "environmentVariableProtectionEnabled",
-            "description": "Whether the account turned on environment variable protection. When protection is on,\nreading, using, creating, changing, or deleting an environment variable whose environments are\nexclusively production needs the PUBLISH_PROTECTED permission, whatever its visibility, in\nevery project of the account. Expo can also turn protection on for an account; this field\ndoes not show that.",
+            "description": "Whether the account turned on environment variable protection. When protection is on,\nreading, using, creating, changing, or deleting an environment variable whose environments are\nexclusively production needs the PUBLISH_PROTECTED permission, whatever its visibility, in\nevery project of the account.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -102101,6 +102101,18 @@
             "deprecationReason": null
           },
           {
+            "name": "blockingWorkflowRun",
+            "description": "The run currently holding the concurrency group this run is waiting for.\nNull for runs that are not waiting, and briefly null while the group's\nnext run is being promoted.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowRun",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "cancelReason",
             "description": "Why the server canceled this run. Null for manually canceled runs and for\nruns canceled before the reason was recorded.",
             "args": [],
@@ -102516,6 +102528,16 @@
           },
           {
             "kind": "OBJECT",
+            "name": "WorkflowRunCancelReasonConcurrencyGroupQueueFull",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "WorkflowRunCancelReasonConcurrencyGroupReplaced",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
             "name": "WorkflowRunCancelReasonWorkflowCall",
             "ofType": null
           }
@@ -102529,6 +102551,56 @@
           {
             "name": "cancelingWorkflowRun",
             "description": "The newer run in the same concurrency group whose creation canceled this run.\nNull if that run no longer exists.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowRun",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "WorkflowRunCancelReasonConcurrencyGroupQueueFull",
+        "description": null,
+        "fields": [
+          {
+            "name": "maximumWaitingRuns",
+            "description": "The waiting-run capacity the concurrency group's queue was at when this\nrun arrived.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "WorkflowRunCancelReasonConcurrencyGroupReplaced",
+        "description": null,
+        "fields": [
+          {
+            "name": "replacingWorkflowRun",
+            "description": "The newer run that took this run's place in the concurrency group's waiting\nslot. Null if that run no longer exists.",
             "args": [],
             "type": {
               "kind": "OBJECT",

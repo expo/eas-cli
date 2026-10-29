@@ -199,8 +199,7 @@ export type Account = {
    * Whether the account turned on environment variable protection. When protection is on,
    * reading, using, creating, changing, or deleting an environment variable whose environments are
    * exclusively production needs the PUBLISH_PROTECTED permission, whatever its visibility, in
-   * every project of the account. Expo can also turn protection on for an account; this field
-   * does not show that.
+   * every project of the account.
    */
   environmentVariableProtectionEnabled: Scalars['Boolean']['output'];
   /** Environment variables for an account */
@@ -14453,6 +14452,12 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   actor?: Maybe<Actor>;
   app: App;
   /**
+   * The run currently holding the concurrency group this run is waiting for.
+   * Null for runs that are not waiting, and briefly null while the group's
+   * next run is being promoted.
+   */
+  blockingWorkflowRun?: Maybe<WorkflowRun>;
+  /**
    * Why the server canceled this run. Null for manually canceled runs and for
    * runs canceled before the reason was recorded.
    */
@@ -14491,7 +14496,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   workflowRevision?: Maybe<WorkflowRevision>;
 };
 
-export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonWorkflowCall;
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup | WorkflowRunCancelReasonConcurrencyGroupQueueFull | WorkflowRunCancelReasonConcurrencyGroupReplaced | WorkflowRunCancelReasonWorkflowCall;
 
 export type WorkflowRunCancelReasonConcurrencyGroup = {
   __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
@@ -14500,6 +14505,24 @@ export type WorkflowRunCancelReasonConcurrencyGroup = {
    * Null if that run no longer exists.
    */
   cancelingWorkflowRun?: Maybe<WorkflowRun>;
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupQueueFull = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupQueueFull';
+  /**
+   * The waiting-run capacity the concurrency group's queue was at when this
+   * run arrived.
+   */
+  maximumWaitingRuns: Scalars['Int']['output'];
+};
+
+export type WorkflowRunCancelReasonConcurrencyGroupReplaced = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroupReplaced';
+  /**
+   * The newer run that took this run's place in the concurrency group's waiting
+   * slot. Null if that run no longer exists.
+   */
+  replacingWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunCancelReasonWorkflowCall = {
@@ -15908,6 +15931,7 @@ export type GetOrCreateWorkflowRevisionFromGitRefMutation = { __typename?: 'Root
 export type ValidateWorkflowYamlConfigMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   yamlConfig: Scalars['String']['input'];
+  referencedFiles?: InputMaybe<Array<WorkflowReferencedFileInput> | WorkflowReferencedFileInput>;
 }>;
 
 
@@ -16036,7 +16060,7 @@ export type AppByIdWorkflowRunsFilteredByStatusQueryVariables = Exact<{
 }>;
 
 
-export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type AppByIdWorkflowRunsFilteredByStatusQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, runs: { __typename?: 'AppWorkflowRunsConnection', edges: Array<{ __typename?: 'AppWorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -16910,7 +16934,7 @@ export type WorkflowRunByIdWithJobsQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+export type WorkflowRunByIdWithJobsQuery = { __typename?: 'RootQuery', workflowRuns: { __typename?: 'WorkflowRunQuery', byId: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, blockingWorkflowRun?: { __typename?: 'WorkflowRun', id: string, name: string, status: WorkflowRunStatus } | null, workflow: { __typename?: 'Workflow', id: string, name?: string | null, fileName: string, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } }, jobs: Array<{ __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, appIdentifier?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
             | { __typename: 'PartnerActor', id: string, displayName: string }
             | { __typename: 'Robot', id: string, displayName: string }
             | { __typename: 'SSOUser', id: string, displayName: string }
@@ -16930,7 +16954,7 @@ export type WorkflowRunsForAppIdFileNameAndStatusQueryVariables = Exact<{
 }>;
 
 
-export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunsForAppIdFileNameAndStatusQuery = { __typename?: 'RootQuery', workflows: { __typename?: 'WorkflowQuery', byAppIdAndFileName: { __typename?: 'Workflow', id: string, runs: { __typename?: 'WorkflowRunsConnection', edges: Array<{ __typename?: 'WorkflowRunEdge', node: { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
               | { __typename: 'PartnerActor', id: string }
               | { __typename: 'Robot', firstName?: string | null, id: string }
               | { __typename: 'SSOUser', username: string, id: string }
@@ -17124,7 +17148,7 @@ export type WorkflowJobFragment = { __typename?: 'WorkflowJob', id: string, key:
       | { __typename: 'User', id: string, displayName: string }
      | null, app: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, updateChannel?: { __typename?: 'UpdateChannel', id: string, name: string } | null, runtime?: { __typename?: 'Runtime', id: string, version: string } | null, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> };
 
-export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, actor?:
+export type WorkflowRunFragment = { __typename?: 'WorkflowRun', id: string, status: WorkflowRunStatus, gitCommitMessage?: string | null, gitCommitHash?: string | null, requestedGitRef?: string | null, triggeringLabelName?: string | null, triggerEventType: WorkflowRunTriggerEventType, triggeringSchedule?: string | null, createdAt: any, updatedAt: any, finalizedAt?: any | null, actor?:
     | { __typename: 'PartnerActor', id: string }
     | { __typename: 'Robot', firstName?: string | null, id: string }
     | { __typename: 'SSOUser', username: string, id: string }

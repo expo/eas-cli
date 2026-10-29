@@ -186,6 +186,7 @@ describe(runAgentAsync, () => {
         '--package-lock=false',
         '--no-audit',
         '--no-fund',
+        '--no-update-notifier',
         '--registry',
         'https://npm-cache.expo.test',
         '@anthropic-ai/claude-code@2.1.291',
