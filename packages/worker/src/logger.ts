@@ -7,11 +7,6 @@ import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { uuidv7 } from 'uuidv7';
 
-const defaultLogger = createLogger({
-  name: config.loggers.base.name,
-  level: LoggerLevel.INFO,
-});
-
 const MAX_LINES_IN_BUFFER = 100;
 
 interface CachedLog {
@@ -90,10 +85,7 @@ function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
       const chunk: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rest)) {
         // Secrets can be in any field, such as a serialized error's message and stack.
-        chunk[key] =
-          secretPatterns.size === 0 || UNMASKED_FIELDS.has(key)
-            ? value
-            : maskSecretsInValue(value, secretPatterns);
+        chunk[key] = UNMASKED_FIELDS.has(key) ? value : maskSecretsInValue(value, secretPatterns);
       }
       // Add logId to each log.
       chunk.logId = uuidv7();
@@ -127,7 +119,7 @@ function maskSecretsInValue(value: unknown, secrets: ReadonlySet<string>): unkno
   } catch {
     return '[Unserializable]';
   }
-  return maskSecretsInJsonValue(json, secrets, 0);
+  return secrets.size === 0 ? json : maskSecretsInJsonValue(json, secrets, 0);
 }
 
 function maskSecretsInJsonValue(
@@ -158,14 +150,37 @@ function maskSecretsInJsonValue(
   );
 }
 
-function createDiscardStream(): Writable {
+function createStdoutStream(): Writable {
   return new Writable({
     objectMode: true,
-    write(_chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+    write(chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      process.stdout.write(`${JSON.stringify(chunk)}\n`);
       callback(null);
     },
   });
 }
+
+const secretPatterns = new Set<string>();
+
+function addBuildLogMask(secret: string): void {
+  for (const pattern of [secret, maybeStringBase64Decode(secret)]) {
+    if (pattern && pattern.length > 1 && !simpleSecretsWhitelist.includes(pattern)) {
+      secretPatterns.add(pattern);
+    }
+  }
+}
+
+function createStdoutMaskingStream(): Transform {
+  const transformStream = createTransformStream(secretPatterns);
+  transformStream.pipe(createStdoutStream());
+  return transformStream;
+}
+
+const defaultLogger = createLogger({
+  name: config.loggers.base.name,
+  level: LoggerLevel.INFO,
+  streams: [{ type: 'raw', stream: createStdoutMaskingStream(), reemitErrorEvents: true }],
+});
 
 export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
@@ -174,29 +189,16 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
 }> {
-  const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
-
-  const secretPatterns = new Set<string>();
-  const addBuildLogMask = (secret: string): void => {
-    for (const pattern of [secret, maybeStringBase64Decode(secret)]) {
-      if (pattern && pattern.length > 1 && !simpleSecretsWhitelist.includes(pattern)) {
-        secretPatterns.add(pattern);
-      }
-    }
-  };
   for (const { value } of secrets?.environmentSecrets ?? []) {
     addBuildLogMask(value);
   }
 
-  const transformStream = createTransformStream(secretPatterns);
-  const discardStream = createDiscardStream();
-  transformStream.pipe(discardStream);
-
-  buildLogger.addStream({
-    type: 'raw',
-    stream: transformStream,
-    reemitErrorEvents: true,
-    level: buildLogger.level(),
+  const transformStream = createStdoutMaskingStream();
+  const buildLogger = createLogger({
+    name: config.loggers.base.name,
+    level: defaultLogger.level(),
+    phase: BuildPhase.UNKNOWN,
+    streams: [{ type: 'raw', stream: transformStream, reemitErrorEvents: true }],
   });
 
   let remoteLoggerStream: RemoteLoggerStream | null = null;
