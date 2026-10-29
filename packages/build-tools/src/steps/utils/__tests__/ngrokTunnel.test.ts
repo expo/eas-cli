@@ -256,6 +256,31 @@ it('fails stop if an in-flight reopen still has not settled by the stop deadline
   expect(replacement.close).toHaveBeenCalledTimes(1);
 });
 
+it('retries an old listener while a reopen outlasts shutdown', async () => {
+  failPublicProbes();
+  initial.close.mockRejectedValueOnce(new Error('agent disconnected'));
+  let resolveOpening!: (value: ngrok.Listener) => void;
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockResolvedValueOnce(initial as never)
+    .mockReturnValueOnce(new Promise(resolve => (resolveOpening = resolve)));
+  const tunnel = await startNgrokTunnelAsync(options);
+  await jest.advanceTimersByTimeAsync(45_000);
+  expect(initial.close).toHaveBeenCalledTimes(1);
+  const rejected = expect(tunnel.stopAsync()).rejects.toThrow(
+    'Ngrok tunnel web-preview-fixed.example.test stop timed out after 4000ms'
+  );
+  await jest.advanceTimersByTimeAsync(4_000);
+  await rejected;
+  const oldCloseCalls = initial.close.mock.calls.length;
+  resolveOpening(replacement as never);
+  await jest.advanceTimersByTimeAsync(0);
+  expect(oldCloseCalls).toBe(2);
+  expect(replacement.close).toHaveBeenCalledTimes(1);
+  expect(ngrok.forward).toHaveBeenCalledTimes(2);
+});
+
 it('fails stop if a pending reopen arrives but cannot be retired', async () => {
   failPublicProbes();
   let resolveOpening!: (value: ngrok.Listener) => void;

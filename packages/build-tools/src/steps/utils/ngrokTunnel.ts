@@ -285,12 +285,11 @@ export async function startNgrokTunnelAsync({
           { name: `Ngrok tunnel ${domain} stop`, timeoutMs: STOP_TIMEOUT_MS },
           async stopSignal => {
             await supervision;
-            await pendingOpen?.catch(() => {});
             if (currentListener) {
               retiredListeners.add(currentListener);
               currentListener = undefined;
             }
-            await retireListenersAsync(stopSignal);
+            await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
           }
         );
       })()),
