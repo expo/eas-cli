@@ -357,6 +357,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger.info(launchDescription);
         }
         sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+        startup.signal.throwIfAborted();
         const webPreview = await sessionHost.openPreviewAsync({
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,

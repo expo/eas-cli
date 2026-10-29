@@ -216,6 +216,61 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     }
   );
 
+  it('does not open the preview after Stop while the tools tunnel is opening', async () => {
+    let tunnelEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      tunnelEntered = resolve;
+    });
+    let finishTunnel!: () => void;
+    const pendingTunnel = new Promise<void>(resolve => {
+      finishTunnel = resolve;
+    });
+    jest.mocked(startNgrokTunnelAsync).mockImplementationOnce(async () => {
+      tunnelEntered();
+      await pendingTunnel;
+      return {
+        url: 'https://argent.example.com',
+        subdomainId: 'argent',
+        stopAsync: mockTunnelStopAsync,
+      };
+    });
+    const openPreviewAsync = jest.fn();
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync,
+      finishAsync: mockPreviewStopAsync,
+      getLastPreviewActivityAt: jest.fn(),
+    });
+    const running = Promise.resolve(
+      createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    );
+    running.catch(() => {});
+    try {
+      await entered;
+      jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    } finally {
+      finishTunnel();
+    }
+    await expect(running).resolves.toBeUndefined();
+    expect(openPreviewAsync).not.toHaveBeenCalled();
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+    expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('reports an early exit with output and stops Argent before opening tunnels', async () => {
     const stopError = new Error('drain timed out');
     const stopServer = jest.fn().mockRejectedValue(stopError);
