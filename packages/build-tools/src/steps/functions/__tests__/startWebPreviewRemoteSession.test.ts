@@ -122,6 +122,38 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     }
   );
 
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'preserves an earlier %s host failure when Stop arrives during cleanup',
+    async runtimePlatform => {
+      const failure = new Error('Host became ready without a session token');
+      let cleanupEntered!: () => void;
+      const entered = new Promise<void>(resolve => {
+        cleanupEntered = resolve;
+      });
+      let finishCleanup!: () => void;
+      const cleanup = new Promise<void>(resolve => {
+        finishCleanup = resolve;
+      });
+      jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(async (_ctx, options) => {
+        options.onStartupError?.(failure);
+        cleanupEntered();
+        await cleanup;
+        throw failure;
+      });
+      const running = runAsync(runtimePlatform);
+      running.catch(() => {});
+      try {
+        await entered;
+        jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+      } finally {
+        finishCleanup();
+      }
+      await expect(running).rejects.toBe(failure);
+      expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    }
+  );
+
   it('keeps a teardown failure visible after Stop during preview setup', async () => {
     let previewEntered!: () => void;
     let finishPreview!: (value: {

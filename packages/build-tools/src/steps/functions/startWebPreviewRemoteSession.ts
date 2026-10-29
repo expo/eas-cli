@@ -120,6 +120,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
           signal: startup.signal,
+          onStartupError: error => startup.abort(error),
           packageVersion,
           disableShare: inputs.public_preview?.value === false,
           privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
