@@ -6,6 +6,7 @@ import { UserPreferenceMutation } from '../graphql/mutations/UserPreferenceMutat
 import { UserPreferenceQuery } from '../graphql/queries/UserPreferenceQuery';
 import Log, { link } from '../log';
 import { LoggedInAuthenticationInfo } from '../user/SessionManager';
+import { Actor } from '../user/User';
 
 const SIMULATORS_LAUNCH_AT = new Date('2026-11-05T18:00:00Z');
 const SIMULATORS_LAUNCH_HINT_PREFERENCE_KEY = 'simulators-launch-cli-hint-seen';
@@ -16,9 +17,14 @@ const SIMULATORS_QUICKSTART_URL =
 export async function maybeShowSimulatorsLaunchHintAsync(
   authenticationInfo: LoggedInAuthenticationInfo,
   analytics: Analytics,
-  { nonInteractive }: { nonInteractive: boolean }
+  { actor, nonInteractive }: { actor: Actor; nonInteractive: boolean }
 ): Promise<void> {
-  if (nonInteractive || boolish('CI', false) || Date.now() < SIMULATORS_LAUNCH_AT.getTime()) {
+  if (
+    nonInteractive ||
+    boolish('CI', false) ||
+    Date.now() < SIMULATORS_LAUNCH_AT.getTime() ||
+    (actor.__typename !== 'User' && actor.__typename !== 'SSOUser')
+  ) {
     return;
   }
   try {

@@ -196,6 +196,7 @@ export default class Build extends EasCommand {
 
     if (builds?.some(build => build?.status === BuildStatus.Finished)) {
       await maybeShowSimulatorsLaunchHintAsync(authenticationInfo, analytics, {
+        actor,
         nonInteractive: flags.nonInteractive,
       });
     }
