@@ -3,7 +3,7 @@ import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -12,40 +12,45 @@ import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
-import { readLocalEgressHandoffAsync } from '../localEgress';
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
-import { startServeSimActivityPolling } from '../serveSimActivity';
-import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
-  findUnlistedDeviceScreenRecordingsAsync,
-  uploadDeviceRunSessionScreenRecordingsAsync,
-} from '../deviceRunSessionScreenRecordings';
-import {
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
 } from '../deviceRunSessionPreview';
+import {
+  findUnlistedDeviceScreenRecordingsAsync,
+  uploadDeviceRunSessionScreenRecordingsAsync,
+} from '../deviceRunSessionScreenRecordings';
+import * as screenshotCollector from '../deviceRunSessionScreenshots';
 import {
   EXPO_DEVICE_HUB_STATE_DIR,
   createServeSimArgs,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
 } from '../deviceSessionHost';
+import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
+import { readLocalEgressHandoffAsync } from '../localEgress';
 import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   spawnDetached,
 } from '../remoteDeviceRunSession';
-import * as screenshotCollector from '../deviceRunSessionScreenshots';
+import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import { startServeSimActivityPolling } from '../serveSimActivity';
+import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
 }));
 jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
+jest.mock('../iosAppArtifact', () => ({
+  readIosApplicationIdentifierAsync: jest.fn(),
+}));
 jest.mock('../serveSimActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
@@ -122,6 +127,7 @@ function writeHubState({
 
 async function startHostAsync(separateLogPhase = true) {
   return await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.LINUX,
     env,
     logger,
@@ -135,6 +141,17 @@ const stopSessionPreview = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
+  const installedBundleIds: Record<string, string> = {
+    '/artifacts/Application.app': 'test.application',
+    '/tmp/Example.app': 'dev.example.app',
+    '/tmp/App.app': 'dev.example.other',
+    '/tmp/Expo Go.app': 'host.exp.Exponent',
+    '/tmp/Fixture.app': 'com.example.fixture',
+  };
+  jest
+    .mocked(readIosApplicationIdentifierAsync)
+    .mockReset()
+    .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
   stopSessionPreview.mockResolvedValue(undefined);
@@ -214,6 +231,7 @@ it('merges Simulator boot variables into the inherited serve-sim environment', a
     SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:8899',
   };
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env: inheritedEnv,
     logger,
@@ -242,6 +260,7 @@ it('merges Simulator boot variables into the inherited serve-sim environment', a
 it('rejects Simulator boot options for Android before acquiring host resources', async () => {
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger,
@@ -257,6 +276,7 @@ it('rejects Simulator boot options for Android before acquiring host resources',
 it('rejects boot options without an explicit Simulator before acquiring host resources', async () => {
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -273,6 +293,7 @@ it('installs and launches through the API for the selected Simulator', async () 
     .mocked(stageServeSimAppAsync)
     .mockResolvedValue({ directory: '/staged', path: '/staged/Example.app' });
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -301,6 +322,7 @@ it('installs and launches through the API for the selected Simulator', async () 
         bundleId: 'dev.example.app',
         launchArgs: ['--flag'],
         openUrl: 'example://screen',
+        restart: false,
       },
     })
   );
@@ -308,8 +330,55 @@ it('installs and launches through the API for the selected Simulator', async () 
   await host.finishAsync();
 });
 
+it('keeps the restart check when it installs one app and launches another', async () => {
+  jest
+    .mocked(stageServeSimAppAsync)
+    .mockResolvedValue({ directory: '/staged', path: '/staged/Fixture.app' });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    iosSimulatorUdid: 'emulator-5554',
+    installAppPath: '/tmp/Fixture.app',
+    launchAppIdentifier: 'host.exp.Exponent',
+  });
+  const launch = jest
+    .mocked(runServeSimActionAsync)
+    .mock.calls.map(([call]) => call)
+    .find(call => call.action === 'app.launch');
+  expect(launch?.params).not.toHaveProperty('restart');
+  await host.finishAsync();
+});
+
+it('keeps the restart check when it launches an app it did not install', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    iosSimulatorUdid: 'emulator-5554',
+    launchAppIdentifier: 'dev.example.app',
+  });
+  expect(runServeSimActionAsync).toHaveBeenCalledWith(
+    expect.objectContaining({
+      action: 'app.launch',
+      params: {
+        udid: 'emulator-5554',
+        bundleId: 'dev.example.app',
+        launchArgs: [],
+        openUrl: undefined,
+      },
+    })
+  );
+  await host.finishAsync();
+});
+
 it('preserves startup CLI flags for already-prepared workflows', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -356,6 +425,7 @@ it('defaults owned Simulator startup to a long cold-boot budget', async () => {
     return await readyResponse(...args);
   });
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -468,6 +538,7 @@ it('reports preview activity from serve-sim on iOS and stops polling when finish
     stopAsync: stopActivity,
   });
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -497,6 +568,7 @@ it('does not start polling preview activity when startup is cancelled', async ()
   });
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       iosSimulatorUdid: 'emulator-5554',
       env,
@@ -519,6 +591,7 @@ it('reports no preview activity on Android, where expo-device-hub keeps no event
 it('stops a host that became ready on a different Simulator', async () => {
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       iosSimulatorUdid: 'session-udid',
       env,
@@ -527,7 +600,7 @@ it('stops a host that became ready on a different Simulator', async () => {
     })
   ).rejects.toThrow('became ready on emulator-5554, but this session requested session-udid');
   expect(stopServer).toHaveBeenCalledTimes(1);
-  expect(ngrok.forward).not.toHaveBeenCalled();
+  expect(closeTunnel).toHaveBeenCalledTimes(1);
 });
 
 it('stops a host when a cold boot is cancelled during readiness polling', async () => {
@@ -541,6 +614,7 @@ it('stops a host when a cold boot is cancelled during readiness polling', async 
   });
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       iosSimulatorUdid: 'session-udid',
       env,
@@ -550,15 +624,14 @@ it('stops a host when a cold boot is cancelled during readiness polling', async 
     })
   ).rejects.toBe(cancelled);
   expect(stopServer).toHaveBeenCalledTimes(1);
-  expect(ngrok.forward).not.toHaveBeenCalled();
+  expect(closeTunnel).toHaveBeenCalledTimes(jest.mocked(ngrok.forward).mock.calls.length);
   const directory =
     jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
   await expect(access(directory!)).rejects.toThrow();
 });
 
-it('records by default with no preview and finalizes before process stop, uploading exactly once', async () => {
+it('records by default and finalizes before process stop, uploading exactly once', async () => {
   const host = await startHostAsync();
-  expect(ngrok.forward).not.toHaveBeenCalled();
   const directory = directories[0];
   const recordings = [
     {
@@ -607,15 +680,13 @@ it('records by default with no preview and finalizes before process stop, upload
   expect(stopServer.mock.invocationCallOrder[0]).toBeLessThan(
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mock.invocationCallOrder[0]
   );
-  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
-    'after session host finalization'
-  );
+  await expect(host.openPreviewAsync()).rejects.toThrow('after session host finalization');
 });
 
 it('coalesces preview opens and allows close/reopen without ending capture', async () => {
   const host = await startHostAsync();
-  const opening = host.openPreviewAsync({ baseDomain, authtoken });
-  expect(host.openPreviewAsync({ baseDomain, authtoken })).toBe(opening);
+  const opening = host.openPreviewAsync();
+  expect(host.openPreviewAsync()).toBe(opening);
   const first = await opening;
   const closing = first.closeAsync();
   expect(first.closeAsync()).toBe(closing);
@@ -625,9 +696,9 @@ it('coalesces preview opens and allows close/reopen without ending capture', asy
     url: () => 'https://replacement.example.test',
     close: secondClose,
   } as never);
-  const second = await host.openPreviewAsync({ baseDomain, authtoken });
+  const second = await host.openPreviewAsync();
   await first.closeAsync();
-  expect(await host.openPreviewAsync({ baseDomain, authtoken })).toBe(second);
+  expect(await host.openPreviewAsync()).toBe(second);
   expect(secondClose).not.toHaveBeenCalled();
   expect(spawnDetached).toHaveBeenCalledTimes(1);
   expect(stopServer).not.toHaveBeenCalled();
@@ -639,32 +710,38 @@ it('coalesces preview opens and allows close/reopen without ending capture', asy
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
+it('opens the preview tunnel during startup', async () => {
+  const host = await startHostAsync();
+  expect(ngrok.forward).toHaveBeenCalledTimes(1);
+  expect(await host.openPreviewAsync()).toMatchObject({ apiUrl: 'https://public.example.test' });
+  expect(ngrok.forward).toHaveBeenCalledTimes(1);
+  await host.finishAsync();
+});
+
 it('retries a failed tunnel without restarting the host', async () => {
   const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
   jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
-  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
-    'tunnel unavailable'
-  );
+  await expect(host.openPreviewAsync()).rejects.toThrow('tunnel unavailable');
   expect(stopServer).not.toHaveBeenCalled();
-  await host.openPreviewAsync({ baseDomain, authtoken });
+  await host.openPreviewAsync();
   expect(spawnDetached).toHaveBeenCalledTimes(1);
   await host.finishAsync();
-  expect(closeTunnel).toHaveBeenCalledTimes(1);
+  expect(closeTunnel).toHaveBeenCalledTimes(2);
 });
 
 it('drains an in-flight tunnel when finishing and rejects new opens', async () => {
   const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
-  const opening = host.openPreviewAsync({ baseDomain, authtoken });
+  const opening = host.openPreviewAsync();
   const finishing = host.finishAsync();
-  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
-    'after session host finalization'
-  );
+  await expect(host.openPreviewAsync()).rejects.toThrow('after session host finalization');
   tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
   await expect(opening).rejects.toThrow('finalized while the preview was opening');
   await finishing;
-  expect(closeTunnel).toHaveBeenCalledTimes(1);
+  expect(closeTunnel).toHaveBeenCalledTimes(2);
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
@@ -681,7 +758,7 @@ it('keeps cleanup and upload best-effort when tunnel close and finalization fail
   });
   const host = await startHostAsync();
   await writeFile(path.join(directories[0], 'recordings.json'), '[]');
-  await host.openPreviewAsync({ baseDomain, authtoken });
+  await host.openPreviewAsync();
   closeTunnel.mockRejectedValueOnce(new Error('tunnel close failure'));
   jest.mocked(turtleFetch).mockResolvedValueOnce({
     ok: false,
@@ -743,6 +820,7 @@ it('rolls back failed host startup without replacing the original error', async 
   stopServer.mockRejectedValueOnce(new Error('stop failure'));
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger,
@@ -757,7 +835,7 @@ it('rolls back failed host startup without replacing the original error', async 
   }
   // The host could not be stopped, so it may still write captures there.
   await expect(access(directory)).resolves.toBeUndefined();
-  expect(ngrok.forward).not.toHaveBeenCalled();
+  expect(closeTunnel).toHaveBeenCalledTimes(jest.mocked(ngrok.forward).mock.calls.length);
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
   const hostStillRunning =
@@ -804,7 +882,7 @@ it.each([true, false])(
 
 it('finishes despite a stalled tunnel close', async () => {
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain, authtoken });
+  await host.openPreviewAsync();
   const closing = deferred<void>();
   closeTunnel.mockReturnValueOnce(closing.promise);
   jest.useFakeTimers();
@@ -890,9 +968,10 @@ it('retains recordings without uploading if the host cannot be stopped', async (
 
 it('closes a listener that arrives after finish has already timed out waiting for it', async () => {
   const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
   const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
   jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
-  const opening = host.openPreviewAsync({ baseDomain, authtoken });
+  const opening = host.openPreviewAsync();
   const rejected = expect(opening).rejects.toThrow('finalized while the preview was opening');
   jest.useFakeTimers();
   const finishing = host.finishAsync();
@@ -901,7 +980,7 @@ it('closes a listener that arrives after finish has already timed out waiting fo
   expect(stopServer).toHaveBeenCalledTimes(1);
   tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
   await rejected;
-  expect(closeTunnel).toHaveBeenCalledTimes(1);
+  expect(closeTunnel).toHaveBeenCalledTimes(2);
 });
 
 // The same session token and website origins as the serve-sim host on iOS.
@@ -912,7 +991,7 @@ it('starts expo-device-hub with a session token and the website origins', async 
   expect(args.join(' ')).toContain(
     '--cors-origin https://expo.dev --frame-ancestor https://expo.dev'
   );
-  const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+  const preview = await host.openPreviewAsync();
   expect(preview.previewToken).toBe('hub-preview-token');
   await host.finishAsync();
 });
@@ -924,6 +1003,7 @@ it.each([
   const override = await mkdtemp(path.join(os.tmpdir(), 'hub-state-override-'));
   directories.push(override);
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.LINUX,
     env: { ...env, [variable]: override },
     logger,
@@ -932,14 +1012,13 @@ it.each([
   });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.env.EXPO_DEVICE_HUB_STATE_DIR).toBe(EXPO_DEVICE_HUB_STATE_DIR);
-  expect((await host.openPreviewAsync({ baseDomain, authtoken })).previewToken).toBe(
-    'hub-preview-token'
-  );
+  expect((await host.openPreviewAsync()).previewToken).toBe('hub-preview-token');
   await host.finishAsync();
 });
 
 it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.LINUX,
     env,
     logger,
@@ -974,6 +1053,7 @@ it('stops when expo-device-hub records no session token', async () => {
 
 it('leaves iOS recording to its existing build steps', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1029,6 +1109,7 @@ it('adds the iOS preview token to the host secrets once serve-sim is ready', asy
     };
   });
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1041,9 +1122,7 @@ it('adds the iOS preview token to the host secrets once serve-sim is ready', asy
     'turn-secret',
     'preview-token',
   ]);
-  expect((await host.openPreviewAsync({ baseDomain, authtoken })).previewToken).toBe(
-    'preview-token'
-  );
+  expect((await host.openPreviewAsync()).previewToken).toBe('preview-token');
   await host.finishAsync();
 });
 
@@ -1162,7 +1241,7 @@ it.each([
     exitError ??= new Error('Process exited with signal SIGTERM.');
   });
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain, authtoken });
+  await host.openPreviewAsync();
   const directory = directories[0];
   await writeRecordingDescriptorAsync(directory);
   jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockResolvedValueOnce(true);
@@ -1188,7 +1267,7 @@ it.each([
 
 it('ends the preview phase with failure when the tunnel cannot close', async () => {
   const host = await startHostAsync();
-  await host.openPreviewAsync({ baseDomain, authtoken });
+  await host.openPreviewAsync();
   closeTunnel.mockRejectedValue(new Error('tunnel close failure'));
   jest.useFakeTimers();
   const finishing = host.finishAsync();
@@ -1207,6 +1286,7 @@ it('ends the preview phase with failure when startup never provides a token', as
   metrics.readServeSimServersAsync.mockResolvedValueOnce([]);
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1220,13 +1300,10 @@ it('ends the preview phase with failure when startup never provides a token', as
   );
 });
 
-it('ends the preview phase with failure if opening the tunnel fails', async () => {
-  const host = await startHostAsync();
+it('fails startup and ends the preview phase with failure if opening the tunnel fails', async () => {
   jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
-  await expect(host.openPreviewAsync({ baseDomain, authtoken })).rejects.toThrow(
-    'tunnel unavailable'
-  );
-  await host.finishAsync();
+  await expect(startHostAsync()).rejects.toThrow('tunnel unavailable');
+  expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.info).toHaveBeenCalledWith(
     { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
     'End phase: Simulator preview'
@@ -1247,12 +1324,13 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
         uploads.push(Buffer.concat(chunks));
       });
     const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform,
       env,
       logger,
       timeoutMs: 10_000,
     });
-    await host.openPreviewAsync({ baseDomain, authtoken });
+    await host.openPreviewAsync();
     const directory =
       jest.mocked(spawnDetached).mock.calls[0][0].env.EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY;
     if (!directory) {
@@ -1282,6 +1360,7 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   'refreshes the session preview of the ready device until the %s host finishes',
   async runtimePlatform => {
     const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform,
       env,
       logger,
@@ -1306,6 +1385,7 @@ it.each(['success', 'failure'])(
     const install = deferred<void>();
     jest.mocked(ensureMacosPreviewEncoderInstalledAsync).mockReturnValueOnce(install.promise);
     const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1354,6 +1434,7 @@ it('keeps the session running when encoder setup for the preview fails', async (
     .mocked(ensureMacosPreviewEncoderInstalledAsync)
     .mockRejectedValueOnce(new Error('brew failed'));
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1391,6 +1472,7 @@ it('passes the active local-egress address to serve-sim without tunnel credentia
     fingerprint: 'fingerprint',
   });
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1450,6 +1532,7 @@ it.each([true, false])(
     });
     jest.mocked(turtleFetch).mockImplementation(() => ready.promise);
     const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1492,6 +1575,7 @@ it.each([true, false])(
                 bundleId: 'dev.example.other',
                 launchArgs: [],
                 openUrl: undefined,
+                restart: false,
               },
             ],
           ]
@@ -1563,6 +1647,7 @@ it('stops the host without installing or launching when guard verification fails
   });
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1600,6 +1685,7 @@ it('does not launch after installation fails', async () => {
   directories.push(directory);
   jest.mocked(stageServeSimAppAsync).mockResolvedValue({ directory, path: `${directory}/App.app` });
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1633,6 +1719,7 @@ it('verifies the guard before starting setup or installing the app', async () =>
     .mocked(stageServeSimAppAsync)
     .mockResolvedValue({ directory: '/staged', path: '/staged/App.app' });
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1666,6 +1753,7 @@ it('warns and continues launching when disabling push fails', async () => {
   const error = new Error('apsd disable failed');
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockRejectedValueOnce(error);
   const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1694,6 +1782,7 @@ it('cancels pending app preparation and observes late setup failure', async () =
     })
   );
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1723,6 +1812,7 @@ it('cancels a pending guard check before setup or app startup', async () => {
     })
   );
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1754,6 +1844,7 @@ it('cancels setup while the app download is still pending', async () => {
   });
   await expect(
     startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1774,6 +1865,7 @@ it('reports startup failure before waiting for host cleanup', async () => {
   jest.mocked(verifyLocalEgressGuardAsync).mockRejectedValueOnce(failure);
   stopServer.mockImplementationOnce(() => stopping.promise);
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1811,6 +1903,7 @@ it.each(['control state', 'app download'])(
       jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
     }
     const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger,
@@ -1862,6 +1955,7 @@ it('cancels an in-flight install while Simulator setup is pending', async () => 
     });
   });
   const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
     runtimePlatform: BuildRuntimePlatform.DARWIN,
     env,
     logger,
@@ -1906,3 +2000,416 @@ it('redacts bearer tokens from preview readiness diagnostics while preserving th
     await expect(readiness).rejects.not.toThrow(secret);
   }
 });
+
+it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
+  'keeps cold %s startup waiting for TURN before starting collectors',
+  async runtimePlatform => {
+    const turn = deferred<string[]>();
+    const screenshots = jest.spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync');
+    jest.mocked(fetchWebPreviewTurnArgsAsync).mockReturnValueOnce(turn.promise);
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+    let host: Awaited<typeof starting> | undefined;
+    try {
+      for (let i = 0; i < 50 && !jest.mocked(fetchWebPreviewTurnArgsAsync).mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(fetchWebPreviewTurnArgsAsync).toHaveBeenCalledTimes(1);
+      expect(screenshots).not.toHaveBeenCalled();
+      turn.resolve([]);
+      host = await starting;
+      expect(screenshots).toHaveBeenCalledTimes(1);
+    } finally {
+      turn.resolve([]);
+      host ??= await starting;
+      await host.finishAsync();
+      screenshots.mockRestore();
+    }
+  }
+);
+
+it.each([false, true])(
+  'waits for a supplied server to stop after startup fails (cleanupFails=%s)',
+  async cleanupFails => {
+    const startupError = new Error('Server handshake failed after starting.');
+    const cleanupError = new Error('Server could not be stopped.');
+    const stopped = deferred<void>();
+    const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+    const screenshots = jest
+      .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+      .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
+    const stopAsync = jest.fn(() => stopped.promise);
+    const server = {
+      port: 3200,
+      turnArgs: Promise.resolve([]),
+      requiresPreviewRetirement: false,
+      async startAsync() {
+        throw startupError;
+      },
+      stopAsync,
+    };
+    const options = {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 1000,
+    };
+    const finished = jest.fn();
+    const outcome = startDeviceSessionHostAsync(ctx, options, server).catch(error => {
+      finished();
+      return error;
+    });
+    try {
+      for (let i = 0; i < 50 && !stopAsync.mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(stopAsync).toHaveBeenCalledTimes(1);
+      expect(finishScreenshots).not.toHaveBeenCalled();
+      expect(finished).not.toHaveBeenCalled();
+      if (cleanupFails) {
+        stopped.reject(cleanupError);
+      } else {
+        stopped.resolve();
+      }
+      expect(await outcome).toBe(startupError);
+      expect(finishScreenshots).toHaveBeenCalledTimes(1);
+      expect(finishScreenshots).toHaveBeenCalledWith(!cleanupFails);
+      if (cleanupFails) {
+        expect(logger.warn).toHaveBeenCalledWith(
+          { err: cleanupError },
+          'Could not stop the session server after startup failed.'
+        );
+      }
+    } finally {
+      stopped.resolve();
+      await outcome;
+      screenshots.mockRestore();
+    }
+  }
+);
+
+it('opens the preview while a supplied server waits for TURN and its startup handshake', async () => {
+  const turn = deferred<string[]>();
+  const handshake = deferred<Awaited<ReturnType<typeof spawnDetached>>>();
+  const startAsync = jest.fn(() => handshake.promise);
+  const server = {
+    port: 3200,
+    turnArgs: turn.promise,
+    requiresPreviewRetirement: true,
+    startAsync,
+    stopAsync: stopServer,
+  };
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([
+      { udid: 'emulator-5554', token: 'preview-token', url: 'http://127.0.0.1:3200' },
+    ]);
+  const starting = startDeviceSessionHostAsync(
+    ctx,
+    {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      iosSimulatorUdid: 'emulator-5554',
+      launchAppIdentifier: 'test.application',
+      timeoutMs: 1000,
+    },
+    server
+  );
+  let host: Awaited<typeof starting> | undefined;
+  const handle = {
+    pid: undefined,
+    getOutput: () => '',
+    getExitError: () => undefined,
+    stopAsync: stopServer,
+  };
+  try {
+    for (let i = 0; i < 50 && !jest.mocked(ngrok.forward).mock.calls.length; i++) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    expect(ngrok.forward).toHaveBeenCalledTimes(1);
+    expect(startAsync).not.toHaveBeenCalled();
+    turn.resolve([]);
+    for (let i = 0; i < 50 && !startAsync.mock.calls.length; i++) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    expect(startAsync).toHaveBeenCalledTimes(1);
+    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+    handshake.resolve(handle);
+    host = await starting;
+    expect(runServeSimActionAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'app.launch' })
+    );
+    expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
+    expect(fetchWebPreviewTurnArgsAsync).not.toHaveBeenCalled();
+  } finally {
+    turn.resolve([]);
+    handshake.resolve(handle);
+    host ??= await starting;
+    await host.finishAsync();
+  }
+});
+
+it.each(['opened', 'late'])(
+  'rejects failed startup when the %s preview tunnel cannot be retired',
+  async timing => {
+    const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+    const startup = deferred<Awaited<ReturnType<typeof spawnDetached>>>();
+    const startupError = new Error('Server handshake failed.');
+    const closeError = new Error('Preview listener is still running.');
+    const startAsync = jest.fn(() => startup.promise);
+    const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+    const screenshots = jest
+      .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+      .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
+    jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+    closeTunnel.mockRejectedValueOnce(closeError);
+    const server = {
+      port: 3200,
+      turnArgs: Promise.resolve([]),
+      requiresPreviewRetirement: true,
+      startAsync,
+      stopAsync: stopServer,
+    };
+    const starting = startDeviceSessionHostAsync(
+      ctx,
+      {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger,
+        timeoutMs: 1000,
+      },
+      server
+    );
+    const outcome = starting.catch(error => error);
+    try {
+      if (timing === 'opened') {
+        tunnel.resolve({ url: () => 'https://open.example.test', close: closeTunnel } as never);
+      }
+      for (let i = 0; i < 50 && !startAsync.mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(startAsync).toHaveBeenCalledTimes(1);
+      startup.reject(startupError);
+      await new Promise(resolve => setImmediate(resolve));
+      if (timing === 'late') {
+        expect(stopServer).not.toHaveBeenCalled();
+        tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      }
+      const error = await outcome;
+      expect(error).toBeInstanceOf(AggregateError);
+      expect(error.errors).toContain(startupError);
+      expect(error.errors).toContain(closeError);
+      expect(stopServer).toHaveBeenCalledTimes(1);
+      expect(finishScreenshots).toHaveBeenCalledWith(true);
+      expect(runServeSimActionAsync).not.toHaveBeenCalled();
+    } finally {
+      startup.reject(startupError);
+      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      await outcome;
+      screenshots.mockRestore();
+    }
+  }
+);
+
+it.each(['startup failure', 'cancellation', 'opening timeout'])(
+  'bounds cleanup after %s while preview opening stays pending, then closes its late listener',
+  async failure => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+    const controller = new AbortController();
+    const startupError = new Error(failure);
+    const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+    const screenshots = jest
+      .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+      .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
+    jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+    const startAsync = jest.fn(async () => {
+      if (failure === 'startup failure') {
+        throw startupError;
+      }
+      return {
+        pid: undefined,
+        getOutput: () => '',
+        getExitError: () => undefined,
+        stopAsync: stopServer,
+      };
+    });
+    const outcome = startDeviceSessionHostAsync(
+      ctx,
+      {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        preview: { baseDomain, authtoken },
+        env,
+        logger,
+        timeoutMs: 1000,
+        signal: controller.signal,
+      },
+      {
+        port: 3200,
+        turnArgs: Promise.resolve([]),
+        requiresPreviewRetirement: true,
+        startAsync,
+        stopAsync: stopServer,
+      }
+    ).catch(error => error);
+    try {
+      for (let i = 0; i < 50 && !startAsync.mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(startAsync).toHaveBeenCalledTimes(1);
+      if (failure !== 'startup failure') {
+        for (
+          let i = 0;
+          i < 50 && !jest.mocked(startDeviceRunSessionPreview).mock.calls.length;
+          i++
+        ) {
+          await new Promise(resolve => setImmediate(resolve));
+        }
+        expect(startDeviceRunSessionPreview).toHaveBeenCalledTimes(1);
+        if (failure === 'cancellation') {
+          controller.abort(startupError);
+        } else {
+          await jest.advanceTimersByTimeAsync(1000);
+        }
+      }
+      await jest.advanceTimersByTimeAsync(4_999);
+      expect(stopServer).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      const error = await outcome;
+      expect(error).toBeInstanceOf(AggregateError);
+      if (failure === 'opening timeout') {
+        expect(error.errors[0].message).toContain('Preview tunnel opening timed out');
+      } else {
+        expect(error.errors).toContain(startupError);
+      }
+      expect(stopServer).toHaveBeenCalledTimes(1);
+      expect(finishScreenshots).toHaveBeenCalledWith(true);
+      expect(closeTunnel).not.toHaveBeenCalled();
+      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(closeTunnel).toHaveBeenCalledTimes(1);
+    } finally {
+      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      await jest.advanceTimersByTimeAsync(10_000);
+      await outcome;
+      screenshots.mockRestore();
+    }
+  }
+);
+
+it.each([
+  { action: 'app.install', tunnelTiming: 'opened' },
+  { action: 'app.launch', tunnelTiming: 'late' },
+])(
+  'preserves $action failure when the $tunnelTiming preview tunnel cannot close',
+  async ({ action, tunnelTiming }) => {
+    const startupError = new Error(`${action} failed.`);
+    const cleanupError = new Error('Preview listener could not close.');
+    const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+    const closing = deferred<void>();
+    const stopped = jest.fn().mockResolvedValue(undefined);
+    const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+    const screenshots = jest
+      .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+      .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
+    jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+    closeTunnel.mockReturnValueOnce(closing.promise);
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([
+        { udid: 'emulator-5554', token: 'preview-token', url: 'http://127.0.0.1:3200' },
+      ]);
+    jest.mocked(stageServeSimAppAsync).mockResolvedValueOnce({
+      directory: '/mock/staged',
+      path: '/mock/staged/Application.app',
+    });
+    jest
+      .mocked(runServeSimActionAsync)
+      .mockReset()
+      .mockImplementation(async options => {
+        if (options.action === action) {
+          throw startupError;
+        }
+        return { ok: true } as never;
+      });
+    const server = {
+      port: 3200,
+      turnArgs: Promise.resolve([]),
+      requiresPreviewRetirement: true,
+      async startAsync() {
+        return {
+          pid: undefined,
+          getOutput: () => '',
+          getExitError: () => undefined,
+          stopAsync: stopped,
+        };
+      },
+      stopAsync: stopped,
+    };
+    const onStartupError = jest.fn();
+    const finished = jest.fn();
+    const outcome = startDeviceSessionHostAsync(
+      ctx,
+      {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        preview: { baseDomain, authtoken },
+        env,
+        logger,
+        timeoutMs: 1000,
+        iosSimulatorUdid: 'emulator-5554',
+        installAppPath: '/artifacts/Application.app',
+        launchAppIdentifier: 'test.application',
+        onStartupError,
+      },
+      server
+    ).catch(error => {
+      finished();
+      return error;
+    });
+    try {
+      if (tunnelTiming === 'opened') {
+        tunnel.resolve({ url: () => 'https://open.example.test', close: closeTunnel } as never);
+      }
+      for (let i = 0; i < 50 && !onStartupError.mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(onStartupError).toHaveBeenCalledWith(startupError);
+      if (tunnelTiming === 'late') {
+        expect(stopped).not.toHaveBeenCalled();
+        tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      }
+      for (let i = 0; i < 50 && !closeTunnel.mock.calls.length; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      expect(closeTunnel).toHaveBeenCalledTimes(1);
+      expect(finished).not.toHaveBeenCalled();
+      expect(stopped).not.toHaveBeenCalled();
+      closing.reject(cleanupError);
+      const error = await outcome;
+      expect(error.constructor).toBe(AggregateError);
+      expect(error.errors).toContain(startupError);
+      expect(error.errors[1]).toBeInstanceOf(AggregateError);
+      expect(error.errors[1].errors).toContain(cleanupError);
+      expect(error.name).not.toBe('WarmSessionAdoptionError');
+      expect(stopped).toHaveBeenCalledTimes(1);
+      expect(finishScreenshots).toHaveBeenCalledWith(true);
+      expect(stopped.mock.invocationCallOrder[0]).toBeLessThan(
+        finishScreenshots.mock.invocationCallOrder[0]
+      );
+    } finally {
+      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      closing.reject(cleanupError);
+      await outcome;
+      screenshots.mockRestore();
+    }
+  }
+);
