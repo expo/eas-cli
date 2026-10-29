@@ -811,7 +811,7 @@ export async function getRuntimeVersionInfoObjectsAsync({
 }: {
   exp: ExpoConfig;
   platforms: UpdatePublishPlatform[];
-  workflows: Record<ExpoConfigPlatform, Workflow>;
+  workflows: Record<UpdatePublishPlatform, Workflow>;
   projectDir: string;
   env: Env | undefined;
 }): Promise<
