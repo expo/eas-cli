@@ -6,7 +6,7 @@ import {
   commands,
   isProcessOwnedByServiceAsync,
 } from '../utils/processes';
-import { waitForServeSimReadyAsync } from '../utils/serveSim';
+import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
 import { deferred, until } from './helpers';
 
 jest.mock('node:fs/promises');
@@ -113,4 +113,13 @@ it('retries HTTP errors, a refused connection and readiness for another device',
     );
   await waitForServeSimReadyAsync('PHONE', server, controller.signal, 3202);
   expect(fetch).toHaveBeenCalledTimes(4);
+});
+
+it('preloads the resident guard in pass-through before any job is known', () => {
+  startServeSim(['PHONE', 'TABLET'], controller.signal);
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['PHONE', 'TABLET', '--orphan', '--disable', 'egressGuard']),
+    expect.objectContaining({ detached: true })
+  );
 });

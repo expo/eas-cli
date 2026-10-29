@@ -34,6 +34,8 @@ export function startServeSim(
       String(port),
       '--require-token',
       '--orphan',
+      '--disable',
+      'egressGuard',
       '--transport',
       'webrtc',
       '--webrtc-codec',
