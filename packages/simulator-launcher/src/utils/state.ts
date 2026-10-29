@@ -20,7 +20,7 @@ export const WarmServerSchema = z.object({
 });
 const ToolServerSchema = WarmServerSchema.pick({ pid: true, port: true, token: true });
 export const ClaimInputSchema = z.object({
-  engine: z.enum(['serve-sim', 'agent-device', 'argent']),
+  engine: z.enum(['serve-sim', 'agent-device', 'argent', 'appium']),
   requestedDevice: NonBlankStringSchema.optional(),
 });
 /** The Expo Go this launcher installed on `udid` and never launched. */

@@ -22,6 +22,12 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import {
+  WarmSessionAdoptionError,
+  createWarmDeviceSessionServer,
+  runOnWarmIosSimulatorAsync,
+} from '../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../utils/warmIosSession';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
@@ -73,13 +79,14 @@ const AppiumInstalledDriversSchema = z.record(
 );
 
 export function createStartAppiumRemoteSessionBuildFunction(
-  ctx: CustomBuildContext
+  ctx: CustomBuildContext,
+  { warm = false }: { warm?: boolean } = {}
 ): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
-    id: 'start_appium_remote_session',
+    id: warm ? 'start_warm_appium_remote_session' : 'start_appium_remote_session',
     name: 'Start Appium remote session',
-    __metricsId: 'eas/start_appium_remote_session',
+    __metricsId: warm ? 'eas/start_warm_appium_remote_session' : 'eas/start_appium_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
       ...createIosSessionStartupInputProviders(),
@@ -110,247 +117,277 @@ export function createStartAppiumRemoteSessionBuildFunction(
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
-      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-        runtimePlatform,
-        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
-        installAppPath: inputs.install_app_path?.value as string | undefined,
-        launchAppIdentifier: inputs.launch_app_identifier?.value,
-        launchArgs: inputs.launch_args?.value,
-        openUrl: inputs.open_url?.value,
-        env,
-        logger,
-        signal,
-      });
-      const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
-        {
-          networkCapture: inputs.network_capture?.value,
-          networkCaptureFields: inputs.network_capture_fields?.value,
-        },
-        { runtimePlatform }
-      );
-      const versionSpec = resolveAppium3VersionSpec(packageVersion);
-
-      logger.info(
-        `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
-      );
-      const device: AppiumDevice = iosStartup
-        ? {
-            platformName: 'iOS',
-            automationName: 'XCUITest',
-            driverName: 'xcuitest',
-            udid: iosStartup.iosSimulatorUdid,
-          }
-        : await resolveAppiumDeviceAsync({ runtimePlatform, env });
-      const startupAbortController = new AbortController();
-      const startupSignal = signal
-        ? AbortSignal.any([signal, startupAbortController.signal])
-        : startupAbortController.signal;
-      const setupSignal = iosStartup ? startupSignal : undefined;
-      let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
-      let sessionHost: DeviceSessionHost | undefined;
-      let appiumProcess: ReturnType<typeof spawnDetached> | undefined;
-      let appiumHome: string | undefined;
-      let eventCollection: Awaited<ReturnType<typeof startAppiumEventCollectionAsync>> | undefined;
-      let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let sessionFailed = false;
-      const startHost = () =>
-        startDeviceSessionHostAsync(ctx, {
-          ...iosStartup,
-          previewDeviceId: device.udid,
-          separateLogPhase: true,
+      const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
+      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+        const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
+          bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+          deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
+          installAppPath: inputs.install_app_path?.value as string | undefined,
+          launchAppIdentifier: inputs.launch_app_identifier?.value,
+          launchArgs: inputs.launch_args?.value,
+          openUrl: inputs.open_url?.value,
           env,
           logger,
-          timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
-          preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
-          disableShare: inputs.public_preview?.value === false,
-          privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
-          frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
-          corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
-          signal: startupSignal,
-          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
-          ...launch,
-          networkCapture,
-          networkCaptureFields,
-        }).catch(error => {
-          if (iosStartup) {
-            startupAbortController.abort(error);
-          }
-          throw error;
+          signal,
         });
-      try {
-        if (iosStartup) {
-          hostStartup = asyncResult(startHost());
-        }
-        // Appium's startRecordingScreen runs ffmpeg on this host: XCUITest encodes the
-        // simulator stream with it, and UiAutomator2 merges long recordings with it. The
-        // macOS session image does not ship ffmpeg, so install it concurrently with Appium.
-        // Both owned installs settle before proceeding; a shared FFmpeg install keeps its owner.
-        const [appiumInstall] = await Promise.all([
-          asyncResult(
-            installAppiumAsync({
-              versionSpec,
-              driverName: device.driverName,
+        const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
+          {
+            networkCapture: inputs.network_capture?.value,
+            networkCaptureFields: inputs.network_capture_fields?.value,
+          },
+          { runtimePlatform }
+        );
+        const versionSpec = resolveAppium3VersionSpec(packageVersion);
+
+        logger.info(
+          `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
+        );
+        const device: AppiumDevice = iosStartup
+          ? {
+              platformName: 'iOS',
+              automationName: 'XCUITest',
+              driverName: 'xcuitest',
+              udid: iosStartup.iosSimulatorUdid,
+            }
+          : await resolveAppiumDeviceAsync({ runtimePlatform, env });
+        const startupAbortController = new AbortController();
+        const startupSignal = signal
+          ? AbortSignal.any([signal, startupAbortController.signal])
+          : startupAbortController.signal;
+        const setupSignal = iosStartup ? startupSignal : undefined;
+        let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
+        let sessionHost: DeviceSessionHost | undefined;
+        let appiumProcess: ReturnType<typeof spawnDetached> | undefined;
+        let appiumHome: string | undefined;
+        let eventCollection:
+          | Awaited<ReturnType<typeof startAppiumEventCollectionAsync>>
+          | undefined;
+        let appiumTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+        let sessionFailed = false;
+        let sessionError: unknown;
+        const startHost = () =>
+          startDeviceSessionHostAsync(
+            ctx,
+            {
+              ...iosStartup,
+              previewDeviceId: device.udid,
+              separateLogPhase: true,
+              runtimePlatform,
               env,
               logger,
-              signal: setupSignal,
-              onError: iosStartup ? error => startupAbortController.abort(error) : undefined,
-            }).catch(error => {
-              if (iosStartup) {
-                startupAbortController.abort(error);
-              }
-              throw error;
-            })
-          ),
-          asyncResult(
-            ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal: setupSignal })
-          ),
-        ]);
-        const installation = appiumInstall.enforceValue();
-        appiumHome = installation.appiumHome;
-        setupSignal?.throwIfAborted();
-        const { appiumBinPath, appiumEnv } = installation;
-        const wdaCapabilities = await preparePreinstalledWdaAsync({
-          runtimeIdentifier: iosStartup
-            ? (
-                await IosSimulatorUtils.getDeviceAsync({
-                  udid: iosStartup.iosSimulatorUdid as IosSimulatorUuid,
-                  env,
-                })
-              )?.runtime
-            : device.runtimeIdentifier,
-          appiumHome,
-          appiumBinPath,
-          appiumEnv,
-          logger,
-          signal: setupSignal,
-        });
-
-        setupSignal?.throwIfAborted();
-        const useFdaHelper =
-          runtimePlatform === BuildRuntimePlatform.DARWIN && fs.existsSync(FDA_HELPER);
-        appiumProcess = spawnDetached({
-          command: useFdaHelper ? FDA_HELPER : appiumBinPath,
-          args: [
-            ...(useFdaHelper ? [appiumBinPath] : []),
-            '--address',
-            APPIUM_HOST,
-            '--port',
-            String(APPIUM_PORT),
-            '--base-path',
-            '/',
-            '--log-level',
-            'error',
-            // Appium 3 gates session listing (GET /appium/sessions) behind the
-            // session_discovery insecure feature. We rely on it to poll for
-            // Appium Event Timings, so enable it for all drivers.
-            '--allow-insecure',
-            '*:session_discovery',
-            '--default-capabilities',
-            JSON.stringify({
-              'appium:eventTimings': true,
-              // Without it, XCUITest restarted the booted Simulator at session start, which
-              // closed the app serve-sim had launched. EAS VMs never show the Simulator window.
-              ...(device.platformName === 'iOS' ? { 'appium:isHeadless': true } : {}),
-              ...wdaCapabilities,
-            }),
-          ],
-          env: appiumEnv,
-          logger,
-        });
-        await waitForAppiumReadyAsync({ appiumProcess, logger, signal: setupSignal });
-        if (hostStartup) {
-          sessionHost = (await hostStartup).enforceValue();
-        }
-        setupSignal?.throwIfAborted();
-        eventCollection = await startAppiumEventCollectionAsync({
-          ctx,
-          deviceRunSessionId,
-          appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
-          logger,
-        });
-        appiumTunnel = await startNgrokTunnelAsync({
-          port: APPIUM_PORT,
-          subdomainPrefix: 'appium',
-          baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
-          logger,
-        });
-
-        // The preview host uses the same device selected for Appium.
-        const launchDescription = describeServeSimLaunch(launch);
-        if (launchDescription) {
-          logger.info(launchDescription);
-        }
-        sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
-        const webPreview = await sessionHost.openPreviewAsync();
-
-        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
-          env,
-          signal,
-          ctx,
-          deviceRunSessionId,
-          remoteConfig: {
-            appiumUrl: appiumTunnel.url,
-            capabilities: {
-              platformName: device.platformName,
-              'appium:automationName': device.automationName,
-              'appium:udid': device.udid,
+              timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
+              preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
+              disableShare: inputs.public_preview?.value === false,
+              privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+              frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+              corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
+              signal: startupSignal,
+              onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+              ...launch,
+              networkCapture,
+              networkCaptureFields,
             },
-            webPreviewUrl: webPreview.previewPageUrl,
-            previewApiUrl: webPreview.apiUrl,
-            ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
-          },
-          logger,
-        });
-        if (sessionStart === 'stopped') {
-          return;
-        }
-
-        await waitForDeviceRunSessionStoppedAsync({
-          ctx,
-          deviceRunSessionId,
-          logger,
-          signal,
-          idleTimeout:
-            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
-              ? {
-                  maxIdleTimeMinutes,
-                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
-                  getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
+            ...(warmSession ? [createWarmDeviceSessionServer(ctx, logger, warmSession)] : [])
+          ).catch(error => {
+            if (iosStartup) {
+              startupAbortController.abort(error);
+            }
+            throw error;
+          });
+        try {
+          if (iosStartup) {
+            hostStartup = asyncResult(startHost());
+          }
+          // Appium's startRecordingScreen runs ffmpeg on this host: XCUITest encodes the
+          // simulator stream with it, and UiAutomator2 merges long recordings with it. The
+          // macOS session image does not ship ffmpeg, so install it concurrently with Appium.
+          // Both owned installs settle before proceeding; a shared FFmpeg install keeps its owner.
+          const [appiumInstall] = await Promise.all([
+            asyncResult(
+              installAppiumAsync({
+                versionSpec,
+                driverName: device.driverName,
+                env,
+                logger,
+                signal: setupSignal,
+                onError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+              }).catch(error => {
+                if (iosStartup) {
+                  startupAbortController.abort(error);
                 }
-              : undefined,
-        });
-      } catch (error) {
-        sessionFailed = true;
-        throw setupSignal?.aborted ? setupSignal.reason : error;
-      } finally {
-        startupAbortController.abort(new Error('Appium session ended.'));
-        await finishRemoteSessionAsync({
-          logger,
-          sessionFailed,
-          teardown: [
-            ['Appium tunnel', appiumTunnel?.stopAsync()],
-            [
-              'Appium server',
-              (async () => {
-                try {
-                  await eventCollection?.stopAsync();
-                } finally {
+                throw error;
+              })
+            ),
+            asyncResult(
+              ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger, signal: setupSignal })
+            ),
+          ]);
+          const installation = appiumInstall.enforceValue();
+          appiumHome = installation.appiumHome;
+          setupSignal?.throwIfAborted();
+          const { appiumBinPath, appiumEnv } = installation;
+          const wdaCapabilities = await preparePreinstalledWdaAsync({
+            runtimeIdentifier: iosStartup
+              ? (
+                  await IosSimulatorUtils.getDeviceAsync({
+                    udid: iosStartup.iosSimulatorUdid as IosSimulatorUuid,
+                    env,
+                  })
+                )?.runtime
+              : device.runtimeIdentifier,
+            appiumHome,
+            appiumBinPath,
+            appiumEnv,
+            logger,
+            signal: setupSignal,
+          });
+
+          setupSignal?.throwIfAborted();
+          const useFdaHelper =
+            runtimePlatform === BuildRuntimePlatform.DARWIN && fs.existsSync(FDA_HELPER);
+          appiumProcess = spawnDetached({
+            command: useFdaHelper ? FDA_HELPER : appiumBinPath,
+            args: [
+              ...(useFdaHelper ? [appiumBinPath] : []),
+              '--address',
+              APPIUM_HOST,
+              '--port',
+              String(APPIUM_PORT),
+              '--base-path',
+              '/',
+              '--log-level',
+              'error',
+              // Appium 3 gates session listing (GET /appium/sessions) behind the
+              // session_discovery insecure feature. We rely on it to poll for
+              // Appium Event Timings, so enable it for all drivers.
+              '--allow-insecure',
+              '*:session_discovery',
+              '--default-capabilities',
+              JSON.stringify({
+                'appium:eventTimings': true,
+                // Without it, XCUITest restarted the booted Simulator at session start, which
+                // closed the app serve-sim had launched. EAS VMs never show the Simulator window.
+                ...(device.platformName === 'iOS' ? { 'appium:isHeadless': true } : {}),
+                ...wdaCapabilities,
+              }),
+            ],
+            env: appiumEnv,
+            logger,
+          });
+          await waitForAppiumReadyAsync({ appiumProcess, logger, signal: setupSignal });
+          if (hostStartup) {
+            sessionHost = (await hostStartup).enforceValue();
+          }
+          setupSignal?.throwIfAborted();
+          eventCollection = await startAppiumEventCollectionAsync({
+            ctx,
+            deviceRunSessionId,
+            appiumUrl: `http://${APPIUM_HOST}:${APPIUM_PORT}/`,
+            logger,
+          });
+          appiumTunnel = await startNgrokTunnelAsync({
+            port: APPIUM_PORT,
+            subdomainPrefix: 'appium',
+            baseDomain: ngrokTunnelDomain,
+            authtoken: ngrokAuthtoken,
+            logger,
+          });
+
+          // The preview host uses the same device selected for Appium.
+          const launchDescription = describeServeSimLaunch(launch);
+          if (launchDescription) {
+            logger.info(launchDescription);
+          }
+          sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+          const webPreview = await sessionHost.openPreviewAsync();
+
+          const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
+            env,
+            signal,
+            ctx,
+            deviceRunSessionId,
+            remoteConfig: {
+              appiumUrl: appiumTunnel.url,
+              capabilities: {
+                platformName: device.platformName,
+                'appium:automationName': device.automationName,
+                'appium:udid': device.udid,
+              },
+              webPreviewUrl: webPreview.previewPageUrl,
+              previewApiUrl: webPreview.apiUrl,
+              ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
+            },
+            logger,
+          });
+          if (sessionStart === 'stopped') {
+            return;
+          }
+
+          await waitForDeviceRunSessionStoppedAsync({
+            ctx,
+            deviceRunSessionId,
+            logger,
+            signal,
+            idleTimeout:
+              maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+                ? {
+                    maxIdleTimeMinutes,
+                    getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                    getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
+                  }
+                : undefined,
+          });
+        } catch (error) {
+          sessionFailed = true;
+          sessionError = setupSignal?.aborted ? setupSignal.reason : error;
+          throw sessionError;
+        } finally {
+          startupAbortController.abort(new Error('Appium session ended.'));
+          const appiumStopErrors: unknown[] = [];
+          await finishRemoteSessionAsync({
+            logger,
+            sessionFailed,
+            teardown: [
+              ['Appium tunnel', appiumTunnel?.stopAsync()],
+              [
+                'Appium server',
+                (async () => {
                   try {
-                    await appiumProcess?.stopAsync();
+                    await eventCollection?.stopAsync();
                   } finally {
-                    if (appiumHome) {
-                      await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                    try {
+                      await appiumProcess?.stopAsync().catch(error => {
+                        appiumStopErrors.push(error);
+                        throw error;
+                      });
+                    } finally {
+                      if (appiumHome) {
+                        await fs.promises.rm(appiumHome, { recursive: true, force: true });
+                      }
                     }
                   }
-                }
-              })(),
+                })(),
+              ],
+              ['session host', hostStartup?.then(result => result.value?.finishAsync())],
             ],
-            ['session host', hostStartup?.then(result => result.value?.finishAsync())],
-          ],
-        });
+          });
+          if (sessionError instanceof WarmSessionAdoptionError && appiumStopErrors.length) {
+            throw new AggregateError(
+              [sessionError, ...appiumStopErrors],
+              'Could not stop Appium after warm adoption failed; a cold session cannot start safely.'
+            );
+          }
+        }
+      };
+      if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await runOnWarmIosSimulatorAsync(
+          // package_version is the Appium version, which the job installs either way.
+          { engine: 'appium', requestedDevice: deviceIdentifier, env, logger, signal },
+          startSessionAsync
+        );
+      } else {
+        await startSessionAsync();
       }
     }),
   });
