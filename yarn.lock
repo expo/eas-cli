@@ -2533,7 +2533,7 @@ __metadata:
     "@expo/steps": "npm:27.1.0"
     "@expo/template-file": "npm:27.1.0"
     "@expo/turtle-spawn": "npm:27.1.0"
-    "@expo/xcpretty": "npm:^4.3.1"
+    "@expo/xcpretty": "npm:^4.4.7"
     "@ngrok/ngrok": "npm:1.7.0"
     "@sentry/node": "npm:7.77.0"
     "@types/content-disposition": "npm:0.5.9"
@@ -3260,16 +3260,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/xcpretty@npm:^4.3.1":
-  version: 4.4.4
-  resolution: "@expo/xcpretty@npm:4.4.4"
+"@expo/xcpretty@npm:^4.4.7":
+  version: 4.4.7
+  resolution: "@expo/xcpretty@npm:4.4.7"
   dependencies:
     "@babel/code-frame": "npm:^7.20.0"
     chalk: "npm:^4.1.0"
     js-yaml: "npm:^4.1.0"
   bin:
     excpretty: build/cli.js
-  checksum: 10c0/cd555ad49438dee2cc3f2950ecbef3048f7169bbdadc8db169cfcddaad13668fee6377c010624ed4079dc439c46d6023d2551da403a2070deec000bc864e8dd8
+  checksum: 10c0/739d25039bf6c929938f2c33ab908c8b073493e5bc9528d0a8533d1fd09be82a0fed22fbc0fb0410cefd2af2774f7204400c6ef0479627137318c19ede3f9619
   languageName: node
   linkType: hard
 
