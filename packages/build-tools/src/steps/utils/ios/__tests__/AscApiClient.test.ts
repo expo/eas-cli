@@ -85,6 +85,30 @@ describe(AscApiClient, () => {
     }
   );
 
+  it.each([false, true])(
+    'explains NOT_AUTHORIZED without losing other errors (mixed: %s)',
+    async mixed => {
+      const known = { status: '401', code: 'NOT_AUTHORIZED' };
+      const other = { status: '401', code: 'OTHER_ERROR' };
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .get('/v1/apps/app')
+        .query(true)
+        .reply(401, { errors: mixed ? [known, other] : [known] });
+      const error = await client
+        .getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: 'app' })
+        .catch(error => error);
+      const mapped = mixed ? error.errors[0] : error;
+      expect(mapped).toBeInstanceOf(UserError);
+      expect(mapped).toMatchObject({ errorCode: 'EAS_ASC_INVALID_AUTH', cause: known });
+      if (mixed) {
+        expect(error).toBeInstanceOf(AggregateError);
+        expect(error.errors[1]).toBeInstanceOf(AscApiRequestError);
+        expect(error.errors[1].code).toBe('OTHER_ERROR');
+      }
+      expect(scope.isDone()).toBe(true);
+    }
+  );
+
   it('fetches app info', async () => {
     const appId = '1491144534';
     const responseFixture = require('./fixtures/apps/get-apps-200.json');
