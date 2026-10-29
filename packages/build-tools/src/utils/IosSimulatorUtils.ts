@@ -133,6 +133,7 @@ export namespace IosSimulatorUtils {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
+    await waitForWarmSimulatorCleanupAsync(env);
     try {
       const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
       const device = devices.find(
