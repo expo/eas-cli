@@ -2,14 +2,17 @@ import chalk from 'chalk';
 
 import { AppObserveMetric, AppObserveUserEvent } from '../graphql/generated';
 import { SessionEventEntry, SessionMetadata } from './fetchSessions';
+import { formatSpanDuration, formatSpanUrlPath } from './formatSpans';
 import { formatLogTimestamp } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
 import renderTextTable from '../utils/renderTextTable';
+import { sanitizeTerminalText } from '../utils/terminalText';
 
 export interface BuildSessionEventsOptions {
   metadata?: SessionMetadata | null;
   hasMoreMetricEvents?: boolean;
   hasMoreLogEvents?: boolean;
+  hasMoreSpans?: boolean;
 }
 
 function formatEntryName(entry: SessionEventEntry): string {
@@ -17,7 +20,28 @@ function formatEntryName(entry: SessionEventEntry): string {
     const name = getMetricDisplayName(entry.name);
     return entry.routeName ? `${name} · ${entry.routeName}` : name;
   }
+  if (entry.source === 'span') {
+    if (!entry.urlHost) {
+      return sanitizeTerminalText(entry.name);
+    }
+    const path = entry.urlFull ? formatSpanUrlPath(entry.urlFull) : '';
+    return sanitizeTerminalText(`${entry.name} ${entry.urlHost}${path}`);
+  }
   return entry.name;
+}
+
+function formatSpanEntryValue(entry: SessionEventEntry): string {
+  return typeof entry.durationMs === 'number' ? formatSpanDuration(entry.durationMs) : '-';
+}
+
+function formatSpanEntryProperties(entry: SessionEventEntry): string {
+  const parts = [`status=${entry.statusCode ?? '-'}`];
+  if (entry.httpStatusCode != null) {
+    parts.push(`http=${entry.httpStatusCode}`);
+  } else if (entry.httpErrorType) {
+    parts.push(`error=${entry.httpErrorType}`);
+  }
+  return parts.join(' ');
 }
 
 function formatMetricEntryValue(entry: SessionEventEntry): string {
@@ -81,11 +105,22 @@ export function buildObserveSessionEventsTable(
   const rows: string[][] = [];
   for (const entry of entries) {
     const offset = formatOffsetSeconds(startIso, entry.timestamp);
-    const type = entry.source === 'metric' ? 'metric' : 'log';
+    const type = entry.source;
     const name = formatEntryName(entry);
     const severity = formatEntrySeverity(entry);
     if (entry.source === 'metric') {
       rows.push([offset, type, name, formatMetricEntryValue(entry), '-', severity]);
+      continue;
+    }
+    if (entry.source === 'span') {
+      rows.push([
+        offset,
+        type,
+        name,
+        formatSpanEntryValue(entry),
+        formatSpanEntryProperties(entry),
+        severity,
+      ]);
       continue;
     }
     const propLines = primitivePropertyLines(entry);
@@ -101,13 +136,16 @@ export function buildObserveSessionEventsTable(
 
   lines.push(renderTextTable(headers, rows));
 
-  if (options?.hasMoreMetricEvents || options?.hasMoreLogEvents) {
+  if (options?.hasMoreMetricEvents || options?.hasMoreLogEvents || options?.hasMoreSpans) {
     const sources: string[] = [];
     if (options.hasMoreMetricEvents) {
       sources.push('metric events');
     }
     if (options.hasMoreLogEvents) {
       sources.push('log events');
+    }
+    if (options.hasMoreSpans) {
+      sources.push('spans');
     }
     lines.push(
       '',
@@ -126,6 +164,7 @@ export interface ObserveSessionEventsJson {
   entries: SessionEventEntry[];
   hasMoreMetricEvents: boolean;
   hasMoreLogEvents: boolean;
+  hasMoreSpans: boolean;
 }
 
 export function buildObserveSessionEventsJson(
@@ -133,7 +172,8 @@ export function buildObserveSessionEventsJson(
   sessionId: string,
   metadata: SessionMetadata | null,
   hasMoreMetricEvents: boolean,
-  hasMoreLogEvents: boolean
+  hasMoreLogEvents: boolean,
+  hasMoreSpans: boolean
 ): ObserveSessionEventsJson {
   return {
     sessionId,
@@ -141,6 +181,7 @@ export function buildObserveSessionEventsJson(
     entries,
     hasMoreMetricEvents,
     hasMoreLogEvents,
+    hasMoreSpans,
   };
 }
 

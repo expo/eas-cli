@@ -1,5 +1,19 @@
 # eas-cli
 
+## 27.1.0
+
+### Minor Changes
+
+- Display queued workflow runs: `workflow:run --wait` and `workflow:status` show a run waiting for its concurrency group and the run blocking it, and `workflow:cancel` includes queued runs in its selection list. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- Upload the workflow files that `uses` jobs reference, including nested ones, when running a local workflow file with `eas workflow:run`. ([#4769](https://github.com/expo/eas-cli/pull/4769) by [@sswrk](https://github.com/sswrk))
+
+### Patch Changes
+
+- Fail the command when EAS CLI cannot pull environment variables from EAS servers, instead of continuing without them. ([#4774](https://github.com/expo/eas-cli/pull/4774) by [@wschurman](https://github.com/wschurman))
+- Format the generated root changelog before committing a release. ([#4773](https://github.com/expo/eas-cli/pull/4773) by [@gwdp](https://github.com/gwdp))
+- Honor the `--non-interactive` flag in `workflow:cancel`; it was parsed but never applied, so automation could hang on the interactive picker. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- Stop reporting a finish time for workflow runs that have not finished: `workflow:runs` reports `finishedAt` only for runs in a final status. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+
 ## 27.0.0
 
 ### Major Changes
