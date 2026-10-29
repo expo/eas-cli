@@ -341,6 +341,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   const stopError = new Error('Process output drain timed out after 5000ms.');
   const stopAppium = jest.fn();
   const stopEventCollection = jest.fn();
+  const finishHost = jest.fn();
 
   beforeEach(() => {
     jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -374,6 +375,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       subdomainId: 'appium-abc',
       stopAsync: jest.fn(),
     });
+    finishHost.mockResolvedValue(undefined);
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: jest.fn().mockResolvedValue({
         previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
@@ -381,7 +383,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
         closeAsync: jest.fn(),
       }),
       getLastPreviewActivityAt: jest.fn(),
-      finishAsync: jest.fn(),
+      finishAsync: finishHost,
     });
   });
 
@@ -449,33 +451,138 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     expect(options.iosSimulatorUdid).toBeUndefined();
   });
 
+  function mockWarmSession(): jest.Mock {
+    const stopWarm = jest.fn().mockResolvedValue(undefined);
+    const warm: warmIosSession.WarmIosSession = {
+      device: { udid: 'CHOSEN-IOS-UDID', name: 'iPhone 17' },
+      server: { pid: 100, port: 3200, token: 'warm-token' },
+      agentDeviceStateDir: '/warm/agent-device',
+      argentEventLogPath: '/warm/argent-events',
+      prepareToolsAsync: jest.fn(),
+      process: {
+        pid: 100,
+        getOutput: () => '',
+        getExitError: () => undefined,
+        stopAsync: stopWarm,
+      },
+    };
+    jest.spyOn(warmIosSession, 'tryClaimWarmIosSessionAsync').mockResolvedValue(warm);
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation(
+        jest.requireActual<typeof import('../../utils/warmDeviceSessionHost')>(
+          '../../utils/warmDeviceSessionHost'
+        ).runOnWarmIosSimulatorAsync
+      );
+    return stopWarm;
+  }
+
+  it.each(['event collection', 'Appium process'])(
+    'waits for warm %s teardown before finishing the session host',
+    async stage => {
+      mockWarmSession();
+      stopAppium.mockResolvedValue(undefined);
+      let finishTeardown = () => {};
+      const teardownGate = new Promise<void>(resolve => {
+        finishTeardown = resolve;
+      });
+      let startedTeardown = () => {};
+      const teardownStarted = new Promise<void>(resolve => {
+        startedTeardown = resolve;
+      });
+      const stop = async () => {
+        startedTeardown();
+        await teardownGate;
+      };
+      (stage === 'event collection' ? stopEventCollection : stopAppium).mockImplementationOnce(
+        stop
+      );
+
+      const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, true);
+      try {
+        await teardownStarted;
+        await Promise.resolve();
+        expect(finishHost).not.toHaveBeenCalled();
+        if (stage === 'event collection') {
+          expect(stopAppium).not.toHaveBeenCalled();
+        }
+      } finally {
+        finishTeardown();
+        await running;
+      }
+      expect(finishHost).toHaveBeenCalledTimes(1);
+      expect(stopAppium.mock.invocationCallOrder[0]).toBeLessThan(
+        finishHost.mock.invocationCallOrder[0]
+      );
+      const home = jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME;
+      expect(fs.existsSync(home ?? '')).toBe(false);
+    }
+  );
+
+  it.each(['event collection', 'Appium process'])(
+    'finishes the warm host after %s teardown fails',
+    async stage => {
+      const stopWarm = mockWarmSession();
+      stopAppium.mockResolvedValue(undefined);
+      const error = new Error(`${stage} stop failed`);
+      (stage === 'event collection' ? stopEventCollection : stopAppium).mockRejectedValueOnce(
+        error
+      );
+
+      await expect(
+        runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, true)
+      ).rejects.toBe(error);
+
+      expect(stopAppium).toHaveBeenCalledTimes(1);
+      expect(finishHost).toHaveBeenCalledTimes(1);
+      expect(stopWarm).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([false, true])(
+    'finishes a cold host while Appium is still stopping (warm step: %s)',
+    async warm => {
+      if (warm) {
+        jest.mocked(runOnWarmIosSimulatorAsync).mockImplementationOnce((_claim, run) => run());
+      }
+      let finishAppium = () => {};
+      const appiumGate = new Promise<void>(resolve => {
+        finishAppium = resolve;
+      });
+      let startedAppiumStop = () => {};
+      const appiumStopping = new Promise<void>(resolve => {
+        startedAppiumStop = resolve;
+      });
+      stopAppium.mockImplementationOnce(async () => {
+        startedAppiumStop();
+        await appiumGate;
+      });
+      let startedHostFinish = () => {};
+      const hostFinishing = new Promise<void>(resolve => {
+        startedHostFinish = resolve;
+      });
+      finishHost.mockImplementationOnce(async () => startedHostFinish());
+
+      const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, warm);
+      try {
+        await appiumStopping;
+        await Promise.resolve();
+        expect(finishHost).toHaveBeenCalledTimes(1);
+        await hostFinishing;
+      } finally {
+        finishAppium();
+        await running;
+      }
+    }
+  );
+
   it.each(['stopped', 'process stop failed', 'home cleanup failed'])(
     'retries a failed warm adoption only after Appium stops (%s)',
     async cleanup => {
       const stopFails = cleanup === 'process stop failed';
       const adoptionError = new WarmSessionAdoptionError();
-      const stopWarm = jest.fn().mockResolvedValue(undefined);
-      const warm: warmIosSession.WarmIosSession = {
-        device: { udid: 'CHOSEN-IOS-UDID', name: 'iPhone 17' },
-        server: { pid: 100, port: 3200, token: 'warm-token' },
-        agentDeviceStateDir: '/warm/agent-device',
-        argentEventLogPath: '/warm/argent-events',
-        prepareToolsAsync: jest.fn(),
-        process: {
-          pid: 100,
-          getOutput: () => '',
-          getExitError: () => undefined,
-          stopAsync: stopWarm,
-        },
-      };
-      jest.spyOn(warmIosSession, 'tryClaimWarmIosSessionAsync').mockResolvedValue(warm);
-      jest
-        .mocked(runOnWarmIosSimulatorAsync)
-        .mockImplementation(
-          jest.requireActual<typeof import('../../utils/warmDeviceSessionHost')>(
-            '../../utils/warmDeviceSessionHost'
-          ).runOnWarmIosSimulatorAsync
-        );
+      const stopWarm = mockWarmSession();
       let failHost: (error: Error) => void = () => {};
       jest.mocked(startDeviceSessionHostAsync).mockReturnValueOnce(
         new Promise((_resolve, reject) => {
@@ -509,7 +616,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       if (stopFails) {
         await expect(running).rejects.toMatchObject({ errors: [adoptionError, stopError] });
         expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
-        expect(stopWarm).not.toHaveBeenCalled();
+        expect(stopWarm).toHaveBeenCalledTimes(1);
       } else {
         await expect(running).resolves.toBeUndefined();
         expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(2);
