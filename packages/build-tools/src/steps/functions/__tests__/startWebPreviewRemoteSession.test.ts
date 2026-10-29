@@ -246,6 +246,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       env: childEnv,
       logger,
       timeoutMs: 60_000,
+      preview: { baseDomain: 'tunnel.example.com', authtoken: 'ngrok-token' },
       signal: undefined,
       ...(selectsXcode
         ? {
@@ -265,10 +266,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
       networkCaptureFields: [],
     });
     const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
-    expect(host.openPreviewAsync).toHaveBeenCalledWith({
-      baseDomain: 'tunnel.example.com',
-      authtoken: 'ngrok-token',
-    });
+    expect(host.openPreviewAsync).toHaveBeenCalledWith();
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
       ctx,
       deviceRunSessionId: 'device-run-session-id',
