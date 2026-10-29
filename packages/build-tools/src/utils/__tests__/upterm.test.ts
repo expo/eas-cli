@@ -7,7 +7,6 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
-  connectionConfigFromUptermSession,
   redactConnectionSecrets,
   redactSpawnErrorForLog,
   resolveUptermGcsObjectName,
@@ -39,49 +38,6 @@ describe(resolveUptermGcsObjectName, () => {
   it('rejects unsupported platforms', () => {
     expect(() => resolveUptermGcsObjectName('darwin', 'x64')).toThrow(/only available/);
     expect(() => resolveUptermGcsObjectName('linux', 'arm64')).toThrow(/only available/);
-  });
-});
-
-describe(connectionConfigFromUptermSession, () => {
-  it('parses sessionId and host from session current fields', () => {
-    expect(
-      connectionConfigFromUptermSession({
-        sessionId: 'TOKENabc123',
-        host: 'ssh://relay.expo.dev:22',
-      })
-    ).toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev',
-      secret: 'TOKENabc123',
-    });
-  });
-
-  it('accepts a bare hostname', () => {
-    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'relay.expo.dev' })).toEqual(
-      {
-        type: 'upterm-v1',
-        host: 'relay.expo.dev',
-        secret: 'tok',
-      }
-    );
-  });
-
-  it('keeps a non-default port so the CLI can pass it to ssh -p', () => {
-    expect(
-      connectionConfigFromUptermSession({
-        sessionId: 'tok',
-        host: 'ssh://relay.expo.dev:2222',
-      })
-    ).toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev:2222',
-      secret: 'tok',
-    });
-  });
-
-  it('returns null when the host is not a parseable url', () => {
-    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'ssh://' })).toBeNull();
-    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'ssh://[' })).toBeNull();
   });
 });
 
@@ -257,11 +213,7 @@ describe(startUptermHostAsync, () => {
       relayServerUrl: 'wss://relay.expo.dev',
     });
 
-    expect(host.connectionConfig).toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev',
-      secret: 'TOKENx',
-    });
+    expect(host.connectionConfig).toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
     expect(host.isAlive()).toBe(true);
     expect(mockedDownloadFile).not.toHaveBeenCalled();
     expect(mockedSpawn).toHaveBeenCalledWith('upterm', ['version'], {
@@ -369,6 +321,21 @@ describe(startUptermHostAsync, () => {
     );
   });
 
+  it('keeps polling until upterm reports a session id', async () => {
+    sessionStdout = JSON.stringify({ host: 'ssh://relay.expo.dev:22', clientCount: 0 });
+    mockedSleep.mockImplementationOnce(async () => {
+      sessionStdout = JSON.stringify({
+        sessionId: 'TOKENy',
+        host: 'ssh://relay.expo.dev:22',
+        clientCount: 0,
+      });
+    });
+
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+
+    expect(host.connectionConfig).toEqual({ type: 'upterm-v1', secret: 'TOKENy' });
+  });
+
   it('tears down and rethrows when the host never registers with the relay', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(0);
@@ -420,11 +387,7 @@ describe(startUptermHostAsync, () => {
     const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
     const config = await host.redialAsync();
 
-    expect(config).toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev',
-      secret: 'TOKENx',
-    });
+    expect(config).toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
     expect(host.connectionConfig).toEqual(config);
   });
 
@@ -462,11 +425,7 @@ describe(startUptermHostAsync, () => {
     const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
     hostProcess.catch = () => new Promise<void>(() => {});
 
-    await expect(host.redialAsync()).resolves.toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev',
-      secret: 'TOKENx',
-    });
+    await expect(host.redialAsync()).resolves.toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
     expect(mockedSleep).toHaveBeenCalledWith(5_000);
   });
 
