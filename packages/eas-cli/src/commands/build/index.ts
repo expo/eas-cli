@@ -15,7 +15,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { StatuspageServiceName } from '../../graphql/generated';
+import { BuildStatus, StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { selectAsync } from '../../prompts';
@@ -177,7 +177,7 @@ export default class Build extends EasCommand {
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    const { buildProfiles } = await runBuildAndSubmitAsync({
+    const { buildProfiles, builds } = await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
@@ -194,8 +194,8 @@ export default class Build extends EasCommand {
       nonInteractive: flags.nonInteractive,
     });
 
-    if (buildProfiles) {
-      await maybeShowSimulatorsLaunchHintAsync(graphqlClient, analytics, {
+    if (builds?.some(build => build?.status === BuildStatus.Finished)) {
+      await maybeShowSimulatorsLaunchHintAsync(authenticationInfo, analytics, {
         nonInteractive: flags.nonInteractive,
       });
     }

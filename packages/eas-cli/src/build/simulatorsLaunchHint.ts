@@ -1,18 +1,20 @@
 import { boolish } from 'getenv';
 
 import { Analytics, BuildEvent } from '../analytics/AnalyticsManager';
-import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { createGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { UserPreferenceMutation } from '../graphql/mutations/UserPreferenceMutation';
 import { UserPreferenceQuery } from '../graphql/queries/UserPreferenceQuery';
 import Log, { link } from '../log';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 
 const SIMULATORS_LAUNCH_AT = new Date('2026-11-05T18:00:00Z');
 const SIMULATORS_LAUNCH_HINT_PREFERENCE_KEY = 'simulators-launch-cli-hint-seen';
+const REQUEST_TIMEOUT_MS = 3000;
 const SIMULATORS_QUICKSTART_URL =
   'https://docs.expo.dev/preview/simulators/get-started/?utm_source=eas-cli&utm_medium=cli&utm_campaign=simulators-launch';
 
 export async function maybeShowSimulatorsLaunchHintAsync(
-  graphqlClient: ExpoGraphqlClient,
+  authenticationInfo: LoggedInAuthenticationInfo,
   analytics: Analytics,
   { nonInteractive }: { nonInteractive: boolean }
 ): Promise<void> {
@@ -20,6 +22,9 @@ export async function maybeShowSimulatorsLaunchHintAsync(
     return;
   }
   try {
+    const graphqlClient = createGraphqlClient(authenticationInfo, {
+      requestTimeoutMs: REQUEST_TIMEOUT_MS,
+    });
     const value = await UserPreferenceQuery.getValueAsync(
       graphqlClient,
       SIMULATORS_LAUNCH_HINT_PREFERENCE_KEY
