@@ -149,16 +149,77 @@ describe(runOnWarmIosSimulatorAsync, () => {
 
   it('does not run cold after a failure during the session', async () => {
     jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
-    const run = jest.fn().mockRejectedValue(new Error('session failed'));
-    await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toThrow('session failed');
+    const error = new Error('session failed');
+    const run = jest.fn().mockRejectedValue(error);
+    await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toBe(error);
+    expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('does not run cold when warmup cleanup fails', async () => {
+  it.each([new Error('session failed'), new WarmSessionAdoptionError()])(
+    'preserves both errors and does not run cold when cleanup fails (%s)',
+    async error => {
+      jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+      const cleanupError = new Error('cleanup failed');
+      jest.mocked(warm.process.stopAsync).mockRejectedValue(cleanupError);
+      const run = jest.fn().mockRejectedValue(error);
+      await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toMatchObject({
+        errors: [error, cleanupError],
+      });
+      expect(run).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([false, true])(
+    'waits for cleanup before settling (adoption failure: %s)',
+    async adoption => {
+      jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+      const error = adoption ? new WarmSessionAdoptionError() : new Error('session failed');
+      let releaseCleanup = () => {};
+      let cleanupStarted = () => {};
+      const started = new Promise<void>(resolve => {
+        cleanupStarted = resolve;
+      });
+      jest.mocked(warm.process.stopAsync).mockImplementation(() => {
+        cleanupStarted();
+        return new Promise<void>(resolve => {
+          releaseCleanup = resolve;
+        });
+      });
+      const run = jest.fn().mockRejectedValueOnce(error).mockResolvedValue('cold');
+      const running = runOnWarmIosSimulatorAsync(claim, run);
+      let settled = false;
+      const result = running.then(
+        value => {
+          settled = true;
+          return value;
+        },
+        error => {
+          settled = true;
+          return error;
+        }
+      );
+      await started;
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(run).toHaveBeenCalledTimes(1);
+      releaseCleanup();
+      expect(await result).toBe(adoption ? 'cold' : error);
+      expect(run).toHaveBeenCalledTimes(adoption ? 2 : 1);
+    }
+  );
+
+  it('does not retry cold when cancellation occurs during cleanup', async () => {
     jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
-    jest.mocked(warm.process.stopAsync).mockRejectedValue(new Error('cleanup failed'));
+    const controller = new AbortController();
+    const cancellation = new Error('cancelled');
+    jest.mocked(warm.process.stopAsync).mockImplementation(async () => {
+      controller.abort(cancellation);
+    });
     const run = jest.fn().mockRejectedValue(new WarmSessionAdoptionError());
-    await expect(runOnWarmIosSimulatorAsync(claim, run)).rejects.toThrow('cleanup failed');
+    await expect(
+      runOnWarmIosSimulatorAsync({ ...claim, signal: controller.signal }, run)
+    ).rejects.toBe(cancellation);
     expect(run).toHaveBeenCalledTimes(1);
   });
 });
