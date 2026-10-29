@@ -13,6 +13,7 @@ import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { preparePreinstalledWdaAsync } from '../../utils/preinstalledWda';
+import { resolveLocalEgressServeSimBootEnvironmentAsync } from '../../utils/localEgressGuard';
 import {
   ensureFfmpegInstalledOnceAsync,
   selectXcodeDeveloperDirectoryAsync,
@@ -395,6 +396,42 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     expect(stopTunnel).toHaveBeenCalledTimes(1);
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('ends normally when Stop interrupts the LOCAL-guard Simulator shutdown', async () => {
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockResolvedValueOnce({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
+    jest
+      .mocked(IosSimulatorUtils.getDeviceAsync)
+      .mockResolvedValueOnce({ state: 'Booted' } as never);
+    let shutdownEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      shutdownEntered = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce((_command, _args, options) => {
+      shutdownEntered();
+      return new Promise((_resolve, reject) =>
+        options!.signal!.addEventListener(
+          'abort',
+          () => reject(new Error('Shutdown process aborted', { cause: options!.signal!.reason })),
+          { once: true }
+        )
+      ) as ReturnType<typeof spawn>;
+    });
+    const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+      boot_simulator: { value: true },
+      device_identifier: { value: 'chosen-device' },
+    });
+    running.catch(() => {});
+    await entered;
+    jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    await expect(running).resolves.toBeUndefined();
+    expect(ensureFfmpegInstalledOnceAsync).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
     expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
