@@ -1809,6 +1809,23 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
+  it('preserves an errored status when the duration timer fires during the response', async () => {
+    const ctx = createStatusCtxMock([]);
+    jest.mocked(turtleFetch).mockImplementationOnce(async () => {
+      (jest.mocked(setTimeoutCallback).mock.calls[0][0] as () => void)();
+      return workerApiResponse({ id: 'drs-id', status: 'errored' });
+    });
+    await expect(
+      waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger: createLoggerMock(),
+        maxDurationSeconds: 30,
+      })
+    ).rejects.toThrow('Device run session drs-id errored.');
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
   it('clears the duration timeout when the build step is aborted', async () => {
     const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const abortController = new AbortController();
@@ -1825,6 +1842,33 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
     expect(workerApiCallCount('session')).toBe(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('does not warn when retiring a watch aborts its pending status request', async () => {
+    const controller = new AbortController();
+    const logger = createLoggerMock();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(new Error('request aborted')), {
+            once: true,
+          });
+        })
+    );
+    const waiting = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await waiting;
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it('logs and retries transient polling errors', async () => {
@@ -2005,6 +2049,59 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
       );
     });
+  });
+});
+
+describe('remote configuration cancellation', () => {
+  beforeEach(() => jest.mocked(turtleFetch).mockReset());
+
+  it('does not report readiness for an already stopped startup', async () => {
+    const controller = new AbortController();
+    const stopped = new Error('startup stopped');
+    controller.abort(stopped);
+
+    await expect(
+      remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+        ctx: createCtxMock(),
+        deviceRunSessionId: 'drs-id',
+        remoteConfig: {},
+        logger: createLoggerMock(),
+        signal: controller.signal,
+      })
+    ).rejects.toBe(stopped);
+    expect(turtleFetch).not.toHaveBeenCalled();
+  });
+
+  it('forwards cancellation to the in-flight readiness HTTP request', async () => {
+    const controller = new AbortController();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    const stopped = new Error('session cancelled');
+    let requestAborted = false;
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener(
+            'abort',
+            () => {
+              requestAborted = true;
+              reject(new Error('ready request aborted'));
+            },
+            { once: true }
+          );
+        })
+    );
+    const reporting = remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      remoteConfig: {},
+      logger: createLoggerMock(),
+      signal: controller.signal,
+    });
+    controller.abort(stopped);
+
+    await expect(reporting).rejects.toBe(stopped);
+    expect(requestAborted).toBe(true);
   });
 });
 
