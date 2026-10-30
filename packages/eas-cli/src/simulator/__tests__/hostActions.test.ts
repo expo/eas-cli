@@ -1,5 +1,5 @@
 import * as fs from 'fs-extra';
-import { once } from 'node:events';
+import { getEventListeners, once } from 'node:events';
 import http from 'node:http';
 import { AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -415,6 +415,51 @@ describe('host action connection', () => {
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
     apiUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  it('does not open a connection when already canceled', async () => {
+    const controller = new AbortController();
+    const reason = new Error('canceled before setup');
+    controller.abort(reason);
+    await expect(
+      connectHostActionsAsync({ apiUrl, token: TOKEN }, { signal: controller.signal })
+    ).rejects.toBe(reason);
+    expect(requests).toEqual([]);
+  });
+
+  it('cancels an upgrade waiting for readiness and releases the abort listener', async () => {
+    sendReady = false;
+    const controller = new AbortController();
+    const accepted = once(wss, 'connection');
+    const pending = connectHostActionsAsync(
+      { apiUrl, token: TOKEN },
+      { signal: controller.signal }
+    );
+    const [socket] = await accepted;
+    const closed = once(socket, 'close');
+    const reason = new Error('canceled during setup');
+    const rejected = expect(pending).rejects.toBe(reason);
+    controller.abort(reason);
+    await rejected;
+    await closed;
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0);
+  });
+
+  it('cancels a pending action on an established connection', async () => {
+    const controller = new AbortController();
+    connection = await connectHostActionsAsync(
+      { apiUrl, token: TOKEN },
+      { signal: controller.signal }
+    );
+    reply = () => null;
+    const receivedRequest = once([...wss.clients][0], 'message');
+    const pending = connection.requestAsync('appearance.get');
+    const reason = new Error('canceled during action');
+    const rejected = expect(pending).rejects.toBe(reason);
+    await receivedRequest;
+    controller.abort(reason);
+    await rejected;
+    expect(connection.signal.aborted).toBe(true);
   });
 
   afterEach(async () => {

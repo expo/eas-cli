@@ -2,29 +2,18 @@ import Ajv2020, { AnySchema } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import * as fs from 'fs-extra';
 import path from 'path';
-import { z } from 'zod';
 
 import {
   ControlActionResult,
   PreparedControlAction,
+  assertLocalFileAsync,
   executeControlActionAsync,
+  parseControlActionOutput,
   prepareControlActionAsync,
+  resolveControlActionPath,
 } from './controlActions';
 import { HostActionCatalog, HostActionConnection, createHostActionUploadId } from './hostActions';
-
-const Config = z.strictObject({
-  version: z.literal(1),
-  actions: z
-    .array(
-      z.strictObject({
-        action: z.string().min(1),
-        params: z.record(z.string(), z.json()).default({}),
-        file: z.string().min(1).optional(),
-        output: z.string().min(1).optional(),
-      })
-    )
-    .min(1),
-});
+import { SimulatorSessionConfig, readSimulatorSessionConfigAsync } from './sessionConfig';
 
 type ConfigAction = {
   readonly plan: PreparedControlAction;
@@ -63,31 +52,20 @@ export class ControlConfigExecutionError extends Error {
 export async function prepareControlConfigAsync(
   catalog: HostActionCatalog,
   filePath: string,
-  udid: string
+  udid: string,
+  input?: SimulatorSessionConfig
 ): Promise<PreparedControlConfig> {
-  const absolutePath = path.resolve(filePath);
-  let input: unknown;
-  try {
-    input = await fs.readJson(absolutePath);
-  } catch (error) {
+  const config = input ?? (await readSimulatorSessionConfigAsync(filePath));
+  const absolutePath = config.path;
+  if (!config.actions?.length) {
     throw new Error(
-      `Could not read simulator configuration ${absolutePath}: ${errorMessage(error)}`,
-      {
-        cause: error,
-      }
+      `Invalid simulator configuration ${absolutePath}: actions must contain at least one action.`
     );
-  }
-  const parsed = Config.safeParse(input);
-  if (!parsed.success) {
-    const detail = parsed.error.issues
-      .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-      .join('; ');
-    throw new Error(`Invalid simulator configuration ${absolutePath}: ${detail}`);
   }
 
   const ajv = addFormats(new Ajv2020({ strict: false, allErrors: true }));
   const actions: ConfigAction[] = [];
-  for (const [index, action] of parsed.data.actions.entries()) {
+  for (const [index, action] of config.actions.entries()) {
     try {
       if (Object.hasOwn(action.params, 'udid')) {
         throw new Error('The simulator is selected by the session; remove params.udid.');
@@ -127,8 +105,36 @@ export async function prepareControlConfigAsync(
   return { path: absolutePath, udid, actions };
 }
 
+/** Check local inputs before requesting a paid session; runtime validation still uses the live catalog. */
+export async function preflightControlConfigFilesAsync(
+  config: SimulatorSessionConfig
+): Promise<void> {
+  for (const [index, action] of (config.actions ?? []).entries()) {
+    try {
+      if (Object.hasOwn(action.params, 'udid')) {
+        throw new Error('The simulator is selected by the session; remove params.udid.');
+      }
+      if (action.file) {
+        await assertLocalFileAsync(path.resolve(path.dirname(config.path), action.file));
+      }
+      if (action.output) {
+        await assertWritableOutputAsync(
+          resolveControlActionPath(action.output, path.dirname(config.path))
+        );
+      }
+    } catch (error) {
+      throw new Error(`Config step ${index + 1} (${action.action}): ${errorMessage(error)}`, {
+        cause: error,
+      });
+    }
+  }
+}
+
 async function assertWritableOutputAsync(outputPath: string): Promise<void> {
   const stat = await fs.stat(outputPath).catch(() => null);
+  if ((outputPath.endsWith('/') || outputPath.endsWith(path.sep)) && !stat?.isDirectory()) {
+    throw new Error(`${outputPath} must be an existing directory.`);
+  }
   if (stat && !stat.isFile() && !stat.isDirectory()) {
     throw new Error(`${outputPath} must be a regular file or directory.`);
   }
@@ -199,4 +205,10 @@ export async function executeControlConfigAsync(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+export function serializeControlConfigResults(
+  results: readonly ControlConfigResult[]
+): { action: string; output: unknown; file: string | null }[] {
+  return results.map(result => ({ ...result, output: parseControlActionOutput(result.output) }));
 }
