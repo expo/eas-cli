@@ -16,11 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
-import {
-  runServeSimActionAsync,
-  runServeSimActionWithResultAsync,
-  stageServeSimAppAsync,
-} from '../serveSimActions';
+import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -69,20 +65,6 @@ it('authenticates the upgrade, waits for ready, and sends the action once', asyn
   await runServeSimActionAsync(request());
   expect(upgrades).toEqual([{ url: '/exec-ws', protocol: `serve-sim.token.${token}` }]);
   expect(actions).toEqual([{ id: 1, action: 'app.install', params: request().params }]);
-});
-
-it('returns action stdout over the same authenticated channel', async () => {
-  server.on('connection', (socket, upgrade) => {
-    expect(upgrade.url).toBe('/exec-ws');
-    expect(upgrade.headers['sec-websocket-protocol']).toBe(`serve-sim.token.${token}`);
-    socket.send(JSON.stringify({ ready: true }));
-    socket.on('message', () => {
-      socket.send(JSON.stringify({ id: 1, stdout: '{"catalog":true}', stderr: '', exitCode: 0 }));
-    });
-  });
-  await expect(
-    runServeSimActionWithResultAsync({ ...request(), action: 'actions.describe', params: {} })
-  ).resolves.toBe('{"catalog":true}');
 });
 
 it.each([
@@ -164,7 +146,7 @@ it('cancels before dispatch while waiting for ready in drain mode', async () => 
     socket.send(JSON.stringify({ ready: true }));
   });
   await expect(
-    runServeSimActionWithResultAsync({
+    runServeSimActionAsync({
       ...request(),
       signal: controller.signal,
       drainAfterDispatch: true,
@@ -188,7 +170,7 @@ it('drains dispatched actions after cancellation in drain mode', async () => {
     });
   });
   let settled = false;
-  const action = runServeSimActionWithResultAsync({
+  const action = runServeSimActionAsync({
     ...request(),
     signal: controller.signal,
     drainAfterDispatch: true,
@@ -201,7 +183,7 @@ it('drains dispatched actions after cancellation in drain mode', async () => {
   await new Promise(resolve => setImmediate(resolve));
   expect(settled).toBe(false);
   reply();
-  await expect(action).resolves.toBe('completed');
+  await expect(action).resolves.toBeUndefined();
 });
 
 it('does not connect when already aborted', async () => {

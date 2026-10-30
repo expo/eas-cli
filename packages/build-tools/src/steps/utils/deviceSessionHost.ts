@@ -998,7 +998,6 @@ async function startDeviceSessionHostInternalAsync(
           device,
           tmpdir: serveSimTmpdir,
         });
-        await iosPreviewCapture.prepareAsync(previewSetupController.signal);
         await ensureMacosPreviewEncoderInstalledAsync({
           env,
           logger,
