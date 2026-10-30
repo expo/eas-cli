@@ -90,6 +90,33 @@ describe('configs', () => {
         logSpy.expectLogToContain('Using project name: user-custom-name');
       });
 
+      it('should strip control characters left by terminal editing shortcuts', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+        // Ctrl-U clears the prefilled name but leaves a literal U+0015 behind.
+        mockUserInput({ name: '\u0015my-project' });
+
+        const result = await generateProjectConfigAsync(undefined, mockOptions);
+
+        expect(result).toEqual({
+          projectName: 'my-project',
+          projectDirectory: expect.stringContaining('/my-project'),
+        });
+      });
+
+      it('should fall back to the default name when the answer is left empty', async () => {
+        (fs.pathExists as jest.Mock).mockResolvedValue(false);
+        jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
+        mockUserInput({ name: '\u0015' });
+
+        const result = await generateProjectConfigAsync(undefined, mockOptions);
+
+        expect(result).toEqual({
+          projectName: 'expo-project',
+          projectDirectory: expect.stringContaining('/expo-project'),
+        });
+      });
+
       it('should use shortid when prompted name exists', async () => {
         (fs.pathExists as jest.Mock).mockResolvedValue(true); // base name exists
         jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue(null);
