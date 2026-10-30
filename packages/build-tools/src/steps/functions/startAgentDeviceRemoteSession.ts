@@ -142,6 +142,9 @@ export async function runAgentDeviceRemoteSessionAsync(
   let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
   let sessionHost: DeviceSessionHost | undefined;
   let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
+  let artifactUploads: Promise<void> | undefined;
+  // Ends periodic polling; the poller then runs one bounded final inventory and upload drain.
+  const stopArtifactPolling = new AbortController();
   let sessionFailed = false;
   const daemonSecrets = [ngrokAuthtoken];
   const hostBootedDevice = 'iosSimulatorUdid' in device ? device : undefined;
@@ -263,12 +266,16 @@ export async function runAgentDeviceRemoteSessionAsync(
       return;
     }
     tasks.signal.throwIfAborted();
-    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+    artifactUploads = pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId,
       daemonUrl: `http://127.0.0.1:${daemonPort}`,
       daemonToken,
       logger,
+      signal,
+      stopPollingSignal: stopArtifactPolling.signal,
     });
+    // Attach a handler at once; the teardown still awaits and reports a rejection.
+    void artifactUploads.catch(() => {});
 
     eventCollection = await startAgentDeviceEventCollectionAsync({
       ctx,
@@ -301,29 +308,41 @@ export async function runAgentDeviceRemoteSessionAsync(
     // everything that was started.
     await Promise.allSettled([agentDeviceStartup, sessionHostStartup, deviceReady]);
     const startedDaemon = daemonProcess;
+    const toolTeardown = (async () => {
+      try {
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+      } finally {
+        try {
+          // The final inventory reads from the daemon, so it finishes before the daemon stops.
+          stopArtifactPolling.abort();
+          await artifactUploads;
+        } finally {
+          await startedDaemon?.stopAsync();
+        }
+      }
+    })();
     await finishRemoteSessionAsync({
       logger,
       sessionFailed,
       teardown: [
         ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        ['agent-device daemon', toolTeardown],
         [
-          'agent-device daemon',
-          (startedDaemon || eventCollection) &&
-            (async () => {
-              try {
-                if (eventCollection) {
-                  await stopAgentDeviceEventCollectionSafelyAsync({
-                    eventCollection,
-                    deviceRunSessionId,
-                    logger,
-                  });
-                }
-              } finally {
-                await startedDaemon?.stopAsync();
-              }
-            })(),
+          'session host',
+          (async () => {
+            if (warm) {
+              // The warm host owns the daemon too; keep it alive through the final downloads.
+              await Promise.allSettled([toolTeardown]);
+            }
+            await sessionHost?.finishAsync();
+          })(),
         ],
-        ['session host', sessionHost?.finishAsync()],
       ],
     });
   }

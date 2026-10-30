@@ -7,6 +7,7 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   monitorLocalEgressAsync,
@@ -124,6 +125,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   }
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
     lifetime = registerLocalEgressResources(stopEgress);
     stopEgress.mockResolvedValue(undefined);
     stopPreview.mockResolvedValue(undefined);
