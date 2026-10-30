@@ -61,6 +61,7 @@ jest.mock('../../../graphql/queries/UpdateQuery');
 jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../ora', () => ({
+  isSpinnerEnabled: () => false,
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
   }),
