@@ -19,7 +19,7 @@ import { configureIosCredentialsFunction } from '../functions/configureIosCreden
 import { configureIosVersionFunction } from '../functions/configureIosVersion';
 import { eagerBundleBuildFunction } from '../functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from '../functions/findAndUploadBuildArtifacts';
-import { createReportResolvedVersionBuildFunction } from '../functions/reportResolvedVersion';
+import { createUpdateResolvedVersionBuildFunction } from '../functions/updateResolvedVersion';
 import { generateGymfileFromTemplateFunction } from '../functions/generateGymfileFromTemplate';
 import { injectAndroidCredentialsFunction } from '../functions/injectAndroidCredentials';
 import { createInstallNodeModulesBuildFunction } from '../functions/installNodeModules';
@@ -188,7 +188,7 @@ function createStepsForIosSimulatorBuild({
       id: 'find_and_upload_build_artifacts',
       workingDirectory,
     }),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+    createUpdateResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
       globalCtx,
       {
         workingDirectory,
@@ -335,7 +335,7 @@ function createStepsForIosBuildWithCredentials({
           }),
         ]
       : []),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+    createUpdateResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
       globalCtx,
       {
         workingDirectory,
@@ -448,7 +448,7 @@ function createStepsForAndroidBuildWithoutCredentials({
           }),
         ]
       : []),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+    createUpdateResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
       globalCtx,
       {
         workingDirectory,
@@ -567,7 +567,7 @@ function createStepsForAndroidBuildWithCredentials({
           }),
         ]
       : []),
-    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+    createUpdateResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
       globalCtx,
       {
         workingDirectory,

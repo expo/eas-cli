@@ -135,18 +135,18 @@ describe(createEasBuildBuildFunctionGroup, () => {
       ['Android with credentials', { platform: Platform.ANDROID, buildCredentials: { test: {} } }],
       ['iOS simulator', { platform: Platform.IOS, simulator: true }],
       ['iOS with credentials', { platform: Platform.IOS, buildCredentials: { test: {} } }],
-    ])('wires the uploaded archive path into the report step (%s)', (_label, overrides) => {
+    ])('wires the uploaded archive path into the update step (%s)', (_label, overrides) => {
       const buildToolsContext = createMockBuildToolsContext(overrides);
       const functionGroup = createEasBuildBuildFunctionGroup(buildToolsContext);
       const globalCtx = createGlobalContextMock({ logger: createMockLogger() });
 
       const steps = functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx);
 
-      const reportStep = steps.find(s => s.displayName === 'Report resolved version');
-      const archivePathInput = reportStep?.inputs?.find(
+      const updateStep = steps.find(s => s.displayName === 'Update resolved version');
+      const archivePathInput = updateStep?.inputs?.find(
         input => input.id === 'application_archive_path'
       );
-      expect(reportStep).toBeDefined();
+      expect(updateStep).toBeDefined();
       expect(archivePathInput?.rawValue).toBe(
         '${ steps.find_and_upload_build_artifacts.application_archive_path }'
       );
@@ -156,7 +156,7 @@ describe(createEasBuildBuildFunctionGroup, () => {
       const uploadStepIndex = steps.findIndex(s => s.id === 'find_and_upload_build_artifacts');
       expect(uploadStepIndex).toBeGreaterThan(-1);
       expect(steps[uploadStepIndex].displayName).toBe('Find and upload build artifacts');
-      expect(uploadStepIndex).toBeLessThan(steps.indexOf(reportStep!));
+      expect(uploadStepIndex).toBeLessThan(steps.indexOf(updateStep!));
     });
 
     it('composes working directory with installPods step-level ./ios dir (iOS)', () => {

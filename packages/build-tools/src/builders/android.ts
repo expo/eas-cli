@@ -20,7 +20,7 @@ import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import {
   extractAndroidVersionAsync,
   updateResolvedVersionAsync,
-} from '../steps/functions/reportResolvedVersion';
+} from '../steps/functions/updateResolvedVersion';
 import {
   cacheStatsAsync,
   restoreCcacheAsync,

@@ -21,12 +21,12 @@ import { BuildContext } from '../../../context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { parseInfoPlistBuffer } from '../readIpaInfo';
 import {
-  createReportResolvedVersionBuildFunction,
+  createUpdateResolvedVersionBuildFunction,
   extractAndroidVersionAsync,
   extractIosVersionAsync,
   parseAaptOutput,
   parseManifestXml,
-} from '../reportResolvedVersion';
+} from '../updateResolvedVersion';
 
 describe(parseAaptOutput, () => {
   it('extracts versionName and versionCode from aapt2 output', () => {
@@ -269,7 +269,7 @@ describe(extractAndroidVersionAsync, () => {
   });
 });
 
-describe(createReportResolvedVersionBuildFunction, () => {
+describe(createUpdateResolvedVersionBuildFunction, () => {
   afterEach(() => {
     mockedSpawnAsync.mockReset();
   });
@@ -294,7 +294,7 @@ describe(createReportResolvedVersionBuildFunction, () => {
       workingdir: '',
     });
     ctx.graphqlClient.mutation = mutation as any;
-    const step = createReportResolvedVersionBuildFunction(
+    const step = createUpdateResolvedVersionBuildFunction(
       new CustomBuildContext(ctx)
     ).createBuildStepFromFunctionCall(createGlobalContextMock({}), {
       callInputs: archivePath ? { application_archive_path: archivePath } : {},
@@ -327,7 +327,7 @@ describe(createReportResolvedVersionBuildFunction, () => {
     expect(mutation).toHaveBeenCalledTimes(1);
   });
 
-  it('reports the resolved versions for the build', async () => {
+  it('updates the resolved versions for the build', async () => {
     mockedSpawnAsync.mockResolvedValue({
       stdout: `package: name='com.example.app' versionCode='42' versionName='2.5.0'`,
       stderr: '',

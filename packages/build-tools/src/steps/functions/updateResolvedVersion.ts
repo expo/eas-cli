@@ -15,14 +15,14 @@ import { parseInfoPlistBuffer, readIpaInfoAsync } from './readIpaInfo';
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 
-export function createReportResolvedVersionBuildFunction(
+export function createUpdateResolvedVersionBuildFunction(
   ctx: CustomBuildContext<BuildJob>
 ): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
-    id: 'report_resolved_version',
-    name: 'Report resolved version',
-    __metricsId: 'eas/report_resolved_version',
+    id: 'update_resolved_version',
+    name: 'Update resolved version',
+    __metricsId: 'eas/update_resolved_version',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'application_archive_path',

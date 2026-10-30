@@ -21,7 +21,7 @@ import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import {
   extractIosVersionAsync,
   updateResolvedVersionAsync,
-} from '../steps/functions/reportResolvedVersion';
+} from '../steps/functions/updateResolvedVersion';
 import {
   cacheStatsAsync,
   restoreCcacheAsync,
