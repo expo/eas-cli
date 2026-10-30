@@ -18,6 +18,9 @@ describe(EasHelp, () => {
     ['simulator:control', 'rotate', '--help'],
     ['sim:control', 'screenshot.capture', '-h', '--id', 'session-123'],
     ['simulator:control', '--id', 'session-123', '--help', 'rotate'],
+    ['simulators:control', 'rotate', '--help'],
+    ['emulator:control', 'rotate', '-h'],
+    ['emulators:control', 'rotate', '--help'],
   ])('routes action help through the command: %j', async (...argv) => {
     await new EasHelp(config).showHelp(argv);
     expect(run).toHaveBeenCalledWith('simulator:control', argv.slice(1));
@@ -29,6 +32,7 @@ describe(EasHelp, () => {
     ['simulator:control', 'screenshot.capture', '--help', '--output'],
     ['sim:control', 'rotate', '-h', '--id'],
     ['sim:control', '-h'],
+    ['emulators:control', '-h'],
     ['build', '--help'],
     ['simulator:control', 'clipboard.write', '--', '--help'],
   ])('preserves regular help and literal values: %j', async (...argv) => {

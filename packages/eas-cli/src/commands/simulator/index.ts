@@ -30,6 +30,12 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
+import {
+  SIMULATOR_HIDDEN_TOPIC_ALIASES,
+  SIMULATOR_TOPIC_ALIASES,
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
@@ -80,8 +86,12 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
 };
 
 export default class Simulator extends EasCommand {
-  static override aliases = ['simulator:start', 'sim:start'];
-  static override hiddenAliases = ['sim'];
+  static override aliases = ['simulator:start', ...getSimulatorCommandAliases('start')];
+  static override hiddenAliases = [
+    ...SIMULATOR_TOPIC_ALIASES,
+    ...SIMULATOR_HIDDEN_TOPIC_ALIASES,
+    ...getSimulatorCommandHiddenAliases('start'),
+  ];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in';
 

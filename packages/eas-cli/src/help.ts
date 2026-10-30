@@ -1,10 +1,12 @@
 import { Help, Parser } from '@oclif/core';
 
+import { isSimulatorCommandId } from './simulator/commandAliases';
+
 export default class EasHelp extends Help {
   // eslint-disable-next-line async-protect/async-suffix -- oclif defines the method name.
   override async showHelp(argv: string[]): Promise<void> {
     const [command, ...args] = argv;
-    if (command === 'simulator:control' || command === 'sim:control') {
+    if (isSimulatorCommandId(command, 'control')) {
       const { default: SimulatorControl } = await import('./commands/simulator/control');
       let parsed;
       try {
