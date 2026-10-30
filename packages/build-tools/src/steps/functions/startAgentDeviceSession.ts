@@ -15,8 +15,6 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
-import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
-import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import { runOnWarmIosSimulatorAsync } from '../utils/warmDeviceSessionHost';
 import { type WarmIosSession } from '../utils/warmIosSession';
@@ -40,7 +38,6 @@ import {
 } from '../utils/networkCaptureFields';
 import { createStartupTasks } from '../utils/startupTasks';
 
-import { downloadBuildAsync } from './downloadBuild';
 import { installBuildAsync } from './installBuild';
 import {
   launchApplicationAsync,
@@ -56,9 +53,9 @@ import { startAndroidEmulatorAsync } from './startAndroidEmulator';
 const ANDROID_DEVICE_NAME = 'EasAndroidDevice01' as AndroidVirtualDeviceName;
 
 /**
- * Starts a device session using an optional local app artifact, or one it downloads.
+ * Starts a device session using an optional local app artifact.
  * On iOS, serve-sim boots the selected Simulator, then installs and launches
- * the app. Build-tools verifies any egress guard before install and launch.
+ * the supplied app. Build-tools verifies any egress guard before install and launch.
  */
 export function createStartAgentDeviceSessionBuildFunction(
   ctx: CustomBuildContext,
@@ -97,20 +94,8 @@ export function createStartAgentDeviceSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
-      // Application. Pass at most one of install_app_path, build_id and application_archive_url.
       BuildStepInput.createProvider({
         id: 'install_app_path',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-      }),
-      // Deprecated: remove once workflows pass install_app_path.
-      BuildStepInput.createProvider({
-        id: 'build_id',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-      }),
-      BuildStepInput.createProvider({
-        id: 'application_archive_url',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
@@ -146,31 +131,11 @@ export function createStartAgentDeviceSessionBuildFunction(
       const sessionEnv = getAgentDeviceRemoteSessionEnvOrThrow(stepEnv);
       const env = omitNgrokAuthtoken(stepEnv);
       const installAppPath = inputs.install_app_path.value as string | undefined;
-      const buildId = inputs.build_id.value as string | undefined;
-      const applicationArchiveUrl = inputs.application_archive_url.value as string | undefined;
       const launchAppIdentifier = inputs.launch_app_identifier.value as string | undefined;
       const launchArgs = parseLaunchArgsInput(inputs.launch_args.value);
       const openUrl =
         inputs.open_url.value === undefined ? undefined : parseOpenUrlInput(inputs.open_url.value);
-      const download = buildId || applicationArchiveUrl;
-      if ([installAppPath, buildId, applicationArchiveUrl].filter(Boolean).length > 1) {
-        throw new UserError(
-          'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-          'Pass only one of install_app_path, build_id or application_archive_url.'
-        );
-      }
-      if (download && launchAppIdentifier !== undefined) {
-        throw new UserError(
-          'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-          'launch_app_identifier cannot be combined with build_id or application_archive_url.'
-        );
-      }
-      if (
-        !installAppPath &&
-        !download &&
-        !launchAppIdentifier &&
-        (launchArgs.length > 0 || openUrl)
-      ) {
+      if (!installAppPath && !launchAppIdentifier && (launchArgs.length > 0 || openUrl)) {
         throw new UserError(
           'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
           'launch_args and open_url need an application: pass install_app_path or launch_app_identifier.'
@@ -198,7 +163,6 @@ export function createStartAgentDeviceSessionBuildFunction(
 
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
         const tasks = createStartupTasks(logger, signal);
-        let downloaded: Promise<string> | undefined;
         let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
 
         try {
@@ -214,9 +178,8 @@ export function createStartAgentDeviceSessionBuildFunction(
                 deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
                 installAppPath,
                 launchAppIdentifier,
-                // A downloaded app gets its launch options after the download.
-                launchArgs: download ? [] : launchArgs,
-                openUrl: download ? undefined : openUrl,
+                launchArgs,
+                openUrl,
                 env,
                 logger,
                 signal: tasks.signal,
@@ -247,62 +210,17 @@ export function createStartAgentDeviceSessionBuildFunction(
                 });
               });
 
-          downloaded = download
-            ? tasks.run('build download', async taskLogger => {
-                const source = buildId
-                  ? { buildId }
-                  : applicationArchiveUrl
-                    ? { applicationArchiveUrl }
-                    : undefined;
-                if (!source) {
-                  throw new Error('No app source was provided for download.');
-                }
-                const { artifactPath } = await downloadBuildAsync({
-                  logger: taskLogger,
-                  ...source,
-                  graphqlClient: ctx.graphqlClient,
-                  deviceRunSessionWorkerApi: buildId ? getDeviceRunSessionWorkerApi(ctx) : null,
-                  robotAccessToken: global.staticContext.job.secrets?.robotAccessToken ?? null,
-                  extensions: isIos ? ['app'] : ['apk'],
-                  signal: tasks.signal,
-                });
-                return artifactPath;
-              })
-            : undefined;
-          const downloadedApp = downloaded;
-
-          if (isIos && downloadedApp) {
-            applicationReady = tasks.run('app preparation', async () => {
-              const artifactPath = await downloadedApp;
-              tasks.signal.throwIfAborted();
-              const applicationIdentifier = await readIosApplicationIdentifierAsync({
-                artifactPath,
-                env,
-              });
-              tasks.signal.throwIfAborted();
-              return {
-                installAppPath: artifactPath,
-                launchAppIdentifier: applicationIdentifier,
-                launchArgs,
-                openUrl,
-              };
-            });
-          } else if (isIos && launch?.launchAppIdentifier) {
+          if (isIos && launch?.launchAppIdentifier) {
             applicationReady = Promise.resolve({
               ...launch,
               launchAppIdentifier: launch.launchAppIdentifier,
               installAppPath,
             });
-          } else if (!isIos && (installAppPath || downloadedApp)) {
+          } else if (!isIos && installAppPath) {
             applicationReady = tasks.run('app install and launch', async taskLogger => {
               await tasks.untilAborted(booted);
-              const artifactPath = installAppPath ?? (await downloadedApp);
-              if (!artifactPath) {
-                throw new Error('No app artifact was prepared.');
-              }
-              tasks.signal.throwIfAborted();
               const { applicationIdentifier, activityName } = await installBuildAsync({
-                artifactPath,
+                artifactPath: installAppPath,
                 runtimePlatform,
                 env,
                 logger: taskLogger,
@@ -350,11 +268,10 @@ export function createStartAgentDeviceSessionBuildFunction(
           });
         } finally {
           tasks.abort(new Error('Agent-device session ended.'));
-          await Promise.allSettled([downloaded, applicationReady]);
+          await Promise.allSettled([applicationReady]);
         }
       };
-      // The warm path installs only a local app; build_id and application_archive_url start cold.
-      if (warm && isIos && !download) {
+      if (warm && isIos) {
         await runOnWarmIosSimulatorAsync(
           {
             engine: 'agent-device',

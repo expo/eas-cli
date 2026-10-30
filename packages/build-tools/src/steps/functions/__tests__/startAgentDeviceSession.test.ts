@@ -11,7 +11,6 @@ import {
   startLocalEgressGuardRelayAsync,
 } from '../../utils/localEgressGuard';
 import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
-import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 import { launchApplicationAsync } from '../launchApplication';
@@ -43,7 +42,6 @@ jest.mock('../startIosSimulator', () => ({
 }));
 jest.mock('../startAndroidEmulator', () => ({ startAndroidEmulatorAsync: jest.fn() }));
 jest.mock('../../utils/warmDeviceSessionHost');
-jest.mock('../downloadBuild', () => ({ downloadBuildAsync: jest.fn() }));
 jest.mock('../installBuild', () => ({ installBuildAsync: jest.fn() }));
 jest.mock('../../utils/iosAppArtifact', () => ({
   ...jest.requireActual('../../utils/iosAppArtifact'),
@@ -116,8 +114,6 @@ function runStep(
       'lcd_height',
       'lcd_density',
       'install_app_path',
-      'build_id',
-      'application_archive_url',
       'launch_app_identifier',
       'launch_args',
       'open_url',
@@ -422,8 +418,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'lcd_height',
       'lcd_density',
       'install_app_path',
-      'build_id',
-      'application_archive_url',
       'launch_app_identifier',
       'launch_args',
       'open_url',
@@ -573,38 +567,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
   });
 
-  it('still downloads a build_id app and launches it on iOS', async () => {
-    jest.mocked(downloadBuildAsync).mockResolvedValue({ artifactPath: '/tmp/Downloaded.app' });
-    await runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id', launch_args: ['-flag'] });
-    expect(downloadBuildAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ buildId: 'build-id', extensions: ['app'] })
-    );
-    expect(deviceLaunch).toEqual({
-      installAppPath: '/tmp/Downloaded.app',
-      launchAppIdentifier: 'dev.example.app',
-      launchArgs: ['-flag'],
-      openUrl: undefined,
-    });
-  });
-
-  it('still downloads an application_archive_url app and installs it on Android', async () => {
-    jest.mocked(downloadBuildAsync).mockResolvedValue({ artifactPath: '/tmp/Downloaded.apk' });
-    await runStep(BuildRuntimePlatform.LINUX, {
-      application_archive_url: 'https://example.test/app.tar.gz',
-    });
-    expect(downloadBuildAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        applicationArchiveUrl: 'https://example.test/app.tar.gz',
-        extensions: ['apk'],
-      })
-    );
-    expect(installBuildAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ artifactPath: '/tmp/Downloaded.apk' })
-    );
-    expect(launchApplicationAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it('runs the warm step on the warm Simulator for a local app only', async () => {
+  it('runs the warm step on the warm Simulator', async () => {
     jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation((_claim, run) => run());
     const runWarm = (inputs: Record<string, unknown>) =>
       runStep(BuildRuntimePlatform.DARWIN, inputs, undefined, ctx, true);
@@ -613,18 +576,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       expect.objectContaining({ engine: 'agent-device', requestedDevice: 'iPhone 17' }),
       expect.any(Function)
     );
-    jest.mocked(runOnWarmIosSimulatorAsync).mockClear();
-    jest.mocked(downloadBuildAsync).mockResolvedValue({ artifactPath: '/tmp/Downloaded.app' });
-    await runWarm({ build_id: 'build-id' });
-    expect(runOnWarmIosSimulatorAsync).not.toHaveBeenCalled();
-    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(2);
-  });
-
-  it('accepts only one application source', async () => {
-    await expect(
-      runStep(BuildRuntimePlatform.DARWIN, { install_app_path: '/tmp/App.app', build_id: 'id' })
-    ).rejects.toThrow('Pass only one of install_app_path, build_id or application_archive_url.');
-    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
   });
 
   it('waits for Android boot before installing the supplied local APK', async () => {
