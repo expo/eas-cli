@@ -218,6 +218,7 @@ it.each([undefined, '', 'invalid serial', 'all', 'booted'])(
       env,
       logger,
       timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
       previewDeviceId,
     });
     try {
@@ -238,6 +239,7 @@ it('uses the supplied Android serial for Hub and thumbnails without selecting an
     env,
     logger,
     timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
     previewDeviceId: 'emulator-5556',
   });
   try {
@@ -268,6 +270,7 @@ it('pins an already-booted iOS preview without taking over boot or setup', async
     env,
     logger,
     timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
     previewDeviceId: udid,
   });
   try {
@@ -289,6 +292,7 @@ it('rejects readiness on a different Simulator from the selected preview target'
       env,
       logger,
       timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
       previewDeviceId: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
     })
   ).rejects.toThrow('but this session requested AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA');
