@@ -3,8 +3,16 @@ import HttpLogStream from './logging/HttpLogStream';
 import RemoteLoggerStream from './logging/RemoteLoggerStream';
 
 export { Builders, HttpLogStream, RemoteLoggerStream };
-export { uploadWithSignedUrl } from './storage/uploadWithSignedUrl';
-export type { SignedUrl, UploadWithSignedUrlParams } from './storage/uploadWithSignedUrl';
+export {
+  SignedUrlUploadApiError,
+  SignedUrlUploadNetworkError,
+  uploadWithSignedUrl,
+} from './storage/uploadWithSignedUrl';
+export type {
+  SignedUrl,
+  UploadWithSignedUrlOptions,
+  UploadWithSignedUrlParams,
+} from './storage/uploadWithSignedUrl';
 export { downloadCacheAsync } from './steps/functions/restoreCache';
 export { uploadCacheAsync } from './steps/functions/saveCache';
 
@@ -26,6 +34,7 @@ export { formatSecondsForLog } from './utils/formatDuration';
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
+export { detectPnpmUnsupportedNodeVersionError } from './buildErrors/pnpmUnsupportedNodeVersionError';
 
 export { parseGradleProfile, formatGradleProfileReport } from './android/gradleProfile';
 export type { GradleProfileTask } from './android/gradleProfile';
@@ -33,5 +42,6 @@ export type { GradleProfileTask } from './android/gradleProfile';
 export * from './generic';
 
 export { Datadog } from './datadog';
+export { getDeviceRunSessionTokenFromEnvironmentSecrets } from './steps/utils/deviceRunSessionWorkerApi';
 export { Sentry } from './sentry';
 export * from './runtimeSettings';

@@ -21,10 +21,15 @@ export type AnalyticsEvent =
   | SubmissionEvent
   | MetadataEvent
   | BillingEvent
-  | SimulatorEvent;
+  | SimulatorEvent
+  | ExperimentationEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
+}
+
+export enum ExperimentationEvent {
+  EXPERIMENT_VIEWED = 'Experiment Viewed',
 }
 
 export enum BillingEvent {
@@ -64,6 +69,9 @@ export enum BuildEvent {
   BUILD_REQUEST_ATTEMPT = 'build cli build request attempt',
   BUILD_REQUEST_SUCCESS = 'build cli build request success',
   BUILD_REQUEST_FAIL = 'build cli build request fail',
+  FREE_TIER_LIMIT_CHECKOUT_PROMPT = 'build cli free tier limit checkout prompt',
+  FREE_TIER_NEAR_LIMIT_AGENT_UPDATES_TIP = 'build cli free tier near limit agent updates tip',
+  SIMULATORS_LAUNCH_HINT_SHOWN = 'build cli simulators launch hint shown',
 
   BUILD_STATUS_COMMAND = 'build cli build status',
 
@@ -105,6 +113,8 @@ export interface Analytics {
 export interface AnalyticsWithOrchestration extends Analytics {
   setActor(actor: Actor): void;
   flushAsync(): Promise<void>;
+  /** The persisted RudderStack anonymous ID, or null when analytics is disabled. */
+  getDeviceId(): string | null;
 }
 
 const USER_SETTINGS_KEY_AMPLITUDE_ENABLED = 'amplitudeEnabled';
@@ -183,6 +193,9 @@ class NoOpAnalytics implements AnalyticsWithOrchestration {
   logEvent(): void {}
   setActor(): void {}
   async flushAsync(): Promise<void> {}
+  getDeviceId(): null {
+    return null;
+  }
 }
 
 const RudderstackAnalyticsConfig =
@@ -232,6 +245,10 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
       },
     });
     this.identifiedActor = actor;
+  }
+
+  public getDeviceId(): string {
+    return this.persistentDeviceId;
   }
 
   public logEvent(name: AnalyticsEvent, properties: AnalyticsEventProperties): void {

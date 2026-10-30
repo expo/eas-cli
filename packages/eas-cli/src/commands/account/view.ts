@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { Role } from '../../graphql/generated';
 import Log from '../../log';
-import { Actor, getActorDisplayName } from '../../user/User';
+import { getActorDisplayName } from '../../user/User';
+import { logAccountPermissions } from '../../user/accountPermissions';
 
 export default class AccountView extends EasCommand {
   static override description = 'show the username you are logged in as';
@@ -27,59 +27,18 @@ export default class AccountView extends EasCommand {
         Log.log(actor.email);
       }
 
-      // personal account is included, only show if more accounts that personal account
-      // but do show personal account in list if there are more
-      const accountExcludingPersonalAccount = actor.accounts.filter(
-        account => !('username' in actor) || account.name !== actor.username
-      );
-      if (accountExcludingPersonalAccount.length > 0) {
+      const { hasLimitedAccount } = logAccountPermissions(actor);
+      if (hasLimitedAccount) {
         Log.newLine();
-        Log.log('Accounts:');
-        actor.accounts.forEach(account => {
-          const roleOnAccount = AccountView.getRoleOnAccount(actor, account);
-          Log.log(`• ${account.name} (Role: ${AccountView.getLabelForRole(roleOnAccount)})`);
-        });
+        Log.log(
+          `The permissions granted during authentication limit your access to some accounts. Run ${chalk.bold(
+            'eas login'
+          )} to change the permission grant.`
+        );
       }
     } else {
       Log.warn('Not logged in');
       process.exit(1);
-    }
-  }
-
-  private static getRoleOnAccount(actor: Actor, account: Actor['accounts'][0]): Role {
-    if ('username' in actor && account.name === actor.username) {
-      return Role.Owner;
-    }
-
-    return account.viewerUserPermission.role;
-  }
-
-  private static getLabelForRole(role: Role): string {
-    switch (role) {
-      case Role.Owner:
-        return 'Owner';
-      case Role.Admin:
-        return 'Admin';
-      case Role.Developer:
-        return 'Developer';
-      case Role.ReleaseManager:
-        return 'Release Manager';
-      case Role.ViewOnly:
-        return 'Viewer';
-      case Role.Custom:
-      case Role.HasAdmin:
-      case Role.NotAdmin:
-        return 'Custom';
-      // A role added to the API after this version of the CLI was published. TypeScript narrows
-      // `role` to `never` here, but the server can still send one, so render its name rather than
-      // returning undefined.
-      default: {
-        const unknownRole: string = role;
-        return unknownRole
-          .split('_')
-          .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-          .join(' ');
-      }
     }
   }
 }

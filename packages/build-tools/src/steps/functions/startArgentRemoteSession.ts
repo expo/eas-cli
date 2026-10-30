@@ -1,15 +1,17 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { type Result, asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -19,6 +21,7 @@ import {
   withLocalEgressSession,
 } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import {
   createNetworkCaptureInputProviders,
   parseNetworkCaptureInputs,
@@ -29,11 +32,16 @@ import {
   resolveConfiguredPackageManager,
   resolvePackageExec,
 } from '../../utils/packageManager';
-import { isProcessDescendantOfAsync } from '../../utils/processes';
+import { isProcessDescendantOfAsync, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  createCorsOriginsInputProvider,
+  createFrameAncestorsInputProvider,
+  createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
@@ -41,7 +49,9 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
-  parseServeSimLaunchInputs,
+  omitNgrokAuthtoken,
+  parseCorsOriginsInput,
+  parseFrameAncestorsInput,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -55,6 +65,9 @@ export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 // Tells the tool-server to write its structured event log so we can collect session events.
 const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
+// On by default in Argent (since 0.17.0); we turn it off so recorded videos have no Argent
+// watermark. Older versions that don't know the flag treat `disable` as a no-op.
+const ARGENT_VIDEO_WATERMARK_FLAG = 'video-watermark';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 // Pin the event log path explicitly and hand the same value to the tool-server (via
 // ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
@@ -80,7 +93,12 @@ export function createStartArgentRemoteSessionBuildFunction(
     __metricsId: 'eas/start_argent_remote_session',
     inputProviders: [
       ...createServeSimLaunchInputProviders(),
+      ...createIosSessionStartupInputProviders(),
       ...createNetworkCaptureInputProviders(),
+      createPublicPreviewInputProvider(),
+      createPrivatePreviewUrlInputProvider(),
+      createFrameAncestorsInputProvider(),
+      createCorsOriginsInputProvider(),
       BuildStepInput.createProvider({
         id: 'package_version',
         required: false,
@@ -97,14 +115,15 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env, signal }) => {
+    fn: withLocalEgressSession(async ({ logger, global }, { inputs, env: stepEnv, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
       // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
-      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(stepEnv);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(stepEnv);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(stepEnv);
+      const env = omitNgrokAuthtoken(stepEnv);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       // A missing or non-positive value disables the idle timeout (opt-in feature).
@@ -113,14 +132,21 @@ export function createStartArgentRemoteSessionBuildFunction(
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
-      const launch = parseServeSimLaunchInputs(
-        {
-          launchAppIdentifier: inputs.launch_app_identifier?.value as string | undefined,
-          launchArgs: inputs.launch_args?.value,
-          openUrl: inputs.open_url?.value as string | undefined,
-        },
-        { runtimePlatform }
-      );
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
+      }
+      const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+        runtimePlatform,
+        bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
+        deviceIdentifier: inputs.device_identifier?.value as string | undefined,
+        installAppPath: inputs.install_app_path?.value as string | undefined,
+        launchAppIdentifier: inputs.launch_app_identifier?.value,
+        launchArgs: inputs.launch_args?.value,
+        openUrl: inputs.open_url?.value,
+        env,
+        logger,
+        signal,
+      });
       const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture?.value,
@@ -131,10 +157,6 @@ export function createStartArgentRemoteSessionBuildFunction(
       logger.info(
         `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
-
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
 
       // Start the potentially slow installation while Argent is being prepared.
       // On Linux expo-device-hub calls this again and awaits the same in-flight
@@ -147,92 +169,171 @@ export function createStartArgentRemoteSessionBuildFunction(
       const argentExec = (args: string[]): { command: string; args: string[] } =>
         resolvePackageExec(packageManager, args);
 
-      logger.info('Enabling the Argent artifacts list endpoint flag.');
-      const enableArtifacts = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'enable',
-        ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
-      ]);
-      await spawn(enableArtifacts.command, enableArtifacts.args, { env, logger });
-
-      logger.info('Enabling the Argent tool-server event log flag.');
-      const enableEventLog = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'enable',
-        ARGENT_EVENT_LOG_FLAG,
-      ]);
-      await spawn(enableEventLog.command, enableEventLog.args, { env, logger });
-
-      const startServer = argentExec([
-        `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-        'server',
-        'start',
-        '--port',
-        '0',
-        '--idle-timeout',
-        '0',
-        '--force',
-      ]);
-      logger.info(
-        `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
-      );
-      // Keep Argent itself in foreground mode under the detached process. This preserves
-      // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
-      const argentServer = spawnDetached({
-        command: startServer.command,
-        args: startServer.args,
-        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
-      });
-      if (argentServer.pid === undefined) {
-        throw new SystemError(
-          'Failed to start Argent: could not determine the PID of the launched process.'
-        );
-      }
-
-      logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
-      let toolServerPort: number;
-      let toolServerToken: string | undefined;
-      try {
-        const toolServerState = await waitForArgentToolServerStateAsync({
-          stateDir: ARGENT_STATE_DIR,
-          ancestorPid: argentServer.pid,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-          getExitError: argentServer.getExitError,
-        });
-        toolServerPort = toolServerState.port;
-        toolServerToken = toolServerState.token;
-      } catch (err) {
-        const output = argentServer.getOutput();
-        throw new SystemError(
-          `${
-            err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
-          }${output ? `\nArgent tool-server output:\n${output}` : ''}`
-        );
-      }
-      logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
+      const startupAbortController = new AbortController();
+      const startupSignal = signal
+        ? AbortSignal.any([signal, startupAbortController.signal])
+        : startupAbortController.signal;
+      const setupSignal = iosStartup ? startupSignal : undefined;
       const artifactPollAbortController = new AbortController();
-      const artifactPollSignal = signal
-        ? AbortSignal.any([signal, artifactPollAbortController.signal])
-        : artifactPollAbortController.signal;
-      const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
-        deviceRunSessionId,
-        toolsUrl: `http://127.0.0.1:${toolServerPort}`,
-        toolsAuthToken: toolServerToken,
-        logger,
-        signal: artifactPollSignal,
-      });
-
-      const eventCollection = await startArgentEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        eventLogPath: ARGENT_EVENT_LOG_PATH,
-        logger,
-      });
-
+      let artifactPollingPromise: Promise<void> | undefined;
+      let eventCollection: Awaited<ReturnType<typeof startArgentEventCollectionAsync>> | undefined;
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+      let argentServer: ReturnType<typeof spawnDetached> | undefined;
+      let hostStartup: Promise<Result<DeviceSessionHost>> | undefined;
       let sessionHost: DeviceSessionHost | undefined;
       let sessionFailed = false;
+      const startHost = () =>
+        startDeviceSessionHostAsync(ctx, {
+          ...iosStartup,
+          separateLogPhase: true,
+          runtimePlatform,
+          env,
+          logger,
+          disableShare: inputs.public_preview?.value === false,
+          privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
+          frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
+          corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
+          timeoutMs: STARTUP_TIMEOUT_MS,
+          signal: startupSignal,
+          onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+          ...launch,
+          networkCapture,
+          networkCaptureFields,
+        }).catch(error => {
+          if (iosStartup) {
+            startupAbortController.abort(error);
+          }
+          throw error;
+        });
       try {
+        if (iosStartup) {
+          hostStartup = asyncResult(startHost());
+        }
+        logger.info('Enabling the Argent artifacts list endpoint flag.');
+        const enableArtifacts = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
+        ]);
+        await runArgentSetupCommandAsync(
+          enableArtifacts.command,
+          enableArtifacts.args,
+          { env, logger },
+          setupSignal
+        );
+
+        logger.info('Enabling the Argent tool-server event log flag.');
+        const enableEventLog = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'enable',
+          ARGENT_EVENT_LOG_FLAG,
+        ]);
+        await runArgentSetupCommandAsync(
+          enableEventLog.command,
+          enableEventLog.args,
+          { env, logger },
+          setupSignal
+        );
+
+        logger.info('Disabling the Argent video watermark flag.');
+        const disableVideoWatermark = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'disable',
+          ARGENT_VIDEO_WATERMARK_FLAG,
+        ]);
+        // The watermark is cosmetic, so a failure here must not fail the session.
+        try {
+          await runArgentSetupCommandAsync(
+            disableVideoWatermark.command,
+            disableVideoWatermark.args,
+            { env, logger },
+            setupSignal
+          );
+        } catch (err) {
+          setupSignal?.throwIfAborted();
+          logger.warn(
+            { err },
+            'Could not disable the Argent video watermark, so recorded videos may include it. Continuing the session.'
+          );
+        }
+
+        setupSignal?.throwIfAborted();
+        const startServer = argentExec([
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'server',
+          'start',
+          '--port',
+          '0',
+          '--idle-timeout',
+          '0',
+          '--force',
+        ]);
+        logger.info(
+          `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via ${startServer.command}.`
+        );
+        // Keep Argent itself in foreground mode under the detached process. This preserves
+        // the npx/bun -> Argent CLI -> tool-server ancestry used to identify the matching state file.
+        const secrets: string[] = [];
+        argentServer = spawnDetached({
+          command: startServer.command,
+          args: startServer.args,
+          env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH, ARGENT_EMULATOR_NO_WINDOW: '1' },
+          logger,
+          secrets,
+        });
+        if (argentServer.pid === undefined) {
+          throw new SystemError(
+            'Failed to start Argent: could not determine the PID of the launched process.'
+          );
+        }
+
+        logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
+        let toolServerPort: number;
+        let toolServerToken: string | undefined;
+        try {
+          const toolServerState = await waitForArgentToolServerStateAsync({
+            stateDir: ARGENT_STATE_DIR,
+            ancestorPid: argentServer.pid,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+            getExitError: argentServer.getExitError,
+            signal: setupSignal,
+          });
+          toolServerPort = toolServerState.port;
+          toolServerToken = toolServerState.token;
+          if (toolServerToken) {
+            secrets.push(toolServerToken);
+          }
+        } catch (err) {
+          const output = argentServer.getOutput();
+          throw new SystemError(
+            `${
+              err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
+            }${output ? `\nArgent tool-server output:\n${output}` : ''}`
+          );
+        }
+        if (hostStartup) {
+          sessionHost = (await hostStartup).enforceValue();
+        }
+        setupSignal?.throwIfAborted();
+        logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
+        const artifactPollSignal = signal
+          ? AbortSignal.any([signal, artifactPollAbortController.signal])
+          : artifactPollAbortController.signal;
+        artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
+          deviceRunSessionId,
+          toolsUrl: `http://127.0.0.1:${toolServerPort}`,
+          toolsAuthToken: toolServerToken,
+          logger,
+          signal: artifactPollSignal,
+        });
+
+        eventCollection = await startArgentEventCollectionAsync({
+          ctx,
+          deviceRunSessionId,
+          eventLogPath: ARGENT_EVENT_LOG_PATH,
+          logger,
+        });
+
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
           subdomainPrefix: 'argent',
@@ -248,23 +349,18 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (launchDescription) {
           logger.info(launchDescription);
         }
-        sessionHost = await startDeviceSessionHostAsync(ctx, {
-          runtimePlatform,
-          env,
-          logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-          launchAppIdentifier: launch.launchAppIdentifier,
-          launchArgs: launch.launchArgs,
-          openUrl: launch.openUrl,
-          networkCapture,
-          networkCaptureFields,
+        sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+        const webPreview = await sessionHost.openPreviewAsync({
+          baseDomain: ngrokTunnelDomain,
+          authtoken: ngrokAuthtoken,
         });
-        const webPreview = await sessionHost.openPreviewAsync({ baseDomain: ngrokTunnelDomain });
         logger.info(
-          `Web preview URL: ${webPreview.previewPageUrl} (server: ${webPreview.apiUrl}).`
+          webPreview.sharePageUrl
+            ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+            : 'Private preview URL unavailable for this session.'
         );
 
-        await uploadRemoteSessionConfigWithLocalEgressAsync({
+        const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
           env,
           signal,
           ctx,
@@ -278,6 +374,9 @@ export function createStartArgentRemoteSessionBuildFunction(
           },
           logger,
         });
+        if (sessionStart === 'stopped') {
+          return;
+        }
 
         await waitForDeviceRunSessionStoppedAsync({
           ctx,
@@ -290,13 +389,15 @@ export function createStartArgentRemoteSessionBuildFunction(
               ? {
                   maxIdleTimeMinutes,
                   getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                  getLastPreviewActivityAt: () => sessionHost?.getLastPreviewActivityAt(),
                 }
               : undefined,
         });
       } catch (error) {
         sessionFailed = true;
-        throw error;
+        throw setupSignal?.aborted ? setupSignal.reason : error;
       } finally {
+        startupAbortController.abort(new Error('Argent session ended.'));
         await finishRemoteSessionAsync({
           logger,
           sessionFailed,
@@ -306,11 +407,13 @@ export function createStartArgentRemoteSessionBuildFunction(
               'Argent tool-server',
               (async () => {
                 try {
-                  await stopArgentEventCollectionSafelyAsync({
-                    eventCollection,
-                    deviceRunSessionId,
-                    logger,
-                  });
+                  if (eventCollection) {
+                    await stopArgentEventCollectionSafelyAsync({
+                      eventCollection,
+                      deviceRunSessionId,
+                      logger,
+                    });
+                  }
                   artifactPollAbortController.abort();
                   try {
                     await artifactPollingPromise;
@@ -326,11 +429,11 @@ export function createStartArgentRemoteSessionBuildFunction(
                     );
                   }
                 } finally {
-                  await argentServer.stopAsync();
+                  await argentServer?.stopAsync();
                 }
               })(),
             ],
-            ['session host', sessionHost?.finishAsync()],
+            ['session host', hostStartup?.then(result => result.value?.finishAsync())],
           ],
         });
       }
@@ -390,6 +493,31 @@ export function warnIfArgentPackageVersionCannotBeVerified({
   }
 }
 
+async function runArgentSetupCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  if (!signal) {
+    await spawn(command, args, options);
+    return;
+  }
+  signal.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal.addEventListener('abort', abort, { once: true });
+  if (signal.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal.throwIfAborted();
+  } finally {
+    signal.removeEventListener('abort', abort);
+  }
+}
+
 function parseArgentToolServerState(raw: string): ArgentToolServerState {
   let json: unknown;
   try {
@@ -412,13 +540,16 @@ export async function waitForArgentToolServerStateAsync({
   timeoutMs,
   pollIntervalMs = 1_000,
   getExitError,
+  signal,
 }: {
   stateDir: string;
   ancestorPid: number;
   timeoutMs: number;
   pollIntervalMs?: number;
   getExitError?: () => Error | undefined;
+  signal?: AbortSignal;
 }): Promise<ArgentToolServerState> {
+  signal?.throwIfAborted();
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   const throwIfExited = (): void => {
@@ -429,6 +560,7 @@ export async function waitForArgentToolServerStateAsync({
   };
 
   while (Date.now() < deadline) {
+    signal?.throwIfAborted();
     throwIfExited();
     let matchingState: ArgentToolServerState | undefined;
     try {
@@ -454,13 +586,19 @@ export async function waitForArgentToolServerStateAsync({
       lastError = err;
     }
     // Keep process failures outside the retryable state-file read errors.
+    signal?.throwIfAborted();
     throwIfExited();
     if (matchingState) {
       return matchingState;
     }
-    await sleepAsync(pollIntervalMs);
+    if (signal) {
+      await setTimeoutAsync(pollIntervalMs, undefined, { signal });
+    } else {
+      await sleepAsync(pollIntervalMs);
+    }
   }
 
+  signal?.throwIfAborted();
   throw new SystemError(
     `Timed out waiting for an argent tool-server state file belonging to process ${ancestorPid} in ${stateDir}${
       lastError instanceof Error ? `: ${lastError.message}` : ''

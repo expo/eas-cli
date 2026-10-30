@@ -10,8 +10,9 @@ export const AccountFragmentNode = gql`
       id
       username
     }
-    viewerUserPermission {
-      role
+    viewerUserPermission2 {
+      permissions
+      effectivePermissions
     }
   }
 `;
@@ -115,6 +116,11 @@ export const EstimatedUsageFragmentNode = gql`
     limit
     platformBreakdown {
       ...EstimatedUsagePlatformBreakdownFragment
+    }
+    jobTypeBreakdown {
+      workflows
+      simulator
+      other
     }
   }
 `;

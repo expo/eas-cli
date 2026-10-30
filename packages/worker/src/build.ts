@@ -22,7 +22,7 @@ import omit from 'lodash/omit';
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
-import { prepareRuntimeEnvironment } from './runtimeEnvironment';
+import { prepareRuntimeEnvironment, prepareXcodeBuildEnvAsync } from './runtimeEnvironment';
 import { startSshSessionPhaseAsync } from './sshSession';
 import { cleanUpWorkingdir } from './workingdir';
 
@@ -53,6 +53,7 @@ export async function build({
       { doNotMarkStart: true }
     );
     await ctx.runBuildPhase(BuildPhase.INSTALL_CUSTOM_TOOLS, async () => {
+      void prepareXcodeBuildEnvAsync(ctx.env);
       if (ctx.job.builderEnvironment) {
         await prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment);
       }

@@ -15,6 +15,12 @@ import {
   stopLocalEgressResourcesAsync,
 } from '../../utils/localEgress';
 import {
+  reportLocalEgressGuardCoverageAsync,
+  resolveLocalEgressServeSimBootEnvironmentAsync,
+  startLocalEgressGuardRelayAsync,
+  verifyLocalEgressGuardAsync,
+} from '../../utils/localEgressGuard';
+import {
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
@@ -29,8 +35,8 @@ jest.mock('../../../utils/processes');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../utils/deviceSessionHost');
 jest.mock('../../utils/agentDeviceArtifacts');
-// The agent-device session step boots the Simulator itself; this test covers local egress.
 jest.mock('../startIosSimulator', () => ({
+  ...jest.requireActual('../startIosSimulator'),
   bootIosSimulatorAsync: jest
     .fn()
     .mockResolvedValue({ deviceIdentifier: 'sim', udid: 'sim', displayName: 'iPhone' }),
@@ -50,6 +56,13 @@ jest.mock('../../utils/localEgress', () => ({
   ...jest.requireActual('../../utils/localEgress'),
   readLocalEgressHandoffAsync: jest.fn(),
   monitorLocalEgressAsync: jest.fn(),
+}));
+jest.mock('../../utils/localEgressGuard', () => ({
+  ...jest.requireActual('../../utils/localEgressGuard'),
+  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn(),
+  startLocalEgressGuardRelayAsync: jest.fn(),
+  reportLocalEgressGuardCoverageAsync: jest.fn(),
+  verifyLocalEgressGuardAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -126,9 +139,20 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     jest.mocked(isProcessDescendantOfAsync).mockResolvedValue(true);
     jest
       .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
-      .mockResolvedValue([{ udid: 'sim' }] as never);
+      .mockResolvedValue([{ udid: 'sim', name: 'iPhone 17' }] as never);
+    jest.mocked(IosSimulatorUtils.resolveUdidAsync).mockResolvedValue('sim' as never);
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as never);
     jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue(handoff);
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockImplementation(async () =>
+        (await readLocalEgressHandoffAsync())
+          ? { SERVE_SIM_ADDITIONAL_DYLIBS: '/test/egress-guard.dylib' }
+          : null
+      );
+    jest.mocked(startLocalEgressGuardRelayAsync).mockResolvedValue(undefined);
+    jest.mocked(reportLocalEgressGuardCoverageAsync).mockResolvedValue(null);
+    jest.mocked(verifyLocalEgressGuardAsync).mockResolvedValue(undefined);
     jest.mocked(monitorLocalEgressAsync).mockResolvedValue(undefined);
     openPreview.mockResolvedValue({
       previewPageUrl: 'https://expo.dev/simulator-preview/preview-id',
@@ -138,9 +162,10 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     });
     jest.mocked(startDeviceSessionHostAsync).mockResolvedValue({
       openPreviewAsync: openPreview,
+      getLastPreviewActivityAt: jest.fn(),
       finishAsync: stopPreview,
     });
-    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
       expect(lifetime.aborted).toBe(false);
       expect(monitorLocalEgressAsync).toHaveBeenCalledTimes(1);
@@ -149,6 +174,16 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   afterEach(async () => {
     await stopLocalEgressResourcesAsync(logger);
     jest.restoreAllMocks();
+  });
+
+  it('releases resources without monitoring when the session stopped during startup', async () => {
+    jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValueOnce('stopped');
+    await run();
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    expect(monitorLocalEgressAsync).not.toHaveBeenCalled();
+    expect(stopPreview).toHaveBeenCalledTimes(1);
+    expect(stopEgress).toHaveBeenCalledTimes(1);
+    expect(lifetime.aborted).toBe(true);
   });
 
   it('reports credentials and starts monitoring before waiting, then releases resources', async () => {

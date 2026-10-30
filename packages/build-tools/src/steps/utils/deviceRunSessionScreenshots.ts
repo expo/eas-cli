@@ -96,8 +96,8 @@ async function uploadScreenshotAsync(
     metadata: artifactDetails.metadata,
     kind: 'screenshot',
     size,
-    stream: createReadStream(file),
-    reopenStream: () => createReadStream(file),
+    openStream: () => createReadStream(file),
+    attempts: 3,
     signal,
   });
   await rm(file);

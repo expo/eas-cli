@@ -144,7 +144,10 @@ test('starts serve-sim record-video and returns only a finalized recording', asy
   const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
   await setTimeout(20);
   expect(child.kill).not.toHaveBeenCalled();
-  stderr.write('serve-sim:recording-started\n');
+  child.stdout?.emit('data', 'Downloading');
+  stderr.write('serve-sim:recording-');
+  child.stdout?.emit('data', ' package');
+  stderr.write('started\r\n');
   stderr.write('x'.repeat(17_000));
   const recordings = await finishing;
 
@@ -186,7 +189,7 @@ test('reports a started recording that ends without a manifest to Sentry', async
   child.stderr?.emit('data', 'GET http://127.0.0.1:43563/record?token=session-token failed\n');
   exitRecorder();
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await setTimeout(1_100);
 
   expect(Sentry.capture).toHaveBeenCalledWith(
@@ -226,7 +229,7 @@ test('says when a recorder never reported its start before it is stopped', async
   await setTimeout(50);
   currentTime += 61_000;
   await setTimeout(200);
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(child.kill).toHaveBeenCalledWith('SIGINT');
@@ -362,6 +365,32 @@ test('keeps a recorder active after its package-manager wrapper exits', async ()
   expect(recordings).toHaveLength(1);
 });
 
+test('does not mistake bundled source in an error for a recording start', async () => {
+  let currentTime = Date.now();
+  jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([{ udid, url: 'http://127.0.0.1:43563', token: 'session-token' }]);
+  const recorder = mockRecorder();
+
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  await waitForRecorderSpawnAsync();
+  recorder.child.stderr?.emit(
+    'data',
+    'const marker = "serve-sim:recording-started";\nError: No running serve-sim session found.\n'
+  );
+  recorder.fail(new Error('recorder exited before connecting'));
+
+  const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
+  try {
+    expect(await Promise.race([finishing.then(() => true), setTimeout(250, false)])).toBe(true);
+  } finally {
+    currentTime += 311_000;
+    await finishing;
+  }
+  expect(recorder.child.kill).not.toHaveBeenCalled();
+});
+
 test('does not signal a recorder that exits before it reports its start', async () => {
   let currentTime = Date.now();
   jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
@@ -377,7 +406,7 @@ test('does not signal a recorder that exits before it reports its start', async 
   recorder.exit();
   await setTimeout(50);
   // Past the manifest wait, so the recorder's completion settles.
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(recorder.child.kill).not.toHaveBeenCalled();
@@ -435,7 +464,7 @@ test('reports a finalized recording whose manifest is gone at finish', async () 
   await rm(manifest);
   const finishing = IosSimulatorRecordingUtils.finishAsync({ logger });
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
 
   expect(await finishing).toEqual([]);
   expect(Sentry.capture).toHaveBeenCalledWith(
@@ -493,7 +522,7 @@ test('reports a started recorder that fails without a manifest', async () => {
   recorder.child.stderr?.emit('data', 'serve-sim:recording-started\n');
   recorder.fail(new Error('record-video exited with code 1'));
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await setTimeout(1_100);
 
   expect(logger.warn).toHaveBeenCalledWith(
@@ -534,6 +563,6 @@ test('records every booted device with the first serve-sim package', async () =>
 
   recorder.exit();
   await setTimeout(50);
-  currentTime += 31_000;
+  currentTime += 311_000;
   await IosSimulatorRecordingUtils.finishAsync({ logger });
 });

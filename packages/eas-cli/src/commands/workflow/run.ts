@@ -57,6 +57,7 @@ import {
   parseJsonInputs,
   parseWorkflowInputsFromYaml,
 } from '../../commandUtils/workflow/inputs';
+import { collectReferencedWorkflowFilesAsync } from '../../commandUtils/workflow/referencedFiles';
 import {
   fileExistsAsync,
   maybeReadStdinAsync,
@@ -65,6 +66,7 @@ import {
 } from '../../commandUtils/workflow/utils';
 import {
   WorkflowProjectSourceType,
+  WorkflowReferencedFileInput,
   WorkflowRevision,
   WorkflowRunStatus,
 } from '../../graphql/generated';
@@ -93,7 +95,7 @@ export function resolveWorkflowRunSshInput({
 
 export default class WorkflowRun extends EasCommand {
   static override description =
-    'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used.';
+    'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used';
 
   static override args = {
     file: Args.string({
@@ -179,6 +181,7 @@ export default class WorkflowRun extends EasCommand {
     let workflowRunId: string;
     let workflowRevisionId: string | undefined;
     let gitRef: string | undefined;
+    let referencedFiles: WorkflowReferencedFileInput[] | undefined;
 
     if (flags.ref) {
       // Run from git ref
@@ -230,6 +233,11 @@ export default class WorkflowRun extends EasCommand {
 
         throw err;
       }
+      referencedFiles = await collectReferencedWorkflowFilesAsync({
+        projectDir,
+        rootFileName: path.basename(args.file),
+        rootYamlConfig: yamlConfig,
+      });
     }
 
     // Validate workflow YAML
@@ -237,6 +245,7 @@ export default class WorkflowRun extends EasCommand {
       await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
         appId: projectId,
         yamlConfig,
+        referencedFiles,
       });
     } catch (error) {
       if (error instanceof CombinedError) {
@@ -362,6 +371,7 @@ export default class WorkflowRun extends EasCommand {
           workflowRevisionInput: {
             fileName: path.basename(args.file),
             yamlConfig,
+            referencedFiles,
           },
           workflowRunInput: {
             inputs,

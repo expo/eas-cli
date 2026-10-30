@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   schedule:
     - cron: '0 8 * * *' # 8:00 AM UTC time every day
 
@@ -22,4 +21,3 @@ jobs:
         uses: ./.github/actions/setup-mise
       - run: yarn install --immutable
       - run: yarn verify-graphql-code
-        working-directory: packages/eas-cli

@@ -283,9 +283,6 @@ describe('StepsConfigParser hook construction', () => {
     });
     expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
     expect(workflow.hooksByAnchorStep.size).toBe(0);
-    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
-      'Ignoring "hooks.before_install_node_modules": this build does not run the "install_node_modules" step.'
-    );
   });
 
   it('rejects a hook step using a composite function missing from the catalog with BuildConfigError', async () => {
@@ -858,26 +855,17 @@ describe('StepsConfigParser lazy hook composite loading', () => {
     expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
   });
 
-  it('warns for a registered hook key whose anchor never appeared', async () => {
-    await parseWorkflowAsync({
+  it('ignores unknown and unrun hook keys without warning', async () => {
+    const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/checkout' }],
-      hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+      hooks: {
+        before_install_node_modules: [{ run: 'echo never' }],
+        before_install_node_module: [{ run: 'echo typo' }],
+      },
     });
-    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
-      'Ignoring "hooks.before_install_node_modules": this build does not run the "install_node_modules" step.'
-    );
-  });
-
-  it('warns for an unknown hook key', async () => {
-    await parseWorkflowAsync({
-      ctx,
-      steps: [{ uses: 'eas/checkout' }],
-      hooks: { before_install_node_module: [{ run: 'echo typo' }] },
-    });
-    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
-      'Ignoring unknown hook key "before_install_node_module".'
-    );
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
+    expect(ctx.baseLogger.warn).not.toHaveBeenCalled();
   });
 
   it('wraps a loader failure in a BuildConfigError naming the before-side hook key', async () => {

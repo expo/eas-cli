@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
 import {
+  SimulatorUsageDisplay,
   UsageDisplayData,
   UsageMetricDisplay,
   calculateBillingPeriodInfo,
@@ -65,12 +66,22 @@ function displayBandwidthMetric(metric: UsageMetricDisplay, indent: string = '  
   }
 }
 
+function formatMetricValue(value: number, maxDecimals: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
+}
+
+function formatMinutes(minutes: number): string {
+  return `${formatMetricValue(minutes, 1)} minutes`;
+}
+
 function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void {
   const progressBar = createProgressBar(metric.percentUsed, 20);
   const percentStr = `${metric.percentUsed}%`;
-  const planUsageStr = `${formatNumber(metric.planValue)}/${formatNumber(metric.limit)} ${
-    metric.unit ?? ''
-  }`;
+  const maxDecimals = metric.maxDecimals ?? 0;
+  const planUsageStr = `${formatMetricValue(metric.planValue, maxDecimals)}/${formatMetricValue(
+    metric.limit,
+    maxDecimals
+  )} ${metric.unit ?? ''}`;
 
   let color = chalk.green;
   if (metric.percentUsed >= 100) {
@@ -85,9 +96,31 @@ function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void 
   if (metric.overageValue > 0) {
     Log.log(
       `${indent}${metric.name} (additional usage): ${chalk.red(
-        `${formatNumber(metric.overageValue)} ${metric.unit ?? ''}`
+        `${formatMetricValue(metric.overageValue, maxDecimals)} ${metric.unit ?? ''}`
       )} (${formatCurrency(metric.overageCost)})`
     );
+  }
+}
+
+function displaySimulatorUsage(simulator: SimulatorUsageDisplay): void {
+  Log.newLine();
+  Log.log(chalk.bold.underline('EAS Simulator'));
+  displayMetric(simulator.minutes);
+
+  if (simulator.jobTypeBreakdown) {
+    const { workflows, simulator: simulatorMinutes, other } = simulator.jobTypeBreakdown;
+    Log.log('  Breakdown by job type:');
+    Log.log(`    Workflows: ${formatMinutes(workflows)}`);
+    Log.log(`    Simulator: ${formatMinutes(simulatorMinutes)}`);
+    if (other > 0) {
+      Log.log(`    Other jobs: ${formatMinutes(other)}`);
+    }
+  }
+
+  if (simulator.iosMinutes > 0 || simulator.androidMinutes > 0) {
+    Log.log('  Simulator minutes by platform:');
+    Log.log(`    iOS: ${formatMinutes(simulator.iosMinutes)}`);
+    Log.log(`    Android: ${formatMinutes(simulator.androidMinutes)}`);
   }
 }
 
@@ -141,6 +174,10 @@ export function displayUsage(data: UsageDisplayData, usageData: AccountFullUsage
   displayMetric(data.updates.mau);
   displayBandwidthMetric(data.updates.bandwidth);
 
+  if (data.simulator) {
+    displaySimulatorUsage(data.simulator);
+  }
+
   Log.newLine();
   Log.log(chalk.bold.underline('Billing'));
 
@@ -189,6 +226,9 @@ export function displayUsage(data: UsageDisplayData, usageData: AccountFullUsage
       }
       if (data.updates.overageCostCents > 0) {
         Log.log(`    Updates: ${formatCurrency(data.updates.overageCostCents)}`);
+      }
+      if (data.simulator && data.simulator.overageCostCents > 0) {
+        Log.log(`    Simulator: ${formatCurrency(data.simulator.overageCostCents)}`);
       }
     }
 
@@ -387,6 +427,27 @@ export default class AccountUsage extends EasCommand {
             },
             overageCostCents: displayData.updates.overageCostCents,
           },
+          simulator: displayData.simulator
+            ? {
+                minutes: {
+                  plan: {
+                    used: displayData.simulator.minutes.planValue,
+                    limit: displayData.simulator.minutes.limit,
+                    percentUsed: displayData.simulator.minutes.percentUsed,
+                  },
+                  overage: {
+                    count: displayData.simulator.minutes.overageValue,
+                    costCents: displayData.simulator.minutes.overageCost,
+                  },
+                },
+                byPlatform: {
+                  ios: displayData.simulator.iosMinutes,
+                  android: displayData.simulator.androidMinutes,
+                },
+                byJobType: displayData.simulator.jobTypeBreakdown ?? null,
+                overageCostCents: displayData.simulator.overageCostCents,
+              }
+            : null,
           billing: {
             addons: subscription?.addons ?? [],
             upcomingInvoice: subscription?.upcomingInvoice ?? null,

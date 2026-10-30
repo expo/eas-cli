@@ -1,5 +1,9 @@
-import { BuildContext, RuntimeSettings } from '@expo/build-tools';
-import { Job, errors } from '@expo/eas-build-job';
+import {
+  BuildContext,
+  RuntimeSettings,
+  detectPnpmUnsupportedNodeVersionError,
+} from '@expo/build-tools';
+import { Env, Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -15,6 +19,17 @@ class SystemDepsInstallError extends errors.UserError {
       'EAS_BUILD_SYSTEM_DEPS_INSTALL_ERROR',
       `Failed to install ${dependency}. Make sure you specified the correct version in eas.json.`
     );
+  }
+}
+
+export async function prepareXcodeBuildEnvAsync(env: Env): Promise<void> {
+  try {
+    const { stdout } = await spawn('xcodebuild', ['-version'], { env, stdio: 'pipe' });
+    if (stdout.includes('Xcode 26.0')) {
+      env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS ??= '--use-old-altool';
+    }
+  } catch {
+    // Best effort: workers without Xcode must still run jobs.
   }
 }
 
@@ -65,7 +80,10 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  if (process.platform === 'darwin') {
+  if (
+    process.platform === 'darwin' &&
+    builderConfig?.env?.EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN !== '1'
+  ) {
     await installCocoapodsCachePlugin();
   }
 
@@ -73,15 +91,12 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  const currentYarnVersion = (
-    await spawn('yarn', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentPnpmVersion = (
-    await spawn('pnpm', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentBunVersion = (
-    await spawn('bun', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
+  const [currentYarnVersion, currentPnpmVersion, currentBunVersion] = await Promise.all(
+    ['yarn', 'pnpm', 'bun'].map(async command => {
+      const result = await spawn(command, ['--version'], { stdio: 'pipe', cwd: os.tmpdir() });
+      return result.stdout.trim();
+    })
+  );
 
   if (builderConfig.node) {
     const installedNodeVersion = await installNode(ctx, builderConfig.node);
@@ -136,15 +151,32 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
   let sanitizedVersion = version.startsWith('v') ? version.slice(1) : version;
   try {
     ctx.logger.info(`Installing node v${sanitizedVersion}`);
-    const { stdout } = await spawn(
-      'bash',
-      ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`],
-      {
+    const installAsync = async () => {
+      return await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`], {
         logger: ctx.logger,
         env: ctx.env,
+      });
+    };
+    let result;
+    try {
+      result = await installAsync();
+    } catch (err) {
+      const mirror = ctx.env.NVM_NODEJS_ORG_MIRROR;
+      // Only bypass the internal mirror enabled by the runtime settings.
+      if (!mirror || mirror !== RuntimeSettings.getNodeJsCacheUrl()) {
+        throw err;
       }
-    );
 
+      ctx.logger.warn(
+        { err },
+        'Failed to install Node.js using the worker mirror. Removing NVM_NODEJS_ORG_MIRROR from the build environment for the rest of this build and retrying with the default download source.'
+      );
+      // Keep the failed mirror disabled for the rest of this build.
+      delete ctx.env.NVM_NODEJS_ORG_MIRROR;
+      result = await installAsync();
+    }
+
+    const { stdout } = result;
     sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
     await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
       logger: ctx.logger,
@@ -259,7 +291,8 @@ async function installPnpm({
   } catch (err: any) {
     ctx.logger.error({ err }, `Failed to install pnpm ${versionToInstall}\n`);
     if (ctx.metadata?.requiredPackageManager === 'pnpm') {
-      throw new SystemDepsInstallError('pnpm');
+      const output = [err.stdout, err.stderr].filter(Boolean).join('\n');
+      throw detectPnpmUnsupportedNodeVersionError(output) ?? new SystemDepsInstallError('pnpm');
     } else {
       ctx.markBuildPhaseHasWarnings();
       ctx.logger.warn(

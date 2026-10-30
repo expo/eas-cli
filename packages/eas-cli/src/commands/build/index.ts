@@ -9,12 +9,13 @@ import path from 'path';
 
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { maybeShowSimulatorsLaunchHintAsync } from '../../build/simulatorsLaunchHint';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { StatuspageServiceName } from '../../graphql/generated';
+import { BuildStatus, StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
 import { selectAsync } from '../../prompts';
@@ -140,6 +141,7 @@ export default class Build extends EasCommand {
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.Analytics,
     ...this.ContextOptions.Vcs,
+    ...this.ContextOptions.Experimentation,
   };
 
   async runAsync(): Promise<void> {
@@ -151,11 +153,12 @@ export default class Build extends EasCommand {
     const flags = this.sanitizeFlags(rawFlags);
 
     const {
-      loggedIn: { actor, graphqlClient },
+      loggedIn: { actor, graphqlClient, authenticationInfo },
       getDynamicPrivateProjectConfigAsync,
       projectDir,
       analytics,
       vcsClient,
+      experimentation,
     } = await this.getContextAsync(Build, {
       nonInteractive: flags.nonInteractive,
       withServerSideEnvironment: null,
@@ -174,7 +177,7 @@ export default class Build extends EasCommand {
 
     const flagsWithPlatform = await this.ensurePlatformSelectedAsync(flags);
 
-    const { buildProfiles } = await runBuildAndSubmitAsync({
+    const { buildProfiles, builds } = await runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
@@ -182,12 +185,21 @@ export default class Build extends EasCommand {
       flags: flagsWithPlatform,
       actor,
       getDynamicPrivateProjectConfigAsync,
+      experimentation,
+      authenticationInfo,
     });
 
     this.maybeSuggestUsingEasBuildDev({
       buildProfiles,
       nonInteractive: flags.nonInteractive,
     });
+
+    if (builds?.some(build => build?.status === BuildStatus.Finished)) {
+      await maybeShowSimulatorsLaunchHintAsync(authenticationInfo, analytics, {
+        actor,
+        nonInteractive: flags.nonInteractive,
+      });
+    }
   }
 
   private sanitizeFlags(

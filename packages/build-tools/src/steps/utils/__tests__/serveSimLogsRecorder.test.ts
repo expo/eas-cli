@@ -98,13 +98,22 @@ it.each([undefined, 'all'])('refuses an unconfirmed user-app scope (%s)', async 
 
 it('aborts a quiet live stream and drains preceding writes before returning', async () => {
   const controller = new AbortController();
+  const fsPromises = jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises');
+  const openFile = fsPromises.open;
+  jest.spyOn(fsPromises, 'open').mockImplementationOnce(async (...args) => {
+    const file = await openFile(...args);
+    const write = file.writeFile.bind(file);
+    jest.spyOn(file, 'writeFile').mockImplementationOnce(async (...args) => {
+      const pending = write(...args);
+      controller.abort();
+      await pending;
+    });
+    return file;
+  });
   const stream = new Readable({ read() {} });
   stream.push('data: {"pid":42}\n\n');
   jest.mocked(fetch).mockResolvedValue(new Response(stream));
-  const done = record({ signal: controller.signal });
-  await delay(20);
-  controller.abort();
-  expect((await done).receivedData).toBe(true);
+  expect((await record({ signal: controller.signal })).receivedData).toBe(true);
   expect(stream.destroyed).toBe(true);
   expect(await readFile(path.join(directory, 'logs.ndjson'), 'utf8')).toBe('{"pid":42}\n');
 });

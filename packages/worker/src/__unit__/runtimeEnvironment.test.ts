@@ -108,9 +108,69 @@ describe('prepareRuntimeEnvironment', () => {
     });
   });
 
+  it.each([
+    { name: 'default', flag: undefined, sessionId: undefined, skip: false },
+    { name: 'disabled', flag: '1', sessionId: undefined, skip: true },
+    { name: 'zero', flag: '0', sessionId: undefined, skip: false },
+    { name: 'other value', flag: 'true', sessionId: undefined, skip: false },
+    { name: 'session ID only', flag: undefined, sessionId: 'session-id', skip: false },
+  ])(
+    'skips the CocoaPods proxy only with an explicit flag: $name',
+    async ({ flag, sessionId, skip }) => {
+      mockProcessPlatform('darwin');
+      jest.mocked(spawn).mockResolvedValue(spawnResult);
+      const builderEnvironment = {
+        env: {
+          ...(flag !== undefined ? { EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN: flag } : {}),
+          ...(sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {}),
+        },
+      };
+
+      await prepareRuntimeEnvironment(
+        { ...ctx, job: { builderEnvironment } },
+        builderEnvironment,
+        false /* skipIfTest */
+      );
+
+      const proxyInstalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(
+          ([command, args]) =>
+            command === 'sudo' &&
+            args.some(argument => argument.endsWith('expo-cocoapods-proxy.gem'))
+        );
+      expect(proxyInstalls).toHaveLength(skip ? 0 : 1);
+      expect(spawn).toHaveBeenCalledWith('bun', ['--version'], expect.anything());
+    }
+  );
+
+  it('queries package-manager versions in parallel before applying tool overrides', async () => {
+    mockProcessPlatform('linux');
+    const resolveVersion = new Map<string, (value: SpawnResult) => void>();
+    jest.mocked(spawn).mockImplementation((command, args) => {
+      if (['yarn', 'pnpm', 'bun'].includes(command) && args[0] === '--version') {
+        return new Promise(resolve => resolveVersion.set(command, resolve));
+      }
+      return Promise.resolve(spawnResult);
+    });
+
+    const preparing = prepareRuntimeEnvironment(ctx, { corepack: true }, false /* skipIfTest */);
+    expect([...resolveVersion.keys()]).toEqual(['yarn', 'pnpm', 'bun']);
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+
+    resolveVersion.get('pnpm')!({ ...spawnResult, stdout: '9.0.0\n' });
+    resolveVersion.get('bun')!({ ...spawnResult, stdout: '1.0.0\n' });
+    await Promise.resolve();
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+    resolveVersion.get('yarn')!({ ...spawnResult, stdout: '1.22.0\n' });
+    await preparing;
+    expect(spawn).toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+  });
+
   describe('installNode', () => {
     describe('prepareRuntimeEnvironment', () => {
       beforeEach(() => {
+        jest.spyOn(RuntimeSettings, 'getNodeJsCacheUrl').mockReturnValue('https://node.example');
         jest.mocked(pathExists).mockResolvedValue(true);
 
         jest.mocked(spawn).mockImplementation((cmd, _args, opts) => {
@@ -146,6 +206,104 @@ describe('prepareRuntimeEnvironment', () => {
           expect.arrayContaining([expect.stringContaining(`nvm install ${version}`)]),
           expect.anything()
         );
+      });
+
+      it.each([
+        {
+          mirror: 'https://node.example',
+          failures: 0,
+          attempts: ['https://node.example'],
+          succeeds: true,
+        },
+        {
+          mirror: 'https://node.example',
+          failures: 1,
+          attempts: ['https://node.example', undefined],
+          succeeds: true,
+        },
+        {
+          mirror: 'https://node.example',
+          failures: 2,
+          attempts: ['https://node.example', undefined],
+          succeeds: false,
+        },
+        {
+          mirror: 'https://private.example',
+          failures: 1,
+          attempts: ['https://private.example'],
+          succeeds: false,
+        },
+        {
+          mirror: 'https://node.example',
+          cacheUrl: null,
+          failures: 1,
+          attempts: ['https://node.example'],
+          succeeds: false,
+        },
+        { mirror: undefined, failures: 1, attempts: [undefined], succeeds: false },
+        { mirror: '', failures: 1, attempts: [''], succeeds: false },
+      ])(
+        'handles Node.js install with mirror=$mirror and failures=$failures',
+        async ({ mirror, failures, attempts, succeeds, cacheUrl = 'https://node.example' }) => {
+          jest.mocked(RuntimeSettings.getNodeJsCacheUrl).mockReturnValue(cacheUrl);
+          const buildContext = {
+            ...ctx,
+            env: { ...ctx.env, PATH: '/usr/bin', NVM_NODEJS_ORG_MIRROR: mirror },
+          };
+          const installMirrors: (string | undefined)[] = [];
+          jest.mocked(spawn).mockImplementation(async (cmd, args, opts) => {
+            if (cmd === 'bash' && args[1].includes('nvm install')) {
+              installMirrors.push(opts?.env?.NVM_NODEJS_ORG_MIRROR);
+              if (installMirrors.length <= failures) {
+                throw new Error('Node.js download failed');
+              }
+              return { ...spawnResult, stdout: 'Now using node v16.20.1 (npm v8.19.4)' };
+            }
+            return spawnResult;
+          });
+
+          const preparation = prepareRuntimeEnvironment(buildContext, { node: 'v16' }, false);
+          if (succeeds) {
+            await preparation;
+            expect(buildContext.env.PATH).toMatch(
+              /\/\.nvm\/versions\/node\/v16\.20\.1\/bin:\/usr\/bin$/
+            );
+            expect(spawn).toHaveBeenCalledWith(
+              'bash',
+              ['-c', 'source ~/.nvm/nvm.sh && nvm alias default 16.20.1'],
+              expect.anything()
+            );
+            expect(ctx.logger.error).not.toHaveBeenCalled();
+          } else {
+            await expect(preparation).rejects.toThrow('Failed to install Node.js.');
+            expect(buildContext.env.PATH).toBe('/usr/bin');
+          }
+          expect(installMirrors).toStrictEqual(attempts);
+          expect(buildContext.env.NVM_NODEJS_ORG_MIRROR).toBe(attempts[attempts.length - 1]);
+        }
+      );
+
+      it('does not retry Node.js installation when setting the default alias fails', async () => {
+        const buildContext = {
+          ...ctx,
+          env: { ...ctx.env, NVM_NODEJS_ORG_MIRROR: 'https://node.example' },
+        };
+        let installCount = 0;
+        jest.mocked(spawn).mockImplementation(async (cmd, args) => {
+          if (cmd === 'bash' && args[1].includes('nvm install')) {
+            installCount++;
+          }
+          if (cmd === 'bash' && args[1].includes('nvm alias')) {
+            throw new Error('Cannot write default alias');
+          }
+          return spawnResult;
+        });
+
+        await expect(
+          prepareRuntimeEnvironment(buildContext, { node: '16.20.1' }, false)
+        ).rejects.toThrow('Failed to install Node.js.');
+        expect(installCount).toBe(1);
+        expect(buildContext.env.NVM_NODEJS_ORG_MIRROR).toBe('https://node.example');
       });
 
       it('installs Bun when a specified version is different from installed version', async () => {
@@ -258,6 +416,56 @@ describe('prepareRuntimeEnvironment', () => {
       await expect(prepareRuntimeEnvironment(ctx, builderConfig, false)).rejects.toThrow(
         'Failed to install Node.js'
       );
+    });
+  });
+
+  describe('installPnpm', () => {
+    const pnpmCtx = { ...ctx, metadata: { requiredPackageManager: 'pnpm' } };
+
+    function mockPnpmReinstallFailure(stderr: string): void {
+      let hasProbedPreinstalledPnpm = false;
+      jest.mocked(spawn).mockImplementation((cmd, args) => {
+        if (cmd === 'pnpm' && args[0] === '--version') {
+          if (!hasProbedPreinstalledPnpm) {
+            hasProbedPreinstalledPnpm = true;
+            return Promise.resolve(spawnResult);
+          }
+          return Promise.reject(
+            Object.assign(new Error('pnpm --version exited with non-zero code: 1'), {
+              stdout: '',
+              stderr,
+            })
+          );
+        }
+        return Promise.resolve(spawnResult);
+      });
+    }
+
+    it('throws the pnpm Node.js version error instead of the generic install error when the reinstalled pnpm cannot run on the build Node.js', async () => {
+      mockPnpmReinstallFailure(
+        [
+          'warn: This version of pnpm requires at least Node.js v22.13',
+          'warn: The current version of Node.js is v20.18.0',
+          'Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite',
+        ].join('\n')
+      );
+
+      await expect(
+        prepareRuntimeEnvironment(pnpmCtx, { pnpm: '11.27.0' }, false)
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_BUILD_PNPM_UNSUPPORTED_NODE_VERSION_ERROR',
+        message: expect.stringContaining(
+          'requires Node.js 22.13.0 or newer, but runs Node.js 20.18.0'
+        ),
+      });
+    });
+
+    it('reports a pnpm install failure without the Node.js banner as a generic install error', async () => {
+      mockPnpmReinstallFailure('pnpm: command not found');
+
+      await expect(
+        prepareRuntimeEnvironment(pnpmCtx, { pnpm: '11.27.0' }, false)
+      ).rejects.toMatchObject({ errorCode: 'EAS_BUILD_SYSTEM_DEPS_INSTALL_ERROR' });
     });
   });
 });

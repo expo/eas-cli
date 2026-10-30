@@ -1,9 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
-import { graphql } from 'gql.tada';
-import fetch from 'node-fetch';
+import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -11,49 +9,14 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { uploadContentWithSignedUrl } from '../../storage/uploadWithSignedUrl';
+import { killProcessGroup } from '../../utils/processes';
+import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
 const PREVIEW_MAX_DIMENSION = 320;
 const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
-const CREATE_PREVIEW_UPLOAD_SESSION_MUTATION = graphql(`
-  mutation CreateDeviceRunSessionPreviewUploadSession($deviceRunSessionId: ID!) {
-    deviceRunSession {
-      createPreviewUploadSession(deviceRunSessionId: $deviceRunSessionId) {
-        uploadSession {
-          url
-          headers
-        }
-      }
-    }
-  }
-`);
-
-/**
- * node-fetch includes the request URL in its error messages, and this URL is a signed upload URL
- * that is valid for the whole session. Replace such errors with one that names only the failure.
- */
-async function putPreviewAsync(
-  uploadSession: { url: string; headers: Record<string, string> },
-  { image, signal }: { image: Buffer; signal: AbortSignal }
-): Promise<Awaited<ReturnType<typeof fetch>>> {
-  try {
-    return await fetch(uploadSession.url, {
-      method: 'PUT',
-      headers: uploadSession.headers,
-      body: image,
-      signal,
-      timeout: 30_000,
-    });
-  } catch (err) {
-    const { name, type, code } = err as { name?: unknown; type?: unknown; code?: unknown };
-    const details = Object.entries({ name, type, code })
-      .filter(([, value]) => typeof value === 'string' && value.length > 0)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(', ');
-    throw new Error(`Session preview upload request failed (${details || 'unknown error'}).`);
-  }
-}
 
 export function startDeviceRunSessionPreview({
   ctx,
@@ -82,39 +45,15 @@ export function startDeviceRunSessionPreview({
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
       if (!uploadSession) {
-        const result = await ctx.graphqlClient
-          .mutation(
-            CREATE_PREVIEW_UPLOAD_SESSION_MUTATION,
-            { deviceRunSessionId },
-            {
-              // Keep the client's auth headers and combine cancellation after URQL sets its signal.
-              fetch: (url, options) =>
-                globalThis.fetch(url, {
-                  ...options,
-                  signal: AbortSignal.any([signal, ...(options?.signal ? [options.signal] : [])]),
-                }),
-            }
-          )
-          .toPromise();
-        if (result.error) {
-          throw result.error;
-        }
-        const session = result.data?.deviceRunSession.createPreviewUploadSession.uploadSession;
-        if (!session) {
-          throw new Error('No session preview upload URL was returned.');
-        }
-        uploadSession = {
-          url: session.url,
-          headers: session.headers as Record<string, string>,
-        };
+        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
       }
       if (controller.signal.aborted) {
         return;
       }
-      const response = await putPreviewAsync(uploadSession, { image, signal });
-      if (!response.ok) {
-        throw new Error(`Session preview upload failed: ${response.status} ${response.statusText}`);
-      }
+      await uploadContentWithSignedUrl(
+        { signedUrl: uploadSession, content: image },
+        { signal, retries: 0, stallTimeoutMs: 30_000 }
+      );
     } catch (err) {
       if (!controller.signal.aborted) {
         logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');
@@ -139,6 +78,14 @@ export function startDeviceRunSessionPreview({
   };
 }
 
+async function createPreviewUploadSessionAsync(
+  ctx: CustomBuildContext,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<{ url: string; headers: Record<string, string> }> {
+  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync({ signal });
+}
+
 /**
  * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews with `cwebp` from
  * Homebrew's webp package instead. Throws when it cannot be installed.
@@ -146,18 +93,47 @@ export function startDeviceRunSessionPreview({
 export async function ensureMacosPreviewEncoderInstalledAsync({
   env,
   logger,
+  signal,
 }: {
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
-  if ((await asyncResult(spawn('cwebp', ['-version'], { env, stdio: 'pipe' }))).ok) {
+  const probe = await asyncResult(
+    runEncoderCommandAsync('cwebp', ['-version'], { env, stdio: 'pipe' }, signal)
+  );
+  if (probe.ok) {
     return;
   }
+  signal?.throwIfAborted();
   logger.info('Installing webp with Homebrew for the session preview.');
-  await spawn('brew', ['install', 'webp'], {
-    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-    logger,
-  });
+  await runEncoderCommandAsync(
+    'brew',
+    ['install', 'webp'],
+    { env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' }, logger },
+    signal
+  );
+}
+
+async function runEncoderCommandAsync(
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted();
+  const task = spawn(command, args, { ...options, detached: true });
+  const abort = (): void => killProcessGroup(task.child, 'SIGKILL');
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) {
+    abort();
+  }
+  try {
+    await task;
+    signal?.throwIfAborted();
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 export async function captureDeviceRunSessionPreviewAsync({

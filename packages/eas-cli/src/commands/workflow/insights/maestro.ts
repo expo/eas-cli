@@ -1,3 +1,4 @@
+import { Platform } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../../commandUtils/EasCommand';
@@ -48,6 +49,11 @@ export default class WorkflowInsightsMaestro extends EasCommand {
 
   static override flags = {
     ...WorkflowsInsightsSharedFilterFlags,
+    platform: Flags.option({
+      description: 'Only include flow runs on this platform (can be specified multiple times).',
+      options: [Platform.IOS, Platform.ANDROID] as const,
+      multiple: true,
+    })(),
     status: Flags.option({
       description:
         'Only include flow runs with this status (can be specified multiple times). PASSED means passed on the first attempt.',

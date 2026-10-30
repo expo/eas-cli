@@ -154,8 +154,11 @@ export namespace AndroidEmulatorUtils {
     try {
       let configIniFileContent = await fs.promises.readFile(configIniFile, 'utf-8');
 
-      logger.info('Setting hw.ramSize to 2048.');
-      configIniFileContent = `${configIniFileContent}\nhw.ramSize=2048\n`;
+      // Keep the lower RAM default for older images; newer guests need more headroom for ADB.
+      const apiLevel = systemImagePackage.match(/^system-images;android-(\d+)/)?.[1];
+      const ramSize = !env.DEVICE_RUN_SESSION_ID && apiLevel && Number(apiLevel) < 35 ? 2048 : 4096;
+      logger.info(`Setting hw.ramSize to ${ramSize}.`);
+      configIniFileContent = `${configIniFileContent}\nhw.ramSize=${ramSize}\n`;
 
       const shouldResizeScreen =
         env.ANDROID_EMULATOR_ADJUST_SCREEN === 'true' || env.ANDROID_EMULATOR_ADJUST_SCREEN === '1';

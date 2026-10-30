@@ -2,6 +2,7 @@ import { getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { vol } from 'memfs';
 import { anything, instance, mock, when } from 'ts-mockito';
 
+import { getMockViewerUserPermission } from '../../../../__tests__/viewerUserPermission';
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
 import Log, { learnMore } from '../../../../log';
@@ -9,6 +10,7 @@ import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../
 import { isExpoInstalled } from '../../../../project/projectUtils';
 import { promptAsync } from '../../../../prompts';
 import SessionManager from '../../../../user/SessionManager';
+import { ExpoGraphqlClient } from '../createGraphqlClient';
 import { findProjectRootAsync } from '../findProjectDirAndVerifyProjectSetupAsync';
 import { getProjectIdAsync } from '../getProjectIdAsync';
 
@@ -39,6 +41,8 @@ describe(getProjectIdAsync, () => {
       .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
 
     const sessionManagerMock = mock<SessionManager>();
+
+    when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
     when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
       actor: {
         __typename: 'User',
@@ -49,12 +53,12 @@ describe(getProjectIdAsync, () => {
           {
             id: 'account_id_1',
             name: 'notnotbrent',
-            viewerUserPermission: { role: Role.Owner },
+            viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
           },
           {
             id: 'account_id_2',
             name: 'dominik',
-            viewerUserPermission: { role: Role.ViewOnly },
+            viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
           },
         ],
         isExpoAdmin: false,
@@ -185,6 +189,7 @@ describe(getProjectIdAsync, () => {
 
     it('throws when the owner is not specified and is different than logged in user which is a robot', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'Robot',
@@ -193,12 +198,12 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
             },
             {
               id: 'account_id_2',
               name: 'dominik',
-              viewerUserPermission: { role: Role.ViewOnly },
+              viewerUserPermission2: getMockViewerUserPermission(Role.ViewOnly),
             },
           ],
           isExpoAdmin: false,
@@ -409,6 +414,7 @@ describe(getProjectIdAsync, () => {
 
     it('uses the only account without prompting when the user has a single account', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'User',
@@ -419,7 +425,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Owner },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
             },
           ],
           isExpoAdmin: false,
@@ -447,6 +453,7 @@ describe(getProjectIdAsync, () => {
 
     it('throws for a robot user when no owner is set', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'Robot',
@@ -455,7 +462,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              viewerUserPermission2: getMockViewerUserPermission(Role.Admin),
             },
           ],
           isExpoAdmin: false,
@@ -508,6 +515,7 @@ describe(getProjectIdAsync, () => {
 
     it('defers to the project fetch in non-interactive mode when the account is already known', async () => {
       const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.getGraphqlClient(anything())).thenReturn({} as ExpoGraphqlClient);
       when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
         actor: {
           __typename: 'User',

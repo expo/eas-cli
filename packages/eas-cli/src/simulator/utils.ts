@@ -1,3 +1,6 @@
+import chalk from 'chalk';
+import { stripVTControlCharacters } from 'util';
+
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -140,6 +143,25 @@ export function getLocalEgressConfig(
   };
 }
 
+export type PreviewApiAccess = {
+  apiUrl: string;
+  token: string;
+};
+
+export function getPreviewApiAccess(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): PreviewApiAccess | null {
+  const token =
+    remoteConfig.__typename === 'ServeSimRunSessionRemoteConfig' ||
+    remoteConfig.__typename === 'WebPreviewOnlyRunSessionRemoteConfig'
+      ? remoteConfig.previewToken
+      : remoteConfig.webPreviewToken;
+  if (!remoteConfig.previewApiUrl || !token) {
+    return null;
+  }
+  return { apiUrl: remoteConfig.previewApiUrl, token };
+}
+
 /** The worker relay that the Android emulator's proxy points at; see build-tools androidLocalEgress.ts. */
 export const ANDROID_EMULATOR_EGRESS_RELAY_PORT = 8898;
 
@@ -256,6 +278,17 @@ function getControllerEnvironmentVariables(
 
 type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
+type PreviewLinkOptions = {
+  privatePreviewUrl?: string;
+  publicLink?: boolean;
+  /** Origins the session allows to embed the preview host; the embed URL is printed for them. */
+  frameAncestors?: readonly string[];
+  /** Origins the session allows to call the preview host API; the embed URL is printed for them. */
+  corsOrigins?: readonly string[];
+};
+
+export type PreviewAccessOrigins = Pick<PreviewLinkOptions, 'frameAncestors' | 'corsOrigins'>;
+
 function previewUrlIsWebsitePage(remoteConfig: DeviceRunSessionRemoteConfig): boolean {
   return remoteConfig.previewApiUrl != null;
 }
@@ -287,24 +320,70 @@ function formatPreviewApiUrl(url: string, token: string | null | undefined): str
   return withToken.toString();
 }
 
+function withoutPreviewToken(url: string): string {
+  const parsed = new URL(url);
+  const hashParams = new URLSearchParams(parsed.hash.slice(1));
+  if (!parsed.searchParams.has('token') && !hashParams.has('token')) {
+    return url;
+  }
+  parsed.searchParams.delete('token');
+  if (hashParams.has('token')) {
+    hashParams.delete('token');
+    parsed.hash = hashParams.toString();
+  }
+  return parsed.toString();
+}
+
+function formatBrowserPreviewUrl(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined,
+  { privatePreviewUrl, publicLink }: PreviewLinkOptions
+): string {
+  return publicLink
+    ? formatPreviewUrl(remoteConfig, url, token)
+    : (privatePreviewUrl ?? withoutPreviewToken(url));
+}
+
+function formatBrowserPreviewInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  url: string,
+  token: string | null | undefined,
+  options: PreviewLinkOptions
+): string {
+  const previewUrl = formatBrowserPreviewUrl(remoteConfig, url, token, options);
+  return options.publicLink
+    ? `${chalk.yellow('Warning: Anyone with this link can view and control the simulator, including your app and logs that may contain sensitive data. Share this link only with trusted recipients.')}\n${previewUrl}`
+    : previewUrl;
+}
+
 /**
- * Remote config for `--json`. Both URLs carry the token and the standalone token field is dropped,
- * so a consumer gets URLs that work rather than bare URLs that 401 next to a secret it has to know
- * to combine.
+ * Remote config for `--json`. Private sessions omit the direct preview API address and preview
+ * tokens. Public sessions include bearer preview links while preserving controller credentials.
+ * A session with frame ancestors or CORS origins also includes the preview API address, since
+ * the page on those origins needs it.
  */
 export function sanitizeRemoteConfigForJson(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  privatePreviewUrl: string,
+  publicLink = false,
+  { frameAncestors = [], corsOrigins = [] }: PreviewAccessOrigins = {}
 ): DeviceRunSessionRemoteConfig {
+  const includePreviewApiUrl = publicLink || frameAncestors.length > 0 || corsOrigins.length > 0;
   switch (remoteConfig.__typename) {
     case 'ServeSimRunSessionRemoteConfig':
     case 'WebPreviewOnlyRunSessionRemoteConfig': {
       const { previewToken, ...rest } = remoteConfig;
       return {
         ...rest,
-        previewUrl: formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, previewToken),
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
-          : remoteConfig.previewApiUrl,
+        previewUrl: formatBrowserPreviewUrl(remoteConfig, remoteConfig.previewUrl, previewToken, {
+          privatePreviewUrl,
+          publicLink,
+        }),
+        previewApiUrl: includePreviewApiUrl
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, previewToken)
+          : null,
       };
     }
     case 'AgentDeviceRunSessionRemoteConfig':
@@ -314,22 +393,90 @@ export function sanitizeRemoteConfigForJson(
       return {
         ...rest,
         webPreviewUrl: remoteConfig.webPreviewUrl
-          ? formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, webPreviewToken)
+          ? formatBrowserPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, webPreviewToken, {
+              privatePreviewUrl,
+              publicLink,
+            })
           : remoteConfig.webPreviewUrl,
-        previewApiUrl: remoteConfig.previewApiUrl
-          ? formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
-          : remoteConfig.previewApiUrl,
+        previewApiUrl: includePreviewApiUrl
+          ? remoteConfig.previewApiUrl &&
+            formatPreviewApiUrl(remoteConfig.previewApiUrl, webPreviewToken)
+          : null,
       };
     }
   }
 }
 
+/**
+ * The preview host address with the session token, which an embedding page loads directly. The
+ * expo.dev preview page cannot be framed by other sites. Null until the worker reports the host.
+ */
+export function formatEmbedPreviewUrl(remoteConfig: DeviceRunSessionRemoteConfig): string | null {
+  switch (remoteConfig.__typename) {
+    case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.previewToken)
+        : null;
+    case 'AgentDeviceRunSessionRemoteConfig':
+    case 'ArgentRunSessionRemoteConfig':
+    case 'AppiumRunSessionRemoteConfig':
+      return remoteConfig.previewApiUrl
+        ? formatPreviewApiUrl(remoteConfig.previewApiUrl, remoteConfig.webPreviewToken)
+        : null;
+  }
+}
+
+function formatEmbedInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  { frameAncestors = [], corsOrigins = [] }: PreviewAccessOrigins
+): string[] {
+  if (frameAncestors.length === 0 && corsOrigins.length === 0) {
+    return [];
+  }
+  const embedUrl = formatEmbedPreviewUrl(remoteConfig);
+  const grants = [
+    ...(frameAncestors.length > 0
+      ? [`Pages on ${frameAncestors.join(', ')} may embed the preview in a frame.`]
+      : []),
+    ...(corsOrigins.length > 0
+      ? [
+          `Pages on ${corsOrigins.join(', ')} may call the preview API, for example with @expo/hub-client.`,
+        ]
+      : []),
+  ];
+  return [
+    '',
+    `🖼  ${grants.join(' ')} Use this URL there:`,
+    '',
+    embedUrl ?? 'The preview host has not reported its address yet.',
+    chalk.yellow(
+      'Warning: Anyone who can read this URL can view and control the simulator, including your app and logs that may contain sensitive data.'
+    ),
+  ];
+}
+
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
   configType: RemoteSessionInstructionsConfigType,
-  { egressAllow, egressClientRunsInline = false, sessionUrl, platform }: LocalEgressOptions = {}
+  {
+    egressAllow,
+    egressClientRunsInline = false,
+    sessionUrl,
+    platform,
+    privatePreviewUrl,
+    publicLink,
+    frameAncestors = [],
+    corsOrigins = [],
+  }: LocalEgressOptions & PreviewLinkOptions = {}
 ): string {
-  const instructions = formatControllerInstructions(remoteConfig, configType);
+  const instructions = [
+    formatControllerInstructions(remoteConfig, configType, {
+      privatePreviewUrl,
+      publicLink,
+    }),
+    ...formatEmbedInstructions(remoteConfig, { frameAncestors, corsOrigins }),
+  ].join('\n');
   const egress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
   if (!egress) {
     return instructions;
@@ -374,7 +521,8 @@ export function formatRemoteSessionInstructions(
 
 function formatControllerInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
-  configType: RemoteSessionInstructionsConfigType
+  configType: RemoteSessionInstructionsConfigType,
+  previewLinkOptions: PreviewLinkOptions
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
@@ -398,7 +546,12 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -436,7 +589,12 @@ function formatControllerInstructions(
           '',
           '🌐 Open the following URL in your browser to preview the simulator:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -464,7 +622,12 @@ function formatControllerInstructions(
           '',
           'Open the simulator preview:',
           '',
-          formatPreviewUrl(remoteConfig, remoteConfig.webPreviewUrl, remoteConfig.webPreviewToken)
+          formatBrowserPreviewInstructions(
+            remoteConfig,
+            remoteConfig.webPreviewUrl,
+            remoteConfig.webPreviewToken,
+            previewLinkOptions
+          )
         );
       }
       return lines.join('\n');
@@ -473,13 +636,74 @@ function formatControllerInstructions(
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatBrowserPreviewInstructions(
+          remoteConfig,
+          remoteConfig.previewUrl,
+          remoteConfig.previewToken,
+          previewLinkOptions
+        ),
       ].join('\n');
     case 'WebPreviewOnlyRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
-        formatPreviewUrl(remoteConfig, remoteConfig.previewUrl, remoteConfig.previewToken),
+        formatBrowserPreviewInstructions(
+          remoteConfig,
+          remoteConfig.previewUrl,
+          remoteConfig.previewToken,
+          previewLinkOptions
+        ),
       ].join('\n');
   }
+}
+
+// Session text is untrusted, so strip terminal escape and control characters before printing it.
+export function stripTerminalControlCharacters(
+  value: string,
+  { keepNewlinesAndTabs = false }: { keepNewlinesAndTabs?: boolean } = {}
+): string {
+  return stripVTControlCharacters(value).replace(/\p{Cc}/gu, character =>
+    keepNewlinesAndTabs && (character === '\n' || character === '\t') ? character : ''
+  );
+}
+
+export function isValidLogTime(at: unknown): at is number {
+  return typeof at === 'number' && !Number.isNaN(new Date(at).getTime());
+}
+
+export function formatLogLine(raw: string, timestamp = false, at = Date.now()): string {
+  const time = new Date(isValidLogTime(at) ? at : Date.now()).toISOString();
+  try {
+    const entry = JSON.parse(raw) as {
+      timestamp?: string;
+      processImagePath?: string;
+      processID?: number;
+      eventMessage?: string;
+      messageType?: string | number;
+    };
+    if (typeof entry.eventMessage === 'string') {
+      const prefix = timestamp
+        ? `${chalk.dim(stripTerminalControlCharacters(entry.timestamp ?? time))}  `
+        : '';
+      const processName = entry.processImagePath?.split('/').at(-1) ?? 'unknown';
+      const processId = typeof entry.processID === 'number' ? `:${entry.processID}` : '';
+      const processLabel = chalk.cyan(
+        stripTerminalControlCharacters(`[${processName}${processId}]`)
+      );
+      const level = String(entry.messageType ?? '').toLowerCase();
+      let message = stripTerminalControlCharacters(entry.eventMessage, {
+        keepNewlinesAndTabs: true,
+      });
+      if (level === 'error' || level === '16') {
+        message = chalk.red(message);
+      } else if (level === 'fault' || level === '17') {
+        message = chalk.red.bold(message);
+      } else if (level === 'debug' || level === '2') {
+        message = chalk.dim(message);
+      }
+      return `${prefix}${processLabel} ${message}`;
+    }
+  } catch {}
+  const prefix = timestamp ? `${chalk.dim(time)}  ` : '';
+  return `${prefix}${stripTerminalControlCharacters(raw, { keepNewlinesAndTabs: true })}`;
 }

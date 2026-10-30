@@ -1,5 +1,4 @@
 import { errors } from '@expo/eas-build-job';
-import { type bunyan } from '@expo/logger';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { type BuildStepEnv } from '@expo/steps';
 import spawnAsync from '@expo/turtle-spawn';
@@ -124,34 +123,6 @@ export function resolvePackageInstall(
     case PackageManager.PNPM:
       return { command: 'pnpm', args: production ? ['install', '--prod'] : ['install'] };
   }
-}
-
-/**
- * Get the version of a package from the dist-tags.
- * Returns null if the version cannot be resolved.
- */
-export async function resolvePackageVersionAsync({
-  logger,
-  packageName,
-  distTag,
-}: {
-  logger: bunyan;
-  packageName: string;
-  distTag: string;
-}): Promise<string | null> {
-  try {
-    const { stdout } = await spawnAsync('npm', ['view', packageName, 'dist-tags', '--json'], {
-      stdio: 'pipe',
-    });
-    const distTags = JSON.parse(stdout);
-    if (distTag in distTags) {
-      return distTags[distTag];
-    }
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    logger.warn(`Unable to resolve version for ${packageName}@${distTag}: ${message}`);
-  }
-  return null;
 }
 
 export function findPackagerRootDir(currentDir: string): string {

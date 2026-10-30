@@ -1,0 +1,629 @@
+import { SystemError } from '@expo/eas-build-job';
+import turtleSpawn from '@expo/turtle-spawn';
+import { vol } from 'memfs';
+import { spawn } from 'node:child_process';
+import { EventEmitter, once } from 'node:events';
+import os from 'node:os';
+import path from 'node:path';
+import { PassThrough } from 'node:stream';
+
+import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
+import { killProcessGroup } from '../../../utils/processes';
+import { runAgentAsync } from '../agentRun';
+import {
+  type AgentRunProviderCredentials,
+  leaseAgentRunProviderCredentialsAsync,
+} from '../agentRunLease';
+import { CLAUDE_CODE_CLI } from '../agents/claude';
+
+jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('node:child_process', () => ({
+  ...jest.requireActual('node:child_process'),
+  spawn: jest.fn(),
+}));
+jest.mock('../agentRunLease');
+jest.mock('../../../sentry');
+jest.mock('../../../utils/processes', () => ({
+  ...jest.requireActual('../../../utils/processes'),
+  killProcessGroup: jest.fn(),
+}));
+
+const installMock = jest.mocked(turtleSpawn);
+const spawnMock = jest.mocked(spawn);
+const leaseMock = jest.mocked(leaseAgentRunProviderCredentialsAsync);
+const killProcessGroupMock = jest.mocked(killProcessGroup);
+
+const agentRunId = '0199b0a0-1111-7222-8333-444455556666';
+const anthropicLease: AgentRunProviderCredentials = {
+  provider: 'anthropic',
+  accessToken: 'anthropic-access-token',
+};
+const openaiLease: AgentRunProviderCredentials = {
+  provider: 'openai',
+  idToken: 'openai-id-token',
+  accessToken: 'openai-access-token',
+  accountId: 'openai-account-id',
+};
+
+interface AgentInvocation {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string;
+  stdin: jest.Mock;
+  child: EventEmitter & { stdout: PassThrough; stderr: PassThrough };
+  /** The run removes its files when it ends, so call this while the agent is running. */
+  readHomeFile(relativePath: string): { content: string; mode: number };
+  exit(status: number | null, signal?: NodeJS.Signals, options?: { closeOutput: boolean }): void;
+  closeOutput(): void;
+}
+
+function mockSpawn({
+  onAgent,
+  onInstall,
+}: {
+  onAgent: (invocation: AgentInvocation) => void;
+  onInstall?: () => void;
+}): AgentInvocation[] {
+  installMock.mockImplementation((() => {
+    try {
+      onInstall?.();
+      return Promise.resolve({});
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }) as any);
+  const invocations: AgentInvocation[] = [];
+  spawnMock.mockImplementation(((command: string, args: string[], spawnOptions: any) => {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 4242,
+      stdin: { on: jest.fn(), end: jest.fn() },
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+    // Like a real child: `close` comes after everything it printed has been read.
+    const closeOutput = (): void => {
+      child.stdout.end();
+      child.stderr.end();
+      void Promise.all([once(child.stdout, 'end'), once(child.stderr, 'end')]).then(() =>
+        child.emit('close')
+      );
+    };
+    const invocation: AgentInvocation = {
+      command,
+      args,
+      env: spawnOptions.env,
+      cwd: spawnOptions.cwd,
+      stdin: child.stdin.end,
+      child,
+      readHomeFile(relativePath) {
+        const filePath = path.join(spawnOptions.env.HOME, relativePath);
+        return {
+          content: vol.readFileSync(filePath, 'utf8') as string,
+          mode: vol.statSync(filePath).mode & 0o777,
+        };
+      },
+      exit(status, signal, options = { closeOutput: true }) {
+        process.nextTick(() => {
+          child.emit('exit', status, signal ?? null);
+          if (options.closeOutput) {
+            closeOutput();
+          }
+        });
+      },
+      closeOutput,
+    };
+    invocations.push(invocation);
+    onAgent(invocation);
+    return child;
+  }) as any);
+  return invocations;
+}
+
+function runDirectories(): string[] {
+  return (vol.readdirSync(os.tmpdir()) as string[]).filter(name =>
+    name.startsWith('eas-agent-run-')
+  );
+}
+
+function createOptions(
+  overrides: Partial<Parameters<typeof runAgentAsync>[0]> = {}
+): Parameters<typeof runAgentAsync>[0] {
+  return {
+    agentKind: 'claude-code',
+    agentRunId,
+    prompt: 'Fix the failing test.',
+    expoToken: 'expo-token',
+    expoApiV2BaseUrl: 'https://staging-api.expo.test/v2/',
+    mcpUrl: 'https://staging-mcp.expo.test/mcp',
+    pathEnv: '/usr/local/bin:/usr/bin',
+    npmCacheUrl: 'https://npm-cache.expo.test',
+    logger: createMockLogger(),
+    addBuildLogMask: jest.fn(),
+    signal: new AbortController().signal,
+    ...overrides,
+  };
+}
+
+describe(runAgentAsync, () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    expect(runDirectories()).toEqual([]);
+  });
+
+  it('runs Claude Code with MCP as its only tool source and an allowlisted environment', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        const mcpConfig = agent.readHomeFile('mcp.json');
+        expect(JSON.parse(mcpConfig.content)).toEqual({
+          mcpServers: {
+            expo: {
+              type: 'http',
+              url: 'https://staging-mcp.expo.test/mcp',
+              headers: {
+                Authorization: 'Bearer expo-token',
+                'X-Expo-Agent-Run-Id': agentRunId,
+              },
+            },
+          },
+        });
+        expect(mcpConfig.mode).toBe(0o600);
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(createOptions());
+
+    expect(installMock.mock.calls[0].slice(0, 2)).toEqual([
+      'npm',
+      [
+        'install',
+        '--prefix',
+        expect.stringMatching(/eas-agent-run-.*\/cli$/),
+        '--no-save',
+        '--package-lock=false',
+        '--no-audit',
+        '--no-fund',
+        '--no-update-notifier',
+        '--registry',
+        'https://npm-cache.expo.test',
+        '@anthropic-ai/claude-code@2.1.291',
+      ],
+    ]);
+    expect(invocations).toHaveLength(1);
+    const [agent] = invocations;
+    const runDirectory = path.dirname(agent.env.HOME);
+    expect(path.dirname(runDirectory)).toBe(os.tmpdir());
+    expect(agent.command).toBe(path.join(runDirectory, 'cli', 'node_modules', '.bin', 'claude'));
+    expect(agent.args).toEqual([
+      '-p',
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--tools',
+      '',
+      '--allowedTools',
+      'mcp__expo',
+      '--mcp-config',
+      path.join(agent.env.HOME, 'mcp.json'),
+      '--strict-mcp-config',
+    ]);
+    expect(agent.env).toEqual({
+      PATH: '/usr/local/bin:/usr/bin',
+      HOME: path.join(runDirectory, 'home'),
+      TMPDIR: path.join(runDirectory, 'tmp'),
+      LANG: 'C.UTF-8',
+      CLAUDE_CODE_OAUTH_TOKEN: 'anthropic-access-token',
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    });
+    expect(agent.cwd).toBe(path.join(runDirectory, 'cwd'));
+    expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it('writes the agent output as log lines', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const logger = createMockLogger();
+    mockSpawn({
+      onAgent: agent => {
+        const toolResultEvent =
+          '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"3 tests passed"}]}}\n';
+        agent.child.stdout.write(toolResultEvent.slice(0, 40));
+        agent.child.stdout.write(toolResultEvent.slice(40));
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"text","text":"Done.\\nThe tests pass.\\n"}]}}\n'
+        );
+        agent.child.stdout.write(
+          '{"type":"result","subtype":"error_during_execution","is_error":true,"errors":["boom"]}\n'
+        );
+        agent.child.stderr.write('warning: deprecated flag\n');
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ logger }));
+
+    const child = jest.mocked(logger.child);
+    expect(child.mock.calls).toEqual([[{ source: 'stdout' }], [{ source: 'stderr' }]]);
+    const [stdoutLogger, stderrLogger] = child.mock.results.map(result => result.value);
+    expect(stdoutLogger.info.mock.calls).toEqual([
+      ['Tool result: 3 tests passed'],
+      ['Agent: Done.\nThe tests pass.'],
+    ]);
+    expect(stdoutLogger.error.mock.calls).toEqual([['Agent failed: boom']]);
+    expect(stderrLogger.info.mock.calls).toEqual([['warning: deprecated flag']]);
+  });
+
+  it.each([
+    ['claude-code', anthropicLease, ['anthropic-access-token']],
+    ['codex', openaiLease, ['openai-access-token', 'openai-id-token']],
+  ] as const)(
+    'registers the credentials leased for %s with the build log secrets filter before starting the agent',
+    async (agentKind, lease, secrets) => {
+      leaseMock.mockResolvedValue(lease);
+      const addBuildLogMask = jest.fn();
+      const invocations = mockSpawn({
+        onAgent: agent => {
+          expect(addBuildLogMask.mock.calls).toEqual(secrets.map(secret => [secret]));
+          agent.exit(0);
+        },
+      });
+
+      await runAgentAsync(createOptions({ agentKind, addBuildLogMask }));
+
+      expect(invocations).toHaveLength(1);
+    }
+  );
+
+  it('registers renewed credentials before resuming the agent', async () => {
+    leaseMock
+      .mockResolvedValueOnce(anthropicLease)
+      .mockResolvedValueOnce({ ...anthropicLease, accessToken: 'renewed-access-token' });
+    const addBuildLogMask = jest.fn();
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        if (invocations.length === 2) {
+          expect(addBuildLogMask.mock.calls).toEqual([
+            ['anthropic-access-token'],
+            ['renewed-access-token'],
+          ]);
+        }
+        agent.exit(invocations.length === 1 ? 1 : 0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ addBuildLogMask }));
+
+    expect(invocations).toHaveLength(2);
+  });
+
+  it('reports a line the formatter cannot handle instead of ending the run', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const logger = createMockLogger();
+    const formatOutputLine = jest
+      .spyOn(CLAUDE_CODE_CLI, 'formatOutputLine')
+      .mockImplementationOnce(() => {
+        throw new RangeError('Maximum call stack size exceeded');
+      });
+    mockSpawn({
+      onAgent: agent => {
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"t","input":{}}]}}\n'
+        );
+        agent.child.stdout.write(
+          '{"type":"assistant","message":{"content":[{"type":"text","text":"Still here."}]}}\n'
+        );
+        agent.exit(0);
+      },
+    });
+
+    try {
+      await runAgentAsync(createOptions({ logger }));
+    } finally {
+      formatOutputLine.mockRestore();
+    }
+
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not format a line of the agent output',
+      expect.any(RangeError)
+    );
+    const [stdoutLogger] = jest.mocked(logger.child).mock.results.map(result => result.value);
+    expect(stdoutLogger.info.mock.calls).toEqual([['Agent: Still here.']]);
+  });
+
+  it('runs Codex with its shell tool off and the credentials in a private home', async () => {
+    leaseMock.mockResolvedValue(openaiLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        const config = agent.readHomeFile('.codex/config.toml');
+        expect(config.content).toContain(
+          '[features]\nshell_tool = false\nview_image = false\nimage_generation = false\napps = false\nplugins = false\n'
+        );
+        expect(config.content).toContain('sandbox_mode = "read-only"');
+        expect(config.content).toContain('[agents]\nenabled = false\n');
+        expect(config.content).toContain(
+          [
+            '[mcp_servers.expo]',
+            'url = "http://localhost:8787/mcp"',
+            'default_tools_approval_mode = "approve"',
+            '',
+            '[mcp_servers.expo.http_headers]',
+            '"Authorization" = "Bearer expo-token"',
+            `"X-Expo-Agent-Run-Id" = "${agentRunId}"`,
+          ].join('\n')
+        );
+        expect(config.mode).toBe(0o600);
+        const auth = agent.readHomeFile('.codex/auth.json');
+        expect(JSON.parse(auth.content)).toEqual({
+          auth_mode: 'chatgptAuthTokens',
+          tokens: {
+            id_token: 'openai-id-token',
+            access_token: 'openai-access-token',
+            refresh_token: '',
+            account_id: 'openai-account-id',
+          },
+          last_refresh: expect.any(String),
+        });
+        expect(auth.mode).toBe(0o600);
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(
+      createOptions({
+        agentKind: 'codex',
+        mcpUrl: 'http://localhost:8787/mcp',
+        npmCacheUrl: undefined,
+      })
+    );
+
+    const npmArgs = installMock.mock.calls[0][1]!;
+    expect(npmArgs).not.toContain('--registry');
+    expect(npmArgs.at(-1)).toBe('@openai/codex@0.160.1');
+    const [agent] = invocations;
+    const runDirectory = path.dirname(agent.env.HOME);
+    expect(agent.command).toBe(path.join(runDirectory, 'cli', 'node_modules', '.bin', 'codex'));
+    expect(agent.args).toEqual(['exec', '--strict-config', '--json', '--skip-git-repo-check']);
+    expect(agent.cwd).toBe(path.join(runDirectory, 'cwd'));
+    expect(agent.env).toEqual({
+      PATH: '/usr/local/bin:/usr/bin',
+      HOME: path.join(runDirectory, 'home'),
+      TMPDIR: path.join(runDirectory, 'tmp'),
+      LANG: 'C.UTF-8',
+    });
+    expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it('escalates to SIGKILL when the agent ignores the stop', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    leaseMock.mockResolvedValue(anthropicLease);
+    const controller = new AbortController();
+    let agentStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      agentStarted = resolve;
+    });
+    const invocations = mockSpawn({ onAgent: () => agentStarted() });
+
+    const run = runAgentAsync(createOptions({ signal: controller.signal }));
+    const rejection = expect(run).rejects.toMatchObject({ name: 'AbortError' });
+    await started;
+    const [agent] = invocations;
+
+    controller.abort();
+    expect(killProcessGroupMock.mock.calls).toEqual([[agent.child, 'SIGTERM']]);
+    await jest.advanceTimersByTimeAsync(10_000);
+    expect(killProcessGroupMock.mock.calls).toEqual([
+      [agent.child, 'SIGTERM'],
+      [agent.child, 'SIGKILL'],
+    ]);
+    agent.exit(null, 'SIGKILL');
+
+    await rejection;
+    expect(leaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('ends what the agent left running and waits a bounded time for its output', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    leaseMock.mockResolvedValue(anthropicLease);
+    let agentStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      agentStarted = resolve;
+    });
+    const invocations = mockSpawn({ onAgent: () => agentStarted() });
+
+    const run = runAgentAsync(createOptions());
+    await started;
+    invocations[0].exit(0, undefined, { closeOutput: false });
+    await jest.advanceTimersByTimeAsync(5_000);
+
+    await expect(run).resolves.toBeUndefined();
+    expect(killProcessGroupMock.mock.calls).toEqual([[invocations[0].child, 'SIGKILL']]);
+  });
+
+  it('stops the agent when the step is aborted and fails with the abort reason', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const controller = new AbortController();
+    const reason = new Error('the step was canceled');
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        queueMicrotask(() => {
+          controller.abort(reason);
+          agent.exit(null, 'SIGTERM');
+        });
+      },
+    });
+
+    await expect(runAgentAsync(createOptions({ signal: controller.signal }))).rejects.toBe(reason);
+
+    expect(killProcessGroupMock.mock.calls).toEqual([
+      [invocations[0].child, 'SIGTERM'],
+      [invocations[0].child, 'SIGKILL'],
+    ]);
+    expect(leaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('resumes Claude Code with new credentials when the lease changed during the run', async () => {
+    const renewedLease: AgentRunProviderCredentials = {
+      ...anthropicLease,
+      accessToken: 'renewed-access-token',
+    };
+    leaseMock.mockResolvedValueOnce(anthropicLease).mockResolvedValueOnce(renewedLease);
+    const logger = createMockLogger();
+    const invocations = mockSpawn({
+      onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
+    });
+
+    await runAgentAsync(createOptions({ logger }));
+
+    expect(installMock).toHaveBeenCalledTimes(1);
+    expect(invocations).toHaveLength(2);
+    const [first, resumed] = invocations;
+    expect(resumed.args).toEqual(['-p', '--continue', ...first.args.slice(1)]);
+    expect(resumed.env.CLAUDE_CODE_OAUTH_TOKEN).toBe('renewed-access-token');
+    expect(resumed.stdin).toHaveBeenCalledWith(
+      expect.stringMatching(/^Your previous run of this task stopped.*\n\nFix the failing test\.$/s)
+    );
+    const child = jest.mocked(logger.child);
+    expect(child.mock.calls).toEqual([
+      [{ source: 'stdout' }],
+      [{ source: 'stderr' }],
+      [{ source: 'stdout' }],
+      [{ source: 'stderr' }],
+    ]);
+  });
+
+  it('resumes Codex with new credentials when the lease changed during the run', async () => {
+    const renewedLease: AgentRunProviderCredentials = {
+      ...openaiLease,
+      accessToken: 'renewed-access-token',
+      idToken: 'renewed-id-token',
+    };
+    leaseMock.mockResolvedValueOnce(openaiLease).mockResolvedValueOnce(renewedLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        if (invocations.length === 1) {
+          agent.exit(1);
+          return;
+        }
+        expect(JSON.parse(agent.readHomeFile('.codex/auth.json').content).tokens).toMatchObject({
+          id_token: 'renewed-id-token',
+          access_token: 'renewed-access-token',
+        });
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ agentKind: 'codex' }));
+
+    expect(invocations).toHaveLength(2);
+    expect(invocations[1].args).toEqual([
+      'exec',
+      '--strict-config',
+      '--json',
+      '--skip-git-repo-check',
+      'resume',
+      '--last',
+      '-',
+    ]);
+    expect(invocations[1].stdin).toHaveBeenCalledWith(
+      expect.stringContaining('\n\nFix the failing test.')
+    );
+    expect(invocations[1].cwd).toBe(invocations[0].cwd);
+  });
+
+  it('does not resume an agent when the step was aborted while its credentials were renewed', async () => {
+    const controller = new AbortController();
+    leaseMock.mockResolvedValueOnce(anthropicLease).mockImplementationOnce(async () => {
+      controller.abort();
+      return { ...anthropicLease, accessToken: 'renewed-access-token' };
+    });
+    const invocations = mockSpawn({ onAgent: agent => agent.exit(1) });
+
+    await expect(runAgentAsync(createOptions({ signal: controller.signal }))).rejects.toMatchObject(
+      { name: 'AbortError' }
+    );
+
+    expect(invocations).toHaveLength(1);
+  });
+
+  it.each([
+    [2, undefined, 'exited with code 2'],
+    [null, 'SIGKILL' as const, 'was terminated by SIGKILL'],
+  ])(
+    'fails when the agent fails and the lease is unchanged (status %p, signal %p)',
+    async (status, signal, description) => {
+      leaseMock.mockResolvedValue(anthropicLease);
+      const invocations = mockSpawn({ onAgent: agent => agent.exit(status, signal) });
+
+      await expect(runAgentAsync(createOptions())).rejects.toMatchObject({
+        errorCode: 'EAS_RUN_AGENT_FAILED',
+        message: expect.stringContaining(description),
+      });
+
+      expect(invocations).toHaveLength(1);
+      expect(leaseMock).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('fails with the lease error when the lease cannot be renewed after the agent failed', async () => {
+    leaseMock
+      .mockResolvedValueOnce(anthropicLease)
+      .mockRejectedValueOnce(new Error('lease refused'));
+    const invocations = mockSpawn({ onAgent: agent => agent.exit(1) });
+
+    await expect(runAgentAsync(createOptions())).rejects.toThrow('lease refused');
+
+    expect(invocations).toHaveLength(1);
+  });
+
+  it('reports an agent CLI that cannot start', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    mockSpawn({
+      onAgent: agent => {
+        process.nextTick(() => agent.child.emit('error', new Error('spawn claude ENOENT')));
+      },
+    });
+
+    await expect(runAgentAsync(createOptions())).rejects.toThrow(
+      'Could not start the agent CLI on the worker: spawn claude ENOENT.'
+    );
+
+    expect(leaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cleans up when the installation fails', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const invocations = mockSpawn({
+      onInstall: () => {
+        throw new Error('npm ERR! network');
+      },
+      onAgent: agent => agent.exit(0),
+    });
+
+    await expect(runAgentAsync(createOptions())).rejects.toBeInstanceOf(SystemError);
+
+    expect(invocations).toHaveLength(0);
+  });
+
+  it('does not install or start anything when the lease is refused', async () => {
+    leaseMock.mockRejectedValue(new Error('lease refused'));
+    mockSpawn({ onAgent: agent => agent.exit(0) });
+
+    await expect(runAgentAsync(createOptions())).rejects.toThrow('lease refused');
+
+    expect(installMock).not.toHaveBeenCalled();
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses credentials of the wrong provider', async () => {
+    leaseMock.mockResolvedValue(openaiLease);
+    const invocations = mockSpawn({ onAgent: agent => agent.exit(0) });
+
+    await expect(runAgentAsync(createOptions({ agentKind: 'claude-code' }))).rejects.toBeInstanceOf(
+      SystemError
+    );
+
+    expect(invocations).toHaveLength(0);
+  });
+});

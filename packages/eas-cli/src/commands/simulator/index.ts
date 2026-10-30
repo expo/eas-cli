@@ -8,7 +8,7 @@ import {
   isAnalyticsOptedOutAsync,
 } from '../../analytics/AnalyticsManager';
 import { getAgentTelemetryContext } from '../../analytics/agent';
-import { getDeviceRunSessionUrl } from '../../build/utils/url';
+import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../commandUtils/errors';
@@ -31,6 +31,7 @@ import Log, { link } from '../../log';
 import { Ora, ora } from '../../ora';
 import { promptAsync } from '../../prompts';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
+import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -40,6 +41,10 @@ import {
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
+import {
+  fetchSimulatorSessionErrorsAsync,
+  formatSimulatorSessionError,
+} from '../../simulator/jobRunErrors';
 import {
   simulatorRequestFailureReason,
   simulatorRequestProperties,
@@ -78,7 +83,7 @@ export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', 'sim:start'];
   static override hiddenAliases = ['sim'];
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it. The default browser preview link requires sign-in';
 
   static override flags = {
     platform: Flags.option({
@@ -98,6 +103,10 @@ export default class Simulator extends EasCommand {
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+    }),
+    'system-image': Flags.string({
+      description:
+        'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
@@ -177,6 +186,16 @@ export default class Simulator extends EasCommand {
       multiple: true,
       dependsOn: ['egress'],
     }),
+    'cors-origin': Flags.string({
+      description:
+        'Origin of a page that may call the simulator preview API cross-origin, for example to render the device with @expo/hub-client, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. Embedding the preview in a frame does not need this; use --frame-ancestor for that. The page still needs the printed preview URL and its token.',
+      multiple: true,
+    }),
+    'frame-ancestor': Flags.string({
+      description:
+        'Origin of a page that may embed the simulator preview in a frame, such as https://app.example.com or https://*.example.com. Repeat for multiple origins. The embedding page loads the printed preview URL, which carries the session token, so anyone who can read that page can also control the simulator.',
+      multiple: true,
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -188,6 +207,10 @@ export default class Simulator extends EasCommand {
       options: Object.values(OUT_CONFIG_TYPE_VALUES),
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
+    'public-link': Flags.boolean({
+      description:
+        'Enable the simulator preview Share button and print a shareable link containing an access token. Anyone with the link can control the simulator. With --json, include previewApiUrl and its token for API clients when available.',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -233,6 +256,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const systemImagePackage = flags['system-image']?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -276,9 +300,24 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (systemImagePackage && platform !== AppPlatform.Android) {
+      throw new EasCommandError('--system-image is only supported with --platform android.');
+    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    let frameAncestors: string[] = [];
+    try {
+      frameAncestors = parseFrameAncestorList(flags['frame-ancestor'] ?? []);
+    } catch (err) {
+      throw new EasCommandError(err instanceof Error ? err.message : String(err));
+    }
+    let corsOrigins: string[] = [];
+    try {
+      corsOrigins = parseCorsOriginList(flags['cors-origin'] ?? []);
     } catch (err) {
       throw new EasCommandError(err instanceof Error ? err.message : String(err));
     }
@@ -310,6 +349,7 @@ export default class Simulator extends EasCommand {
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
+    let deviceRunSessionPreviewUrl: string;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
       const agentIdentity = await agentIdentityInputAsync();
@@ -334,14 +374,22 @@ export default class Simulator extends EasCommand {
             ...(tags?.length ? { tags } : {}),
             platform,
             type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
+            publicPreview: flags['public-link'] ?? false,
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-            ...(deviceIdentifier
-              ? platform === AppPlatform.Ios
+            ...(platform === AppPlatform.Ios
+              ? deviceIdentifier
                 ? { ios: { deviceIdentifier } }
-                : { android: { deviceIdentifier } }
-              : {}),
+                : {}
+              : deviceIdentifier || systemImagePackage
+                ? {
+                    android: {
+                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
+                      ...(systemImagePackage ? { systemImagePackage } : {}),
+                    },
+                  }
+                : {}),
             ...(buildId ? { buildId } : {}),
             ...(buildFingerprint ? { buildFingerprint } : {}),
             ...(applicationArchiveUrlFromFlag
@@ -352,6 +400,8 @@ export default class Simulator extends EasCommand {
             ...(openUrl ? { openUrl } : {}),
             ...(resourceClass ? { resourceClass } : {}),
             ...(egress ? { egress } : {}),
+            ...(frameAncestors.length ? { frameAncestors } : {}),
+            ...(corsOrigins.length ? { corsOrigins } : {}),
             requestOrigin: DeviceRunSessionRequestOrigin.EasCli,
             ...agentIdentity,
             maxRunTimeMinutes: flags['max-duration-minutes'],
@@ -363,6 +413,11 @@ export default class Simulator extends EasCommand {
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
       deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        deviceRunSessionId
+      );
+      deviceRunSessionPreviewUrl = getDeviceRunSessionPreviewUrl(
         session.app.ownerAccount.name,
         session.app.slug,
         deviceRunSessionId
@@ -410,7 +465,7 @@ export default class Simulator extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Simulator session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -421,7 +476,7 @@ export default class Simulator extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}`
+            `Turtle job run for simulator session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(deviceRunSessionUrl)}${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, sessionInterrupt.signal)}`
           );
         }
 
@@ -496,7 +551,12 @@ export default class Simulator extends EasCommand {
         name,
         type: flags.type,
         deviceRunSessionUrl,
-        remoteConfig: sanitizeRemoteConfigForJson(remoteConfig),
+        remoteConfig: sanitizeRemoteConfigForJson(
+          remoteConfig,
+          deviceRunSessionPreviewUrl,
+          flags['public-link'],
+          { frameAncestors, corsOrigins }
+        ),
       });
       return;
     }
@@ -507,6 +567,10 @@ export default class Simulator extends EasCommand {
         egressAllow,
         egressClientRunsInline: !nonInteractive,
         sessionUrl: deviceRunSessionUrl,
+        privatePreviewUrl: deviceRunSessionPreviewUrl,
+        publicLink: flags['public-link'],
+        frameAncestors,
+        corsOrigins,
         platform,
       })
     );
@@ -572,6 +636,18 @@ export default class Simulator extends EasCommand {
       throw egressError;
     }
   }
+}
+
+// Returns the reasons the session's job run failed, one per line, or an empty string when none are available.
+async function formatJobRunErrorsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string,
+  signal: AbortSignal
+): Promise<string> {
+  const errors = await fetchSimulatorSessionErrorsAsync(graphqlClient, deviceRunSessionId, {
+    signal,
+  });
+  return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
 }
 
 async function resolvePlatformAsync(
@@ -655,7 +731,9 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Errored
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
-        throw new Error(`Simulator session ${deviceRunSessionId} errored.`);
+        throw new Error(
+          `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
+        );
       }
       if (
         session.status === DeviceRunSessionStatus.Stopped ||

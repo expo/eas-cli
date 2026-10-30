@@ -33,7 +33,7 @@ const PROJECT_PAGES: Record<string, string> = {
 
 export default class Browse extends EasCommand {
   static override description =
-    'Transition from the terminal to the web browser to view and interact with your project on https://expo.dev';
+    'transition from the terminal to the web browser to view and interact with your project on https://expo.dev';
 
   static override args = {
     page: Args.string({

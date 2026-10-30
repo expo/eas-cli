@@ -8,9 +8,11 @@ import { LocalBuildOptions } from './local';
 import { Analytics, AnalyticsEventProperties } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
+import { LazyExperimentationClient } from '../experimentation/LazyExperimentationClient';
 import { Target } from '../credentials/ios/types';
 import { BuildResourceClass } from '../graphql/generated';
 import { GradleBuildContext } from '../project/android/gradle';
+import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { CustomBuildConfigMetadata } from '../project/customBuildConfig';
 import { XcodeBuildContext } from '../project/ios/scheme';
 import { Actor } from '../user/User';
@@ -66,4 +68,6 @@ export interface BuildContext<T extends Platform> {
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
   env: Env;
+  experimentation?: LazyExperimentationClient;
+  authenticationInfo?: LoggedInAuthenticationInfo;
 }

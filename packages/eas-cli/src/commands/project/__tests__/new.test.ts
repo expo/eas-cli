@@ -22,6 +22,7 @@ jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../project/expoConfig');
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../user/User', () => ({
+  ...jest.requireActual('../../../user/User'),
   getActorUsername: jest.fn().mockReturnValue('jester'),
 }));
 jest.mock('../../../ora');

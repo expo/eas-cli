@@ -121,7 +121,7 @@ describe('AndroidEmulatorUtils', () => {
           'hw.lcd.density=420',
           'skin.path=pixel_9',
           'showDeviceFrame=yes',
-          'hw.ramSize=2048',
+          'hw.ramSize=4096',
           '',
           'hw.lcd.density=220',
           '',
@@ -136,7 +136,10 @@ describe('AndroidEmulatorUtils', () => {
       );
     });
 
-    it('does not apply an LCD configuration when it is omitted', async () => {
+    it.each([
+      [undefined, 2048],
+      ['device-run-session-id', 4096],
+    ])('configures memory for session %s without an LCD override', async (sessionId, ramSize) => {
       const deviceName = 'generic-emulator' as AndroidVirtualDeviceName;
       const avdDirectory = `/home/expo/.android/avd/${deviceName}.avd`;
       const initialConfig = ['skin.path=pixel_9', 'showDeviceFrame=yes'].join('\n');
@@ -156,12 +159,14 @@ describe('AndroidEmulatorUtils', () => {
         env: {
           HOME: '/home/expo',
           ANDROID_EMULATOR_ADJUST_HEAP_SIZE: '0',
+          DEVICE_RUN_SESSION_ID: sessionId,
         },
         logger: createMockLogger(),
       });
 
       const config = await fs.promises.readFile(`${avdDirectory}/config.ini`, 'utf8');
       expect(config).toContain(initialConfig);
+      expect(config).toContain(`hw.ramSize=${ramSize}\n`);
       expect(config).not.toContain('hw.lcd.');
     });
   });

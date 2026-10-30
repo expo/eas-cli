@@ -25,9 +25,15 @@ import {
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
+  EasBuildUnauthorizedError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
+import {
+  FreeTierLimitCheckoutExperiment,
+  getFreeTierLimitCheckoutExperiment,
+  maybeOfferFreeTierLimitCheckoutAsync,
+} from './freeTierLimitCheckout';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import {
@@ -37,6 +43,7 @@ import {
   logSourceForBuild,
 } from './logs';
 import { collectMetadataAsync } from './metadata';
+import { resolveJobExpoTokenRole } from './utils/expoTokenRole';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
@@ -46,9 +53,9 @@ import {
   maybeWarnAboutProjectTarballSize,
   reviewAndCommitChangesAsync,
 } from './utils/repository';
+import { getAccountBillingUrl } from './utils/url';
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
-import { getExpoWebsiteBaseUrl } from '../api';
 import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
@@ -120,6 +127,7 @@ function resolveBuildParamsInput<T extends Platform>(
     resourceClass: ctx.resourceClass,
     sdkVersion: metadata.sdkVersion,
     reactNativeVersion: metadata.reactNativeVersion,
+    expoTokenRole: resolveJobExpoTokenRole(ctx.buildProfile),
   };
 }
 
@@ -219,7 +227,12 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform, ctx.accountName);
+        return await handleBuildRequestErrorAsync(
+          error,
+          job.platform,
+          ctx.accountName,
+          getFreeTierLimitCheckoutExperiment(ctx)
+        );
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -240,11 +253,12 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-export function handleBuildRequestError(
+export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
-  accountName?: string
-): never {
+  accountName?: string,
+  freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
+): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
 
   const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
@@ -259,11 +273,15 @@ export function handleBuildRequestError(
     const isFreeTierLimitError =
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
-    throw new ErrorClass(
-      isFreeTierLimitError
-        ? `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`
-        : message
+    if (!isFreeTierLimitError) {
+      throw new ErrorClass(message);
+    }
+    const limitMessage = `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`;
+    const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
+      limitMessage,
+      freeTierLimitCheckoutExperiment
     );
+    throw new ErrorClass(limitMessage, { messageAlreadyPrinted });
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -273,6 +291,17 @@ export function handleBuildRequestError(
   } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
+    );
+  } else if (graphQLErrorCode === 'UNAUTHORIZED') {
+    const requestId = graphQLErrors[0]?.extensions?.requestId;
+    throw new EasBuildUnauthorizedError(
+      `${graphQLErrors[0]?.message}${requestId ? `\nRequest ID: ${requestId}` : ''}\n\nRun ${chalk.bold(
+        'eas whoami'
+      )} to check the user you are logged in as and your permission grant. Run ${chalk.bold(
+        'eas login'
+      )} to change the user or permission grant.\n\nIf your build profile in eas.json uses ${chalk.bold(
+        'permissions.account.role'
+      )}, it may mean your credentials do not grant the requested role.`
     );
   } else if (Array.isArray(error?.graphQLErrors)) {
     const errorDetails = formatBuildRequestErrorDetails(error, graphQLErrors);
@@ -680,7 +709,7 @@ async function handleSingleBuildProgressAsync(
       } else {
         updateSpinnerText(spinner, {
           text: `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-            formatAccountBillingUrl(accountName)
+            getAccountBillingUrl(accountName)
           )}.`,
         });
       }
@@ -703,7 +732,7 @@ async function handleSingleBuildProgressAsync(
         if (build.priority !== BuildPriority.High) {
           Log.newLine();
           Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(formatAccountBillingUrl(accountName))}`);
+          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
         }
 
         Log.newLine();
@@ -893,10 +922,6 @@ function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
     const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
     return `starting in about ${n}0 minutes...`;
   }
-}
-
-function formatAccountBillingUrl(accountName: string): string {
-  return new URL(`/accounts/${accountName}/settings/billing`, getExpoWebsiteBaseUrl()).toString();
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(

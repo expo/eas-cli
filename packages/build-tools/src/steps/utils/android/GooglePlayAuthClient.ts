@@ -3,6 +3,9 @@ import { asyncResult } from '@expo/results';
 import fetch, { Response } from 'node-fetch';
 import { z } from 'zod';
 
+import { promiseRetryWithCondition } from '../../../utils/promiseRetryWithCondition';
+
+import { GooglePlayApiError } from './GooglePlayApiError';
 const PostApi = {
   '/token': {
     request: z.object({
@@ -46,14 +49,22 @@ export class GooglePlayAuthClient {
     signal?: AbortSignal
   ): Promise<z.output<(typeof PostApi)[TPath]['response']>> {
     const schema = PostApi[path];
-    return await this.requestAsync({
-      method: 'POST',
-      path,
-      body,
-      requestSchema: schema.request,
-      responseSchema: schema.response,
-      signal,
-    });
+    return await promiseRetryWithCondition(
+      () =>
+        this.requestAsync({
+          method: 'POST',
+          path,
+          body,
+          requestSchema: schema.request,
+          responseSchema: schema.response,
+          signal,
+        }),
+      error =>
+        !signal?.aborted &&
+        error instanceof GooglePlayAuthRequestError &&
+        GooglePlayApiError.isRetryableStatus(error.status),
+      { retries: 3, factor: 2, minTimeout: 1000, maxTimeout: 4000 }
+    )();
   }
 
   private async requestAsync({

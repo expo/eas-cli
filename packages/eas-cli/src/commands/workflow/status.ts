@@ -32,7 +32,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class WorkflowStatus extends EasCommand {
   static override description =
-    'show the status of an existing workflow run. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project.';
+    'show the status of an existing workflow run. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project';
 
   static override args = {
     WORKFLOW_RUN_ID: Args.string({

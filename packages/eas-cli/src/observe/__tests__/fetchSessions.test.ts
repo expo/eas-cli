@@ -4,6 +4,10 @@ import {
   AppObserveMetric,
   AppObserveMetricsListOrderByField,
   AppObserveOrderDirection,
+  AppObserveSpan,
+  AppObserveSpanKind,
+  AppObserveSpanListOrderByField,
+  AppObserveSpanStatusCode,
   AppObserveUserEvent,
   AppObserveUserEventListOrderByField,
 } from '../../graphql/generated';
@@ -106,6 +110,54 @@ function makeErrorLog(overrides: Partial<AppObserveError> = {}): AppObserveSessi
   } as AppObserveSessionLog;
 }
 
+function makeSpan(overrides: Partial<AppObserveSpan> = {}): AppObserveSpan {
+  return {
+    __typename: 'AppObserveSpan' as const,
+    id: 'span-1',
+    traceId: 'a'.repeat(32),
+    spanId: '1'.repeat(16),
+    parentSpanId: null,
+    name: 'GET',
+    kind: AppObserveSpanKind.Client,
+    startTimestamp: '2025-01-15T10:00:01.000Z',
+    endTimestamp: '2025-01-15T10:00:01.123Z',
+    durationMs: 123.4,
+    statusCode: AppObserveSpanStatusCode.Ok,
+    statusMessage: null,
+    sessionId: 'session-1',
+    http: {
+      __typename: 'AppObserveSpanHttp' as const,
+      method: 'GET',
+      statusCode: 200,
+      urlHost: 'api.example.com',
+      urlFull: 'https://api.example.com/users?page=1',
+      protocolVersion: '1.1',
+      requestSize: 100,
+      responseSize: 2000,
+      errorType: null,
+    },
+    attributes: [],
+    events: [],
+    droppedAttributesCount: 0,
+    droppedEventsCount: 0,
+    droppedLinksCount: 0,
+    ingestedAt: null,
+    appVersion: '1.0.0',
+    appBuildNumber: '42',
+    appUpdateId: null,
+    appEasBuildId: null,
+    expoSdkVersion: '54.0.0',
+    reactNativeVersion: '0.81.0',
+    deviceModel: 'iPhone 15',
+    deviceOs: 'iOS',
+    deviceOsVersion: '17.0',
+    environment: 'production',
+    easClientId: 'client-1',
+    countryCode: 'US',
+    ...overrides,
+  } as AppObserveSpan;
+}
+
 const baseOptions = {
   limit: 100,
 };
@@ -118,6 +170,8 @@ describe('fetchObserveSessionEventsAsync', () => {
       logs: [],
       metricsPageInfo: noNextPage,
       logsPageInfo: noNextPage,
+      spans: [],
+      spansPageInfo: noNextPage,
     });
   });
 
@@ -154,6 +208,8 @@ describe('fetchObserveSessionEventsAsync', () => {
       ],
       metricsPageInfo: noNextPage,
       logsPageInfo: noNextPage,
+      spans: [],
+      spansPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -180,6 +236,8 @@ describe('fetchObserveSessionEventsAsync', () => {
       ],
       metricsPageInfo: noNextPage,
       logsPageInfo: noNextPage,
+      spans: [],
+      spansPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -202,6 +260,8 @@ describe('fetchObserveSessionEventsAsync', () => {
       logs: [makeUserLog({ timestamp: '2025-01-15T10:05:00.000Z', appUpdateId: 'update-xyz' })],
       metricsPageInfo: noNextPage,
       logsPageInfo: noNextPage,
+      spans: [],
+      spansPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -236,6 +296,8 @@ describe('fetchObserveSessionEventsAsync', () => {
       logs: [],
       metricsPageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: 'cm' },
       logsPageInfo: noNextPage,
+      spans: [],
+      spansPageInfo: noNextPage,
     });
 
     const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
@@ -245,6 +307,52 @@ describe('fetchObserveSessionEventsAsync', () => {
 
     expect(result.hasMoreMetricEvents).toBe(true);
     expect(result.hasMoreLogEvents).toBe(false);
+    expect(result.hasMoreSpans).toBe(false);
+  });
+
+  it('queries the session spans oldest-first and merges them into the timeline', async () => {
+    mockSessionEventsAsync.mockResolvedValue({
+      metrics: [makeMetricEvent({ timestamp: '2025-01-15T10:00:00.000Z' })],
+      logs: [makeUserLog({ timestamp: '2025-01-15T10:00:02.000Z' })],
+      spans: [makeSpan({ startTimestamp: '2025-01-15T10:00:01.000Z' })],
+      metricsPageInfo: noNextPage,
+      logsPageInfo: noNextPage,
+      spansPageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: 'cs' },
+    });
+
+    const result = await fetchObserveSessionEventsAsync({} as any, 'project-1', {
+      ...baseOptions,
+      sessionId: 'session-1',
+    });
+
+    expect(mockSessionEventsAsync).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        spansOrderBy: {
+          field: AppObserveSpanListOrderByField.StartTimestamp,
+          direction: AppObserveOrderDirection.Asc,
+        },
+      })
+    );
+    expect(result.entries.map(e => e.source)).toEqual(['metric', 'span', 'log']);
+    const spanEntry = result.entries[1];
+    expect(spanEntry).toEqual(
+      expect.objectContaining({
+        id: 'span-1',
+        name: 'GET',
+        timestamp: '2025-01-15T10:00:01.000Z',
+        traceId: 'a'.repeat(32),
+        spanId: '1'.repeat(16),
+        parentSpanId: null,
+        durationMs: 123.4,
+        statusCode: AppObserveSpanStatusCode.Ok,
+        httpMethod: 'GET',
+        httpStatusCode: 200,
+        urlHost: 'api.example.com',
+        urlFull: 'https://api.example.com/users?page=1',
+      })
+    );
+    expect(result.hasMoreSpans).toBe(true);
   });
 });
 

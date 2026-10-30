@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { UserError, quoteAndroidShellCommand } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -106,32 +106,38 @@ export async function launchApplicationAsync({
   logApplicationLaunch(logger, applicationIdentifier, launchArgs);
   // Android does not support process arguments like iOS. Pass raw `am start` Intent
   // arguments instead, such as `--es key value` or `--ez key true`.
-  await spawn(
-    'adb',
-    ['shell', 'am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
-    {
-      env,
-      logger,
+  try {
+    await spawnAndroidShellCommandAsync(
+      ['am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+      { env, logger }
+    );
+  } catch (err) {
+    // An empty argument that is not an option value reaches `am start` as an empty package, and
+    // `am start` then fails to resolve the Intent without saying why.
+    const emptyArgumentIndex = launchArgs.indexOf('');
+    if (emptyArgumentIndex === -1 || err instanceof UserError) {
+      throw err;
     }
-  );
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_FAILED',
+      `Launching ${applicationIdentifier} failed. Input "launch_args" has an empty argument at position ${emptyArgumentIndex + 1}, which Android passes to "am start" as an empty argument. Remove it unless it is an option value, such as "--es", "key", "".`,
+      { cause: err }
+    );
+  }
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
-    await spawn(
-      'adb',
-      [
-        'shell',
-        'am',
-        'start',
-        '-a',
-        'android.intent.action.VIEW',
-        '-d',
-        openUrl,
-        '-n',
-        `${applicationIdentifier}/${activityName}`,
-      ],
+    await spawnAndroidShellCommandAsync(
+      ['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
       { env, logger }
     );
   }
+}
+
+async function spawnAndroidShellCommandAsync(
+  command: string[],
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<void> {
+  await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
 }
 
 async function preapproveIosUrlSchemeAsync({

@@ -1,10 +1,12 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { EventEmitter } from 'node:events';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import {
   clearTimeout as clearTimeoutCallback,
@@ -16,6 +18,7 @@ import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import * as processes from '../../../utils/processes';
 import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
@@ -24,30 +27,46 @@ import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
+  createCorsOriginsInputProvider,
+  createFrameAncestorsInputProvider,
+  createIosSessionStartupInputProviders,
+  createPrivatePreviewUrlInputProvider,
+  createPublicPreviewInputProvider,
   createServeSimLaunchInputProviders,
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  parseCorsOriginsInput,
+  parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
   spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToWebPreviewArgs,
+  validateServeSimLaunchOptions,
   waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
 
 import {
+  EXPO_DEVICE_HUB_STATE_DIR,
+  corsOriginArgs,
   createExpoDeviceHubArgs,
   createServeSimArgs,
+  frameAncestorArgs,
   simulatorPreviewPageUrl,
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
   websiteOrigin,
-  websiteOriginServeSimArgs,
+  websiteOriginArgs,
 } from '../deviceSessionHost';
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../localEgress', () => ({
+  ...jest.requireActual('../localEgress'),
+  readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
@@ -70,6 +89,7 @@ function createLoggerMock(): bunyan {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
+    child: jest.fn().mockReturnThis(),
   } as unknown as bunyan;
 }
 
@@ -136,78 +156,120 @@ describe(spawnDetached, () => {
   );
 });
 
-function createCtxMock(): CustomBuildContext {
+const DEVICE_RUN_SESSION_TOKEN = 'device-run-session-token';
+const DEVICE_RUN_SESSION_WORKER_URL = 'https://api.expo.test/v2/device-run-session-worker/';
+
+function createCtxMock({ withToken = true }: { withToken?: boolean } = {}): CustomBuildContext {
   return {
     env: {
       __API_SERVER_URL: 'https://api.expo.test',
+      ...(withToken ? { EAS_DEVICE_RUN_SESSION_TOKEN: DEVICE_RUN_SESSION_TOKEN } : {}),
     },
+    expoApiV2BaseUrl: 'https://api.expo.test/v2/',
     job: {
       secrets: { robotAccessToken: 'robot-token' },
     },
   } as unknown as CustomBuildContext;
 }
 
+/** A successful device run session worker API response with the `{ data }` body. */
+function workerApiResponse(data: unknown): Awaited<ReturnType<typeof turtleFetch>> {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ data }),
+  } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
+}
+
+/** The number of device run session worker API requests to the route. */
+function workerApiCallCount(route: string): number {
+  return jest
+    .mocked(turtleFetch)
+    .mock.calls.filter(([url]) => url === `${DEVICE_RUN_SESSION_WORKER_URL}${route}`).length;
+}
+
+/**
+ * Serves session status polls from `results` in order, and idle stops, through the device run
+ * session worker API.
+ */
 function createStatusCtxMock(
   results: (
-    | { status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' }
+    | { status: 'new' | 'in-progress' | 'stopped' | 'errored' }
     | { error: Error }
     | { data: unknown }
   )[],
-  { ensureStoppedError }: { ensureStoppedError?: Error } = {}
+  { stopError }: { stopError?: Error } = {}
 ): CustomBuildContext {
-  const query = jest.fn(() => {
+  jest.mocked(turtleFetch).mockImplementation(async url => {
+    if (url === `${DEVICE_RUN_SESSION_WORKER_URL}stop`) {
+      if (stopError) {
+        throw stopError;
+      }
+      return workerApiResponse({ id: 'drs-id', status: 'stopped' });
+    }
     const result = results.shift();
     if (!result) {
       throw new Error('No mocked status result available');
     }
-    return {
-      toPromise: async () => {
-        if ('error' in result) {
-          throw result.error;
-        }
-        if ('data' in result) {
-          return { data: result.data };
-        }
-        return {
-          data: {
-            deviceRunSessions: {
-              byId: {
-                id: 'drs-id',
-                status: result.status,
-              },
-            },
-          },
-        };
-      },
-    };
+    if ('error' in result) {
+      throw result.error;
+    }
+    if ('data' in result) {
+      return workerApiResponse(result.data);
+    }
+    return workerApiResponse({ id: 'drs-id', status: result.status });
   });
-
-  const mutation = jest.fn(() => ({
-    toPromise: async () => {
-      if (ensureStoppedError) {
-        return { error: ensureStoppedError };
-      }
-      return {
-        data: {
-          deviceRunSession: {
-            ensureDeviceRunSessionStopped: { id: 'drs-id', status: 'STOPPED' },
-          },
-        },
-      };
-    },
-  }));
-
-  return {
-    graphqlClient: {
-      query,
-      mutation,
-    },
-  } as unknown as CustomBuildContext;
+  return createCtxMock();
 }
 
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(createIosSessionStartupInputProviders, () => {
+  it('declares optional inputs so existing workflows do not opt into owned startup', () => {
+    const inputs = createIosSessionStartupInputProviders().map(provider =>
+      provider(createGlobalContextMock(), 'Test step')
+    );
+    expect(
+      inputs.map(({ id, required, allowedValueTypeName }) => ({
+        id,
+        required,
+        allowedValueTypeName,
+      }))
+    ).toEqual([
+      {
+        id: 'boot_simulator',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      },
+      {
+        id: 'device_identifier',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+      {
+        id: 'install_app_path',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      },
+    ]);
+  });
+});
+
+describe(validateServeSimLaunchOptions, () => {
+  it('accepts empty options and arguments at the count, character and byte limits', () => {
+    expect(() => validateServeSimLaunchOptions({})).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: Array(256).fill('a') })).not.toThrow();
+    expect(() => validateServeSimLaunchOptions({ launchArgs: ['a'.repeat(8192)] })).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ launchArgs: Array(16).fill('a'.repeat(8191)) })
+    ).not.toThrow();
+    expect(() =>
+      validateServeSimLaunchOptions({ openUrl: `https://${'a'.repeat(8184)}` })
+    ).not.toThrow();
+  });
+});
 
 describe(createServeSimLaunchInputProviders, () => {
   it('declares the launch inputs as optional', () => {
@@ -239,6 +301,110 @@ describe(createServeSimLaunchInputProviders, () => {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       },
     ]);
+  });
+});
+
+describe(createPublicPreviewInputProvider, () => {
+  it('preserves the native Share button for legacy jobs without the input', () => {
+    const input = createPublicPreviewInputProvider()(createGlobalContextMock(), 'Test step');
+    expect(input).toMatchObject({
+      id: 'public_preview',
+      required: false,
+      defaultValue: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+    });
+  });
+});
+
+describe(createPrivatePreviewUrlInputProvider, () => {
+  it('accepts an optional authenticated preview URL from the session job', () => {
+    const provider = createPrivatePreviewUrlInputProvider();
+    const input = provider(createGlobalContextMock(), 'step-id');
+    expect(input.id).toBe('private_preview_url');
+    expect(input.required).toBe(false);
+    expect(input.allowedValueTypeName).toBe(BuildStepInputValueTypeName.STRING);
+  });
+});
+
+describe(createFrameAncestorsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createFrameAncestorsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'frame_ancestors',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseFrameAncestorsInput, () => {
+  it('defaults to no extra origins when the step declares nothing', () => {
+    expect(parseFrameAncestorsInput(undefined)).toEqual([]);
+  });
+
+  it('returns the origins as given', () => {
+    expect(
+      parseFrameAncestorsInput(['https://embed.example.test', 'https://*.example.test'])
+    ).toEqual(['https://embed.example.test', 'https://*.example.test']);
+  });
+
+  it.each([['https://embed.example.test'], [['https://embed.example.test', '']], [[1]]])(
+    'rejects %j',
+    value => {
+      expect(() => parseFrameAncestorsInput(value)).toThrow(
+        'Input "frame_ancestors" must be an array of non-empty strings, one origin each.'
+      );
+    }
+  );
+});
+
+describe(createCorsOriginsInputProvider, () => {
+  it('accepts an optional JSON list of origins from the session job', () => {
+    const input = createCorsOriginsInputProvider()(createGlobalContextMock(), 'step-id');
+    expect(input).toMatchObject({
+      id: 'cors_origins',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+    });
+  });
+});
+
+describe(parseCorsOriginsInput, () => {
+  it('defaults to no extra origins and returns the origins as given', () => {
+    expect(parseCorsOriginsInput(undefined)).toEqual([]);
+    expect(parseCorsOriginsInput(['https://app.example.test'])).toEqual([
+      'https://app.example.test',
+    ]);
+  });
+
+  it('rejects anything but a list of non-empty strings', () => {
+    expect(() => parseCorsOriginsInput(['https://app.example.test', ''])).toThrow(
+      'Input "cors_origins" must be an array of non-empty strings, one origin each.'
+    );
+  });
+});
+
+describe(corsOriginArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(corsOriginArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--cors-origin',
+      'https://a.example.test',
+      '--cors-origin',
+      'https://b.example.test',
+    ]);
+    expect(corsOriginArgs([])).toEqual([]);
+  });
+});
+
+describe(frameAncestorArgs, () => {
+  it('repeats the flag once per origin', () => {
+    expect(frameAncestorArgs(['https://a.example.test', 'https://b.example.test'])).toEqual([
+      '--frame-ancestor',
+      'https://a.example.test',
+      '--frame-ancestor',
+      'https://b.example.test',
+    ]);
+    expect(frameAncestorArgs([])).toEqual([]);
   });
 });
 
@@ -364,6 +530,22 @@ describe(describeServeSimLaunch, () => {
   });
 });
 
+it('only pins hosts when a valid device ID is supplied', () => {
+  const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+  expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: udid })).toEqual(
+    expect.arrayContaining(['--single-device', udid])
+  );
+  for (const iosSimulatorUdid of [undefined, '', 'booted', 'iPhone 17']) {
+    expect(createServeSimArgs({ port: 4321, iosSimulatorUdid })).not.toContain('--single-device');
+  }
+  expect(createExpoDeviceHubArgs({ port: 4321, device: 'emulator-5554' })).toEqual(
+    expect.arrayContaining(['--single-device', 'emulator-5554'])
+  );
+  for (const device of [undefined, '', 'all', 'booted', 'invalid serial']) {
+    expect(createExpoDeviceHubArgs({ port: 4321, device })).not.toContain('--single-device');
+  }
+});
+
 describe(createServeSimArgs, () => {
   it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
@@ -409,6 +591,26 @@ describe(createServeSimArgs, () => {
     ]);
   });
 
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
+      shareUrl: 'https://expo.dev/simulator-preview/preview-id',
+    });
+    expect(args.slice(-8)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
+      '--share-url',
+      'https://expo.dev/simulator-preview/preview-id',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' })[0]).toBe(
       '@expo/serve-sim@0.1.38'
@@ -433,6 +635,14 @@ describe(createServeSimArgs, () => {
       '--share-url',
       'https://expo.dev/simulator-preview/abc',
     ]);
+  });
+
+  it('disables the native Share button only when requested', () => {
+    expect(createServeSimArgs({ port: 4321, disableShare: true })).toContain('--disable-share');
+    expect(createServeSimArgs({ port: 4321, disableShare: false })).not.toContain(
+      '--disable-share'
+    );
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--disable-share');
   });
 
   it('appends the launch flags after the streaming policy', () => {
@@ -465,6 +675,14 @@ describe(createServeSimArgs, () => {
     expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
       '--network-capture'
     );
+  });
+
+  it('passes a capture proxy as one argument, including when capture will be enabled later', () => {
+    const proxy = 'http://user:p%40ss%20word@proxy.example:8899';
+    const args = createServeSimArgs({ port: 4321, networkCaptureProxy: proxy });
+    expect(args.slice(-2)).toEqual(['--network-capture-proxy', proxy]);
+    expect(args).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture-proxy');
   });
 
   it('appends --network-capture when enabled, which also covers an already booted simulator', () => {
@@ -559,6 +777,7 @@ describe(createExpoDeviceHubArgs, () => {
       '4321',
       '--host',
       '127.0.0.1',
+      '--require-token',
       '--platform',
       'android',
       '--transport',
@@ -580,6 +799,40 @@ describe(createExpoDeviceHubArgs, () => {
     ]);
   });
 
+  // The same website flags as serve-sim, after the TURN args.
+  it('appends the website args after the TURN args when provided', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      websiteArgs: ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'],
+    });
+    expect(args.slice(-6)).toEqual([
+      '--turn-url',
+      'turns:turn.example.test:443',
+      '--cors-origin',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://expo.dev',
+    ]);
+  });
+
+  it('appends the session frame ancestors after the website args', () => {
+    const args = createExpoDeviceHubArgs({
+      port: 4321,
+      websiteArgs: ['--frame-ancestor', 'https://expo.dev'],
+      frameAncestorArgs: ['--frame-ancestor', 'https://embed.example.test'],
+      corsOriginArgs: ['--cors-origin', 'https://app.example.test'],
+    });
+    expect(args.slice(-6)).toEqual([
+      '--frame-ancestor',
+      'https://expo.dev',
+      '--frame-ancestor',
+      'https://embed.example.test',
+      '--cors-origin',
+      'https://app.example.test',
+    ]);
+  });
+
   it('pins the requested package version', () => {
     expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.7.0' })[0]).toBe(
       'expo-device-hub@0.7.0'
@@ -587,9 +840,9 @@ describe(createExpoDeviceHubArgs, () => {
   });
 });
 
-describe(websiteOriginServeSimArgs, () => {
+describe(websiteOriginArgs, () => {
   it('names only the production website by default', () => {
-    expect(websiteOriginServeSimArgs({} as BuildStepEnv)).toEqual([
+    expect(websiteOriginArgs({} as BuildStepEnv)).toEqual([
       '--cors-origin',
       'https://expo.dev',
       '--frame-ancestor',
@@ -598,7 +851,7 @@ describe(websiteOriginServeSimArgs, () => {
   });
 
   it('names staging, its deploy previews and local website subdomains on staging', () => {
-    const args = websiteOriginServeSimArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
+    const args = websiteOriginArgs({ EXPO_STAGING: '1' } as BuildStepEnv);
     expect(args).toEqual([
       '--cors-origin',
       'https://staging.expo.dev',
@@ -621,14 +874,14 @@ describe(websiteOriginServeSimArgs, () => {
 
   it('names only https origins', () => {
     for (const env of [{}, { EXPO_STAGING: '1' }, { EXPO_LOCAL: '1' }]) {
-      const args = websiteOriginServeSimArgs(env as BuildStepEnv);
+      const args = websiteOriginArgs(env as BuildStepEnv);
       expect(args.filter(value => value.startsWith('http://'))).toEqual([]);
     }
   });
 
   it('names local website subdomains without the deploy-preview wildcard on local', () => {
     for (const env of [{ EXPO_LOCAL: '1' }, { EXPO_LOCAL: '1', EXPO_STAGING: '1' }]) {
-      expect(websiteOriginServeSimArgs(env as BuildStepEnv)).toEqual([
+      expect(websiteOriginArgs(env as BuildStepEnv)).toEqual([
         '--cors-origin',
         'https://expo.test',
         '--frame-ancestor',
@@ -654,6 +907,8 @@ describe(waitForWebPreviewReadyAsync, () => {
       .mocked(turtleFetch)
       .mockRejectedValueOnce(new Error('not ready'))
       .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
@@ -676,6 +931,43 @@ describe(waitForWebPreviewReadyAsync, () => {
 });
 
 describe(startNgrokTunnelAsync, () => {
+  it.each(['rejected', 'stalled'] as const)(
+    'retains a %s close failure on repeated stops',
+    async mode => {
+      jest.useFakeTimers();
+      try {
+        const failure = new Error('close failed');
+        const close = jest
+          .fn()
+          .mockImplementation(() =>
+            mode === 'rejected' ? Promise.reject(failure) : new Promise<void>(() => {})
+          );
+        jest.mocked(ngrok.forward).mockResolvedValue({
+          url: () => 'https://web-preview.example.test',
+          close,
+        } as never);
+        const tunnel = await startNgrokTunnelAsync({
+          port: 4321,
+          subdomainPrefix: 'web-preview',
+          baseDomain: 'eas-simulator.ngrok.dev',
+          authtoken: 'token',
+          logger: createLoggerMock(),
+        });
+        const stopping = tunnel.stopAsync();
+        const assertion = expect(stopping).rejects.toThrow(
+          mode === 'rejected' ? 'close failed' : 'Ngrok tunnel stop timed out after 4000ms.'
+        );
+        expect(tunnel.stopAsync()).toBe(stopping);
+        await jest.advanceTimersByTimeAsync(4_000);
+        await assertion;
+        await expect(tunnel.stopAsync()).rejects.toThrow();
+        expect(close).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+  );
+
   it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
@@ -715,7 +1007,15 @@ describe('spawnDetached process group shutdown', () => {
 
   beforeEach(() => {
     const spawned = Object.assign(Promise.resolve(undefined), {
-      child: { pid: 4321, unref: jest.fn(), once: jest.fn() },
+      child: {
+        pid: 4321,
+        unref: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
+      },
     });
     jest.mocked(spawn).mockReturnValue(spawned as never);
   });
@@ -750,7 +1050,16 @@ describe('spawnDetached process group shutdown', () => {
   });
 
   it('kills a detached child that outlives the shutdown deadline', async () => {
-    const kill = jest.spyOn(process, 'kill').mockReturnValue(true);
+    let killed = false;
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === -4321 && signal === 'SIGKILL') {
+        killed = true;
+      }
+      if (killed && signal === 0) {
+        throw Object.assign(new Error('Process group exited'), { code: 'ESRCH' });
+      }
+      return true;
+    });
 
     const detached = spawnDetached({ command: 'npx', args: [], env, stopGracePeriodMs: 0 });
     await detached.stopAsync();
@@ -771,10 +1080,11 @@ describe(startDeviceSessionHostAsync, () => {
     'turn-credential',
   ];
   const websiteArgs = ['--cors-origin', 'https://expo.dev', '--frame-ancestor', 'https://expo.dev'];
+  const authtoken = 'ngrok-token';
   const env = {
     DEVICE_RUN_SESSION_ID: 'drs-id',
-    NGROK_AUTHTOKEN: 'ngrok-token',
   } as unknown as BuildStepEnv;
+  const hubStateFiles: string[] = [];
 
   beforeEach(() => {
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
@@ -789,14 +1099,30 @@ describe(startDeviceSessionHostAsync, () => {
       child: {
         pid: undefined,
         unref: jest.fn(),
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          if (event === 'close') {
+            queueMicrotask(callback);
+          }
+        }),
       },
     });
-    jest.mocked(spawn).mockReturnValue(spawnPromise as never);
+    // expo-device-hub records its session token in `server-<port>.json` before it is ready.
+    jest.mocked(spawn).mockImplementation(((_command: string, args: string[] = []) => {
+      if (args.includes('--platform')) {
+        const port = args[args.indexOf('--port') + 1];
+        const file = path.join(EXPO_DEVICE_HUB_STATE_DIR, `server-${port}.json`);
+        mkdirSync(EXPO_DEVICE_HUB_STATE_DIR, { recursive: true });
+        writeFileSync(file, JSON.stringify({ pid: 1, port: Number(port), token: 'hub-token' }));
+        hubStateFiles.push(file);
+      }
+      return spawnPromise;
+    }) as never);
 
     jest.mocked(turtleFetch).mockImplementation(async url => {
       if (url.endsWith('/turn-ice-servers')) {
         return {
+          ok: true,
+          status: 200,
           json: async () => ({
             data: {
               iceServers: [
@@ -811,13 +1137,16 @@ describe(startDeviceSessionHostAsync, () => {
         } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
       }
       return {
+        ok: true,
+        status: 200,
         json: async () => ({ status: 'ready', device: 'device-id' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>;
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
+    await Promise.all(hubStateFiles.splice(0).map(file => fs.rm(file, { force: true })));
   });
 
   it('gives serve-sim its recording grace period on shutdown', async () => {
@@ -832,6 +1161,85 @@ describe(startDeviceSessionHostAsync, () => {
     expect(spawnDetachedSpy).toHaveBeenCalledWith(
       expect.objectContaining({ stopGracePeriodMs: SERVE_SIM_STOP_GRACE_PERIOD_MS })
     );
+    expect(spawnDetachedSpy.mock.calls[0][0].stopGracePeriodMs).toBeGreaterThanOrEqual(120_000);
+    await host.finishAsync();
+  });
+
+  it.each([undefined, 'latest', '1.2.3'])(
+    'passes private sharing flags directly to serve-sim version %s',
+    async packageVersion => {
+      const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger: createLoggerMock(),
+        timeoutMs: 10_000,
+        packageVersion,
+        disableShare: true,
+      });
+
+      const serveSimCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([, args]) =>
+          args.includes(`@expo/serve-sim@${packageVersion ?? 'latest'}`)
+        );
+      expect(serveSimCalls).toHaveLength(1);
+      expect(serveSimCalls[0][1]).toContain('--disable-share');
+      expect(serveSimCalls[0][1]).not.toContain('--share-url');
+      await host.finishAsync();
+    }
+  );
+
+  it('keeps the authenticated link out of serve-sim while retaining the public frame URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const privatePreviewUrl =
+      'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+      privatePreviewUrl,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(serveSimArgs).toContain('--disable-share');
+    expect(preview.sharePageUrl).toBe(privatePreviewUrl);
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
+    await host.finishAsync();
+  });
+
+  it('does not expose a public share URL when a private job omits its authenticated URL', async () => {
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://preview.example.test',
+      close: jest.fn().mockResolvedValue(undefined),
+    } as never);
+    const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger: createLoggerMock(),
+      timeoutMs: 10_000,
+      disableShare: true,
+    });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs).not.toContain('--share-url');
+    expect(preview.sharePageUrl).toBeUndefined();
+    expect(preview.previewPageUrl).toMatch(
+      /^https:\/\/expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
+    );
     await host.finishAsync();
   });
 
@@ -842,11 +1250,9 @@ describe(startDeviceSessionHostAsync, () => {
       url: () => 'https://android-preview.example.test',
       close,
     } as never);
+    // `env` has no PATH, so the host installs ffmpeg.
     jest
       .mocked(spawn)
-      .mockReturnValueOnce(
-        Promise.reject(new Error('ffmpeg is missing')) as ReturnType<typeof spawn>
-      )
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>)
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
@@ -857,27 +1263,27 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
-    expect(spawnCalls[0]).toEqual(['ffmpeg', ['-version'], { env }]);
-    expect(spawnCalls[1]).toEqual([
+    expect(spawnCalls[0]).toEqual([
       'sudo',
       ['apt-get', 'update'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       }),
     ]);
-    expect(spawnCalls[2]).toEqual([
+    expect(spawnCalls[1]).toEqual([
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       }),
     ]);
+    expect(spawnCalls[2]).toEqual(['ffmpeg', ['-version'], { env }]);
     const expoDeviceHubCallIndex = spawnCalls.findIndex(([command]) => command === 'npx');
     expect(expoDeviceHubCallIndex).toBeGreaterThan(2);
-    expect(jest.mocked(spawn).mock.invocationCallOrder[2]).toBeLessThan(
+    expect(jest.mocked(spawn).mock.invocationCallOrder[1]).toBeLessThan(
       jest.mocked(spawn).mock.invocationCallOrder[expoDeviceHubCallIndex]
     );
     const [command, args] = spawnCalls[expoDeviceHubCallIndex];
@@ -888,7 +1294,13 @@ describe(startDeviceSessionHostAsync, () => {
     const recordingDirectory = args[args.indexOf('--android-recording-directory') + 1];
     expect(args).toEqual([
       '--yes',
-      ...createExpoDeviceHubArgs({ port, turnArgs, packageVersion, recordingDirectory }),
+      ...createExpoDeviceHubArgs({
+        port,
+        turnArgs,
+        websiteArgs,
+        packageVersion,
+        recordingDirectory,
+      }),
     ]);
     expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
@@ -910,10 +1322,16 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
+    expect(preview.sharePageUrl).toBe(preview.previewPageUrl);
+    const serveSimArgs = jest
+      .mocked(spawn)
+      .mock.calls.find(([, args]) => args.includes('@expo/serve-sim@latest'))![1];
+    expect(serveSimArgs[serveSimArgs.indexOf('--share-url') + 1]).toBe(preview.previewPageUrl);
+    expect(serveSimArgs).not.toContain('--disable-share');
   });
 
   it.each([
@@ -939,7 +1357,7 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     expect(preview.previewPageUrl).toMatch(
       /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
@@ -967,8 +1385,8 @@ describe(startDeviceSessionHostAsync, () => {
     ).rejects.toThrow(/wrote no session token/);
   });
 
-  // expo-device-hub mints no token, so the Android preview must not require one.
-  it('starts for Linux without a token, and does not gate expo-device-hub', async () => {
+  // expo-device-hub records its token in a state file, as serve-sim does.
+  it('carries the expo-device-hub session token for Linux', async () => {
     jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
     jest.mocked(ngrok.forward).mockResolvedValue({
       url: () => 'https://android-preview.example.test',
@@ -981,11 +1399,12 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
-    expect(preview.previewToken).toBeUndefined();
-    const [, args] = jest.mocked(spawn).mock.calls[0];
-    expect(args).not.toContain('--require-token');
+    expect(preview.previewToken).toBe('hub-token');
+    const [, args] = jest.mocked(spawn).mock.calls.find(([command]) => command === 'npx')!;
+    expect(args).toContain('--require-token');
+    await host.finishAsync();
   });
 
   it('starts serve-sim for Darwin with its metrics policy and cleans up the preview resources', async () => {
@@ -1003,7 +1422,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1042,7 +1461,7 @@ describe(startDeviceSessionHostAsync, () => {
       timeoutMs: 10_000,
       packageVersion: '4.5.6',
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1076,7 +1495,7 @@ describe(startDeviceSessionHostAsync, () => {
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain });
+    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1201,24 +1620,21 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
-    jest.mocked(turtleFetch).mockResolvedValue({
-      json: async () => ({
-        data: {
-          iceServers: [
-            { urls: ['stun:stun.cloudflare.com:3478'] },
-            {
-              urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
-              username: 'u',
-              credential: 'c',
-            },
-          ],
-        },
-      }),
-    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+  it('requests TURN ICE servers from the device run session worker API and returns web preview args', async () => {
+    jest.mocked(turtleFetch).mockResolvedValue(
+      workerApiResponse({
+        iceServers: [
+          { urls: ['stun:stun.cloudflare.com:3478'] },
+          {
+            urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
+            username: 'u',
+            credential: 'c',
+          },
+        ],
+      })
+    );
 
     const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
       logger: createLoggerMock(),
     });
 
@@ -1233,10 +1649,10 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
       'c',
     ]);
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      'https://api.expo.test/v2/device-run-sessions/drs-id/turn-ice-servers',
+      `${DEVICE_RUN_SESSION_WORKER_URL}turn-ice-servers`,
       'POST',
       expect.objectContaining({
-        headers: { Authorization: 'Bearer robot-token' },
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
       })
     );
   });
@@ -1245,14 +1661,32 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
-      env: createEnvMock(),
-      logger,
-    });
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), { logger });
 
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('returns [] and warns when the job has no device run session token', async () => {
+    const logger = createLoggerMock();
+
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock({ withToken: false }), {
+      logger,
+    });
+
+    expect(args).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      {
+        err: expect.objectContaining({
+          message: expect.stringMatching(
+            /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+          ),
+        }),
+      },
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
   });
 });
 
@@ -1269,7 +1703,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('continues polling until the device run session is stopped', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1278,13 +1712,59 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
+  it('polls the session status through the worker API with the abort signal', async () => {
+    const ctx = createStatusCtxMock([{ status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
+      `${DEVICE_RUN_SESSION_WORKER_URL}session`,
+      'GET',
+      expect.objectContaining({
+        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: DEVICE_RUN_SESSION_TOKEN },
+        signal: expect.any(AbortSignal),
+        timeout: 30_000,
+      })
+    );
+  });
+
+  it('keeps polling while the session status is new', async () => {
+    const ctx = createStatusCtxMock([{ status: 'new' }, { status: 'stopped' }]);
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    expect(workerApiCallCount('session')).toBe(2);
+  });
+
+  it('fails with a system error when the job has no device run session token', async () => {
+    const error = await waitForDeviceRunSessionStoppedAsync({
+      ctx: createCtxMock({ withToken: false }),
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toMatch(
+      /^This device run session job has no EAS_DEVICE_RUN_SESSION_TOKEN secret\./
+    );
+    expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
+  });
+
   it('returns normally when the maximum duration elapses', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const logger = createLoggerMock();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1298,7 +1778,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     durationTimeoutCallback();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(logger.info).toHaveBeenCalledWith(
       'Device run session drs-id reached its maximum duration.'
     );
@@ -1307,7 +1787,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
   it('clears the duration timeout when the session stops first', async () => {
     await waitForDeviceRunSessionStoppedAsync({
-      ctx: createStatusCtxMock([{ status: 'STOPPED' }]),
+      ctx: createStatusCtxMock([{ status: 'stopped' }]),
       deviceRunSessionId: 'drs-id',
       logger: createLoggerMock(),
       maxDurationSeconds: 30,
@@ -1329,12 +1809,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       signal: abortController.signal,
     });
 
-    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
+    expect(workerApiCallCount('session')).toBe(0);
     expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
   it('throws when the device run session errors', async () => {
-    const ctx = createStatusCtxMock([{ status: 'ERRORED' }]);
+    const ctx = createStatusCtxMock([{ status: 'errored' }]);
 
     await expect(
       waitForDeviceRunSessionStoppedAsync({
@@ -1348,7 +1828,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
   });
 
   it('clears the duration timeout when the build step is aborted', async () => {
-    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const abortController = new AbortController();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
       ctx,
@@ -1361,12 +1841,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     abortController.abort();
     await waitPromise;
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(workerApiCallCount('session')).toBe(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
   it('logs and retries transient polling errors', async () => {
-    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'STOPPED' }]);
+    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1375,7 +1855,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1387,11 +1867,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     );
   });
 
-  it('logs and retries when the status response is missing', async () => {
-    const ctx = createStatusCtxMock([
-      { data: { deviceRunSessions: { byId: null } } },
-      { status: 'STOPPED' },
-    ]);
+  it('logs and retries when the status response does not match the route contract', async () => {
+    const ctx = createStatusCtxMock([{ data: { id: 'drs-id' } }, { status: 'stopped' }]);
     const logger = createLoggerMock();
 
     await waitForDeviceRunSessionStoppedAsync({
@@ -1400,7 +1877,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       logger,
     });
 
-    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(workerApiCallCount('session')).toBe(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ failedStatusPollCount: 1 }),
       'Could not poll device run session status; will retry.'
@@ -1408,7 +1885,9 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
       'Could not poll device run session status',
       expect.objectContaining({
-        message: 'Device run session drs-id status response was missing.',
+        message: expect.stringContaining(
+          'GET /v2/device-run-session-worker/session returned an unexpected response'
+        ),
       }),
       { level: 'warning' }
     );
@@ -1429,8 +1908,8 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       jest.useRealTimers();
     });
 
-    function manyInProgressStatuses(): { status: 'IN_PROGRESS' }[] {
-      return Array.from({ length: 20 }, () => ({ status: 'IN_PROGRESS' as const }));
+    function manyInProgressStatuses(): { status: 'in-progress' }[] {
+      return Array.from({ length: 20 }, () => ({ status: 'in-progress' as const }));
     }
 
     it('stops the session when no activity is observed within the max idle time', async () => {
@@ -1448,15 +1927,15 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       });
 
       // One minute at the 5-second poll interval is 12 status polls.
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(12);
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('session')).toBe(12);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.info).toHaveBeenCalledWith(
         'Device run session drs-id had no activity for 1 minute(s) (max idle time). Stopping the session.'
       );
     });
 
     it('keeps the session alive while events keep arriving', async () => {
-      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'STOPPED' }]);
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
       const logger = createLoggerMock();
 
       await waitForDeviceRunSessionStoppedAsync({
@@ -1471,14 +1950,55 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(21);
-      expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
       expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
+    });
+
+    it('keeps the session alive while preview input keeps arriving', async () => {
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'stopped' }]);
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () => new Date(),
+        },
+      });
+
+      expect(workerApiCallCount('session')).toBe(21);
+      expect(workerApiCallCount('stop')).toBe(0);
+    });
+
+    it('counts idle time from the later of automation and preview activity', async () => {
+      const ctx = createStatusCtxMock(manyInProgressStatuses());
+      const logger = createLoggerMock();
+      const previewInputAt = new Date(Date.now() + 30_000);
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+          getLastPreviewActivityAt: () =>
+            Date.now() >= previewInputAt.getTime() ? previewInputAt : undefined,
+        },
+      });
+
+      // Idle from 30 s, so the stop comes at 90 s: 18 polls.
+      expect(workerApiCallCount('session')).toBe(18);
+      expect(workerApiCallCount('stop')).toBe(1);
     });
 
     it('still returns when the session cannot be marked stopped', async () => {
       const ctx = createStatusCtxMock(manyInProgressStatuses(), {
-        ensureStoppedError: new Error('forbidden'),
+        stopError: new Error('forbidden'),
       });
       const logger = createLoggerMock();
 
@@ -1492,7 +2012,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         },
       });
 
-      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(workerApiCallCount('stop')).toBe(1);
       expect(logger.warn).toHaveBeenCalledWith(
         { err: expect.any(Error) },
         'Could not mark device run session drs-id as stopped. The session job ends anyway.'
@@ -1508,6 +2028,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
 describe(ensureFfmpegInstalledOnceAsync, () => {
   const spawnMock = jest.mocked(spawn);
+  let binDirectory: string;
 
   function spawnResolved(): ReturnType<typeof spawn> {
     return Promise.resolve({}) as unknown as ReturnType<typeof spawn>;
@@ -1517,68 +2038,140 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     return Promise.reject(new Error('boom')) as unknown as ReturnType<typeof spawn>;
   }
 
-  beforeEach(() => {
+  function spawnPending(): ReturnType<typeof spawn> {
+    return new Promise(() => {}) as unknown as ReturnType<typeof spawn>;
+  }
+
+  async function installFakeFfmpegAsync({ mode }: { mode: number }): Promise<string> {
+    const ffmpegPath = path.join(binDirectory, 'ffmpeg');
+    await fs.writeFile(ffmpegPath, '#!/bin/sh\n');
+    await fs.chmod(ffmpegPath, mode);
+    return ffmpegPath;
+  }
+
+  function createPathEnv(): BuildStepEnv {
+    return { ...createEnvMock(), PATH: binDirectory };
+  }
+
+  const warmUpCall = ['ffmpeg', ['-version'], expect.anything()];
+
+  beforeEach(async () => {
     spawnMock.mockReset();
     jest.mocked(Sentry).capture.mockReset();
+    binDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'ffmpeg-path-'));
   });
 
-  it('does not install when ffmpeg is on PATH', async () => {
-    spawnMock.mockReturnValueOnce(spawnResolved());
+  afterEach(async () => {
+    await fs.rm(binDirectory, { recursive: true, force: true });
+  });
+
+  it('finds ffmpeg on PATH without waiting for it to run, then warms it up', async () => {
+    const ffmpegPath = await installFakeFfmpegAsync({ mode: 0o755 });
+    spawnMock.mockReturnValueOnce(spawnPending());
+    const logger = createLoggerMock();
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env: createEnvMock(),
-      logger: createLoggerMock(),
+      env: createPathEnv(),
+      logger,
     });
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(spawnMock).toHaveBeenCalledWith('ffmpeg', ['-version'], expect.anything());
+    expect(spawnMock).toHaveBeenCalledWith(...warmUpCall);
+    expect(logger.info).toHaveBeenCalledWith(`ffmpeg is already installed at ${ffmpegPath}.`);
   });
 
-  it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnResolved());
+  it('installs ffmpeg when the file on PATH is not executable', async () => {
+    await installFakeFfmpegAsync({ mode: 0o644 });
+    spawnMock.mockReturnValue(spawnResolved());
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     });
 
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith('brew', ['install', 'ffmpeg'], expect.anything());
+  });
+
+  it('installs ffmpeg when the ffmpeg entry on PATH is a directory', async () => {
+    await fs.mkdir(path.join(binDirectory, 'ffmpeg'));
+    spawnMock.mockReturnValue(spawnResolved());
+
+    await ensureFfmpegInstalledOnceAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenCalledWith('brew', ['install', 'ffmpeg'], expect.anything());
+  });
+
+  it('treats an empty PATH entry as the current directory', async () => {
+    await installFakeFfmpegAsync({ mode: 0o755 });
+    jest.spyOn(process, 'cwd').mockReturnValue(binDirectory);
+    spawnMock.mockReturnValue(spawnResolved());
+
+    try {
+      await ensureFfmpegInstalledOnceAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: { ...createEnvMock(), PATH: `${path.delimiter}/nonexistent` },
+        logger: createLoggerMock(),
+      });
+    } finally {
+      jest.mocked(process.cwd).mockRestore();
+    }
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawnMock).toHaveBeenCalledWith(...warmUpCall);
+  });
+
+  it('installs ffmpeg with Homebrew on darwin when it is missing, then warms it up', async () => {
+    spawnMock.mockReturnValue(spawnResolved());
+
+    await ensureFfmpegInstalledOnceAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      1,
       'brew',
       ['install', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }),
       })
     );
+    expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
   });
 
   it('installs ffmpeg with apt on linux when it is missing', async () => {
-    spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
-      .mockReturnValueOnce(spawnResolved()) // apt-get update
-      .mockReturnValueOnce(spawnResolved()); // apt-get install
+    spawnMock.mockReturnValue(spawnResolved());
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     });
 
-    expect(spawnMock).toHaveBeenCalledWith(
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      1,
       'sudo',
       ['apt-get', 'update'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       })
     );
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      2,
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.objectContaining({
         env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
       })
     );
+    expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
   });
 
   it('shares an in-flight ffmpeg setup between callers', async () => {
@@ -1587,41 +2180,139 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
       finishInstall = resolve;
     });
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnResolved()) // apt-get update
-      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>); // apt-get install
+      .mockReturnValueOnce(pendingInstall as unknown as ReturnType<typeof spawn>) // apt-get install
+      .mockReturnValueOnce(spawnResolved()); // ffmpeg -version warm-up
     const options = {
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger: createLoggerMock(),
     };
 
     const firstSetup = ensureFfmpegInstalledOnceAsync(options);
     await new Promise<void>(resolve => setImmediate(resolve));
-    expect(spawnMock).toHaveBeenCalledTimes(3);
+    expect(spawnMock).toHaveBeenCalledTimes(2);
 
     const secondSetup = ensureFfmpegInstalledOnceAsync(options);
-    expect(spawnMock).toHaveBeenCalledTimes(3);
+    expect(spawnMock).toHaveBeenCalledTimes(2);
 
     finishInstall?.();
     await Promise.all([firstSetup, secondSetup]);
     expect(spawnMock).toHaveBeenCalledTimes(3);
   });
 
+  it('retries one aborted FFmpeg install for two surviving shared callers after it drains', async () => {
+    const controller = new AbortController();
+    const error = new Error('Simulator startup failed');
+    const child = { pid: 12345, kill: jest.fn() };
+    let closeInstaller!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      Object.assign(
+        new Promise((_resolve, reject) => {
+          closeInstaller = reject;
+        }),
+        { child }
+      ) as never
+    );
+    let finishReplacement!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishReplacement = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const surviving = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
+    const settled = jest.fn();
+    const observed = owner.then(settled, settled);
+    const borrowersSettled = jest.fn();
+    const observedBorrowers = Promise.all(surviving).then(borrowersSettled, borrowersSettled);
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(error);
+      expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+      expect(settled).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      closeInstaller(new Error('brew interrupted'));
+      await expect(owner).rejects.toBe(error);
+      await new Promise<void>(resolve => setImmediate(resolve));
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+      expect(borrowersSettled).not.toHaveBeenCalled();
+      finishReplacement();
+      await expect(Promise.all(surviving)).resolves.toEqual([undefined, undefined]);
+      expect(spawnMock).toHaveBeenCalledTimes(3);
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
+      expect(options.logger.warn).not.toHaveBeenCalled();
+    } finally {
+      closeInstaller?.(error);
+      finishReplacement();
+      await Promise.all([observed, observedBorrowers]);
+      killGroup.mockRestore();
+    }
+  });
+
+  it('stops an aborted shared waiter without cancelling the installer owner', async () => {
+    let finishInstall!: () => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        finishInstall = resolve;
+      }) as never
+    );
+    spawnMock.mockReturnValue(spawnResolved());
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const controller = new AbortController();
+    const error = new Error('Appium startup failed');
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const owner = ensureFfmpegInstalledOnceAsync(options);
+    let ownerFinished = false;
+    const observedOwner = owner.then(() => {
+      ownerFinished = true;
+    });
+    const waiter = ensureFfmpegInstalledOnceAsync({ ...options, signal: controller.signal });
+    const observedWaiter = waiter.catch(() => {});
+    try {
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(error);
+      await expect(waiter).rejects.toBe(error);
+      expect(ownerFinished).toBe(false);
+      expect(killGroup).not.toHaveBeenCalled();
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      finishInstall();
+      await expect(owner).resolves.toBeUndefined();
+      expect(spawnMock).toHaveBeenLastCalledWith(...warmUpCall);
+    } finally {
+      finishInstall();
+      await Promise.all([observedOwner, observedWaiter]);
+      killGroup.mockRestore();
+    }
+  });
+
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnRejected()) // apt-get update
-      .mockReturnValueOnce(spawnResolved()); // apt-get install
+      .mockReturnValue(spawnResolved());
     const logger = createLoggerMock();
 
     await ensureFfmpegInstalledOnceAsync({
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      env: createEnvMock(),
+      env: createPathEnv(),
       logger,
     });
 
-    expect(spawnMock).toHaveBeenLastCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith(
       'sudo',
       ['apt-get', 'install', '-y', 'ffmpeg'],
       expect.anything()
@@ -1630,25 +2321,50 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
   });
 
   it('warns and resolves when the install fails, so the session still starts', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnRejected());
+    spawnMock.mockReturnValueOnce(spawnRejected());
     const logger = createLoggerMock();
 
     await expect(
       ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        env: createEnvMock(),
+        env: createPathEnv(),
         logger,
       })
     ).resolves.toBeUndefined();
 
+    expect(spawnMock).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('does not retry an ordinary shared FFmpeg install failure', async () => {
+    let failInstall!: (error: Error) => void;
+    spawnMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failInstall = reject;
+      }) as never
+    );
+    const options = {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createPathEnv(),
+      logger: createLoggerMock(),
+    };
+    const callers = [
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync(options),
+      ensureFfmpegInstalledOnceAsync({ ...options, signal: new AbortController().signal }),
+    ];
+    await new Promise<void>(resolve => setImmediate(resolve));
+    failInstall(new Error('Homebrew unavailable'));
+    await expect(Promise.all(callers)).resolves.toEqual([undefined, undefined, undefined]);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(options.logger.warn).toHaveBeenCalledTimes(1);
   });
 
   // The caller runs this with `void` and the worker installs no unhandledRejection
   // handler, so a rejection here would crash the process. `spawn` is not async and
   // can throw synchronously, which `asyncResult` cannot catch.
-  it('resolves when the availability check throws synchronously', async () => {
+  it('resolves when the install throws synchronously', async () => {
     spawnMock.mockImplementationOnce(() => {
       throw new Error('sync spawn failure');
     });
@@ -1657,12 +2373,37 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     await expect(
       ensureFfmpegInstalledOnceAsync({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
-        env: createEnvMock(),
+        env: createPathEnv(),
         logger,
       })
     ).resolves.toBeUndefined();
 
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['rejects', () => spawnRejected()],
+    [
+      'throws synchronously',
+      () => {
+        throw new Error('sync spawn failure');
+      },
+    ],
+  ])('ignores a warm-up that %s', async (_, warmUp) => {
+    await installFakeFfmpegAsync({ mode: 0o755 });
+    spawnMock.mockImplementationOnce(warmUp as () => ReturnType<typeof spawn>);
+    const logger = createLoggerMock();
+
+    await expect(
+      ensureFfmpegInstalledOnceAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: createPathEnv(),
+        logger,
+      })
+    ).resolves.toBeUndefined();
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,8 @@ import { withErrorHandlingAsync } from '../client';
 import {
   AccountByNameQuery as AccountByNameQueryType,
   AccountByNameQueryVariables,
+  AccountFreeTierBuildUsageQuery,
+  AccountFreeTierBuildUsageQueryVariables,
   AccountFullUsageQuery as AccountFullUsageQueryType,
   AccountFullUsageQueryVariables,
   AccountSubscriptionQuery as AccountSubscriptionQueryType,
@@ -21,6 +23,9 @@ import {
 } from '../types/Account';
 
 export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['account']['byId']>;
+export type AccountFreeTierBuildUsageData = NonNullable<
+  AccountFreeTierBuildUsageQuery['account']['byId']
+>;
 export type AccountSubscriptionInfo = NonNullable<
   NonNullable<AccountSubscriptionQueryType['account']['byId']>['subscription']
 >;
@@ -39,9 +44,10 @@ export const AccountQuery = {
                 byName(accountName: $accountName) {
                   id
                   name
-                  viewerUserPermission {
+                  viewerUserPermission2 {
                     id
                     permissions
+                    effectivePermissions
                   }
                 }
               }
@@ -146,6 +152,31 @@ export const AccountQuery = {
                       id
                       ...UsageMetricTotalFragment
                     }
+                    EAS_SIMULATOR: byBillingPeriod(date: $currentDate, service: SIMULATOR) {
+                      unavailableServiceUsageMetrics {
+                        service
+                      }
+                      id
+                      ...UsageMetricTotalFragment
+                    }
+                    IOS_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "ios" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
+                    ANDROID_SIMULATOR_MINUTES: metricsForServiceMetric(
+                      serviceMetric: SIMULATOR_USAGE
+                      granularity: TOTAL
+                      timespan: { start: $startDate, end: $endDate }
+                      filterParams: { platform: "android" }
+                    ) {
+                      id
+                      ...AccountUsageMetricFragment
+                    }
                   }
                 }
               }
@@ -178,6 +209,72 @@ export const AccountQuery = {
     if (!data.account.byId) {
       throw new Error(`Account with ID ${accountId} not found`);
     }
+
+    return data.account.byId;
+  },
+
+  async getFreeTierBuildUsageAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string,
+    currentDate: Date
+  ): Promise<AccountFreeTierBuildUsageData> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AccountFreeTierBuildUsageQuery, AccountFreeTierBuildUsageQueryVariables>(
+          gql`
+            query AccountFreeTierBuildUsage($accountId: String!, $currentDate: DateTime!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  subscription {
+                    id
+                    name
+                  }
+                  billingPeriod(date: $currentDate) {
+                    id
+                    start
+                    end
+                  }
+                  usageMetrics {
+                    EAS_BUILD: byBillingPeriod(date: $currentDate, service: BUILDS) {
+                      id
+                      planMetrics {
+                        id
+                        serviceMetric
+                        metricType
+                        value
+                        limit
+                        platformBreakdown {
+                          ios {
+                            value
+                            limit
+                          }
+                          android {
+                            value
+                            limit
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { accountId, currentDate: currentDate.toISOString() },
+          {
+            additionalTypenames: [
+              'Account',
+              'AccountUsageMetrics',
+              'UsageMetricTotal',
+              'BillingPeriod',
+              'EstimatedUsage',
+            ],
+            noRetry: true,
+          }
+        )
+        .toPromise()
+    );
 
     return data.account.byId;
   },
