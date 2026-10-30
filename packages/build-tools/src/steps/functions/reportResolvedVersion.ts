@@ -150,12 +150,12 @@ export function parseAaptOutput(output: string): { appVersion?: string; appBuild
   // aapt2 does not escape apostrophes inside versionName, so stop at the next known
   // badging field (or the end of the line) rather than at the first closing quote.
   const versionNameMatch = output.match(
-    /versionName='(.*?)'(?= platformBuildVersionName=| platformBuildVersionCode=| compileSdkVersion=|\s*$)/m
+    /versionName='(.*?)'(?= split=| platformBuildVersionName=| platformBuildVersionCode=| compileSdkVersion=|\s*$)/m
   );
   const versionCodeMatch = output.match(/versionCode='([^']+)'/);
 
   return {
-    appVersion: versionNameMatch?.[1],
+    appVersion: versionNameMatch?.[1] || undefined,
     appBuildVersion: versionCodeMatch?.[1],
   };
 }

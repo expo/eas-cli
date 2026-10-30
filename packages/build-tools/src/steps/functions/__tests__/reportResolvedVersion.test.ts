@@ -76,6 +76,26 @@ sdkVersion:'21'`;
       appBuildVersion: '1',
     });
   });
+
+  it('stops versionName at the split field of a split APK', () => {
+    const output = `package: name='com.example' versionCode='42' versionName='2.5.0' split='feature' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34'
+sdkVersion:'21'`;
+
+    expect(parseAaptOutput(output)).toEqual({
+      appVersion: '2.5.0',
+      appBuildVersion: '42',
+    });
+  });
+
+  it('treats an empty versionName as missing', () => {
+    const output = `package: name='com.example' versionCode='42' versionName='' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34'
+sdkVersion:'21'`;
+
+    expect(parseAaptOutput(output)).toEqual({
+      appVersion: undefined,
+      appBuildVersion: '42',
+    });
+  });
 });
 
 describe(parseManifestXml, () => {
