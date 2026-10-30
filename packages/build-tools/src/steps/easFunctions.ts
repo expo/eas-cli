@@ -33,6 +33,7 @@ import { createSubmitToGooglePlayBuildFunction } from './functions/submitToGoogl
 import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
+import { createUpdateResolvedVersionBuildFunction } from './functions/updateResolvedVersion';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -154,6 +155,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     functions.push(
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
+        createUpdateResolvedVersionBuildFunction(ctx),
         createUploadEmbeddedBundleBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),

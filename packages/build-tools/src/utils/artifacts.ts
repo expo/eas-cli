@@ -121,7 +121,7 @@ export async function uploadApplicationArchive(
     patternOrPath: string;
     rootDir: string;
   }
-): Promise<void> {
+): Promise<string[]> {
   const applicationArchives = await findArtifacts({ rootDir, patternOrPath, logger });
   const artifactsSizes = await getArtifactsSizes(applicationArchives);
   logger.info(`Application archives:`);
@@ -137,6 +137,8 @@ export async function uploadApplicationArchive(
     },
     logger,
   });
+
+  return applicationArchives;
 }
 
 async function getArtifactsSizes(artifacts: string[]): Promise<Record<string, number | undefined>> {
