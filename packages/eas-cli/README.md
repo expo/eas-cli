@@ -2865,8 +2865,9 @@ USAGE
   $ eas sim:control [ACTION...] [-h] [--id <value>] [--list] [--output <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before
-               values that start with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after
+               -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not
+               disable name=value parsing.
 
 FLAGS
   -h, --help             Show command help, or usage for the selected action from the session.
@@ -2893,6 +2894,14 @@ EXAMPLES
   $ eas simulator:control screenshot.capture --help
 
   $ eas simulator:control clipboard.write -- --some-text
+
+  Write hello using the named text parameter (shell quotes do not change parsing):
+
+    $ eas simulator:control clipboard.write 'text=hello'
+
+  Write the literal text=hello using --:
+
+    $ eas simulator:control clipboard.write -- 'text=hello'
 
   $ eas simulator:control hardwareKeyboard.set off
 
@@ -3373,8 +3382,9 @@ USAGE
   $ eas simulator:control [ACTION...] [-h] [--id <value>] [--list] [--output <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before
-               values that start with --.
+  [ACTION...]  Action to run, followed by its values in order or as name=value. Omit to list the actions. Values after
+               -- are positional literals, including text that starts with -- or name=. Shell quotes alone do not
+               disable name=value parsing.
 
 FLAGS
   -h, --help             Show command help, or usage for the selected action from the session.
@@ -3401,6 +3411,14 @@ EXAMPLES
   $ eas simulator:control screenshot.capture --help
 
   $ eas simulator:control clipboard.write -- --some-text
+
+  Write hello using the named text parameter (shell quotes do not change parsing):
+
+    $ eas simulator:control clipboard.write 'text=hello'
+
+  Write the literal text=hello using --:
+
+    $ eas simulator:control clipboard.write -- 'text=hello'
 
   $ eas simulator:control hardwareKeyboard.set off
 
