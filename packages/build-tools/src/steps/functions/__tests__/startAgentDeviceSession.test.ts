@@ -4,6 +4,7 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
 import {
@@ -35,6 +36,7 @@ jest.mock('../../utils/localEgressGuard', () => ({
   startLocalEgressGuardRelayAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../utils/androidEmulatorLogs');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -437,6 +439,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
 
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(registerAndroidEmulatorLogDirectory).not.toHaveBeenCalled();
     expect(sessionDevice()).toEqual({
       iosSimulatorUdid: 'SELECTED-UDID',
       bootEnv: undefined,
@@ -455,6 +458,10 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
+    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimePlatform: BuildRuntimePlatform.LINUX }),
+      jest.mocked(startAndroidEmulatorAsync).mock.calls[0][0].logcatDirectory
+    );
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceIdentifier: 'pixel_7',

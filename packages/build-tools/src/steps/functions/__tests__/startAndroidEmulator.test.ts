@@ -9,6 +9,7 @@ import {
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
+import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -23,6 +24,8 @@ jest.mock('../../../utils/retry', () => ({
 jest.mock('../../utils/androidLocalEgress', () => ({
   resolveAndroidEmulatorLocalEgressAsync: jest.fn(),
 }));
+
+jest.mock('../../utils/androidEmulatorLogs');
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
@@ -348,6 +351,13 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
+    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledWith(
+      expect.anything(),
+      '/tmp/logcat-directory'
+    );
+    expect(
+      jest.mocked(registerAndroidEmulatorLogDirectory).mock.invocationCallOrder[0]
+    ).toBeLessThan(mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]);
   });
 
   it('outputs and uses a temporary logcat directory', async () => {
@@ -360,6 +370,10 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
+    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledWith(
+      step.ctx.global,
+      '/tmp/logcat-directory'
+    );
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',

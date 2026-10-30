@@ -17,6 +17,7 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
+import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import { runOnWarmIosSimulatorAsync } from '../utils/warmDeviceSessionHost';
@@ -244,6 +245,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                 const logcatDirectory = await fs.promises.mkdtemp(
                   path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
                 );
+                registerAndroidEmulatorLogDirectory(global, logcatDirectory);
                 tasks.signal.throwIfAborted();
                 await startAndroidEmulatorAsync({
                   deviceName: ANDROID_DEVICE_NAME,
