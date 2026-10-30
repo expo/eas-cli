@@ -116,7 +116,7 @@ export function corsOriginArgs(corsOrigins: readonly string[]): string[] {
   return corsOrigins.flatMap(origin => ['--cors-origin', origin]);
 }
 
-function createServeSimPackageSpec(packageVersion: string | undefined): string {
+export function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
