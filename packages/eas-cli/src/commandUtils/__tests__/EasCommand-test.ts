@@ -369,8 +369,41 @@ describe('EasCommand', () => {
 
           expect(printJsonErrorOutput).toHaveBeenCalledWith({
             message: 'EAS project not configured.',
+            code: undefined,
             requestId: undefined,
           });
+        });
+
+        it('prints the code of an EasCommandError', async () => {
+          const TestEasCommand = createJsonTestEasCommand();
+          const { printJsonErrorOutput } = jest.requireMock('../../utils/json');
+          const { EasCommandError } = require('../errors');
+          jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(() => {
+            throw new EasCommandError('EAS project not configured.', {
+              code: 'EAS_PROJECT_NOT_CONFIGURED',
+            });
+          });
+
+          await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+
+          expect(printJsonErrorOutput).toHaveBeenCalledWith(
+            expect.objectContaining({ code: 'EAS_PROJECT_NOT_CONFIGURED' })
+          );
+        });
+
+        it('prints the code of an oclif error', async () => {
+          const TestEasCommand = createJsonTestEasCommand();
+          const { printJsonErrorOutput } = jest.requireMock('../../utils/json');
+          const { Errors } = require('@oclif/core');
+          jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(() => {
+            Errors.error('Log in first.', { code: 'EAS_LOGIN_REQUIRED' });
+          });
+
+          await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+
+          expect(printJsonErrorOutput).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Log in first.', code: 'EAS_LOGIN_REQUIRED' })
+          );
         });
 
         it('prints the command failure, not EEXIT, for Errors.exit', async () => {
@@ -385,6 +418,7 @@ describe('EasCommand', () => {
 
           expect(printJsonErrorOutput).toHaveBeenCalledWith({
             message: `${TestEasCommand.id} command failed.`,
+            code: undefined,
             requestId: undefined,
           });
         });
@@ -410,7 +444,7 @@ describe('EasCommand', () => {
           expect(printJsonErrorOutput).toHaveBeenCalledWith(
             expect.objectContaining({ requestId: mockRequestId })
           );
-          expect(printJsonErrorOutput.mock.calls[0][0]).not.toHaveProperty('code');
+          expect(printJsonErrorOutput.mock.calls[0][0].code).toBeUndefined();
         });
 
         it.each([
