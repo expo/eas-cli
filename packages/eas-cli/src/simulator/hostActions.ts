@@ -39,9 +39,9 @@ const CatalogEntry = SchemaNode.extend({
   output: z.enum(['path', 'base64']).optional(),
 });
 
-const Catalog = z.record(z.string(), CatalogEntry);
+export const HostActionCatalogSchema = z.record(z.string(), CatalogEntry);
 
-export type HostActionCatalog = z.infer<typeof Catalog>;
+export type HostActionCatalog = z.infer<typeof HostActionCatalogSchema>;
 export type HostActionCatalogEntry = z.infer<typeof CatalogEntry>;
 
 export type HostActionDevice = { udid: string; name?: string; runtime?: string };
@@ -50,8 +50,7 @@ const PreviewConfig = z.object({ device: z.string().min(1) });
 
 const ReplyId = z.object({ id: z.number() });
 
-const SocketMessage = z.union([
-  z.object({ ready: z.literal(true) }),
+export const HostActionReplySchema = z.union([
   z.object({ id: z.number(), error: z.string() }),
   z.object({
     id: z.number(),
@@ -60,6 +59,7 @@ const SocketMessage = z.union([
     exitCode: z.number(),
   }),
 ]);
+const SocketMessage = z.union([z.object({ ready: z.literal(true) }), HostActionReplySchema]);
 
 const HOST_ACTION_TIMEOUT_MS = 130_000;
 const PREVIEW_API_TIMEOUT_MS = 30_000;
@@ -342,7 +342,7 @@ export async function fetchHostActionCatalogAsync(
   try {
     body = JSON.parse(result.stdout);
   } catch {}
-  const catalog = Catalog.safeParse(body);
+  const catalog = HostActionCatalogSchema.safeParse(body);
   if (result.exitCode !== 0 || !catalog.success) {
     throw new Error(
       'The simulator did not return its list of actions. Start a new session with `eas simulator:start` to get a newer serve-sim version.'
