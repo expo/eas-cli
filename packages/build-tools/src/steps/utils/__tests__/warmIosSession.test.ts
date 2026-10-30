@@ -3,9 +3,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
+import { readLocalEgressHandoffAsync } from '../localEgress';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('../../../utils/warmSimulator');
+jest.mock('../localEgress');
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const env = { EAS_USE_WARM_SIMULATOR: '1' };
@@ -113,6 +115,11 @@ it.each([
   ],
   ['a pinned package version', { packageVersion: '1.2.3' }, () => {}],
   ['a job Simulator setting', { env: { ...env, SIMCTL_CHILD_FOO: '1' } }, () => {}],
+  [
+    'a local egress session',
+    {},
+    () => jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 1 } as never),
+  ],
 ])('stops warmup and returns nothing for %s', async (_name, options, setup) => {
   setup();
   await expect(

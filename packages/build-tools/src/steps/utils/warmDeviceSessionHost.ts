@@ -5,7 +5,7 @@ import { type CustomBuildContext } from '../../customBuildContext';
 import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 import { type DeviceSessionServer } from './deviceSessionHost';
 import { fetchWebPreviewTurnArgsAsync } from './remoteDeviceRunSession';
-import { type WarmIosSession } from './warmIosSession';
+import { type WarmIosSession, tryClaimWarmIosSessionAsync } from './warmIosSession';
 
 /** Adoption failed before app actions, so the caller can stop warmup and start cold. */
 export class WarmSessionAdoptionError extends Error {
@@ -60,4 +60,36 @@ export function createWarmDeviceSessionServer(
       return { ...warm.process, stopAsync };
     },
   };
+}
+
+/**
+ * Runs an iOS session on the warm Simulator when the job can claim it, else cold. After a
+ * callback failure, it stops warmup. Only an adoption failure can retry cold.
+ */
+export async function runOnWarmIosSimulatorAsync<T>(
+  claim: Parameters<typeof tryClaimWarmIosSessionAsync>[0],
+  run: (warm?: WarmIosSession) => Promise<T>
+): Promise<T> {
+  const warm = await tryClaimWarmIosSessionAsync(claim);
+  if (!warm) {
+    return await run(undefined);
+  }
+  try {
+    return await run(warm);
+  } catch (error) {
+    try {
+      await warm.process.stopAsync();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Could not stop the warm Simulator after failure.'
+      );
+    }
+    if (!(error instanceof WarmSessionAdoptionError)) {
+      throw error;
+    }
+    claim.logger.warn('Could not adopt the warm Simulator; starting a cold Simulator.');
+    claim.signal?.throwIfAborted();
+    return await run(undefined);
+  }
 }

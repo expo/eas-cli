@@ -9,6 +9,8 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadRemoteSessionConfigWithLocalEgressAsync } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { createWarmDeviceSessionServer } from '../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../utils/warmIosSession';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -98,6 +100,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors,
     corsOrigins,
     tasks,
+    warm,
     device,
   }: {
     env: BuildStepEnv;
@@ -114,6 +117,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors?: string[];
     corsOrigins?: string[];
     tasks: StartupTasks;
+    /** A claimed warm Simulator: adopt it and use its agent-device daemon. */
+    warm?: WarmIosSession;
     device:
       | {
           booted: Promise<unknown>;
@@ -144,7 +149,69 @@ export async function runAgentDeviceRemoteSessionAsync(
 
   // Each task stores what it started, so the teardown below can stop it even when
   // another task failed first.
+  const sessionHostStartup = tasks.run('session host', async taskLogger => {
+    if (externallyBootedDevice) {
+      await tasks.untilAborted(externallyBootedDevice.booted);
+    }
+    tasks.signal.throwIfAborted();
+    sessionHost = await startDeviceSessionHostAsync(
+      ctx,
+      {
+        separateLogPhase: true,
+        runtimePlatform,
+        env,
+        logger: taskLogger,
+        timeoutMs: STARTUP_TIMEOUT_MS,
+        preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
+        disableShare,
+        privatePreviewUrl,
+        frameAncestors,
+        corsOrigins,
+        signal: tasks.signal,
+        onStartupError: tasks.abort,
+        networkCapture: capture.networkCapture,
+        networkCaptureFields: capture.networkCaptureFields,
+        iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
+        bootEnv: hostBootedDevice?.bootEnv,
+        application: hostBootedDevice?.application,
+      },
+      ...(warm ? [createWarmDeviceSessionServer(ctx, taskLogger, warm)] : [])
+    );
+    tasks.signal.throwIfAborted();
+    const webPreview = await sessionHost.openPreviewAsync();
+    tasks.signal.throwIfAborted();
+    taskLogger.info(
+      webPreview.sharePageUrl
+        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+        : 'Private preview URL unavailable for this session.'
+    );
+    return webPreview;
+  });
   const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
+    let daemonInfo: { port: number; token: string };
+    if (warm) {
+      // Adoption prepares the launcher's daemon for the claimed device.
+      await tasks.untilAborted(sessionHostStartup);
+      if (!warm.tools) {
+        throw new Error('The warm agent-device daemon was not prepared.');
+      }
+      daemonInfo = warm.tools;
+    } else {
+      daemonInfo = await startDaemonAsync(taskLogger);
+    }
+    tasks.signal.throwIfAborted();
+    agentDeviceTunnel = await startNgrokTunnelAsync({
+      port: daemonInfo.port,
+      subdomainPrefix: 'agent-device',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      logger: taskLogger,
+    });
+    tasks.signal.throwIfAborted();
+    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
+  });
+  async function startDaemonAsync(taskLogger: bunyan) {
     taskLogger.info('Launching agent-device daemon.');
     daemonProcess = await startAgentDeviceDaemonAsync({
       packageVersion,
@@ -160,53 +227,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
     daemonSecrets.push(daemonInfo.token);
     taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
-
-    tasks.signal.throwIfAborted();
-    agentDeviceTunnel = await startNgrokTunnelAsync({
-      port: daemonInfo.port,
-      subdomainPrefix: 'agent-device',
-      baseDomain: ngrokTunnelDomain,
-      authtoken: ngrokAuthtoken,
-      logger: taskLogger,
-    });
-    tasks.signal.throwIfAborted();
-    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
-    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
-  });
-  const sessionHostStartup = tasks.run('session host', async taskLogger => {
-    if (externallyBootedDevice) {
-      await tasks.untilAborted(externallyBootedDevice.booted);
-    }
-    tasks.signal.throwIfAborted();
-    sessionHost = await startDeviceSessionHostAsync(ctx, {
-      separateLogPhase: true,
-      runtimePlatform,
-      env,
-      logger: taskLogger,
-      timeoutMs: STARTUP_TIMEOUT_MS,
-      preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
-      disableShare,
-      privatePreviewUrl,
-      frameAncestors,
-      corsOrigins,
-      signal: tasks.signal,
-      onStartupError: tasks.abort,
-      networkCapture: capture.networkCapture,
-      networkCaptureFields: capture.networkCaptureFields,
-      iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
-      bootEnv: hostBootedDevice?.bootEnv,
-      application: hostBootedDevice?.application,
-    });
-    tasks.signal.throwIfAborted();
-    const webPreview = await sessionHost.openPreviewAsync();
-    tasks.signal.throwIfAborted();
-    taskLogger.info(
-      webPreview.sharePageUrl
-        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
-        : 'Private preview URL unavailable for this session.'
-    );
-    return webPreview;
-  });
+    return daemonInfo;
+  }
   const deviceReady = externallyBootedDevice?.ready;
 
   try {
@@ -251,7 +273,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     eventCollection = await startAgentDeviceEventCollectionAsync({
       ctx,
       deviceRunSessionId,
-      stateDir: AGENT_DEVICE_STATE_DIR,
+      stateDir: warm?.agentDeviceStateDir ?? AGENT_DEVICE_STATE_DIR,
       logger,
     });
 
@@ -286,7 +308,7 @@ export async function runAgentDeviceRemoteSessionAsync(
         ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
         [
           'agent-device daemon',
-          startedDaemon &&
+          (startedDaemon || eventCollection) &&
             (async () => {
               try {
                 if (eventCollection) {
@@ -297,7 +319,7 @@ export async function runAgentDeviceRemoteSessionAsync(
                   });
                 }
               } finally {
-                await startedDaemon.stopAsync();
+                await startedDaemon?.stopAsync();
               }
             })(),
         ],

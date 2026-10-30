@@ -5,6 +5,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../utils/warmSimulator';
+import { readLocalEgressHandoffAsync } from './localEgress';
 import { type DetachedProcessHandle, isProcessRunning } from './remoteDeviceRunSession';
 
 const ServiceSchema = z.object({ pid: z.number(), port: z.number(), token: z.string() });
@@ -61,6 +62,9 @@ export async function tryClaimWarmIosSessionAsync({
     );
     if (setting) {
       throw new Error(`${setting} needs a cold start.`);
+    }
+    if (await readLocalEgressHandoffAsync()) {
+      throw new Error('A local egress session needs a cold start.');
     }
     const claimArgs = ['claim', engine, ...(requestedDevice ? [requestedDevice] : [])];
     const claim = ClaimSchema.parse(
