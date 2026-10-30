@@ -16,6 +16,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
+import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
   createCorsOriginsInputProvider,
@@ -207,6 +208,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
               const logcatDirectory = await fs.promises.mkdtemp(
                 path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
               );
+              registerAndroidEmulatorLogDirectory(global, logcatDirectory);
               tasks.signal.throwIfAborted();
               await startAndroidEmulatorAsync({
                 deviceName: ANDROID_DEVICE_NAME,
