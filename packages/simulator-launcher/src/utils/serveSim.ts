@@ -23,6 +23,11 @@ export function startServeSim(
   port = 3200
 ): ChildProcessHandle {
   signal.throwIfAborted();
+  if (devices.length !== 1) {
+    throw new Error(
+      'Resident egress warmup currently requires exactly one Simulator; multi-device warm pools are not supported yet.'
+    );
+  }
   return commands.start(
     'bunx',
     [

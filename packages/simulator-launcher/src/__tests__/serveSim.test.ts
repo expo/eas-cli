@@ -21,6 +21,12 @@ const state = {
   url: 'http://127.0.0.1:3202',
   token: 'fixture-token',
 };
+it('rejects unsupported resident pools before launching serve-sim', () => {
+  expect(() => startServeSim(['PHONE', 'OTHER'], new AbortController().signal)).toThrow(
+    'exactly one Simulator'
+  );
+  expect(commands.start).not.toHaveBeenCalled();
+});
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(commands.runAsync).mockResolvedValue('native-start');
@@ -116,10 +122,10 @@ it('retries HTTP errors, a refused connection and readiness for another device',
 });
 
 it('preloads the resident guard in pass-through before any job is known', () => {
-  startServeSim(['PHONE', 'TABLET'], controller.signal);
+  startServeSim(['PHONE'], controller.signal);
   expect(commands.start).toHaveBeenCalledWith(
     'bunx',
-    expect.arrayContaining(['PHONE', 'TABLET', '--orphan', '--disable', 'egressGuard']),
+    expect.arrayContaining(['PHONE', '--orphan', '--disable', 'egressGuard']),
     expect.objectContaining({ detached: true })
   );
 });

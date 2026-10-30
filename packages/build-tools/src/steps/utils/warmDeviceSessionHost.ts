@@ -4,7 +4,11 @@ import spawn from '@expo/turtle-spawn';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 import { type DeviceSessionServer } from './deviceSessionHost';
-import { readLocalEgressHandoffAsync } from './localEgress';
+import {
+  configureSimulatorProxyEnvironmentAsync,
+  readLocalEgressHandoffAsync,
+} from './localEgress';
+import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { fetchWebPreviewTurnArgsAsync } from './remoteDeviceRunSession';
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from './warmIosSession';
 
@@ -59,6 +63,13 @@ export function createWarmDeviceSessionServer(
             signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
           }
         );
+        if (localEgress) {
+          await configureSimulatorProxyEnvironmentAsync({
+            udid: udid as IosSimulatorUuid,
+            env,
+            logger,
+          });
+        }
         await warm.prepareToolsAsync(signal);
       } catch {
         signal?.throwIfAborted();

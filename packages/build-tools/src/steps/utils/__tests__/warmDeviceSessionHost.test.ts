@@ -9,7 +9,10 @@ import {
   createWarmDeviceSessionServer,
   runOnWarmIosSimulatorAsync,
 } from '../warmDeviceSessionHost';
-import { readLocalEgressHandoffAsync } from '../localEgress';
+import {
+  configureSimulatorProxyEnvironmentAsync,
+  readLocalEgressHandoffAsync,
+} from '../localEgress';
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('@expo/turtle-spawn');
@@ -62,6 +65,23 @@ beforeEach(() => {
       stopAsync: jest.fn().mockResolvedValue(undefined),
     },
   };
+});
+
+it('sets proxy environment on the exact adopted Simulator before preparing tools', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+  const server = createWarmDeviceSessionServer(ctx, logger, warm);
+  await server.startAsync(launch());
+  expect(configureSimulatorProxyEnvironmentAsync).toHaveBeenCalledWith({
+    udid: 'UDID',
+    env: {},
+    logger,
+  });
+  expect(jest.mocked(spawn).mock.invocationCallOrder[0]).toBeLessThan(
+    jest.mocked(configureSimulatorProxyEnvironmentAsync).mock.invocationCallOrder[0]!
+  );
+  expect(
+    jest.mocked(configureSimulatorProxyEnvironmentAsync).mock.invocationCallOrder[0]
+  ).toBeLessThan(jest.mocked(warm.prepareToolsAsync).mock.invocationCallOrder[0]!);
 });
 
 it('adopts the warm device on the warm port with its recording, then prepares tools', async () => {
