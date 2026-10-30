@@ -43,8 +43,39 @@ describe(shouldUseVersionedExpoCLIExpensive, () => {
   });
 
   it(`returns false if versioned CLI isn't installed`, () => {
+    // Neither @expo/cli nor the expo package that could nest it resolves.
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(() => undefined);
     jest.mocked(resolveFrom.silent).mockImplementationOnce(() => undefined);
     expect(shouldUseVersionedExpoCLIExpensive('/', DEFAULT_CONFIG)).toBe(false);
+  });
+
+  it(`returns true if @expo/cli is only installed nested under the expo package`, () => {
+    // npm can leave @expo/cli at node_modules/expo/node_modules/@expo/cli, where it
+    // can't be resolved from the project root but expo/bin/cli finds it.
+    const resolveNestedOnly = (from: string, request: string): string | undefined => {
+      if (from === '/project' && request === 'expo/package.json') {
+        return '/project/node_modules/expo/package.json';
+      }
+      if (from === '/project/node_modules/expo' && request === '@expo/cli') {
+        return '/project/node_modules/expo/node_modules/@expo/cli/build/bin/cli';
+      }
+      return undefined;
+    };
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveNestedOnly);
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveNestedOnly);
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveNestedOnly);
+    expect(shouldUseVersionedExpoCLIExpensive('/project', DEFAULT_CONFIG)).toBe(true);
+  });
+
+  it(`returns false if neither the project nor the expo package can resolve @expo/cli`, () => {
+    const resolveExpoOnly = (from: string, request: string): string | undefined =>
+      from === '/project' && request === 'expo/package.json'
+        ? '/project/node_modules/expo/package.json'
+        : undefined;
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveExpoOnly);
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveExpoOnly);
+    jest.mocked(resolveFrom.silent).mockImplementationOnce(resolveExpoOnly);
+    expect(shouldUseVersionedExpoCLIExpensive('/project', DEFAULT_CONFIG)).toBe(false);
   });
 
   it(`returns false if the Expo SDK version is less than 46`, () => {
