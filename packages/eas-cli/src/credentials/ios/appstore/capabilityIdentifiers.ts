@@ -134,6 +134,8 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
       capabilityIdOpaqueIds.push(remoteIdModel.id);
     }
 
+    // The update replaces the linked identifiers, so it is sent only when one of them is not
+    // linked yet. An identifier removed from the entitlements therefore stays linked.
     if (capabilityIdOpaqueIds.some(id => !alreadyLinkedOpaqueIds.has(id))) {
       updateRequest.push({
         capabilityType: classifier.capability,
