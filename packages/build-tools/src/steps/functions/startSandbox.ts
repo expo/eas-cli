@@ -6,6 +6,7 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
+import { configureSandboxGitCredentialsAsync } from '../utils/sandboxGitCredentials';
 
 const MARK_SANDBOX_READY_MUTATION = graphql(`
   mutation MarkSandboxReady($sandboxId: ID!) {
@@ -61,6 +62,11 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
           `Invalid sandbox maximum duration: ${String(maxDurationSeconds)}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
       }
+      const daemonEnv = await configureSandboxGitCredentialsAsync({
+        stepCtx,
+        env: commandEnv,
+        signal,
+      });
       const daemon = await startSandboxDaemonAsync({
         credential: sandboxToken,
         serverUrl: mcpServerUrl,
@@ -68,7 +74,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
-        env: commandEnv,
+        env: daemonEnv,
         graphqlClient: ctx.graphqlClient,
         sandboxId,
       });
