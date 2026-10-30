@@ -8,6 +8,7 @@ import config from './config';
 import { getBuildEnv } from './env';
 import { Analytics } from './external/analytics';
 import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
+import { maybeStopWarmSimulatorAsync } from './warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
 import sentry from './sentry';
 import {
@@ -41,6 +42,10 @@ export async function createBuildContext<TJob extends Job>({
   await RuntimeSettings.loadAsync({
     environment: config.env,
     env: job.builderEnvironment?.env,
+  });
+  // Build-tools waits for the launcher's own cleanup record before it changes a Simulator.
+  void maybeStopWarmSimulatorAsync(job).catch(err => {
+    childLogger.warn({ err }, 'Could not stop warm Simulator services.');
   });
   await prepareRuntimeEnvironmentConfigFiles();
   const env = getBuildEnv({ job, projectId, metadata, buildId });
