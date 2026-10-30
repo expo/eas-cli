@@ -22,6 +22,7 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
+import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -78,10 +79,11 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         required: true,
       }),
     ],
-    fn: async ({ logger }, { inputs, outputs, env }) => {
+    fn: async ({ logger, global }, { inputs, outputs, env }) => {
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
+      registerAndroidEmulatorLogDirectory(global, logcatDirectory);
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;

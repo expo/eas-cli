@@ -418,7 +418,7 @@ export namespace AndroidEmulatorUtils {
         });
       }
     });
-    // Only into the log file -- this process' stdout/stderr is not watched or uploaded.
+    // Keep process output out of the build log. Device sessions upload this file during cleanup.
     emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
     emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
     emulatorPromise.child.once('close', () => {
