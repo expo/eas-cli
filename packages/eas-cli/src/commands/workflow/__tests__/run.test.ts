@@ -3,7 +3,7 @@ import {
   parseJsonInputs,
   parseWorkflowInputsFromYaml,
 } from '../../../commandUtils/workflow/inputs';
-import { resolveWorkflowRunSshInput } from '../run';
+import { resolveWorkflowRunGitRef, resolveWorkflowRunSshInput } from '../run';
 
 describe(resolveWorkflowRunSshInput, () => {
   it('is null when --ssh is not set', () => {
@@ -26,6 +26,35 @@ describe(resolveWorkflowRunSshInput, () => {
     expect(() => resolveWorkflowRunSshInput({ ssh: false, idleTimeoutSeconds: 60 })).toThrow(
       '--ssh-idle-timeout requires --ssh.'
     );
+  });
+});
+
+describe(resolveWorkflowRunGitRef, () => {
+  const commitSha = '0e5c2f18c7e4d0e2f5a1b3c4d5e6f708192a3b4c';
+
+  it('sends a confirmed branch ref instead of the commit it points at', () => {
+    expect(
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/heads/my-branch', commitSha })
+    ).toBe('refs/heads/my-branch');
+  });
+
+  it('sends a confirmed tag ref instead of the commit it points at', () => {
+    expect(
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/tags/v1.0.0', commitSha })
+    ).toBe('refs/tags/v1.0.0');
+  });
+
+  it('keeps a branch name containing slashes whole', () => {
+    expect(
+      resolveWorkflowRunGitRef({ canonicalRefName: 'refs/heads/feature/my-branch', commitSha })
+    ).toBe('refs/heads/feature/my-branch');
+  });
+
+  it('sends the commit when nothing named a ref', () => {
+    // `HEAD`, `@`, a detached `HEAD`, a revision expression such as `HEAD~2`, a commit
+    // hash, a remote-tracking ref, and a name whose casing the ref store rejected all
+    // arrive here the same way: the ref-name lookup could not confirm one.
+    expect(resolveWorkflowRunGitRef({ canonicalRefName: null, commitSha })).toBe(commitSha);
   });
 });
 
