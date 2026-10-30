@@ -3,7 +3,7 @@ import {
   RuntimeSettings,
   detectPnpmUnsupportedNodeVersionError,
 } from '@expo/build-tools';
-import { Job, errors } from '@expo/eas-build-job';
+import { Env, Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -19,6 +19,17 @@ class SystemDepsInstallError extends errors.UserError {
       'EAS_BUILD_SYSTEM_DEPS_INSTALL_ERROR',
       `Failed to install ${dependency}. Make sure you specified the correct version in eas.json.`
     );
+  }
+}
+
+export async function prepareXcodeBuildEnvAsync(env: Env): Promise<void> {
+  try {
+    const { stdout } = await spawn('xcodebuild', ['-version'], { env, stdio: 'pipe' });
+    if (stdout.includes('Xcode 26.0')) {
+      env.DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS ??= '--use-old-altool';
+    }
+  } catch {
+    // Best effort: workers without Xcode must still run jobs.
   }
 }
 
@@ -69,7 +80,10 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  if (process.platform === 'darwin') {
+  if (
+    process.platform === 'darwin' &&
+    builderConfig?.env?.EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN !== '1'
+  ) {
     await installCocoapodsCachePlugin();
   }
 
@@ -77,15 +91,12 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  const currentYarnVersion = (
-    await spawn('yarn', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentPnpmVersion = (
-    await spawn('pnpm', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
-  const currentBunVersion = (
-    await spawn('bun', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
-  ).stdout.trim();
+  const [currentYarnVersion, currentPnpmVersion, currentBunVersion] = await Promise.all(
+    ['yarn', 'pnpm', 'bun'].map(async command => {
+      const result = await spawn(command, ['--version'], { stdio: 'pipe', cwd: os.tmpdir() });
+      return result.stdout.trim();
+    })
+  );
 
   if (builderConfig.node) {
     const installedNodeVersion = await installNode(ctx, builderConfig.node);

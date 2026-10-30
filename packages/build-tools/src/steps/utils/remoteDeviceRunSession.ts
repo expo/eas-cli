@@ -524,6 +524,14 @@ export async function fetchWebPreviewTurnArgsAsync(
     }
     return args;
   } catch (err) {
+    if (
+      err instanceof DeviceRunSessionWorkerApiError &&
+      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
+    ) {
+      logger.info('Device run session was stopped before TURN credentials were fetched.');
+      return [];
+    }
+
     const error = err instanceof Error ? err : new Error(String(err));
     Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
     logger.warn(

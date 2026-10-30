@@ -530,6 +530,22 @@ describe(describeServeSimLaunch, () => {
   });
 });
 
+it('only pins hosts when a valid device ID is supplied', () => {
+  const udid = 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA';
+  expect(createServeSimArgs({ port: 4321, iosSimulatorUdid: udid })).toEqual(
+    expect.arrayContaining(['--single-device', udid])
+  );
+  for (const iosSimulatorUdid of [undefined, '', 'booted', 'iPhone 17']) {
+    expect(createServeSimArgs({ port: 4321, iosSimulatorUdid })).not.toContain('--single-device');
+  }
+  expect(createExpoDeviceHubArgs({ port: 4321, device: 'emulator-5554' })).toEqual(
+    expect.arrayContaining(['--single-device', 'emulator-5554'])
+  );
+  for (const device of [undefined, '', 'all', 'booted', 'invalid serial']) {
+    expect(createExpoDeviceHubArgs({ port: 4321, device })).not.toContain('--single-device');
+  }
+});
+
 describe(createServeSimArgs, () => {
   it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
