@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import { runServeSimActionWithResultAsync } from './serveSimActions';
+import { runServeSimActionAsync } from './serveSimActions';
 
 export function createServeSimPreviewCapture({
   port,
@@ -16,25 +16,7 @@ export function createServeSimPreviewCapture({
   tmpdir: string;
 }) {
   const ownedFiles = new Set<string>();
-  const action = (name: string, params: Record<string, unknown>, signal?: AbortSignal) =>
-    runServeSimActionWithResultAsync({
-      port,
-      token,
-      action: name,
-      params,
-      timeoutMs: 30_000,
-      signal,
-    });
   return {
-    async prepareAsync(signal: AbortSignal): Promise<void> {
-      const catalog = JSON.parse(await action('actions.describe', {}, signal));
-      const properties = catalog?.['screenshot.capture']?.properties;
-      if (properties?.automation?.type !== 'boolean') {
-        throw new Error(
-          'Cannot capture the session preview: this serve-sim version does not support automated screenshots.'
-        );
-      }
-    },
     async captureAsync(destination: string, signal: AbortSignal): Promise<void> {
       signal.throwIfAborted();
       const fileName = `serve-sim-screenshot-preview-${randomUUID()}.png`;
@@ -42,7 +24,7 @@ export function createServeSimPreviewCapture({
       ownedFiles.add(staged);
       // Closing exec-ws does not cancel its host action. Drain a sent capture before honoring
       // cancellation; on timeout/disconnect, leave its file alone until the host has stopped.
-      await runServeSimActionWithResultAsync({
+      await runServeSimActionAsync({
         port,
         token,
         action: 'screenshot.capture',
