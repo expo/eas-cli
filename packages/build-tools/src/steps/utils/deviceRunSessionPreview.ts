@@ -141,18 +141,25 @@ export async function captureDeviceRunSessionPreviewAsync({
   device,
   env,
   signal,
+  captureIosScreenshotAsync,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
+  captureIosScreenshotAsync?: (file: string, signal: AbortSignal) => Promise<void>;
 }): Promise<Buffer> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
     const options = { env, signal, timeout: 30_000, stdio: 'pipe' as const };
     const preview = path.join(directory, 'preview.webp');
     if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-      await captureIosPreviewAsync({ device, directory, preview, options });
+      if (!captureIosScreenshotAsync) {
+        throw new Error(
+          'Cannot capture the iOS session preview: serve-sim screenshot capture is not configured.'
+        );
+      }
+      await captureIosPreviewAsync({ captureIosScreenshotAsync, directory, preview, options });
     } else {
       await captureAndroidPreviewAsync({ device, directory, preview, options });
     }
@@ -170,19 +177,20 @@ type CaptureOptions = {
 };
 
 async function captureIosPreviewAsync({
-  device,
+  captureIosScreenshotAsync,
   directory,
   preview,
   options,
 }: {
-  device: string;
+  captureIosScreenshotAsync: (file: string, signal: AbortSignal) => Promise<void>;
   directory: string;
   preview: string;
   options: CaptureOptions;
 }): Promise<void> {
   const screenshot = path.join(directory, 'screen.png');
   const resized = path.join(directory, 'resized.png');
-  await spawn('xcrun', ['simctl', 'io', device, 'screenshot', screenshot], options);
+  await captureIosScreenshotAsync(screenshot, options.signal);
+  options.signal.throwIfAborted();
   await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
   await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
 }

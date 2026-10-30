@@ -49,6 +49,7 @@ import {
 import { SERVE_SIM_STATE_DIR, readServeSimServersAsync } from './serveSimMetricsRecorder';
 import { startLogPhase } from '../../utils/logPhase';
 import { runServeSimActionAsync, stageServeSimAppAsync } from './serveSimActions';
+import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -600,6 +601,7 @@ async function startDeviceSessionHostInternalAsync(
   let previewTask: Promise<DeviceWebPreview> | null = null;
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
+  let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
@@ -676,6 +678,7 @@ async function startDeviceSessionHostInternalAsync(
           await sessionPreview?.stopAsync();
           await previewActivity?.stopAsync();
         },
+        cleanupPreviewCaptureAsync: async () => iosPreviewCapture?.cleanupAfterHostStoppedAsync(),
         previewServer,
         screenshots,
         serverName,
@@ -810,6 +813,12 @@ async function startDeviceSessionHostInternalAsync(
     // readiness on macOS, so it starts after its encoder is installed there.
     previewSetupTask = (async () => {
       if (!isAndroid) {
+        iosPreviewCapture = createServeSimPreviewCapture({
+          port,
+          token: previewToken!,
+          device,
+          tmpdir: serveSimTmpdir,
+        });
         await ensureMacosPreviewEncoderInstalledAsync({
           env,
           logger,
@@ -823,6 +832,7 @@ async function startDeviceSessionHostInternalAsync(
           logger,
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
+              captureIosScreenshotAsync: iosPreviewCapture?.captureAsync,
               runtimePlatform,
               device: previewDevice ?? device,
               env,
@@ -890,6 +900,7 @@ async function finishDeviceSessionHostAsync(
   {
     previewTask,
     stopSessionPreviewAsync,
+    cleanupPreviewCaptureAsync,
     previewServer,
     screenshots,
     serverName,
@@ -901,6 +912,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewTask: Promise<DeviceWebPreview> | null;
     stopSessionPreviewAsync: () => Promise<void>;
+    cleanupPreviewCaptureAsync: () => Promise<void>;
     previewServer: DetachedProcessHandle;
     screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
@@ -948,6 +960,13 @@ async function finishDeviceSessionHostAsync(
     hostStopped = true;
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
+  }
+  if (hostStopped) {
+    try {
+      await cleanupPreviewCaptureAsync();
+    } catch (err) {
+      logger.warn({ err }, 'Could not remove session preview capture files.');
+    }
   }
   const previewRetired = await retirePreview;
   onStopped(hostStopped && !hostExited && previewRetired);

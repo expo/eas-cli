@@ -40,6 +40,7 @@ import {
   spawnDetached,
 } from '../remoteDeviceRunSession';
 import * as screenshotCollector from '../deviceRunSessionScreenshots';
+import * as previewCapture from '../serveSimPreviewCapture';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
@@ -1386,6 +1387,61 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
     );
   }
 );
+
+it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
+  const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+  const collector = jest
+    .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+    .mockResolvedValueOnce({
+      directory: '/tmp/manual-screenshots',
+      finishAsync: finishScreenshots,
+    });
+  const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
+  const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
+    captureAsync: jest.fn(),
+    cleanupAfterHostStoppedAsync: cleanup,
+  });
+  try {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    await host.finishAsync();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(finishScreenshots).toHaveBeenCalledWith(true);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Could not remove session preview capture files.'
+    );
+  } finally {
+    factory.mockRestore();
+    collector.mockRestore();
+  }
+});
+
+it('drains thumbnail capture before stopping the iOS host', async () => {
+  const stopped = deferred<void>();
+  stopSessionPreview.mockReturnValueOnce(stopped.promise);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const finishing = host.finishAsync();
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    expect(stopServer).not.toHaveBeenCalled();
+  } finally {
+    stopped.resolve();
+    await finishing;
+  }
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
 
 it.each(['success', 'failure'])(
   'keeps macOS readiness nonblocking and drains encoder setup %s before ending the phase',
