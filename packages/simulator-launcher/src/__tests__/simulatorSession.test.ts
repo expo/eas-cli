@@ -377,6 +377,42 @@ it('keeps global Argent when selecting another device', async () => {
   await session.stopAsync();
 });
 
+it.each(['appium'] as const)(
+  'does not finish %s preparation before unused tool cleanup settles',
+  async engine => {
+    const retirement = deferred();
+    jest.mocked(stopProcessAndDescendantsAsync).mockImplementation(async handle => {
+      if (handle === agent) {
+        await retirement.promise;
+      }
+    });
+    const session = createSession();
+    await session.prepareAsync();
+    await session.claimAsync({ engine });
+    let ready = false;
+    const preparing = session.prepareToolsAsync().then(() => {
+      ready = true;
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(ready).toBe(false);
+    retirement.resolve();
+    await preparing;
+    await session.stopAsync();
+  }
+);
+
+it('Appium preparation rejects failed XCTest retirement and terminal stop retries the owned resources', async () => {
+  const failure = new Error('XCTest stop failed');
+  jest.mocked(stopProcessAndDescendantsAsync).mockRejectedValueOnce(failure);
+  const session = createSession();
+  await session.prepareAsync();
+  await session.claimAsync({ engine: 'appium' });
+  await expect(session.prepareToolsAsync()).rejects.toThrow();
+  // The terminal stop retries XCTest; that retry succeeds here, so the stop does too.
+  await session.stopAsync();
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+});
+
 it('rejects a changed server identity before starting the selected runner', async () => {
   const session = createSession();
   await session.prepareAsync();

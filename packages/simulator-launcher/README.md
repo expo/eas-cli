@@ -15,11 +15,11 @@ exec bunx @expo/simulator-launcher@latest start
 - `start`: run one orphan serve-sim for the configured devices. Its default device becomes ready
   first; additional devices warm in the background. Argent and agent-device prestart on the default.
 - `claim ENGINE [DEVICE]`: reserve one job and return its selected device plus the existing server's
-  identity, port and credentials. Engines: `serve-sim`, `agent-device`, `argent`.
+  identity, port and credentials. Engines: `serve-sim`, `agent-device`, `argent`, `appium`.
   No DEVICE means the first configured device. Claim does not boot the selected device or wait for
   its tool. Build-tools privately adopts that device on the existing serve-sim port.
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
-  agent-device runner or prepare a runner for the selected device.
+  agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
 
 ```sh
@@ -66,6 +66,7 @@ serializes updates; an abandoned lock fails closed. This private format requires
   and app actions. Job-time version and authentication checks remain authoritative.
 - Agent-device prestarts on the default device only. A secondary claim prepares its runner after
   adoption and old-runner cleanup finish. One device-independent Argent server is reused for the claimed device.
+  Appium waits for unused tools to stop before starting its own WDA.
 - Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
   Each initial device gets a preinstall attempt; ordinary failures warn. Claim prevents new
   preinstalls. `prepare-tools` waits for an install still running on the claimed device and
