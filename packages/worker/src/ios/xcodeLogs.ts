@@ -3,14 +3,18 @@ import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { Readable, pipeline } from 'stream';
+import { Readable, Transform, pipeline } from 'stream';
 import { promisify } from 'util';
 import { v4 as uuid } from 'uuid';
 import zlib from 'zlib';
 
 import config from '../config';
 
-export async function uploadXcodeBuildLogs(logger: bunyan, logsPath: string): Promise<void> {
+export async function uploadXcodeBuildLogs(
+  logger: bunyan,
+  logsPath: string,
+  createLogMaskingStream: () => Transform
+): Promise<void> {
   if (!config.loggers.gcs.signedUploadUrlForXcodeBuildLogs) {
     logger.warn('GCS Presigned URL for Xcode logs was not specified, skipping upload');
   } else {
@@ -18,8 +22,15 @@ export async function uploadXcodeBuildLogs(logger: bunyan, logsPath: string): Pr
       signedUrl: config.loggers.gcs.signedUploadUrlForXcodeBuildLogs,
       srcGeneratorAsync: async () => {
         const stat = await fs.stat(logsPath);
+        // Masking replaces each byte of a secret with one byte, so the size stays the same.
+        // pipeline passes read errors on to the masked stream, which fails the upload.
+        const maskedStream = pipeline(
+          fs.createReadStream(logsPath),
+          createLogMaskingStream(),
+          () => {}
+        );
         const { stream } = await compress(
-          { stream: fs.createReadStream(logsPath), length: stat.size },
+          { stream: maskedStream, length: stat.size },
           config.loggers.gcs.compressionMethod
         );
         return stream;

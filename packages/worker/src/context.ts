@@ -2,6 +2,7 @@ import { BuildContext, BuildContextOptions, LogBuffer, RuntimeSettings } from '@
 import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
+import { Transform } from 'stream';
 
 import { GCSCacheManager } from './CacheManager';
 import config from './config';
@@ -27,6 +28,7 @@ export async function createBuildContext<TJob extends Job>({
   buildId,
   buildLogger,
   addBuildLogMask,
+  createLogMaskingStream,
 }: {
   job: TJob;
   logBuffer: LogBuffer;
@@ -36,6 +38,7 @@ export async function createBuildContext<TJob extends Job>({
   buildId: string;
   buildLogger: bunyan;
   addBuildLogMask: (secret: string) => void;
+  createLogMaskingStream: () => Transform;
 }): Promise<BuildContext<TJob>> {
   const childLogger = buildLogger.child({ buildId });
   await RuntimeSettings.loadAsync({
@@ -51,7 +54,7 @@ export async function createBuildContext<TJob extends Job>({
     switch (type) {
       case ManagedArtifactType.XCODE_BUILD_LOGS: {
         if (job.platform === Platform.IOS) {
-          await uploadXcodeBuildLogs(logger, paths[0]);
+          await uploadXcodeBuildLogs(logger, paths[0], createLogMaskingStream);
           return { filename: null };
         }
         throw new Error('Uploading Xcode logs in non-iOS builds is not supported');
