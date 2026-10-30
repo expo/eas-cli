@@ -155,7 +155,9 @@ export async function captureDeviceRunSessionPreviewAsync({
     const preview = path.join(directory, 'preview.webp');
     if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
       if (!captureIosScreenshotAsync) {
-        throw new Error('An authenticated serve-sim screenshot capture is required.');
+        throw new Error(
+          'Cannot capture the iOS session preview: serve-sim screenshot capture is not configured.'
+        );
       }
       await captureIosPreviewAsync({ captureIosScreenshotAsync, directory, preview, options });
     } else {
