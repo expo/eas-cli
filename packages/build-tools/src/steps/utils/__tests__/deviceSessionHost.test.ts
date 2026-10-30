@@ -13,11 +13,6 @@ import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
-import {
-  runServeSimActionAsync,
-  runServeSimActionWithResultAsync,
-  stageServeSimAppAsync,
-} from '../serveSimActions';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -45,6 +40,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
+import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import * as previewCapture from '../serveSimPreviewCapture';
@@ -170,13 +166,6 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
-  jest.mocked(runServeSimActionWithResultAsync).mockResolvedValue(
-    JSON.stringify({
-      'screenshot.capture': {
-        properties: { automation: { type: 'boolean' } },
-      },
-    })
-  );
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1491,24 +1480,6 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
-it('skips unsupported iOS thumbnail capture while keeping the host running', async () => {
-  jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce('{}');
-  const host = await startDeviceSessionHostAsync(ctx, {
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 10_000,
-  });
-  await new Promise(resolve => setImmediate(resolve));
-  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
-  expect(stopServer).not.toHaveBeenCalled();
-  expect(logger.warn).toHaveBeenCalledWith(
-    expect.objectContaining({ err: expect.any(Error) }),
-    'Could not start refreshing the session preview.'
-  );
-  await host.finishAsync();
-});
-
 it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
   const finishScreenshots = jest.fn().mockResolvedValue(undefined);
   const collector = jest
@@ -1519,7 +1490,6 @@ it('finishes manual screenshots even when thumbnail cleanup fails', async () => 
     });
   const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
   const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
-    prepareAsync: jest.fn().mockResolvedValue(undefined),
     captureAsync: jest.fn(),
     cleanupAfterHostStoppedAsync: cleanup,
   });
@@ -1529,6 +1499,7 @@ it('finishes manual screenshots even when thumbnail cleanup fails', async () => 
       env,
       logger,
       timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
     });
     await new Promise(resolve => setImmediate(resolve));
     await host.finishAsync();
@@ -1552,6 +1523,7 @@ it('drains thumbnail capture before stopping the iOS host', async () => {
     env,
     logger,
     timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
   });
   await new Promise(resolve => setImmediate(resolve));
   const finishing = host.finishAsync();
