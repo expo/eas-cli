@@ -72,6 +72,10 @@ export class CredentialsContext {
       options.projectInfo?.exp.ios?.usesBroadcastPushNotifications ?? false;
   }
 
+  get env(): Env | undefined {
+    return this.options.env;
+  }
+
   get hasProjectContext(): boolean {
     return !!this.projectInfo;
   }

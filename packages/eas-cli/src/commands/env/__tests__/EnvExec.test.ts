@@ -58,6 +58,7 @@ describe(EnvExec, () => {
       {
         appId: testProjectId,
         environment: DefaultEnvironment.Development,
+        includeFileContent: true,
       }
     );
   });
@@ -78,6 +79,7 @@ describe(EnvExec, () => {
       {
         appId: testProjectId,
         environment: 'custom-environment',
+        includeFileContent: true,
       }
     );
   });
