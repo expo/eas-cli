@@ -46,7 +46,7 @@ describe('Keychain class', () => {
           teamId: distributionCertificate.teamId,
           fingerprint: distributionCertificate.fingerprint,
         })
-      ).rejects.toThrowError(/hasn't been imported successfully/);
+      ).rejects.toThrowError(/Signing identity validation failed/);
     });
 
     it("shouldn't throw any error if the certificate has been imported successfully", async () => {
