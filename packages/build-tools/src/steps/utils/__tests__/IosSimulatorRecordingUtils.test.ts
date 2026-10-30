@@ -9,12 +9,14 @@ import { setTimeout } from 'node:timers/promises';
 
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { Sentry } from '../../../sentry';
+import { turtleFetch } from '../../../utils/turtleFetch';
 import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('../serveSimMetricsRecorder');
 jest.mock('../../../sentry');
+jest.mock('../../../utils/turtleFetch');
 
 const logger = {
   info: jest.fn(),
@@ -565,4 +567,97 @@ test('records every booted device with the first serve-sim package', async () =>
   await setTimeout(50);
   currentTime += 311_000;
   await IosSimulatorRecordingUtils.finishAsync({ logger });
+});
+
+test('does not request adopted video when job recording is disabled', async () => {
+  await expect(
+    IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+      udid,
+      deviceName: 'iPhone 17 Pro',
+      serverToken: 'job-token',
+    })
+  ).resolves.toBeUndefined();
+  expect(turtleFetch).not.toHaveBeenCalled();
+});
+
+test.each(['complete', 'failed'])(
+  'collects an adopted %s recording after host shutdown without a control request',
+  async status => {
+    let releaseDevices!: (devices: never[]) => void;
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          releaseDevices = resolve as never;
+        })
+    );
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([{ udid, url: 'http://127.0.0.1:3200', token: 'job-token' }]);
+    await IosSimulatorRecordingUtils.startAsync({ env, logger });
+    const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+      udid,
+      deviceName: 'iPhone 17 Pro',
+      serverToken: 'job-token',
+    });
+    if (!recording) {
+      throw new Error('Expected the adopted recording output.');
+    }
+    releaseDevices([{ udid, name: 'iPhone 17 Pro', runtimeDisplayName: 'iOS 26.4' }] as never);
+    await setTimeout(20);
+    expect(spawn).not.toHaveBeenCalled();
+    await writeFile(
+      `${recording.output}/session.json`,
+      JSON.stringify({ recording: 'recording.mp4', status })
+    );
+    jest.mocked(turtleFetch).mockRejectedValue(new Error('serve-sim has stopped'));
+    expect(await IosSimulatorRecordingUtils.finishAsync({ logger })).toEqual([
+      {
+        udid,
+        deviceName: 'iPhone 17 Pro',
+        runtimeDisplayName: 'iOS 26.4',
+        directory: recording.output,
+      },
+    ]);
+    expect(turtleFetch).not.toHaveBeenCalled();
+  }
+);
+
+test('does not publish an adopted recording without a manifest', async () => {
+  jest.mocked(readServeSimServersAsync).mockResolvedValue([]);
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+    udid,
+    deviceName: 'iPhone',
+    serverToken: 'job-token',
+  });
+  expect(await IosSimulatorRecordingUtils.finishAsync({ logger })).toEqual([]);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: expect.any(Error) },
+    'Could not collect the warm Simulator video recording after shutdown.'
+  );
+  expect(turtleFetch).not.toHaveBeenCalled();
+});
+
+test('a reserved adopted recording does not suppress recording a replacement server token', async () => {
+  let releaseDevices!: (devices: never[]) => void;
+  jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        releaseDevices = resolve as never;
+      })
+  );
+  jest
+    .mocked(readServeSimServersAsync)
+    .mockResolvedValue([{ udid, url: 'http://127.0.0.1:3200', token: 'replacement-token' }]);
+  mockFailingRecorder();
+  await IosSimulatorRecordingUtils.startAsync({ env, logger });
+  await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
+    udid,
+    deviceName: 'iPhone',
+    serverToken: 'old-token',
+  });
+  jest.mocked(turtleFetch).mockRejectedValue(new Error('old server stopped'));
+  releaseDevices([{ udid, name: 'iPhone', runtimeDisplayName: 'iOS 26.4' }] as never);
+  await waitForRecorderSpawnAsync();
+  expect(spawn).toHaveBeenCalledTimes(1);
 });
