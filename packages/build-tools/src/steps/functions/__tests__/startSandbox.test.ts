@@ -2,10 +2,23 @@ import { SystemError, UserError } from '@expo/eas-build-job';
 import { Client, fetchExchange } from '@urql/core';
 
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
+import * as sandboxGitCredentials from '../../utils/sandboxGitCredentials';
 
 import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
 
 describe('sandbox build functions', () => {
+  let configureGitCredentials: jest.SpyInstance;
+
+  beforeEach(() => {
+    configureGitCredentials = jest
+      .spyOn(sandboxGitCredentials, 'configureSandboxGitCredentialsAsync')
+      .mockImplementation(async ({ env }) => env);
+  });
+
+  afterEach(() => {
+    configureGitCredentials.mockRestore();
+  });
+
   it.each([
     { completion: 'duration', duration: 0.02 },
     { completion: 'cancellation', duration: 60 },
@@ -181,6 +194,42 @@ describe('sandbox build functions', () => {
         EXPO_TOKEN: 'expo-token',
       });
       expect(env.__EAS_SANDBOX_MCP_TOKEN).toBe('token');
+    } finally {
+      start.mockRestore();
+    }
+  });
+
+  it('hands the daemon the git credential environment', async () => {
+    const gitEnv = { PREPARED_BY_EARLIER_STEP: 'value', GIT_TERMINAL_PROMPT: '0' };
+    configureGitCredentials.mockResolvedValue(gitEnv);
+    const stopAsync = jest.fn(async () => {});
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
+    const mutation = jest.fn(() => ({ toPromise: async () => ({ data: {} }) }));
+    const logger = { info: jest.fn(), child: jest.fn() };
+    logger.child.mockReturnValue(logger);
+    const ctx = { mcpServerUrl: 'ws://localhost:8787', graphqlClient: { mutation } };
+    const fn = createStartSandboxBuildFunction(ctx as any);
+    const stepCtx = { logger, workingDirectory: '/work' };
+    const signal = new AbortController().signal;
+    try {
+      await fn.fn!(stepCtx as any, {
+        inputs: {
+          sandbox_id: { value: 'sandbox-id' },
+          max_duration_seconds: { value: 0.001 },
+        },
+        outputs: {},
+        env: { PREPARED_BY_EARLIER_STEP: 'value', __EAS_SANDBOX_MCP_TOKEN: 'token' },
+        signal,
+      });
+      expect(configureGitCredentials).toHaveBeenCalledWith({
+        stepCtx,
+        env: { PREPARED_BY_EARLIER_STEP: 'value' },
+        signal,
+      });
+      expect(start.mock.calls[0][0].env).toBe(gitEnv);
+      expect(stopAsync).toHaveBeenCalledTimes(1);
     } finally {
       start.mockRestore();
     }
