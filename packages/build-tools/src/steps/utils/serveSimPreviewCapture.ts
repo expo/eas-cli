@@ -30,7 +30,9 @@ export function createServeSimPreviewCapture({
       const catalog = JSON.parse(await action('actions.describe', {}, signal));
       const properties = catalog?.['screenshot.capture']?.properties;
       if (properties?.automation?.type !== 'boolean') {
-        throw new Error('This serve-sim version does not support session preview captures.');
+        throw new Error(
+          'Cannot capture the session preview: this serve-sim version does not support automated screenshots.'
+        );
       }
     },
     async captureAsync(destination: string, signal: AbortSignal): Promise<void> {
