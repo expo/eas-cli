@@ -141,6 +141,7 @@ export function createRepackBuildFunction(): BuildFunction {
             workingDirectory,
             exportEmbedOptions,
             jsBundleOnly,
+            ...resolveIosVersionOptions(stepsCtx.global.staticContext.job),
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
@@ -178,6 +179,7 @@ export function createRepackBuildFunction(): BuildFunction {
                 workingDirectory,
                 exportEmbedOptions,
                 jsBundleOnly,
+                ...resolveAndroidVersionOptions(stepsCtx.global.staticContext.job),
                 androidSigningOptions,
                 logger: stepsCtx.logger,
                 spawnAsync: repackSpawnAsync,
@@ -274,6 +276,41 @@ function createSpawnAsyncStepAdapter({
     wrappedPromise.child = child;
     return wrappedPromise;
   };
+}
+
+/**
+ * The version to write to the repacked app instead of the version in the app config.
+ * Versions of `@expo/repack-app` that do not support these options ignore them.
+ *
+ * TODO: Pick these from the `Options` type of `@expo/repack-app` when the package declares them.
+ */
+type RepackVersionOptions = {
+  /**
+   * iOS: `CFBundleShortVersionString`. Android: `versionName`.
+   */
+  appVersion?: string;
+  /**
+   * iOS: `CFBundleVersion`. Android: `versionCode`.
+   */
+  appBuildVersion?: string;
+};
+
+/**
+ * Resolves the iOS version that EAS assigned to the job, the same version that
+ * `eas/configure_ios_version` applies in a build.
+ */
+function resolveIosVersionOptions(job: Job): RepackVersionOptions {
+  const { version } = job as Ios.Job;
+  return version ? { appVersion: version.appVersion, appBuildVersion: version.buildNumber } : {};
+}
+
+/**
+ * Resolves the Android version that EAS assigned to the job, the same version that
+ * `eas/configure_android_version` applies in a build.
+ */
+function resolveAndroidVersionOptions(job: Job): RepackVersionOptions {
+  const { version } = job as Android.Job;
+  return version ? { appVersion: version.versionName, appBuildVersion: version.versionCode } : {};
 }
 
 /**

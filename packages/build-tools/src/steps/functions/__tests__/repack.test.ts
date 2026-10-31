@@ -1,4 +1,6 @@
+import { type Android, type Ios } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { repackAppAndroidAsync, repackAppIosAsync } from '@expo/repack-app';
 import turtleSpawnAsync from '@expo/turtle-spawn';
 import assert from 'node:assert';
 import fg from 'fast-glob';
@@ -193,6 +195,83 @@ describe(createRepackBuildFunction, () => {
     const keystoreFiles = await fg(`${tmpDir}/keystore*`, { onlyFiles: true });
     expect(keystoreFiles.length).toBe(0);
   });
+
+  it('passes the iOS version from the job to repack', async () => {
+    const version: Ios.Job['version'] = { buildNumber: '3011', appVersion: '1.2.3' };
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(
+      createGlobalContextMock({
+        staticContextContent: {
+          job: { version },
+        },
+      }),
+      {
+        callInputs: {
+          platform: 'ios',
+          source_app_path: '/path/to/source_app.ipa',
+        },
+      }
+    );
+
+    await repackStep.executeAsync();
+
+    expect(repackAppIosAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ appVersion: '1.2.3', appBuildVersion: '3011' })
+    );
+  });
+
+  it('passes the Android version from the job to repack', async () => {
+    const version: Android.Job['version'] = { versionCode: '296', versionName: '1.2.3' };
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(
+      createGlobalContextMock({
+        staticContextContent: {
+          job: { version },
+        },
+      }),
+      {
+        callInputs: {
+          platform: 'android',
+          source_app_path: '/path/to/source_app.apk',
+        },
+      }
+    );
+
+    await repackStep.executeAsync();
+
+    expect(repackAppAndroidAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ appVersion: '1.2.3', appBuildVersion: '296' })
+    );
+  });
+
+  it.each([
+    { platform: 'ios', repackAppAsync: repackAppIosAsync },
+    { platform: 'android', repackAppAsync: repackAppAndroidAsync },
+  ])(
+    'passes no version to repack when the $platform job has none',
+    async ({ platform, repackAppAsync }) => {
+      const repack = createRepackBuildFunction();
+      const repackStep = repack.createBuildStepFromFunctionCall(
+        createGlobalContextMock({
+          staticContextContent: {
+            job: {},
+          },
+        }),
+        {
+          callInputs: {
+            platform,
+            source_app_path: '/path/to/source_app',
+          },
+        }
+      );
+
+      await repackStep.executeAsync();
+
+      const [[options]] = jest.mocked(repackAppAsync).mock.calls;
+      expect(options).not.toHaveProperty('appVersion');
+      expect(options).not.toHaveProperty('appBuildVersion');
+    }
+  );
 });
 
 describe(resolveAndroidSigningOptionsAsync, () => {
