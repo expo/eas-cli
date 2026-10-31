@@ -8,9 +8,14 @@ import {
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
 } from '../../simulator/env';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 export default class SimulatorEgress extends EasCommand {
-  static override aliases = ['sim:egress'];
+  static override aliases = getSimulatorCommandAliases('egress');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('egress');
   static override description = `[EXPERIMENTAL] run the local egress client for a simulator session to route proxied HTTP(S) requests through this machine`;
 
   static override flags = {
