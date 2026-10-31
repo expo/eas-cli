@@ -8,10 +8,16 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { AppPlatform, DeviceRunSessionStatus } from '../../graphql/generated';
-import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import {
+  assertControlKeepAliveSupported,
+  borrowControlConnectionAsync,
+  createControlConnectionIdentityAsync,
+  openControlConnectionAsync,
+} from '../../simulator/controlConnection';
+import { ControlSession } from '../../simulator/controlConnectionProtocol';
+import { loadControlSessionAsync } from '../../simulator/controlSession';
 import {
   ControlAction,
   executeControlActionAsync,
@@ -35,32 +41,24 @@ import {
   HostActionCatalog,
   HostActionCatalogEntry,
   HostActionConnection,
-  HostActionDevice,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
   fetchHostActionDeviceAsync,
   formatHostActionUsage,
 } from '../../simulator/hostActions';
-import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import formatFields from '../../utils/formatFields';
 import { sanitizeTerminalText, truncate } from '../../utils/terminalText';
 import { formatMilliseconds } from '../../utils/timer';
-
-type ControlSession = {
-  id: string;
-  name: string | null;
-  project: string;
-  status: DeviceRunSessionStatus;
-  device: HostActionDevice;
-};
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = ['sim:control'];
   static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
 
 Run without an action to list available actions. Use <action> --help for usage.
+
+Use --keep-alive to reuse the connection across commands, or prepare it with simulator:control:connection open. Connections close after 120 seconds idle by default; use --idle-timeout to change the timeout in seconds.
 
 To save a screenshot locally, run \`eas simulator:control screenshot.capture --output ./screenshot.png\`.
 
@@ -112,6 +110,16 @@ Existing output files are overwritten. When saving to a directory, an existing f
     import: Flags.string({
       description: 'Run saved actions from a JSON file',
     }),
+    'keep-alive': Flags.boolean({
+      description:
+        'Keep the control connection available for subsequent commands (macOS and Linux)',
+    }),
+    'idle-timeout': Flags.integer({
+      min: 1,
+      max: 86_400,
+      description: 'Seconds of idle time before closing the kept-alive connection (default: 120)',
+      dependsOn: ['keep-alive'],
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -130,6 +138,11 @@ Existing output files are overwritten. When saving to a directory, an existing f
     if (flags.id === '') {
       throw new Error('--id needs a simulator session ID.');
     }
+    const idleTimeoutMs =
+      flags['idle-timeout'] !== undefined ? flags['idle-timeout'] * 1_000 : undefined;
+    if (flags['keep-alive']) {
+      assertControlKeepAliveSupported();
+    }
     const action = flags.list && !flags.help ? undefined : args.action;
     const importing = flags.import !== undefined;
     if (importing && (args.action || flags.list || flags.output !== undefined)) {
@@ -141,7 +154,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
 
     const {
       projectDir,
-      loggedIn: { graphqlClient },
+      loggedIn: { graphqlClient, authenticationInfo },
     } = await this.getContextAsync(SimulatorControl, {
       nonInteractive,
     });
@@ -160,21 +173,52 @@ Existing output files are overwritten. When saving to a directory, an existing f
       let catalog: HostActionCatalog;
       let controlSession: ControlSession;
       try {
-        const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
-        const access = assertControllableSession(session);
-        connection = await connectHostActionsAsync(access);
-        catalog = await fetchHostActionCatalogAsync(connection);
-        controlSession = {
-          id: session.id,
-          name: session.name ?? null,
-          project: `@${session.app.ownerAccount.name}/${session.app.slug}`,
-          status: session.status,
-          device:
-            importing || (jsonFlag && Boolean(action) && !flags.list && !flags.help)
-              ? await fetchHostActionDeviceAsync(access, connection.udid)
-              : { udid: connection.udid },
-        };
-        spinner.succeed(`Connected to simulator session ${sessionId}`);
+        const identity = await createControlConnectionIdentityAsync(
+          sessionId,
+          projectDir,
+          authenticationInfo
+        );
+        if (flags['keep-alive']) {
+          await openControlConnectionAsync(
+            identity,
+            () => loadControlSessionAsync(graphqlClient, sessionId),
+            idleTimeoutMs
+          );
+        }
+        const borrowed = await borrowControlConnectionAsync(identity);
+        if (flags['keep-alive'] && !borrowed) {
+          throw new Error(
+            'The control helper closed before it could be used. Open the connection again.'
+          );
+        }
+        if (borrowed) {
+          connection = borrowed.connection;
+          catalog = borrowed.catalog;
+          controlSession = borrowed.info.session;
+          spinner.stop();
+          if (flags['keep-alive'] && !action && !importing && !flags.list && !flags.help) {
+            if (jsonFlag) {
+              printJsonOnlyOutput({ connected: true, id: sessionId, connection: borrowed.info });
+            } else {
+              Log.succeed(
+                `Control connection ready · idle timeout: ${formatMilliseconds(borrowed.info.idleTimeoutMs)}`
+              );
+            }
+            return;
+          }
+        } else {
+          const { access, session } = await loadControlSessionAsync(graphqlClient, sessionId);
+          connection = await connectHostActionsAsync(access);
+          catalog = await fetchHostActionCatalogAsync(connection);
+          controlSession = {
+            ...session,
+            device:
+              importing || (jsonFlag && Boolean(action) && !flags.list && !flags.help)
+                ? await fetchHostActionDeviceAsync(access, connection.udid)
+                : { udid: connection.udid },
+          };
+          spinner.succeed(`Connected to simulator session ${sessionId}`);
+        }
       } catch (err) {
         spinner.fail(`Failed to connect to simulator session ${sessionId}`);
         throw err;
@@ -474,26 +518,4 @@ function formatElapsed(startedAt: number): string {
 
 function formatActionCount(count: number): string {
   return `${count} action${count === 1 ? '' : 's'}`;
-}
-
-function assertControllableSession(
-  session: Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>
-): PreviewApiAccess {
-  if (session.status !== DeviceRunSessionStatus.InProgress) {
-    throw new Error(
-      `Simulator session ${session.id} is ${session.status.toLowerCase()}. Simulator actions need a running session. Start one with \`eas simulator:start\`.`
-    );
-  }
-  if (session.platform !== AppPlatform.Ios) {
-    throw new Error(
-      `Simulator control on ${session.platform.toLowerCase()} is not supported yet. Simulator actions are available only for iOS sessions.`
-    );
-  }
-  const access = session.remoteConfig ? getPreviewApiAccess(session.remoteConfig) : null;
-  if (!access) {
-    throw new Error(
-      `Simulator session ${session.id} does not expose a preview server with a token. Simulator actions use that server. Start a new session with \`eas simulator:start\`.`
-    );
-  }
-  return access;
 }
