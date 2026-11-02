@@ -115,9 +115,11 @@ export namespace IosSimulatorRecordingUtils {
       udid,
       serverToken,
       async collectAsync() {
-        // The session host already stopped serve-sim, which finalizes its recording. Keep the
-        // manifest unchanged: the uploader also preserves footage marked as partial or failed.
-        await access(path.join(output, 'session.json'));
+        // Keep real footage eligible for the manifest wait if serve-sim shutdown was unconfirmed.
+        // The uploader preserves the manifest's partial or failed status.
+        await access(path.join(output, 'session.json')).catch(() =>
+          access(path.join(output, 'recording.mp4'))
+        );
         session.completedRecordings.push({
           id: recordingId,
           udid: udid as IosSimulatorUuid,
