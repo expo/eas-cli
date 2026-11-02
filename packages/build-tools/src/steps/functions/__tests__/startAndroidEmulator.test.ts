@@ -93,6 +93,25 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedMkdtemp.mockRestore();
   });
 
+  it.each([
+    { sources: [] },
+    { sources: ['emulator-output'] },
+    { sources: ['device-logcat'] },
+    { sources: ['emulator-output', 'device-logcat'] },
+  ])('preserves $sources through boot retries and clones', async ({ sources }) => {
+    mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
+    await createStep({ android_log_sources: sources, count: 2 }).executeAsync();
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(4);
+    for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
+      expect(options.logSources).toEqual(sources);
+    }
+  });
+
+  it('rejects invalid sources before starting the emulator', async () => {
+    await expect(createStep({ android_log_sources: ['unknown'] }).executeAsync()).rejects.toThrow();
+    expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
+  });
+
   describe('local egress', () => {
     function createLocalEgress() {
       return {
@@ -114,6 +133,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         deviceName: 'EasAndroidDevice01',
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),
@@ -229,6 +249,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
@@ -236,6 +257,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -310,18 +332,21 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceName: 'eas-simulator-1',
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceName: 'eas-simulator-2',
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
 
@@ -367,6 +392,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         logcatDirectory: '/tmp/logcat-directory',
+        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');

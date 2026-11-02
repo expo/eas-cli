@@ -7,12 +7,11 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const MAX_BYTES_PER_FILE = 20 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30_000;
-
-export type AndroidEmulatorLogSource = 'emulator-output' | 'device-logcat';
 
 type Collection = {
   directories: Set<string>;

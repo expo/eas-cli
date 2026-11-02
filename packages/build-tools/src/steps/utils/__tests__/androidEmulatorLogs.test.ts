@@ -1,3 +1,4 @@
+import { type AndroidEmulatorLogSource } from '../../../utils/androidEmulatorLogSources';
 import { type BuildStepGlobalContext } from '@expo/steps';
 import fs from 'node:fs';
 import fsPromises, { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
@@ -7,7 +8,6 @@ import path from 'node:path';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import {
-  type AndroidEmulatorLogSource,
   collectAndroidEmulatorLogsAsync,
   registerAndroidEmulatorLogDirectory,
 } from '../androidEmulatorLogs';
