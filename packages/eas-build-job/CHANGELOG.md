@@ -1,5 +1,11 @@
 # @expo/eas-build-job
 
+## 27.3.0
+
+### Minor Changes
+
+- Add optional Observe error context to workflow jobs. ([#4787](https://github.com/expo/eas-cli/pull/4787) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
 ## 27.2.0
 
 No changes in this release.

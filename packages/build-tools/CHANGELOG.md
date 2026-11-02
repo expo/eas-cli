@@ -1,5 +1,13 @@
 # @expo/build-tools
 
+## 27.3.0
+
+### Patch Changes
+
+- Stop warmup in the background for jobs that do not use the warm Simulator, so job setup does not wait for it. Before build-tools boots or clones a Simulator, it waits until the launcher's state file records that cleanup finished, and fails if cleanup does not finish in time. ([#4721](https://github.com/expo/eas-cli/pull/4721) by [@gwdp](https://github.com/gwdp))
+- Recover unhealthy device-session tunnels without changing their URLs and block further traffic when shutdown starts, even if ngrok cleanup times out. ([#4526](https://github.com/expo/eas-cli/pull/4526) by [@gwdp](https://github.com/gwdp))
+- Stop sending the SSH host when registering an SSH session. ([#4784](https://github.com/expo/eas-cli/pull/4784) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.2.0
 
 ### Minor Changes
