@@ -344,6 +344,24 @@ const SentryContextZ = z.looseObject({
   resolution_type: z.string().optional(),
 });
 
+const ObserveContextZ = z.looseObject({
+  event: z.looseObject({
+    id: z.uuid(),
+    type: z.literal('new_error'),
+    occurredAt: z.iso.datetime(),
+    appId: z.uuid(),
+    fingerprint: z.looseObject({
+      value: z.string().min(1),
+      version: z.string().min(1).nullable(),
+    }),
+    severity: z.enum(['fatal', 'error']),
+    environment: z.string().nullable(),
+    platform: z.enum(['ios', 'android']).nullable(),
+    deviceOs: z.string().optional(),
+    exception: z.looseObject({ type: z.string().nullable(), message: z.string().nullable() }),
+  }),
+});
+
 export const StaticWorkflowInterpolationContextZ = z.object({
   after: z.record(
     z.string(),
@@ -381,6 +399,7 @@ export const StaticWorkflowInterpolationContextZ = z.object({
   app_store_connect: AppStoreConnectContextZ.optional(),
   // We need to .optional() to support jobs that are not triggered by a Sentry event.
   sentry: SentryContextZ.optional(),
+  observe: ObserveContextZ.optional(),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<
