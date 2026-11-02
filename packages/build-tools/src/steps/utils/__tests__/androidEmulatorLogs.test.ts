@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import fsPromises, { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import zlib, { gunzipSync } from 'node:zlib';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
@@ -14,6 +15,8 @@ import {
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 
 jest.mock('../deviceRunSessionArtifacts');
+// Keep real compression, with writable exports for injecting a compressor failure.
+jest.mock('node:zlib', () => ({ ...jest.requireActual('node:zlib') }));
 
 const ctx = {} as CustomBuildContext;
 const directory = path.join(os.tmpdir(), 'android-logs');
@@ -29,12 +32,22 @@ beforeEach(async () => {
   logger = createMockLogger();
   uploadedContents = new Map();
   await mkdir(directory, { recursive: true });
-  upload.mockReset().mockImplementation(async (_ctx, { filename, openStream }) => {
+  upload.mockReset().mockImplementation(async (_ctx, { filename, size, metadata, openStream }) => {
     const chunks: Buffer[] = [];
     for await (const chunk of openStream()) {
       chunks.push(Buffer.from(chunk));
     }
-    uploadedContents.set(filename, Buffer.concat(chunks).toString());
+    const compressed = Buffer.concat(chunks);
+    const retained = gunzipSync(compressed);
+    expect(compressed.length).toBe(size);
+    expect(metadata).toEqual(
+      expect.objectContaining({
+        compression: 'gzip',
+        compressedSizeBytes: compressed.length,
+        retainedSizeBytes: retained.length,
+      })
+    );
+    uploadedContents.set(filename, retained.toString());
   });
 });
 
@@ -58,7 +71,7 @@ it('uploads only emulator output when sources are omitted', async () => {
   const open = jest.spyOn(fsPromises, 'open');
   try {
     await collectAndroidEmulatorLogsAsync(ctx, { global, deviceRunSessionId: 'session', logger });
-    expect([...uploadedContents.keys()]).toEqual([path.basename(emulatorPath)]);
+    expect([...uploadedContents.keys()]).toEqual([`${path.basename(emulatorPath)}.gz`]);
     expect(open).not.toHaveBeenCalledWith(logcatPath, expect.anything());
   } finally {
     open.mockRestore();
@@ -72,7 +85,7 @@ it('uploads only explicitly selected logcat and uploads nothing for an empty sel
   await collect(undefined, []);
   expect(upload).not.toHaveBeenCalled();
   await collect(undefined, ['device-logcat']);
-  expect([...uploadedContents.keys()]).toEqual([path.basename(logcatPath)]);
+  expect([...uploadedContents.keys()]).toEqual([`${path.basename(logcatPath)}.gz`]);
 });
 
 it('honors different source selections during concurrent cleanup without duplicate uploads', async () => {
@@ -84,8 +97,8 @@ it('honors different source selections during concurrent cleanup without duplica
     collect(undefined, ['emulator-output', 'device-logcat']),
   ]);
   expect([...uploadedContents.keys()].sort()).toEqual([
-    path.basename(emulatorPath),
-    path.basename(logcatPath),
+    `${path.basename(emulatorPath)}.gz`,
+    `${path.basename(logcatPath)}.gz`,
   ]);
   expect(upload).toHaveBeenCalledTimes(2);
 });
@@ -109,7 +122,7 @@ it('uploads both logs for every attempt from registered directories only', async
   expect(upload).toHaveBeenCalledWith(
     ctx,
     expect.objectContaining({
-      filename: 'device-attempt-1-emulator.log',
+      filename: 'device-attempt-1-emulator.log.gz',
       kind: 'simulator-log',
       metadata: expect.objectContaining({
         platform: 'android',
@@ -124,7 +137,7 @@ it('uploads both logs for every attempt from registered directories only', async
   expect(upload).toHaveBeenCalledWith(
     ctx,
     expect.objectContaining({
-      filename: 'device-attempt-1-logcat.log',
+      filename: 'device-attempt-1-logcat.log.gz',
       metadata: expect.objectContaining({ source: 'device-logcat', scope: 'device' }),
     })
   );
@@ -137,20 +150,21 @@ it('keeps the latest bytes and records truncation', async () => {
   await writeFile(emulatorPath, 'old output\ncrash\n');
   registerAndroidEmulatorLogDirectory(global, directory);
   await collect(6);
-  expect(uploadedContents.get(path.basename(emulatorPath))).toBe('crash\n');
+  expect(uploadedContents.get(`${path.basename(emulatorPath)}.gz`)).toBe('crash\n');
   expect(upload).toHaveBeenCalledWith(
     ctx,
     expect.objectContaining({
-      size: 6,
+      size: expect.any(Number),
       name: expect.stringContaining('truncated, 6 bytes retained'),
       metadata: expect.objectContaining({
         originalSizeBytes: 17,
+        retainedSizeBytes: 6,
         omittedBytes: 11,
         truncated: true,
       }),
     })
   );
-  expect(await readFile(emulatorPath, 'utf8')).toBe('old output\ncrash\n');
+  await expect(readFile(emulatorPath)).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
 it('fixes the snapshot range before append and keeps upload retries identical', async () => {
@@ -161,21 +175,24 @@ it('fixes the snapshot range before append and keeps upload retries identical', 
     fs.appendFileSync(emulatorPath, ' during snapshot');
     return createReadStream(filePath, options);
   });
-  const contents: string[] = [];
+  const contents: Buffer[] = [];
   upload.mockImplementationOnce(async (_ctx, { size, openStream }) => {
-    expect(size).toBe(6);
+    expect(size).toBeGreaterThan(6);
     for (let attempt = 0; attempt < 2; attempt++) {
       await writeFile(emulatorPath, 'rewritten after snapshot');
       const chunks: Buffer[] = [];
       for await (const chunk of openStream()) {
         chunks.push(Buffer.from(chunk));
       }
-      contents.push(Buffer.concat(chunks).toString());
+      const compressed = Buffer.concat(chunks);
+      expect(compressed.length).toBe(size);
+      contents.push(compressed);
     }
   });
   try {
     await collect();
-    expect(contents).toEqual(['before', 'before']);
+    expect(contents[0]).toEqual(contents[1]);
+    expect(contents.map(content => gunzipSync(content).toString())).toEqual(['before', 'before']);
   } finally {
     read.mockRestore();
   }
@@ -188,13 +205,15 @@ it('continues after a failed upload and retries only unsuccessful files on anoth
   upload.mockRejectedValueOnce(new Error('storage unavailable'));
   await expect(collect()).resolves.toBeUndefined();
   expect(upload).toHaveBeenCalledTimes(2);
+  expect(await readFile(emulatorPath, 'utf8')).toBe('host output');
+  await expect(readFile(logcatPath)).rejects.toMatchObject({ code: 'ENOENT' });
   expect(logger.warn).toHaveBeenCalledWith(
     expect.anything(),
     expect.stringContaining('other logs will continue')
   );
   await collect();
   expect(upload).toHaveBeenCalledTimes(3);
-  expect(upload.mock.calls[2][1].filename).toBe(path.basename(emulatorPath));
+  expect(upload.mock.calls[2][1].filename).toBe(`${path.basename(emulatorPath)}.gz`);
   expect(upload.mock.calls[0][1].signal).not.toBe(upload.mock.calls[1][1].signal);
 });
 
@@ -225,7 +244,7 @@ it('keeps successful uploads deduplicated when snapshot cleanup fails', async ()
     await expect(collect()).resolves.toBeUndefined();
     await collect();
     expect(upload).toHaveBeenCalledTimes(1);
-    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.anything(),
       expect.stringContaining('Could not close')
@@ -256,7 +275,7 @@ it('uses a fresh 30 second budget for the next file after an upload times out', 
   });
   try {
     await expect(collect()).resolves.toBeUndefined();
-    expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
+    expect(uploadedContents.get(`${path.basename(logcatPath)}.gz`)).toBe('Android output');
     expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
     expect(upload.mock.calls[1][1].signal?.aborted).toBe(false);
   } finally {
@@ -292,7 +311,7 @@ it('handles a snapshot read failure and still uploads the other log', async () =
   });
   try {
     await expect(collect()).resolves.toBeUndefined();
-    expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
+    expect(uploadedContents.get(`${path.basename(logcatPath)}.gz`)).toBe('Android output');
     expect(upload).toHaveBeenCalledTimes(1);
   } finally {
     read.mockRestore();
@@ -314,9 +333,74 @@ it('aborts an upload on a genuine snapshot file read error and continues with th
     signal?.throwIfAborted();
   });
   await expect(collect()).resolves.toBeUndefined();
-  expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
+  expect(uploadedContents.get(`${path.basename(logcatPath)}.gz`)).toBe('Android output');
   expect(logger.warn).toHaveBeenCalledWith(
     { err: readError },
     expect.stringContaining('other logs will continue')
   );
+});
+
+it('continues after compression fails without uploading a partial gzip file', async () => {
+  await writeFile(emulatorPath, 'host output');
+  await writeFile(logcatPath, 'Android output');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  const createGzip = zlib.createGzip;
+  const compressionError = new Error('compression failed');
+  const compress = jest.spyOn(zlib, 'createGzip').mockImplementationOnce(options => {
+    const gzip = createGzip(options);
+    gzip.destroy(compressionError);
+    return gzip;
+  });
+  try {
+    await expect(collect()).resolves.toBeUndefined();
+    expect(await readFile(emulatorPath, 'utf8')).toBe('host output');
+    expect(uploadedContents.get(`${path.basename(logcatPath)}.gz`)).toBe('Android output');
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: compressionError },
+      expect.stringContaining('other logs will continue')
+    );
+  } finally {
+    compress.mockRestore();
+  }
+});
+
+it('does not upload an empty gzip file when the source becomes empty before reading', async () => {
+  await writeFile(emulatorPath, 'before');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  const createReadStream = fs.createReadStream;
+  const read = jest.spyOn(fs, 'createReadStream').mockImplementationOnce((filePath, options) => {
+    fs.truncateSync(emulatorPath);
+    return createReadStream(filePath, options);
+  });
+  try {
+    await expect(collect()).resolves.toBeUndefined();
+    expect(upload).not.toHaveBeenCalled();
+  } finally {
+    read.mockRestore();
+  }
+});
+
+it('keeps successful uploads deduplicated if removing the raw log fails', async () => {
+  await writeFile(emulatorPath, 'host output');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  const remove = fsPromises.rm;
+  const cleanupError = new Error('raw cleanup failed');
+  const cleanup = jest.spyOn(fsPromises, 'rm').mockImplementation(async (filePath, options) => {
+    if (filePath === emulatorPath) {
+      throw cleanupError;
+    }
+    await remove(filePath, options);
+  });
+  try {
+    await expect(collect()).resolves.toBeUndefined();
+    await collect();
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: cleanupError },
+      expect.stringContaining('Could not remove uploaded Android log')
+    );
+  } finally {
+    cleanup.mockRestore();
+  }
 });
