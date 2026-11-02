@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import {
+  type AndroidEmulatorLogSource,
   collectAndroidEmulatorLogsAsync,
   registerAndroidEmulatorLogDirectory,
 } from '../androidEmulatorLogs';
@@ -37,14 +38,57 @@ beforeEach(async () => {
   });
 });
 
-function collect(maxBytes?: number): Promise<void> {
+function collect(
+  maxBytes?: number,
+  sources: readonly AndroidEmulatorLogSource[] = ['emulator-output', 'device-logcat']
+): Promise<void> {
   return collectAndroidEmulatorLogsAsync(ctx, {
     global,
     deviceRunSessionId: 'session',
     logger,
     maxBytes,
+    sources,
   });
 }
+
+it('uploads only emulator output when sources are omitted', async () => {
+  await writeFile(emulatorPath, 'host output');
+  await writeFile(logcatPath, 'sensitive device output');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  const open = jest.spyOn(fsPromises, 'open');
+  try {
+    await collectAndroidEmulatorLogsAsync(ctx, { global, deviceRunSessionId: 'session', logger });
+    expect([...uploadedContents.keys()]).toEqual([path.basename(emulatorPath)]);
+    expect(open).not.toHaveBeenCalledWith(logcatPath, expect.anything());
+  } finally {
+    open.mockRestore();
+  }
+});
+
+it('uploads only explicitly selected logcat and uploads nothing for an empty selection', async () => {
+  await writeFile(emulatorPath, 'host output');
+  await writeFile(logcatPath, 'device output');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  await collect(undefined, []);
+  expect(upload).not.toHaveBeenCalled();
+  await collect(undefined, ['device-logcat']);
+  expect([...uploadedContents.keys()]).toEqual([path.basename(logcatPath)]);
+});
+
+it('honors different source selections during concurrent cleanup without duplicate uploads', async () => {
+  await writeFile(emulatorPath, 'host output');
+  await writeFile(logcatPath, 'device output');
+  registerAndroidEmulatorLogDirectory(global, directory);
+  await Promise.all([
+    collect(undefined, ['emulator-output']),
+    collect(undefined, ['emulator-output', 'device-logcat']),
+  ]);
+  expect([...uploadedContents.keys()].sort()).toEqual([
+    path.basename(emulatorPath),
+    path.basename(logcatPath),
+  ]);
+  expect(upload).toHaveBeenCalledTimes(2);
+});
 
 it('uploads both logs for every attempt from registered directories only', async () => {
   await writeFile(emulatorPath, 'host output');

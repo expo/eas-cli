@@ -1,4 +1,10 @@
-import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
+import {
+  BuildFunction,
+  BuildRuntimePlatform,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+} from '@expo/steps';
+import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
@@ -14,12 +20,23 @@ export function createCollectAndroidEmulatorLogsBuildFunction(
     name: 'Collect Android emulator logs',
     __metricsId: 'eas/collect_android_emulator_logs',
     supportedRuntimePlatforms: [BuildRuntimePlatform.LINUX],
-    fn: async ({ logger, global }, { env }) => {
+    inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'sources',
+        required: false,
+        defaultValue: ['emulator-output'],
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+    ],
+    fn: async ({ logger, global }, { inputs, env }) => {
       try {
         await collectAndroidEmulatorLogsAsync(ctx, {
           global,
           deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
           logger,
+          sources: z
+            .array(z.enum(['emulator-output', 'device-logcat']))
+            .parse(inputs.sources.value),
         });
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
