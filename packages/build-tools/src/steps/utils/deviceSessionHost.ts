@@ -675,7 +675,9 @@ async function startDeviceSessionHostInternalAsync(
       { name: 'Preview tunnel opening', timeoutMs, signal: startup.signal },
       async () => await openPreviewAsync()
     ).catch(error => {
-      startup.abort(error);
+      if (!finishTask) {
+        startup.abort(error);
+      }
       throw error;
     })
   );

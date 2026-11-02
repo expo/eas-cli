@@ -37,6 +37,7 @@ import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
   spawnDetached,
+  startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 import { startServeSimActivityPolling } from '../serveSimActivity';
@@ -69,6 +70,9 @@ jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   fetchWebPreviewTurnArgsAsync: jest.fn().mockResolvedValue([]),
+  startNgrokTunnelAsync: jest.fn(
+    jest.requireActual('../remoteDeviceRunSession').startNgrokTunnelAsync
+  ),
   spawnDetached: jest.fn(),
 }));
 jest.mock('../deviceRunSessionPreview', () => ({
@@ -142,6 +146,10 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .mocked(startNgrokTunnelAsync)
+    .mockReset()
+    .mockImplementation(jest.requireActual('../remoteDeviceRunSession').startNgrokTunnelAsync);
   jest.mocked(IosSimulatorUtils.disableApsdAsync).mockReset().mockResolvedValue(undefined);
   const installedBundleIds: Record<string, string> = {
     '/artifacts/Application.app': 'test.application',
@@ -2251,7 +2259,7 @@ it('opens the preview while a supplied server waits for TURN and its startup han
 it.each(['opened', 'late'])(
   'rejects failed startup when the %s preview tunnel cannot be retired',
   async timing => {
-    const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+    const tunnel = deferred<Awaited<ReturnType<typeof startNgrokTunnelAsync>>>();
     const startup = deferred<Awaited<ReturnType<typeof spawnDetached>>>();
     const startupError = new Error('Server handshake failed.');
     const closeError = new Error('Preview listener is still running.');
@@ -2260,7 +2268,7 @@ it.each(['opened', 'late'])(
     const screenshots = jest
       .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
       .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
-    jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+    jest.mocked(startNgrokTunnelAsync).mockReturnValueOnce(tunnel.promise);
     closeTunnel.mockRejectedValueOnce(closeError);
     const server = {
       port: 3200,
@@ -2283,7 +2291,11 @@ it.each(['opened', 'late'])(
     const outcome = starting.catch(error => error);
     try {
       if (timing === 'opened') {
-        tunnel.resolve({ url: () => 'https://open.example.test', close: closeTunnel } as never);
+        tunnel.resolve({
+          url: 'https://open.example.test',
+          subdomainId: 'preview',
+          stopAsync: closeTunnel,
+        });
       }
       for (let i = 0; i < 50 && !startAsync.mock.calls.length; i++) {
         await new Promise(resolve => setImmediate(resolve));
@@ -2293,7 +2305,11 @@ it.each(['opened', 'late'])(
       await new Promise(resolve => setImmediate(resolve));
       if (timing === 'late') {
         expect(stopServer).not.toHaveBeenCalled();
-        tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+        tunnel.resolve({
+          url: 'https://late.example.test',
+          subdomainId: 'preview',
+          stopAsync: closeTunnel,
+        });
       }
       const error = await outcome;
       expect(error).toBeInstanceOf(AggregateError);
@@ -2304,7 +2320,11 @@ it.each(['opened', 'late'])(
       expect(runServeSimActionAsync).not.toHaveBeenCalled();
     } finally {
       startup.reject(startupError);
-      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      tunnel.resolve({
+        url: 'https://late.example.test',
+        subdomainId: 'preview',
+        stopAsync: closeTunnel,
+      });
       await outcome;
       screenshots.mockRestore();
     }
@@ -2405,14 +2425,14 @@ it.each([
   async ({ action, tunnelTiming }) => {
     const startupError = new Error(`${action} failed.`);
     const cleanupError = new Error('Preview listener could not close.');
-    const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+    const tunnel = deferred<Awaited<ReturnType<typeof startNgrokTunnelAsync>>>();
     const closing = deferred<void>();
     const stopped = jest.fn().mockResolvedValue(undefined);
     const finishScreenshots = jest.fn().mockResolvedValue(undefined);
     const screenshots = jest
       .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
       .mockResolvedValueOnce({ directory: '/mock/screenshots', finishAsync: finishScreenshots });
-    jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+    jest.mocked(startNgrokTunnelAsync).mockReturnValueOnce(tunnel.promise);
     closeTunnel.mockReturnValueOnce(closing.promise);
     jest
       .mocked(readServeSimServersAsync)
@@ -2468,7 +2488,11 @@ it.each([
     });
     try {
       if (tunnelTiming === 'opened') {
-        tunnel.resolve({ url: () => 'https://open.example.test', close: closeTunnel } as never);
+        tunnel.resolve({
+          url: 'https://open.example.test',
+          subdomainId: 'preview',
+          stopAsync: closeTunnel,
+        });
       }
       for (let i = 0; i < 50 && !onStartupError.mock.calls.length; i++) {
         await new Promise(resolve => setImmediate(resolve));
@@ -2476,7 +2500,11 @@ it.each([
       expect(onStartupError).toHaveBeenCalledWith(startupError);
       if (tunnelTiming === 'late') {
         expect(stopped).not.toHaveBeenCalled();
-        tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+        tunnel.resolve({
+          url: 'https://late.example.test',
+          subdomainId: 'preview',
+          stopAsync: closeTunnel,
+        });
       }
       for (let i = 0; i < 50 && !closeTunnel.mock.calls.length; i++) {
         await new Promise(resolve => setImmediate(resolve));
@@ -2497,7 +2525,11 @@ it.each([
         finishScreenshots.mock.invocationCallOrder[0]
       );
     } finally {
-      tunnel.resolve({ url: () => 'https://late.example.test', close: closeTunnel } as never);
+      tunnel.resolve({
+        url: 'https://late.example.test',
+        subdomainId: 'preview',
+        stopAsync: closeTunnel,
+      });
       closing.reject(cleanupError);
       await outcome;
       screenshots.mockRestore();
