@@ -84,7 +84,7 @@ it('does not close a reused descriptor after a snapshot read failure', async () 
 
 it('retries a complete gzip of the capped raw log after an early storage error', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'android-log-upload-test-'));
-  const maximumBytes = 128 * 1024 * 1024;
+  const maximumBytes = 100 * 1024 * 1024;
   // Incompressible input ensures compression can grow beyond the raw cap without
   // truncating the gzip stream, and keeps the early HTTP failure meaningful.
   const payload = randomBytes(maximumBytes + 6);
@@ -137,7 +137,7 @@ it('retries a complete gzip of the capped raw log after an early storage error',
     expect(createArtifactUploadSessionAsync).toHaveBeenCalledTimes(1);
     expect(createArtifactUploadSessionAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: expect.stringContaining('truncated, 128 MiB retained'),
+        name: expect.stringContaining('truncated, 100 MiB retained'),
         filename: 'device-emulator.log.gz',
         size: received.length,
         metadata: expect.objectContaining({

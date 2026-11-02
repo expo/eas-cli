@@ -11,7 +11,7 @@ import { type CustomBuildContext } from '../../customBuildContext';
 import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
-const MAX_UNCOMPRESSED_BYTES_PER_FILE = 128 * 1024 * 1024;
+const MAX_UNCOMPRESSED_BYTES_PER_FILE = 100 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30_000;
 
 type Collection = {
