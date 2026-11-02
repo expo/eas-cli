@@ -7,6 +7,7 @@ import { setImmediate } from 'node:timers/promises';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
 import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
+import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { downloadBuildAsync } from '../../functions/downloadBuild';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -265,6 +266,48 @@ describe('with a device run session token', () => {
     expectWorkerApiCall('turn-ice-servers', 'POST', { timeout: 5000, retries: 0 });
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledTimes(1);
   });
+
+  it('handles a stopped-session TURN response without a warning or retry', async () => {
+    const ctx = createCtx({ withToken: true });
+    jest
+      .mocked(turtleFetch)
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { errors: [{ code: 'DEVICE_RUN_SESSION_ALREADY_STOPPED', message: 'Stopped.' }] },
+          400
+        )
+      );
+
+    await expect(fetchWebPreviewTurnArgsAsync(ctx, { logger })).resolves.toEqual([]);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      'Device run session was stopped before TURN credentials were fetched.'
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+    expect(turtleFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([undefined, 'VALIDATION_ERROR'])(
+    'still warns on a TURN failure with code %s',
+    async code => {
+      const ctx = createCtx({ withToken: true });
+      jest
+        .mocked(turtleFetch)
+        .mockResolvedValueOnce(
+          jsonResponse(
+            { errors: [{ code, message: 'Device run session has already stopped.' }] },
+            400
+          )
+        );
+
+      await expect(fetchWebPreviewTurnArgsAsync(ctx, { logger })).resolves.toEqual([]);
+
+      expect(logger.warn).toHaveBeenCalled();
+      expect(Sentry.capture).toHaveBeenCalled();
+      expect(turtleFetch).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('creates artifact upload sessions through the worker API', async () => {
     const ctx = createCtx({ withToken: true });

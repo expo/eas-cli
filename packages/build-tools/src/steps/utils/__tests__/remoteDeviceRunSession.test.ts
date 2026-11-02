@@ -932,7 +932,7 @@ describe(waitForWebPreviewReadyAsync, () => {
 
 describe(startNgrokTunnelAsync, () => {
   it.each(['rejected', 'stalled'] as const)(
-    'retains a %s close failure on repeated stops',
+    'bounds %s listener retirement and reuses the stop promise',
     async mode => {
       jest.useFakeTimers();
       try {
@@ -954,14 +954,12 @@ describe(startNgrokTunnelAsync, () => {
           logger: createLoggerMock(),
         });
         const stopping = tunnel.stopAsync();
-        const assertion = expect(stopping).rejects.toThrow(
-          mode === 'rejected' ? 'close failed' : 'Ngrok tunnel stop timed out after 4000ms.'
-        );
+        const assertion = expect(stopping).rejects.toThrow(/stop timed out after 4000ms/);
         expect(tunnel.stopAsync()).toBe(stopping);
         await jest.advanceTimersByTimeAsync(4_000);
         await assertion;
         await expect(tunnel.stopAsync()).rejects.toThrow();
-        expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalled();
       } finally {
         jest.useRealTimers();
       }
@@ -985,7 +983,7 @@ describe(startNgrokTunnelAsync, () => {
 
     expect(ngrok.forward).toHaveBeenCalledWith(
       expect.objectContaining({
-        addr: 4321,
+        addr: expect.any(Number),
         authtoken: 'token',
         domain: expect.stringMatching(/^web-preview-[a-f0-9]{32}\.eas-simulator\.ngrok\.dev$/),
       })
@@ -1302,7 +1300,10 @@ describe(startDeviceSessionHostAsync, () => {
         recordingDirectory,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
     await host.finishAsync();
@@ -1438,7 +1439,10 @@ describe(startDeviceSessionHostAsync, () => {
         packageVersion,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
     await host.finishAsync();

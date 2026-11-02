@@ -623,6 +623,7 @@ async function startDeviceSessionHostInternalAsync(
           subdomainId,
           baseDomain,
           authtoken,
+          healthCheck: { path: isAndroid ? '/readyz' : '/healthz' },
           logger,
         });
         if (finishTask) {
