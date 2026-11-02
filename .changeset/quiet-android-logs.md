@@ -1,5 +1,6 @@
 ---
 '@expo/build-tools': patch
+'eas-cli': patch
 ---
 
-Add a cleanup step that uploads Android emulator output and logcat as simulator session artifacts.
+Upload Android emulator process output as a simulator session artifact by default. Add explicit source selection and a simulator CLI flag to opt in to uploading device-wide logcat.

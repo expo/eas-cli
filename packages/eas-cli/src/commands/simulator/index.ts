@@ -150,6 +150,12 @@ export default class Simulator extends EasCommand {
       description:
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'android-log-source': Flags.option({
+      description:
+        'Android logs to upload after the session. Repeat to select both sources; replaces the default emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted and are retained for 90 days.',
+      options: ['emulator-output', 'device-logcat'],
+      multiple: true,
+    })(),
     'network-capture': Flags.boolean({
       description:
         'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
@@ -257,6 +263,7 @@ export default class Simulator extends EasCommand {
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const systemImagePackage = flags['system-image']?.trim() || undefined;
+    const androidLogSources = flags['android-log-source'];
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -300,6 +307,9 @@ export default class Simulator extends EasCommand {
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (androidLogSources && platform !== AppPlatform.Android) {
+      throw new EasCommandError('--android-log-source is only supported with --platform android.');
+    }
     if (systemImagePackage && platform !== AppPlatform.Android) {
       throw new EasCommandError('--system-image is only supported with --platform android.');
     }
@@ -382,11 +392,12 @@ export default class Simulator extends EasCommand {
               ? deviceIdentifier
                 ? { ios: { deviceIdentifier } }
                 : {}
-              : deviceIdentifier || systemImagePackage
+              : deviceIdentifier || systemImagePackage || androidLogSources
                 ? {
                     android: {
                       ...(deviceIdentifier ? { deviceIdentifier } : {}),
                       ...(systemImagePackage ? { systemImagePackage } : {}),
+                      ...(androidLogSources ? { logSources: androidLogSources } : {}),
                     },
                   }
                 : {}),

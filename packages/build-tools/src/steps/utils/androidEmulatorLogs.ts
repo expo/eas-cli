@@ -12,6 +12,8 @@ import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts
 const MAX_BYTES_PER_FILE = 20 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30_000;
 
+export type AndroidEmulatorLogSource = 'emulator-output' | 'device-logcat';
+
 type Collection = {
   directories: Set<string>;
   uploaded: Set<string>;
@@ -41,11 +43,13 @@ export async function collectAndroidEmulatorLogsAsync(
     deviceRunSessionId,
     logger,
     maxBytes = MAX_BYTES_PER_FILE,
+    sources = ['emulator-output'],
   }: {
     global: BuildStepGlobalContext;
     deviceRunSessionId: string;
     logger: bunyan;
     maxBytes?: number;
+    sources?: readonly AndroidEmulatorLogSource[];
   }
 ): Promise<void> {
   const collection = collections.get(global);
@@ -53,14 +57,15 @@ export async function collectAndroidEmulatorLogsAsync(
     logger.info('No Android emulator log directories registered; skipping upload.');
     return;
   }
-  if (collection.collecting) {
-    return await collection.collecting;
+  while (collection.collecting) {
+    await collection.collecting;
   }
   collection.collecting = uploadRegisteredLogsAsync(ctx, {
     collection,
     deviceRunSessionId,
     logger,
     maxBytes,
+    sources,
   });
   try {
     await collection.collecting;
@@ -76,11 +81,13 @@ async function uploadRegisteredLogsAsync(
     deviceRunSessionId,
     logger,
     maxBytes,
+    sources,
   }: {
     collection: Collection;
     deviceRunSessionId: string;
     logger: bunyan;
     maxBytes: number;
+    sources: readonly AndroidEmulatorLogSource[];
   }
 ): Promise<void> {
   for (const directory of collection.directories) {
@@ -91,6 +98,10 @@ async function uploadRegisteredLogsAsync(
         if (!entry.isFile() || !match) {
           continue;
         }
+        const source = match[1] === 'emulator' ? 'emulator-output' : 'device-logcat';
+        if (!sources.includes(source)) {
+          continue;
+        }
         const filePath = path.join(directory, entry.name);
         if (collection.uploaded.has(filePath)) {
           continue;
@@ -99,7 +110,7 @@ async function uploadRegisteredLogsAsync(
           const uploaded = await uploadLogSnapshotAsync(ctx, {
             deviceRunSessionId,
             filePath,
-            source: match[1] === 'emulator' ? 'emulator-output' : 'device-logcat',
+            source,
             maxBytes,
             signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
             logger,
@@ -133,7 +144,7 @@ async function uploadLogSnapshotAsync(
   }: {
     deviceRunSessionId: string;
     filePath: string;
-    source: 'emulator-output' | 'device-logcat';
+    source: AndroidEmulatorLogSource;
     maxBytes: number;
     signal: AbortSignal;
     logger: bunyan;
