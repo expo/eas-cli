@@ -154,7 +154,7 @@ async function uploadLogSnapshotAsync(
     // so Content-Length and every retry describe the same snapshot.
     await pipeline(
       createReadStream(filePath, {
-        fd: file.fd,
+        fd: file,
         autoClose: false,
         start,
         end: originalSizeBytes - 1,

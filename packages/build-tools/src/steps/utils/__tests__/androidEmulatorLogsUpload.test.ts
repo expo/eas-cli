@@ -1,9 +1,14 @@
 import { type BuildStepGlobalContext } from '@expo/steps';
+import fs from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
+import {
+  createCustomBuildContextMock,
+  createGlobalContextMock,
+} from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import {
@@ -18,6 +23,62 @@ jest.unmock('node:fs');
 jest.unmock('fs/promises');
 jest.unmock('node:fs/promises');
 jest.unmock('node-fetch');
+
+it('does not close a reused descriptor after a snapshot read failure', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'android-log-descriptor-test-'));
+  const unrelatedPath = path.join(directory, 'unrelated.txt');
+  const readError = Object.assign(new Error('source read failed'), { code: 'EIO' });
+  const createReadStream = fs.createReadStream;
+  let sourceFd: number | undefined;
+  let reusedFd: number | undefined;
+  const read = jest.spyOn(fs, 'createReadStream').mockImplementationOnce((filePath, options) => {
+    if (!options || typeof options === 'string' || options.fd == null) {
+      throw new Error('Expected an open source file');
+    }
+    sourceFd = typeof options.fd === 'number' ? options.fd : options.fd.fd;
+    const stream = createReadStream(filePath, options);
+    stream.once('close', () => {
+      // Reuse the descriptor before the collector's final FileHandle.close().
+      reusedFd = fs.openSync(unrelatedPath, 'w');
+    });
+    stream.destroy(readError);
+    return stream;
+  });
+  try {
+    await writeFile(path.join(directory, 'device-emulator.log'), 'host output');
+    const global = createGlobalContextMock();
+    const logger = createMockLogger();
+    registerAndroidEmulatorLogDirectory(global, directory);
+
+    await collectAndroidEmulatorLogsAsync(createCustomBuildContextMock(), {
+      global,
+      deviceRunSessionId: 'session',
+      logger,
+    });
+
+    expect(reusedFd).toBe(sourceFd);
+    if (reusedFd === undefined) {
+      throw new Error('Expected the source descriptor to be reused');
+    }
+    expect(fs.writeSync(reusedFd, 'still open')).toBe(10);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: readError },
+      expect.stringContaining('other logs will continue')
+    );
+    expect(requireDeviceRunSessionWorkerApi).not.toHaveBeenCalled();
+  } finally {
+    read.mockRestore();
+    if (reusedFd !== undefined) {
+      try {
+        fs.closeSync(reusedFd);
+      } catch {
+        // The regression closes this descriptor before the test can clean it up.
+      }
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 it('retries a capped log after an early storage error with real file streams and one artifact', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'android-log-upload-test-'));
