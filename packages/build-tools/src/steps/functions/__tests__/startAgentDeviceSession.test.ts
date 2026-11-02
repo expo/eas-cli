@@ -110,6 +110,7 @@ function runStep(
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
   const inputs = Object.fromEntries(
     [
+      'android_log_sources',
       'device_identifier',
       'system_image_package',
       'lcd_width',
@@ -128,7 +129,15 @@ function runStep(
       'package_version',
       'max_idle_time_minutes',
       'max_duration_seconds',
-    ].map(id => [id, { value: inputValues[id] }])
+    ].map(id => [
+      id,
+      {
+        value:
+          id === 'android_log_sources' && !(id in inputValues)
+            ? ['emulator-output', 'device-logcat']
+            : inputValues[id],
+      },
+    ])
   );
   return buildFunction.fn!(
     {
@@ -416,6 +425,27 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
   });
 
+  it.each([
+    { sources: [] },
+    { sources: ['emulator-output'] },
+    { sources: ['device-logcat'] },
+    { sources: ['emulator-output', 'device-logcat'] },
+  ])('selects $sources before Android boot', async ({ sources }) => {
+    await runStep(BuildRuntimePlatform.LINUX, { android_log_sources: sources });
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logSources: sources })
+    );
+  });
+
+  it('rejects invalid Android log sources before boot', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, {
+        android_log_sources: ['unknown'],
+      })
+    ).rejects.toThrow();
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+  });
+
   it('boots the Android Emulator with the device inputs', async () => {
     await runStep(BuildRuntimePlatform.LINUX, {
       device_identifier: 'pixel_7',
@@ -623,6 +653,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
     ).toEqual([
+      'android_log_sources',
       'device_identifier',
       'system_image_package',
       'lcd_width',

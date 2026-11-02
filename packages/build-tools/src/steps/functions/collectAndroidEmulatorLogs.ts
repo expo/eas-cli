@@ -4,10 +4,10 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import { AndroidEmulatorLogSourcesSchema } from '../../utils/androidEmulatorLogSources';
 import { collectAndroidEmulatorLogsAsync } from '../utils/androidEmulatorLogs';
 import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 
@@ -34,9 +34,7 @@ export function createCollectAndroidEmulatorLogsBuildFunction(
           global,
           deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
           logger,
-          sources: z
-            .array(z.enum(['emulator-output', 'device-logcat']))
-            .parse(inputs.sources.value),
+          sources: AndroidEmulatorLogSourcesSchema.parse(inputs.sources.value),
         });
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));

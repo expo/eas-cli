@@ -319,7 +319,7 @@ describe('AndroidEmulatorUtils', () => {
       await AndroidEmulatorUtils.waitForReadyAsync({ serialId, env: process.env });
       await retryAsync(
         async () => {
-          const contents = await fs.promises.readFile(startResult.emulatorOutputPath, 'utf-8');
+          const contents = await fs.promises.readFile(startResult.emulatorOutputPath!, 'utf-8');
           if (!contents.includes('Android emulator version')) {
             throw new Error('Did not find the emulator version in emulator process output yet.');
           }
@@ -340,7 +340,7 @@ describe('AndroidEmulatorUtils', () => {
 
       await retryAsync(
         async () => {
-          const contents = await fs.promises.readFile(startResult.logcatOutputPath, 'utf-8');
+          const contents = await fs.promises.readFile(startResult.logcatOutputPath!, 'utf-8');
           if (!contents.includes(marker)) {
             throw new Error(`Did not find marker ${marker} in logcat output yet.`);
           }

@@ -16,6 +16,10 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
+import {
+  AndroidEmulatorLogSourcesSchema,
+  LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
+} from '../../utils/androidEmulatorLogSources';
 import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
 import { withLocalEgressSession } from '../utils/localEgressSession';
 import {
@@ -67,6 +71,12 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
     name: 'Start agent-device session',
     __metricsId: 'eas/start_agent_device_session',
     inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'android_log_sources',
+        required: false,
+        defaultValue: [...LEGACY_ANDROID_EMULATOR_LOG_SOURCES],
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.
       BuildStepInput.createProvider({
         id: 'device_identifier',
@@ -205,6 +215,9 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
         const booted = iosSimulatorUdid
           ? undefined
           : tasks.run('Android Emulator boot', async taskLogger => {
+              const logSources = AndroidEmulatorLogSourcesSchema.parse(
+                inputs.android_log_sources.value
+              );
               const logcatDirectory = await fs.promises.mkdtemp(
                 path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
               );
@@ -218,6 +231,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
                 lcdHeight: inputs.lcd_height.value as number | undefined,
                 lcdDensity: inputs.lcd_density.value as number | undefined,
                 logcatDirectory,
+                logSources,
                 env,
                 logger: taskLogger,
               });

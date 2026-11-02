@@ -3069,9 +3069,9 @@ FLAGS
       <options: android|ios>
 
   --android-log-source=<option>...
-      Android logs to upload after the session. Repeat to select both sources; replaces the default emulator-output
-      selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted and are
-      retained for 90 days.
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted and are retained for 90 days.
       <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
@@ -3231,9 +3231,9 @@ FLAGS
       <options: android|ios>
 
   --android-log-source=<option>...
-      Android logs to upload after the session. Repeat to select both sources; replaces the default emulator-output
-      selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted and are
-      retained for 90 days.
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted and are retained for 90 days.
       <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
@@ -3603,9 +3603,9 @@ FLAGS
       <options: android|ios>
 
   --android-log-source=<option>...
-      Android logs to upload after the session. Repeat to select both sources; replaces the default emulator-output
-      selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted and are
-      retained for 90 days.
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted and are retained for 90 days.
       <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
