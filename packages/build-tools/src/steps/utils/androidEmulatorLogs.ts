@@ -5,12 +5,13 @@ import { mkdtemp, open, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
-const MAX_BYTES_PER_FILE = 20 * 1024 * 1024;
+const MAX_UNCOMPRESSED_BYTES_PER_FILE = 128 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 30_000;
 
 type Collection = {
@@ -41,7 +42,7 @@ export async function collectAndroidEmulatorLogsAsync(
     global,
     deviceRunSessionId,
     logger,
-    maxBytes = MAX_BYTES_PER_FILE,
+    maxBytes = MAX_UNCOMPRESSED_BYTES_PER_FILE,
     sources = ['emulator-output'],
   }: {
     global: BuildStepGlobalContext;
@@ -117,6 +118,11 @@ async function uploadRegisteredLogsAsync(
           if (uploaded) {
             collection.uploaded.add(filePath);
             logger.info(`Uploaded Android diagnostic log ${entry.name}.`);
+            // The uploaded snapshot is final for this capture. Unlink the raw file
+            // only after success; an open emulator writer releases its storage on close.
+            await rm(filePath, { force: true }).catch(err => {
+              logger.warn({ err }, `Could not remove uploaded Android log ${entry.name}.`);
+            });
           }
         } catch (err) {
           logger.warn(
@@ -157,11 +163,14 @@ async function uploadLogSnapshotAsync(
       return false;
     }
     snapshotDirectory = await mkdtemp(path.join(os.tmpdir(), 'eas-android-log-snapshot-'));
-    const filename = path.basename(filePath);
+    const originalFilename = path.basename(filePath);
+    const filename = `${originalFilename}.gz`;
     const snapshotPath = path.join(snapshotDirectory, filename);
     const start = Math.max(0, originalSizeBytes - maxBytes);
     // The emulator may still append. Fix both the range and upload contents now,
-    // so Content-Length and every retry describe the same snapshot.
+    // then gzip the retained raw bytes in full. Never truncate compressed output;
+    // Content-Length and every retry must describe the same complete gzip file.
+    const gzip = createGzip({ level: 6 });
     await pipeline(
       createReadStream(filePath, {
         fd: file,
@@ -169,21 +178,26 @@ async function uploadLogSnapshotAsync(
         start,
         end: originalSizeBytes - 1,
       }),
+      gzip,
       createWriteStream(snapshotPath),
       { signal }
     );
     const { size } = await stat(snapshotPath);
-    if (size === 0) {
+    const retainedSizeBytes = gzip.bytesWritten;
+    if (retainedSizeBytes === 0) {
       return false;
     }
     const readController = new AbortController();
     const retainedSize =
-      size >= 1024 * 1024 ? `${Number((size / (1024 * 1024)).toFixed(2))} MiB` : `${size} bytes`;
-    const truncationNote = size < originalSizeBytes ? `; truncated, ${retainedSize} retained` : '';
+      retainedSizeBytes >= 1024 * 1024
+        ? `${Number((retainedSizeBytes / (1024 * 1024)).toFixed(2))} MiB`
+        : `${retainedSizeBytes} bytes`;
+    const truncationNote =
+      retainedSizeBytes < originalSizeBytes ? `; truncated, ${retainedSize} retained` : '';
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
       artifactId: filename,
-      name: `${source === 'emulator-output' ? 'Emulator output' : 'Android device logcat'} (${filename.replace(/-(emulator|logcat)\.log$/, '')}${truncationNote})`,
+      name: `${source === 'emulator-output' ? 'Emulator output' : 'Android device logcat'} (${originalFilename.replace(/-(emulator|logcat)\.log$/, '')}${truncationNote})`,
       filename,
       kind: 'simulator-log',
       metadata: {
@@ -192,8 +206,11 @@ async function uploadLogSnapshotAsync(
         source,
         scope: source === 'emulator-output' ? 'emulator-process' : 'device',
         originalSizeBytes,
-        omittedBytes: originalSizeBytes - size,
-        truncated: size < originalSizeBytes,
+        retainedSizeBytes,
+        compressedSizeBytes: size,
+        compression: 'gzip',
+        omittedBytes: originalSizeBytes - retainedSizeBytes,
+        truncated: retainedSizeBytes < originalSizeBytes,
       },
       size,
       openStream: () =>

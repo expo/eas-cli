@@ -1,9 +1,11 @@
 import { type BuildStepGlobalContext } from '@expo/steps';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { gunzipSync } from 'node:zlib';
 
 import {
   createCustomBuildContextMock,
@@ -80,16 +82,18 @@ it('does not close a reused descriptor after a snapshot read failure', async () 
   }
 });
 
-it('retries a capped log after an early storage error with real file streams and one artifact', async () => {
+it('retries a complete gzip of the capped raw log after an early storage error', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'android-log-upload-test-'));
-  const maximumBytes = 20 * 1024 * 1024;
-  const payload = Buffer.alloc(maximumBytes + 6, 'a');
+  const maximumBytes = 128 * 1024 * 1024;
+  // Incompressible input ensures compression can grow beyond the raw cap without
+  // truncating the gzip stream, and keeps the early HTTP failure meaningful.
+  const payload = randomBytes(maximumBytes + 6);
   await writeFile(path.join(directory, 'device-emulator.log'), payload);
   const global = {} as BuildStepGlobalContext;
   const logger = createMockLogger();
   registerAndroidEmulatorLogDirectory(global, directory);
   let requests = 0;
-  let receivedBytes = 0;
+  const receivedChunks: Buffer[] = [];
   const server = createServer((request, response) => {
     requests++;
     if (requests === 1) {
@@ -98,7 +102,7 @@ it('retries a capped log after an early storage error with real file streams and
       return;
     }
     request.on('data', chunk => {
-      receivedBytes += chunk.length;
+      receivedChunks.push(Buffer.from(chunk));
     });
     request.on('end', () => response.end());
   });
@@ -108,10 +112,10 @@ it('retries a capped log after an early storage error with real file streams and
     if (!address || typeof address === 'string') {
       throw new Error('Missing test server address');
     }
-    const createArtifactUploadSessionAsync = jest.fn().mockResolvedValue({
+    const createArtifactUploadSessionAsync = jest.fn(async ({ size }: { size: number }) => ({
       url: `http://127.0.0.1:${address.port}/log`,
-      headers: { 'Content-Length': String(maximumBytes) },
-    });
+      headers: { 'Content-Length': String(size) },
+    }));
     jest.mocked(requireDeviceRunSessionWorkerApi).mockReturnValue({
       createArtifactUploadSessionAsync,
     } as unknown as ReturnType<typeof requireDeviceRunSessionWorkerApi>);
@@ -127,14 +131,20 @@ it('retries a capped log after an early storage error with real file streams and
 
     expect(logger.warn).not.toHaveBeenCalled();
     expect(requests).toBe(2);
-    expect(receivedBytes).toBe(maximumBytes);
+    const received = Buffer.concat(receivedChunks);
+    expect(received.length).toBeGreaterThan(maximumBytes);
+    expect(gunzipSync(received).equals(payload.subarray(6))).toBe(true);
     expect(createArtifactUploadSessionAsync).toHaveBeenCalledTimes(1);
     expect(createArtifactUploadSessionAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: expect.stringContaining('truncated, 20 MiB retained'),
-        size: maximumBytes,
+        name: expect.stringContaining('truncated, 128 MiB retained'),
+        filename: 'device-emulator.log.gz',
+        size: received.length,
         metadata: expect.objectContaining({
           originalSizeBytes: payload.length,
+          retainedSizeBytes: maximumBytes,
+          compressedSizeBytes: received.length,
+          compression: 'gzip',
           omittedBytes: 6,
           truncated: true,
         }),
@@ -146,4 +156,4 @@ it('retries a capped log after an early storage error with real file streams and
     await new Promise<void>(resolve => server.close(() => resolve()));
     await rm(directory, { recursive: true, force: true });
   }
-});
+}, 30_000);
