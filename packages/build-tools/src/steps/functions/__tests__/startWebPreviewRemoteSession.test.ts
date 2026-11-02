@@ -12,9 +12,15 @@ import {
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
+import {
+  createWarmDeviceSessionServer,
+  runOnWarmIosSimulatorAsync,
+} from '../../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../../utils/warmIosSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
 jest.mock('../../utils/deviceSessionHost');
+jest.mock('../../utils/warmDeviceSessionHost');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: {
     resolveUdidAsync: jest.fn().mockResolvedValue('selected-ios-udid'),
@@ -87,6 +93,28 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
     stopAsync.mockResolvedValue(undefined);
+  });
+
+  it('adopts the claimed warm Simulator when the warm step runs', async () => {
+    const warmServer = { port: 3200 } as never;
+    const warm = { device: { udid: 'SELECTED-IOS-UDID', name: 'iPhone 17' } } as WarmIosSession;
+    jest.mocked(createWarmDeviceSessionServer).mockReturnValue(warmServer);
+    jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation((_claim, run) => run(warm));
+    const buildFunction = createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true });
+    expect(buildFunction.id).toBe('start_warm_serve_sim_remote_session');
+    await buildFunction.fn!(
+      { logger, global: { runtimePlatform: BuildRuntimePlatform.DARWIN } } as never,
+      { inputs: { device_identifier: { value: 'iPhone 17' } }, outputs: {}, env } as never
+    );
+    expect(runOnWarmIosSimulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ engine: 'serve-sim', requestedDevice: 'iPhone 17' }),
+      expect.any(Function)
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ iosSimulatorUdid: 'SELECTED-IOS-UDID' }),
+      warmServer
+    );
   });
 
   it('uses preview activity to reset the configured idle timeout', async () => {
