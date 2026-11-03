@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key><string>com.expo.vm-tools</string>
+    <key>LimitLoadToSessionType</key><string>Aqua</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><false/>
+    <key>ExitTimeOut</key><integer>150</integer>
+    <key>WorkingDirectory</key><string>__HOME__</string>
+    <key>StandardOutPath</key><string>__HOME__/Library/Logs/vm-tools.log</string>
+    <key>StandardErrorPath</key><string>__HOME__/Library/Logs/vm-tools.log</string>
+    <key>ProgramArguments</key>
+    <array><string>__NODE__</string><string>__HOME__/.expo/vm-tools/run</string><string>daemon</string></array>
+  </dict>
+</plist>
