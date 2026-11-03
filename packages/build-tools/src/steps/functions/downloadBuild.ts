@@ -35,9 +35,9 @@ import { retryOnNetworkFailureAsync } from '../../utils/retryOnNetworkFailure';
 import { pluralize } from '../../utils/strings';
 import {
   type DeviceRunSessionWorkerApi,
-  DeviceRunSessionWorkerApiError,
   getDeviceRunSessionWorkerApi,
 } from '../utils/deviceRunSessionWorkerApi';
+import { WorkerApiError } from '../utils/workerApi';
 
 const streamPipeline = promisify(stream.pipeline);
 
@@ -219,7 +219,7 @@ async function fetchDeviceRunSessionApplicationArchiveUrlAsync({
       {
         operation: 'download_build.session_build_lookup',
         signal,
-        isRetryable: error => error instanceof DeviceRunSessionWorkerApiError && error.isTransient,
+        isRetryable: error => error instanceof WorkerApiError && error.isTransient,
       }
     );
   } catch (err) {
