@@ -1,5 +1,6 @@
 import { TransformCallback, Writable } from 'node:stream';
 import { EnvironmentSecretType } from '@expo/eas-build-job';
+import { LoggerLevel } from '@expo/logger';
 import z from 'zod';
 
 jest.mock('@expo/build-tools', () => {
@@ -8,14 +9,12 @@ jest.mock('@expo/build-tools', () => {
 
   class MockRemoteLoggerStream extends Writable {
     public static readonly CompressionMethod = actual.RemoteLoggerStream.CompressionMethod;
-    public static readonly instances: MockRemoteLoggerStream[] = [];
 
     public readonly writes: any[] = [];
 
     constructor(...args: any[]) {
       super({ objectMode: true });
       void args;
-      MockRemoteLoggerStream.instances.push(this);
     }
 
     public async init(): Promise<void> {}
@@ -62,41 +61,37 @@ jest.mock('@expo/build-tools', () => {
   };
 });
 
-import config from '../config';
-import { createBuildLoggerWithSecretsFilter } from '../logger';
+type BuildToolsMock = {
+  HttpLogStream: { instances: Array<{ config: Record<string, unknown>; writes: any[] }> };
+};
+
+let config: typeof import('../config').default;
+let defaultLogger: typeof import('../logger').default;
+let createBuildLoggerWithSecretsFilter: typeof import('../logger').createBuildLoggerWithSecretsFilter;
+let HttpLogStream: BuildToolsMock['HttpLogStream'];
 
 async function waitForStreamFlush(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
 }
 
-const { HttpLogStream, RemoteLoggerStream } = jest.requireMock('@expo/build-tools') as {
-  HttpLogStream: {
-    instances: Array<{
-      config: Record<string, unknown>;
-      writes: any[];
-    }>;
-  };
-  RemoteLoggerStream: {
-    instances: Array<{
-      writes: any[];
-    }>;
-  };
-};
-
 describe('logger', () => {
-  const originalHttpBaseUrl = config.loggers.http.baseUrl;
-  const originalBuildId = config.buildId;
-  const originalGcsSignedUploadUrlForLogs = config.loggers.gcs.signedUploadUrlForLogs;
+  let stdoutRecords: any[];
+  let stdoutWrite: jest.SpyInstance;
 
   beforeEach(() => {
-    HttpLogStream.instances.length = 0;
-    RemoteLoggerStream.instances.length = 0;
+    jest.resetModules();
+    config = require('../config').default;
+    ({ default: defaultLogger, createBuildLoggerWithSecretsFilter } = require('../logger'));
+    ({ HttpLogStream } = jest.requireMock('@expo/build-tools'));
+    stdoutRecords = [];
+    stdoutWrite = jest.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+      stdoutRecords.push(JSON.parse(String(chunk)));
+      return true;
+    });
   });
 
   afterEach(() => {
-    config.loggers.http.baseUrl = originalHttpBaseUrl;
-    config.buildId = originalBuildId;
-    config.loggers.gcs.signedUploadUrlForLogs = originalGcsSignedUploadUrlForLogs;
+    stdoutWrite.mockRestore();
   });
 
   it('obfuscates secrets in logs', async () => {
@@ -181,6 +176,89 @@ describe('logger', () => {
     await waitForStreamFlush();
 
     expect(logs.map(log => log.msg)).toEqual(['token: ***************, prefix: ***']);
+  });
+
+  it('masks command output before writing it to process stdout', async () => {
+    const { logger, addBuildLogMask } = await createBuildLoggerWithSecretsFilter({});
+    addBuildLogMask('leased-token');
+
+    logger.child({ source: 'stdout' }).info('token: leased-token');
+    await waitForStreamFlush();
+
+    expect(stdoutRecords).toMatchObject([{ source: 'stdout', msg: 'token: ************' }]);
+  });
+
+  it('keeps the other streams flowing while stdout is not drained', async () => {
+    stdoutWrite.mockImplementation(() => false);
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
+    const logs: any[] = [];
+    outputStream.pipe(
+      new Writable({
+        objectMode: true,
+        write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+          logs.push(chunk);
+          callback(null, chunk);
+        },
+      })
+    );
+
+    const lineCount = 2 * outputStream.readableHighWaterMark;
+    for (let i = 0; i < lineCount; i++) {
+      logger.info(`line ${i}`);
+    }
+    await waitForStreamFlush();
+
+    expect(logs).toHaveLength(lineCount);
+  });
+
+  it("masks the worker's own records on stdout", async () => {
+    const { addBuildLogMask } = await createBuildLoggerWithSecretsFilter({});
+    addBuildLogMask('leased-token');
+
+    defaultLogger.error({ err: new Error('request with leased-token failed') }, 'Job failed');
+    await waitForStreamFlush();
+
+    expect(stdoutRecords).toMatchObject([
+      { msg: 'Job failed', err: { message: 'request with ************ failed' } },
+    ]);
+  });
+
+  it('writes a circular field as unserializable when no secret is registered and keeps going', async () => {
+    const { logger } = await createBuildLoggerWithSecretsFilter({});
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    logger.info({ circular }, 'first');
+    logger.info('second');
+    await waitForStreamFlush();
+
+    expect(stdoutRecords).toMatchObject([
+      { msg: 'first', circular: '[Unserializable]' },
+      { msg: 'second' },
+    ]);
+  });
+
+  it('keeps a deeply nested value when no secret is registered', async () => {
+    const { logger } = await createBuildLoggerWithSecretsFilter({});
+    let nested: any = { leaf: 'kept' };
+    for (let index = 0; index < 30; index++) {
+      nested = { nested };
+    }
+
+    logger.info({ nested }, 'deep');
+    await waitForStreamFlush();
+
+    expect(JSON.stringify(stdoutRecords[0].nested)).toContain('"leaf":"kept"');
+  });
+
+  it("copies the default logger's level when the build logger is created", async () => {
+    defaultLogger.level(LoggerLevel.DEBUG);
+    const { logger } = await createBuildLoggerWithSecretsFilter({});
+
+    logger.debug('debug line');
+    await waitForStreamFlush();
+
+    expect(stdoutRecords).toMatchObject([{ msg: 'debug line' }]);
   });
 
   describe('structured fields', () => {

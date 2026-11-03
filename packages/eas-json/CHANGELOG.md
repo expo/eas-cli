@@ -1,5 +1,13 @@
 # @expo/eas-json
 
+## 27.3.0
+
+No changes in this release.
+
+## 27.2.0
+
+No changes in this release.
+
 ## 27.1.0
 
 No changes in this release.

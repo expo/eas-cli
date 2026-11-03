@@ -47,7 +47,6 @@ function handleConnection(socket: WebSocket, service: BuildService): void {
 
   wsServer.onMessage((message: LauncherMessage.Message) => {
     try {
-      logger.debug({ message }, 'WebSocket message received');
       const { handled } = handleMessage(service, message) || { handled: false };
       if (!handled) {
         throw new Error(
