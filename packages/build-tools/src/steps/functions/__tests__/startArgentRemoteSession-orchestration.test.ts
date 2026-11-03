@@ -222,6 +222,61 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     }
   );
 
+  it('does not allocate Argent or a host after parent cancellation during Xcode selection', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    const controller = new AbortController();
+    const failure = new Error('parent step cancelled');
+    jest
+      .mocked(selectXcodeDeveloperDirectoryAsync)
+      .mockImplementationOnce(async () => controller.abort(failure));
+    await expect(
+      createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+          signal: controller.signal,
+        } as never
+      )
+    ).rejects.toBe(failure);
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves an aggregate host startup failure', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const failure = new AggregateError([
+      new Error('host failed'),
+      new Error('host cleanup failed'),
+    ]);
+    jest.mocked(startDeviceSessionHostAsync).mockRejectedValueOnce(failure);
+    await expect(
+      createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    ).rejects.toBe(failure);
+    expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
+  });
+
   it('reports late host cleanup failure after startup Stop', async () => {
     const ctx = {} as CustomBuildContext;
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
