@@ -1,5 +1,11 @@
 # eas-cli
 
+## 27.4.0
+
+### Patch Changes
+
+- Show the Expo Simulators hint after a successful build from November 10 instead of November 5. ([#4801](https://github.com/expo/eas-cli/pull/4801) by [@williamgrosset](https://github.com/williamgrosset))
+
 ## 27.3.0
 
 ### Patch Changes

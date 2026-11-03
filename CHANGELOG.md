@@ -2,6 +2,25 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.4.0](https://github.com/expo/eas-cli/releases/tag/v27.4.0) - 2026-11-03
+
+### 🎉 New features
+
+- [simulator-launcher][build-tools] Add `eas/start_warm_appium_remote_session`, which runs the Appium session on the warm Simulator, or starts cold. An `appium` claim stops the unused tools first, so WDA does not share the Simulator with the agent-device runner. ([#4735](https://github.com/expo/eas-cli/pull/4735) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add warm iOS session steps (`eas/start_warm_serve_sim_remote_session`, `eas/start_warm_agent_device_session`, `eas/start_warm_argent_remote_session`). They run the existing session on the warm Simulator, or start cold. `eas/start_agent_device_session` also accepts `install_app_path` and `launch_app_identifier`. ([#4723](https://github.com/expo/eas-cli/pull/4723) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Update the app version and build number from the final application archive, so the build shows the values the native build resolved. ([#3499](https://github.com/expo/eas-cli/pull/3499) by [@kadikraman](https://github.com/kadikraman))
+
+### 🐛 Bug fixes
+
+- [build-tools] Upload the final agent-device session artifacts before stopping the daemon, including sessions that reuse a warm Simulator. ([#4750](https://github.com/expo/eas-cli/pull/4750) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add internal helpers that claim the warm Simulator through the launcher and adopt it on the warm serve-sim. Skip the Expo Go install when the warm Simulator already has the same Expo Go version. ([#4724](https://github.com/expo/eas-cli/pull/4724) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Recover warm Simulator recordings when their MP4 exists before the shutdown manifest is ready. ([#4789](https://github.com/expo/eas-cli/pull/4789) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Show the Expo Simulators hint after a successful build from November 10 instead of November 5. ([#4801](https://github.com/expo/eas-cli/pull/4801) by [@williamgrosset](https://github.com/williamgrosset))
+
+### 🧹 Chores
+
+- [build-tools] Move iOS Simulator startup behind a shared session host contract. ([#4752](https://github.com/expo/eas-cli/pull/4752) by [@gwdp](https://github.com/gwdp))
+
 ## [27.3.0](https://github.com/expo/eas-cli/releases/tag/v27.3.0) - 2026-11-02
 
 ### 🎉 New features
