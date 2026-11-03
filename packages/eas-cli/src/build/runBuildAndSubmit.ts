@@ -143,6 +143,7 @@ export async function runBuildAndSubmitAsync({
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
+  builds?: MaybeBuildFragment[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
@@ -380,6 +381,7 @@ export async function runBuildAndSubmitAsync({
   return {
     buildIds: startedBuilds.map(({ build }) => build.id),
     buildProfiles,
+    builds,
   };
 }
 

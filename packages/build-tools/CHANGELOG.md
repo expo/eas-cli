@@ -1,5 +1,30 @@
 # @expo/build-tools
 
+## 27.3.0
+
+### Patch Changes
+
+- Stop warmup in the background for jobs that do not use the warm Simulator, so job setup does not wait for it. Before build-tools boots or clones a Simulator, it waits until the launcher's state file records that cleanup finished, and fails if cleanup does not finish in time. ([#4721](https://github.com/expo/eas-cli/pull/4721) by [@gwdp](https://github.com/gwdp))
+- Recover unhealthy device-session tunnels without changing their URLs and block further traffic when shutdown starts, even if ngrok cleanup times out. ([#4526](https://github.com/expo/eas-cli/pull/4526) by [@gwdp](https://github.com/gwdp))
+- Stop sending the SSH host when registering an SSH session. ([#4784](https://github.com/expo/eas-cli/pull/4784) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.2.0
+
+### Minor Changes
+
+- Use single-device previews when the session already has a valid device ID. ([#4733](https://github.com/expo/eas-cli/pull/4733) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Explain missing background task identifiers reported by App Store Connect. ([#3465](https://github.com/expo/eas-cli/pull/3465) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain App Store Connect NOT_AUTHORIZED responses in the shared API client. ([#3462](https://github.com/expo/eas-cli/pull/3462) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain App Store Connect UNEXPECTED_ERROR responses in the shared API client. ([#3467](https://github.com/expo/eas-cli/pull/3467) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain missing app icons reported by App Store Connect, including codes 90022 and 90023, while preserving Apple’s validation details. ([#3466](https://github.com/expo/eas-cli/pull/3466) by [@sjchmiela](https://github.com/sjchmiela))
+- List failed Google Play commit attempts in order, including network failures, when the outcome is uncertain. ([#4660](https://github.com/expo/eas-cli/pull/4660) by [@sjchmiela](https://github.com/sjchmiela))
+- Fix a five-minute cleanup delay when a device session is canceled during startup and its screen recorder fails before connecting. ([#4761](https://github.com/expo/eas-cli/pull/4761) by [@gwdp](https://github.com/gwdp))
+- Handle TURN requests for a stopped device session without reporting a warning. ([#4762](https://github.com/expo/eas-cli/pull/4762) by [@gwdp](https://github.com/gwdp))
+- Preserve indented and incomplete Xcode compiler errors in formatted build logs, including the final diagnostic when logging stops. ([#4365](https://github.com/expo/eas-cli/pull/4365) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## 27.1.0
 
 ### Patch Changes

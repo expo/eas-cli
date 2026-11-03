@@ -6,6 +6,7 @@ import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
@@ -54,6 +55,7 @@ const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnTh
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
   // Only the emulator logcat folder: the Appium step writes into its own temp folder.
@@ -145,7 +147,11 @@ describe.each([
 
   it('holds the host until session completion', async () => {
     await runAsync();
-    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test', authtoken: 'token' });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ preview: { baseDomain: 'example.test', authtoken: 'token' } })
+    );
+    expect(openPreview).toHaveBeenCalledWith();
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
@@ -350,6 +356,10 @@ describe('Appium ffmpeg setup', () => {
   }
 
   function holdFfmpegInstall({ appiumError }: { appiumError?: Error } = {}) {
+    let markStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      markStarted = resolve;
+    });
     let finish!: (outcome: 'installed' | 'failed') => void;
     const install = new Promise((resolve, reject) => {
       finish = outcome =>
@@ -360,25 +370,26 @@ describe('Appium ffmpeg setup', () => {
         return Promise.reject(new Error('ffmpeg missing'));
       }
       if (args.includes('install') && args.includes('ffmpeg')) {
+        markStarted();
         return install;
       }
       return command === 'npm' && appiumError
         ? Promise.reject(appiumError)
         : Promise.resolve({ stdout: '{}' });
     }) as never);
-    return finish;
+    return { finish, started };
   }
 
   it.each(['installed', 'failed'] as const)(
     'starts Appium after the ffmpeg install settles (%s)',
     async outcome => {
-      const finishFfmpegInstall = holdFfmpegInstall();
+      const { finish, started } = holdFfmpegInstall();
 
       const run = runAppiumAsync();
-      await new Promise(resolve => setImmediate(resolve));
+      await started;
       expect(spawnDetached).not.toHaveBeenCalled();
 
-      finishFfmpegInstall(outcome);
+      finish(outcome);
       await run;
       expect(spawnDetached).toHaveBeenCalledTimes(1);
     }
@@ -386,16 +397,16 @@ describe('Appium ffmpeg setup', () => {
 
   it('waits for the ffmpeg install before failing on an Appium install error', async () => {
     const appiumError = new Error('npm failed');
-    const finishFfmpegInstall = holdFfmpegInstall({ appiumError });
+    const { finish, started } = holdFfmpegInstall({ appiumError });
 
     let settled = false;
     const run = runAppiumAsync().finally(() => {
       settled = true;
     });
-    await new Promise(resolve => setImmediate(resolve));
+    await started;
     expect(settled).toBe(false);
 
-    finishFfmpegInstall('installed');
+    finish('installed');
     await expect(run).rejects.toBe(appiumError);
   });
 });

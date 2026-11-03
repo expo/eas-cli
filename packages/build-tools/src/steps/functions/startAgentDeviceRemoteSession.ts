@@ -9,6 +9,8 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadRemoteSessionConfigWithLocalEgressAsync } from '../utils/localEgressSession';
 import { type DeviceSessionHost, startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
+import { createWarmDeviceSessionServer } from '../utils/warmDeviceSessionHost';
+import { type WarmIosSession } from '../utils/warmIosSession';
 import { Sentry } from '../../sentry';
 import {
   PackageManager,
@@ -98,6 +100,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors,
     corsOrigins,
     tasks,
+    warm,
     device,
   }: {
     env: BuildStepEnv;
@@ -114,6 +117,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     frameAncestors?: string[];
     corsOrigins?: string[];
     tasks: StartupTasks;
+    /** A claimed warm Simulator: adopt it and use its agent-device daemon. */
+    warm?: WarmIosSession;
     device:
       | {
           booted: Promise<unknown>;
@@ -137,6 +142,9 @@ export async function runAgentDeviceRemoteSessionAsync(
   let agentDeviceTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
   let sessionHost: DeviceSessionHost | undefined;
   let eventCollection: Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>> | undefined;
+  let artifactUploads: Promise<void> | undefined;
+  // Ends periodic polling; the poller then runs one bounded final inventory and upload drain.
+  const stopArtifactPolling = new AbortController();
   let sessionFailed = false;
   const daemonSecrets = [ngrokAuthtoken];
   const hostBootedDevice = 'iosSimulatorUdid' in device ? device : undefined;
@@ -144,7 +152,70 @@ export async function runAgentDeviceRemoteSessionAsync(
 
   // Each task stores what it started, so the teardown below can stop it even when
   // another task failed first.
+  const sessionHostStartup = tasks.run('session host', async taskLogger => {
+    if (externallyBootedDevice) {
+      await tasks.untilAborted(externallyBootedDevice.booted);
+    }
+    tasks.signal.throwIfAborted();
+    sessionHost = await startDeviceSessionHostAsync(
+      ctx,
+      {
+        separateLogPhase: true,
+        runtimePlatform,
+        env,
+        logger: taskLogger,
+        timeoutMs: STARTUP_TIMEOUT_MS,
+        preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
+        disableShare,
+        privatePreviewUrl,
+        frameAncestors,
+        corsOrigins,
+        signal: tasks.signal,
+        onStartupError: tasks.abort,
+        networkCapture: capture.networkCapture,
+        networkCaptureFields: capture.networkCaptureFields,
+        iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
+        bootEnv: hostBootedDevice?.bootEnv,
+        application: hostBootedDevice?.application,
+      },
+      ...(warm ? [createWarmDeviceSessionServer(ctx, taskLogger, warm)] : [])
+    );
+    tasks.signal.throwIfAborted();
+    const webPreview = await sessionHost.openPreviewAsync();
+    tasks.signal.throwIfAborted();
+    taskLogger.info(
+      webPreview.sharePageUrl
+        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
+        : 'Private preview URL unavailable for this session.'
+    );
+    return webPreview;
+  });
   const agentDeviceStartup = tasks.run('agent-device daemon', async taskLogger => {
+    let daemonInfo: { port: number; token: string };
+    if (warm) {
+      // Adoption prepares the launcher's daemon for the claimed device.
+      await tasks.untilAborted(sessionHostStartup);
+      if (!warm.tools) {
+        throw new Error('The warm agent-device daemon was not prepared.');
+      }
+      daemonInfo = warm.tools;
+    } else {
+      daemonInfo = await startDaemonAsync(taskLogger);
+    }
+    tasks.signal.throwIfAborted();
+    agentDeviceTunnel = await startNgrokTunnelAsync({
+      port: daemonInfo.port,
+      subdomainPrefix: 'agent-device',
+      baseDomain: ngrokTunnelDomain,
+      authtoken: ngrokAuthtoken,
+      healthCheck: { path: '/health' },
+      logger: taskLogger,
+    });
+    tasks.signal.throwIfAborted();
+    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
+    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
+  });
+  async function startDaemonAsync(taskLogger: bunyan) {
     taskLogger.info('Launching agent-device daemon.');
     daemonProcess = await startAgentDeviceDaemonAsync({
       packageVersion,
@@ -160,55 +231,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     const daemonInfo = await tasks.untilAborted(waitForDaemonInfoAsync({ daemonProcess }));
     daemonSecrets.push(daemonInfo.token);
     taskLogger.info(`Daemon is listening on port ${daemonInfo.port}; loaded auth token.`);
-
-    tasks.signal.throwIfAborted();
-    agentDeviceTunnel = await startNgrokTunnelAsync({
-      port: daemonInfo.port,
-      subdomainPrefix: 'agent-device',
-      baseDomain: ngrokTunnelDomain,
-      authtoken: ngrokAuthtoken,
-      logger: taskLogger,
-    });
-    tasks.signal.throwIfAborted();
-    taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
-    return { ...daemonInfo, remoteSessionUrl: agentDeviceTunnel.url };
-  });
-  const sessionHostStartup = tasks.run('session host', async taskLogger => {
-    if (externallyBootedDevice) {
-      await tasks.untilAborted(externallyBootedDevice.booted);
-    }
-    tasks.signal.throwIfAborted();
-    sessionHost = await startDeviceSessionHostAsync(ctx, {
-      separateLogPhase: true,
-      runtimePlatform,
-      env,
-      logger: taskLogger,
-      timeoutMs: STARTUP_TIMEOUT_MS,
-      disableShare,
-      privatePreviewUrl,
-      frameAncestors,
-      corsOrigins,
-      signal: tasks.signal,
-      onStartupError: tasks.abort,
-      networkCapture: capture.networkCapture,
-      networkCaptureFields: capture.networkCaptureFields,
-      iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
-      bootEnv: hostBootedDevice?.bootEnv,
-      application: hostBootedDevice?.application,
-    });
-    tasks.signal.throwIfAborted();
-    const webPreview = await sessionHost.openPreviewAsync({
-      baseDomain: ngrokTunnelDomain,
-      authtoken: ngrokAuthtoken,
-    });
-    tasks.signal.throwIfAborted();
-    taskLogger.info(
-      webPreview.sharePageUrl
-        ? `Web preview URL: ${webPreview.sharePageUrl} (server: ${webPreview.apiUrl}).`
-        : 'Private preview URL unavailable for this session.'
-    );
-    return webPreview;
-  });
+    return daemonInfo;
+  }
   const deviceReady = externallyBootedDevice?.ready;
 
   try {
@@ -243,17 +267,21 @@ export async function runAgentDeviceRemoteSessionAsync(
       return;
     }
     tasks.signal.throwIfAborted();
-    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+    artifactUploads = pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId,
       daemonUrl: `http://127.0.0.1:${daemonPort}`,
       daemonToken,
       logger,
+      signal,
+      stopPollingSignal: stopArtifactPolling.signal,
     });
+    // Attach a handler at once; the teardown still awaits and reports a rejection.
+    void artifactUploads.catch(() => {});
 
     eventCollection = await startAgentDeviceEventCollectionAsync({
       ctx,
       deviceRunSessionId,
-      stateDir: AGENT_DEVICE_STATE_DIR,
+      stateDir: warm?.agentDeviceStateDir ?? AGENT_DEVICE_STATE_DIR,
       logger,
     });
 
@@ -281,29 +309,41 @@ export async function runAgentDeviceRemoteSessionAsync(
     // everything that was started.
     await Promise.allSettled([agentDeviceStartup, sessionHostStartup, deviceReady]);
     const startedDaemon = daemonProcess;
+    const toolTeardown = (async () => {
+      try {
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+      } finally {
+        try {
+          // The final inventory reads from the daemon, so it finishes before the daemon stops.
+          stopArtifactPolling.abort();
+          await artifactUploads;
+        } finally {
+          await startedDaemon?.stopAsync();
+        }
+      }
+    })();
     await finishRemoteSessionAsync({
       logger,
       sessionFailed,
       teardown: [
         ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        ['agent-device daemon', toolTeardown],
         [
-          'agent-device daemon',
-          startedDaemon &&
-            (async () => {
-              try {
-                if (eventCollection) {
-                  await stopAgentDeviceEventCollectionSafelyAsync({
-                    eventCollection,
-                    deviceRunSessionId,
-                    logger,
-                  });
-                }
-              } finally {
-                await startedDaemon.stopAsync();
-              }
-            })(),
+          'session host',
+          (async () => {
+            if (warm) {
+              // The warm host owns the daemon too; keep it alive through the final downloads.
+              await Promise.allSettled([toolTeardown]);
+            }
+            await sessionHost?.finishAsync();
+          })(),
         ],
-        ['session host', sessionHost?.finishAsync()],
       ],
     });
   }
