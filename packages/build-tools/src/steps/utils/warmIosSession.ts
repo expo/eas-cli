@@ -66,9 +66,10 @@ export async function tryClaimWarmIosSessionAsync({
     if (await readLocalEgressHandoffAsync()) {
       throw new Error('A local egress session needs a cold start.');
     }
+    logger.info('Waiting for the warm Simulator launcher.');
     const claimArgs = ['claim', engine, ...(requestedDevice ? [requestedDevice] : [])];
     const claim = ClaimSchema.parse(
-      JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal, logger }))
+      JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal }))
     );
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     let stopping: Promise<void> | undefined;
