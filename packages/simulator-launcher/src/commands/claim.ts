@@ -1,5 +1,6 @@
 import {
   ClaimInputSchema,
+  type LauncherState,
   WarmSessionInfoSchema,
   updateLauncherStateAsync,
   waitForLauncherStateAsync,
@@ -16,9 +17,52 @@ export async function claimAsync(
       `Invalid Simulator session request. Choose ${ClaimInputSchema.shape.engine.options.join(', ')} and an optional device name or UDID.`
     );
   }
+  // Startup and handoff share the worker's existing claim timeout.
+  const deadline = Date.now() + 420_000;
+  let controller: LauncherState | undefined;
+  const ready = await waitForLauncherStateAsync(
+    bootUuid,
+    state => {
+      if (state?.status === 'stopping' || state?.status === 'disabled' || state?.error) {
+        throw new Error(
+          `Simulator preparation was interrupted; cleanup may still be running.${state.error ? ` ${state.error}` : ''}`
+        );
+      }
+      if (
+        !state ||
+        (state.status !== 'starting' && state.status !== 'ready') ||
+        state.controllerPid === undefined
+      ) {
+        throw new Error('No warm Simulator session is available to claim on this VM.');
+      }
+      if (
+        controller &&
+        (state.controllerPid !== controller.controllerPid ||
+          (controller.controllerStartTime !== undefined &&
+            state.controllerStartTime !== controller.controllerStartTime))
+      ) {
+        throw new Error('The Simulator launcher returned a different session or engine.');
+      }
+      controller = state;
+      return state.status === 'ready';
+    },
+    deadline - Date.now()
+  );
+  const prepared = WarmSessionInfoSchema.parse(ready);
   const acquired = await updateLauncherStateAsync(bootUuid, state => {
     if (state?.status !== 'ready') {
       throw new Error('No warm Simulator session is available to claim on this VM.');
+    }
+    if (
+      state.controllerPid !== prepared.controllerPid ||
+      state.controllerStartTime !== prepared.controllerStartTime
+    ) {
+      throw new Error('The Simulator launcher returned a different session or engine.');
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        'Timed out waiting for the Simulator launcher; cleanup may still be running.'
+      );
     }
     WarmSessionInfoSchema.parse(state);
     return { ...state, ...input.data, status: 'claiming' };
@@ -40,7 +84,7 @@ export async function claimAsync(
       }
       return state.status === 'claimed';
     },
-    420_000
+    Math.max(0, deadline - Date.now())
   );
   const { device } = WarmSessionInfoSchema.parse(claimed);
   if (
