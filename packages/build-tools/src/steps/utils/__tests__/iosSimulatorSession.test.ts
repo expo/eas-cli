@@ -155,6 +155,53 @@ describe('serve-sim Simulator preparation', () => {
     }
   );
 
+  it('preserves the Stop reason when Simulator shutdown rejects after cancellation', async () => {
+    const controller = new AbortController();
+    const stopped = new Error('Session stopped');
+    const wrapped = new Error('Shutdown process aborted', { cause: stopped });
+    let shutdownEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      shutdownEntered = resolve;
+    });
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
+    mockedUtils.getDeviceAsync.mockResolvedValue({ state: 'Booted' } as never);
+    mockedSpawn.mockImplementationOnce((_command, _args, options) => {
+      shutdownEntered();
+      return new Promise((_resolve, reject) =>
+        options!.signal!.addEventListener('abort', () => reject(wrapped), { once: true })
+      ) as ReturnType<typeof spawn>;
+    });
+    const running = resolveIosSessionStartupAsync({
+      ...hostOptions,
+      bootSimulator: true,
+      signal: controller.signal,
+    });
+    running.catch(() => {});
+    await entered;
+    controller.abort(stopped);
+    await expect(running).rejects.toBe(stopped);
+    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves a genuine Simulator shutdown failure', async () => {
+    const failure = new Error('Could not shut down Simulator');
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
+    mockedUtils.getDeviceAsync.mockResolvedValue({ state: 'Booted' } as never);
+    mockedSpawn.mockRejectedValueOnce(failure);
+    await expect(
+      resolveIosSessionStartupAsync({
+        ...hostOptions,
+        bootSimulator: true,
+        signal: new AbortController().signal,
+      })
+    ).rejects.toBe(failure);
+    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
+  });
+
   it('resolves an explicit Simulator without booting or configuring it', async () => {
     const startup = await resolveIosSessionStartupAsync({
       ...hostOptions,
