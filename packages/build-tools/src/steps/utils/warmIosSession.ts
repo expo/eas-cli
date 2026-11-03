@@ -68,7 +68,7 @@ export async function tryClaimWarmIosSessionAsync({
     }
     const claimArgs = ['claim', engine, ...(requestedDevice ? [requestedDevice] : [])];
     const claim = ClaimSchema.parse(
-      JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal }))
+      JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal, logger }))
     );
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     let stopping: Promise<void> | undefined;

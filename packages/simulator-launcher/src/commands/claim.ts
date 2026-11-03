@@ -18,7 +18,9 @@ export async function claimAsync(
     );
   }
   // Startup and handoff share the worker's existing claim timeout.
-  const deadline = Date.now() + 420_000;
+  const startedAt = Date.now();
+  const deadline = startedAt + 420_000;
+  let lastWaitLogAt: number | undefined;
   let controller: LauncherState | undefined;
   const ready = await waitForLauncherStateAsync(
     bootUuid,
@@ -44,6 +46,15 @@ export async function claimAsync(
         throw new Error('The Simulator launcher returned a different session or engine.');
       }
       controller = state;
+      if (state.status === 'starting') {
+        const now = Date.now();
+        if (lastWaitLogAt === undefined || now - lastWaitLogAt >= 30_000) {
+          process.stderr.write(
+            `Warm Simulator is still starting; waiting (${Math.floor((now - startedAt) / 1_000)}s elapsed, 420s limit).\n`
+          );
+          lastWaitLogAt = now;
+        }
+      }
       return state.status === 'ready';
     },
     deadline - Date.now()
@@ -67,6 +78,11 @@ export async function claimAsync(
     WarmSessionInfoSchema.parse(state);
     return { ...state, ...input.data, status: 'claiming' };
   });
+  if (lastWaitLogAt !== undefined) {
+    process.stderr.write(
+      `Warm Simulator became ready after waiting ${Math.floor((Date.now() - startedAt) / 1_000)}s.\n`
+    );
+  }
   const claimed = await waitForLauncherStateAsync(
     bootUuid,
     state => {

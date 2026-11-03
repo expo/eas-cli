@@ -47,6 +47,7 @@ it('claims the requested device and returns the launcher record', async () => {
   expect(runSimulatorLauncherAsync).toHaveBeenCalledWith(['claim', 'serve-sim', 'iPhone 17'], {
     env,
     signal: undefined,
+    logger,
   });
   expect(session).toMatchObject({
     device: claim.device,

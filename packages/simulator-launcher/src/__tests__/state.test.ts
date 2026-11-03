@@ -48,6 +48,7 @@ const remap = (file: unknown): unknown =>
     : file;
 
 beforeEach(async () => {
+  jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'launcher-state-'));
   jest.spyOn(os, 'homedir').mockReturnValue(root);
   await fs.mkdir(path.join(root, 'control'));
@@ -194,6 +195,7 @@ test('two job claims acquire only one ready session and the result includes its 
   await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
   await Promise.all(claims);
   expect(results.filter(value => value === 0)).toHaveLength(1);
+  expect(process.stderr.write).not.toHaveBeenCalled();
   expect(JSON.parse(String(output.mock.calls[0][0]))).toMatchObject({
     ...info,
     status: 'claimed',
@@ -266,6 +268,45 @@ test('two claims waiting for startup still acquire only one session', async () =
   const results = await Promise.all([first.result, second.result]);
   expect(results.filter(value => value === 0)).toHaveLength(1);
   expect(results.filter(value => value instanceof Error)).toHaveLength(1);
+});
+
+test('startup wait progress is throttled and stdout remains the claim JSON', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  const progress = jest.mocked(process.stderr.write);
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: info.controllerPid,
+  }));
+  const { result } = await beginStartingClaimAsync();
+  expect(progress.mock.calls).toEqual([
+    ['Warm Simulator is still starting; waiting (0s elapsed, 420s limit).\n'],
+  ]);
+  const reads = jest.mocked(fs.readFile).mock.calls.length;
+  now = 10_000;
+  await until(() => jest.mocked(fs.readFile).mock.calls.length >= reads + 2);
+  expect(progress).toHaveBeenCalledTimes(1);
+  expect(output).not.toHaveBeenCalled();
+  now = 30_000;
+  await until(() => progress.mock.calls.length === 2);
+  expect(progress.mock.calls[1]).toEqual([
+    'Warm Simulator is still starting; waiting (30s elapsed, 420s limit).\n',
+  ]);
+  now = 31_000;
+  await updateLauncherStateAsync(boot, state => ({ ...state!, ...info, status: 'ready' }));
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
+  expect(await result).toBe(0);
+  expect(progress.mock.calls).toHaveLength(3);
+  expect(progress.mock.calls[2]).toEqual(['Warm Simulator became ready after waiting 31s.\n']);
+  expect(output).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(output.mock.calls[0][0]))).toMatchObject({
+    status: 'claimed',
+    server: { token: info.server.token },
+  });
+  expect(progress.mock.calls.flat().join('')).not.toContain(info.server.token);
 });
 
 test.each(['stopping', 'disabled'] as const)(

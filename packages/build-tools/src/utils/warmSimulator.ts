@@ -1,6 +1,8 @@
+import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 
 import {
   PackageManager,
@@ -10,11 +12,11 @@ import {
 
 /**
  * Runs a Simulator launcher command with the version that `start` recorded, which warmup cached.
- * The output can contain credentials, so it is returned and never logged.
+ * Stdout can contain credentials, so only fixed startup progress from stderr is logged.
  */
 export async function runSimulatorLauncherAsync(
   launcherArgs: string[],
-  { env, signal }: { env: BuildStepEnv; signal?: AbortSignal }
+  { env, signal, logger }: { env: BuildStepEnv; signal?: AbortSignal; logger?: bunyan }
 ): Promise<string> {
   const version = await fs
     .readFile('/tmp/expo-simulator-startup.json', 'utf8')
@@ -27,7 +29,20 @@ export async function runSimulatorLauncherAsync(
       ...launcherArgs,
     ]
   );
-  const { stdout } = await spawn(command, args, { env, stdio: 'pipe', signal, timeout: 425_000 });
+  const child = spawn(command, args, { env, stdio: 'pipe', signal, timeout: 425_000 });
+  if (logger && child.child?.stderr) {
+    // Read complete lines: stream chunks can split a progress message anywhere.
+    createInterface({ input: child.child.stderr }).on('line', line => {
+      if (
+        /^Warm Simulator (?:is still starting; waiting \(\d+s elapsed, 420s limit\)|became ready after waiting \d+s)\.$/.test(
+          line
+        )
+      ) {
+        logger.info(line);
+      }
+    });
+  }
+  const { stdout } = await child;
   return stdout;
 }
 
