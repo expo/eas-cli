@@ -25,6 +25,7 @@ import { type ServeSimApplicationOptions } from '../utils/remoteDeviceRunSession
 import { type StartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
+  DeviceRunSessionStoppedError,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -101,6 +102,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     corsOrigins,
     tasks,
     warm,
+    onStarted,
     device,
   }: {
     env: BuildStepEnv;
@@ -119,6 +121,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     tasks: StartupTasks;
     /** A claimed warm Simulator: adopt it and use its agent-device daemon. */
     warm?: WarmIosSession;
+    onStarted?: () => Promise<void>;
     device:
       | {
           booted: Promise<unknown>;
@@ -251,7 +254,7 @@ export async function runAgentDeviceRemoteSessionAsync(
 
     const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
       env,
-      signal,
+      signal: tasks.signal,
       ctx,
       deviceRunSessionId,
       remoteConfig: {
@@ -266,6 +269,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     if (sessionStart === 'stopped') {
       return;
     }
+    await onStarted?.();
     tasks.signal.throwIfAborted();
     artifactUploads = pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId,
@@ -301,13 +305,23 @@ export async function runAgentDeviceRemoteSessionAsync(
           : undefined,
     });
   } catch (error) {
+    if (
+      tasks.signal.reason instanceof DeviceRunSessionStoppedError &&
+      !(error instanceof AggregateError)
+    ) {
+      throw tasks.signal.reason;
+    }
     sessionFailed = true;
     throw error;
   } finally {
     // Promise.all rejects on the first failure while other tasks can still be starting.
     // They stop at their next abort check. Wait for all of them, so the teardown sees
     // everything that was started.
-    await Promise.allSettled([agentDeviceStartup, sessionHostStartup, deviceReady]);
+    const startupResults = await Promise.allSettled([
+      agentDeviceStartup,
+      sessionHostStartup,
+      deviceReady,
+    ]);
     const startedDaemon = daemonProcess;
     const toolTeardown = (async () => {
       try {
@@ -332,6 +346,11 @@ export async function runAgentDeviceRemoteSessionAsync(
       logger,
       sessionFailed,
       teardown: [
+        ...startupResults.flatMap((result): [string, Promise<unknown>][] =>
+          result.status === 'rejected' && result.reason instanceof AggregateError
+            ? [['startup cleanup', Promise.reject(result.reason)]]
+            : []
+        ),
         ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
         ['agent-device daemon', toolTeardown],
         [
