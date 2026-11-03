@@ -1,17 +1,27 @@
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import * as fs from 'fs-extra';
-import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { AppPlatform, DeviceRunSessionStatus } from '../../graphql/generated';
-import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import {
+  assertControlKeepAliveSupported,
+  borrowControlConnectionAsync,
+  createControlConnectionIdentityAsync,
+  openControlConnectionAsync,
+} from '../../simulator/controlConnection';
+import { ControlSession } from '../../simulator/controlConnectionProtocol';
+import { loadControlSessionAsync } from '../../simulator/controlSession';
+import {
+  ControlAction,
+  executeControlActionAsync,
+  parseControlActionOutput,
+  prepareControlActionAsync,
+} from '../../simulator/controlActions';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -21,26 +31,31 @@ import {
   HostActionCatalog,
   HostActionCatalogEntry,
   HostActionConnection,
-  assertHostActionOutputAsync,
   buildHostActionParams,
   connectHostActionsAsync,
   fetchHostActionCatalogAsync,
+  fetchHostActionDeviceAsync,
   formatHostActionUsage,
-  saveHostActionOutputAsync,
-  uploadFileAsync,
 } from '../../simulator/hostActions';
-import { PreviewApiAccess, getPreviewApiAccess } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   getSimulatorCommandAliases,
   getSimulatorCommandHiddenAliases,
 } from '../../simulator/commandAliases';
+import { formatMilliseconds } from '../../utils/timer';
 
 export default class SimulatorControl extends EasCommand {
   static override aliases = getSimulatorCommandAliases('control');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('control');
-  static override description =
-    '[EXPERIMENTAL] run a serve-sim action on a remote iOS simulator session on EAS. Run without an action to list the actions the session supports. To save a screenshot locally, run `eas simulator:control screenshot.capture --output ./screenshot.png`';
+  static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
+
+Run without an action to list available actions. Use <action> --help for usage.
+
+Use --keep-alive to reuse the connection across commands, or prepare it with simulator:control:connection open. Connections close after 120 seconds idle by default; use --idle-timeout to change the timeout in seconds.
+
+To save a screenshot locally, run \`eas simulator:control screenshot.capture --output ./screenshot.png\`.
+
+Existing output files are overwritten. When saving to a directory, an existing file with the generated name causes the action to fail.`;
   static override strict = false;
 
   static override examples = [
@@ -58,24 +73,33 @@ export default class SimulatorControl extends EasCommand {
   static override args = {
     action: Args.string({
       description:
-        'Action to run, followed by its values in order or as name=value. Omit to list the actions. Put -- before values that start with --.',
+        'Action name, followed by values or name=value pairs. Omit to list actions. Use -- before values starting with --.',
     }),
   };
 
   static override flags = {
     help: Flags.boolean({
       char: 'h',
-      description: 'Show command help, or usage for the selected action from the session.',
+      description: 'Show help for this command or the selected action',
     }),
     id: Flags.string({
       description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     list: Flags.boolean({
-      description: 'List the actions the session supports.',
+      description: 'List available actions',
     }),
     output: Flags.string({
+      description: 'Local file or existing directory for saved output',
+    }),
+    'keep-alive': Flags.boolean({
       description:
-        'Local path to save a returned file. For screenshots, --output ./screenshot.png sets the local filename; omit it to save with a generated filename in the current directory.',
+        'Keep the control connection available for subsequent commands (macOS and Linux)',
+    }),
+    'idle-timeout': Flags.integer({
+      min: 1,
+      max: 86_400,
+      description: 'Seconds of idle time before closing the kept-alive connection (default: 120)',
+      dependsOn: ['keep-alive'],
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -95,11 +119,19 @@ export default class SimulatorControl extends EasCommand {
     if (flags.id === '') {
       throw new Error('--id needs a simulator session ID.');
     }
+    const idleTimeoutMs =
+      flags['idle-timeout'] !== undefined ? flags['idle-timeout'] * 1_000 : undefined;
+    if (flags['keep-alive']) {
+      assertControlKeepAliveSupported();
+    }
     const action = flags.list && !flags.help ? undefined : args.action;
+    if (!action && flags.output) {
+      throw new Error('--output requires an action.');
+    }
 
     const {
       projectDir,
-      loggedIn: { graphqlClient },
+      loggedIn: { graphqlClient, authenticationInfo },
     } = await this.getContextAsync(SimulatorControl, {
       nonInteractive,
     });
@@ -116,11 +148,54 @@ export default class SimulatorControl extends EasCommand {
     let connection: HostActionConnection | undefined;
     try {
       let catalog: HostActionCatalog;
+      let controlSession: ControlSession;
       try {
-        const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, sessionId);
-        connection = await connectHostActionsAsync(assertControllableSession(session));
-        catalog = await fetchHostActionCatalogAsync(connection);
-        spinner.succeed(`Connected to simulator session ${sessionId}`);
+        const identity = await createControlConnectionIdentityAsync(
+          sessionId,
+          projectDir,
+          authenticationInfo
+        );
+        if (flags['keep-alive']) {
+          await openControlConnectionAsync(
+            identity,
+            () => loadControlSessionAsync(graphqlClient, sessionId),
+            idleTimeoutMs
+          );
+        }
+        const borrowed = await borrowControlConnectionAsync(identity);
+        if (flags['keep-alive'] && !borrowed) {
+          throw new Error(
+            'The control helper closed before it could be used. Open the connection again.'
+          );
+        }
+        if (borrowed) {
+          connection = borrowed.connection;
+          catalog = borrowed.catalog;
+          controlSession = borrowed.info.session;
+          spinner.stop();
+          if (flags['keep-alive'] && !action && !flags.list && !flags.help) {
+            if (jsonFlag) {
+              printJsonOnlyOutput({ connected: true, id: sessionId, connection: borrowed.info });
+            } else {
+              Log.succeed(
+                `Control connection ready · idle timeout: ${formatMilliseconds(borrowed.info.idleTimeoutMs)}`
+              );
+            }
+            return;
+          }
+        } else {
+          const { access, session } = await loadControlSessionAsync(graphqlClient, sessionId);
+          connection = await connectHostActionsAsync(access);
+          catalog = await fetchHostActionCatalogAsync(connection);
+          controlSession = {
+            ...session,
+            device:
+              jsonFlag && Boolean(action) && !flags.list && !flags.help
+                ? await fetchHostActionDeviceAsync(access, connection.udid)
+                : { udid: connection.udid },
+          };
+          spinner.succeed(`Connected to simulator session ${sessionId}`);
+        }
       } catch (err) {
         spinner.fail(`Failed to connect to simulator session ${sessionId}`);
         throw err;
@@ -129,23 +204,27 @@ export default class SimulatorControl extends EasCommand {
         this.printCatalog(catalog, jsonFlag);
         return;
       }
-      const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
-      if (!entry) {
-        throw new Error(
-          `Unknown simulator action "${action}". Run \`eas simulator:control\` to see the actions.`
-        );
-      }
-      if (flags.help) {
+      if (flags.help && action) {
+        const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
+        if (!entry) {
+          throw new Error(
+            `Unknown simulator action "${action}". Run \`eas simulator:control --list\` to see the actions.`
+          );
+        }
         this.printActionHelp(action, entry, jsonFlag);
         return;
       }
-      await this.runActionAsync(connection, entry, {
-        sessionId,
-        action,
-        values: argv.slice(1).map(String),
-        outputPath: flags.output,
-        jsonFlag,
-      });
+      const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
+      await this.runActionAsync(
+        connection,
+        catalog,
+        {
+          action,
+          params: entry ? buildHostActionParams(action, entry, argv.slice(1).map(String)) : {},
+          outputPath: flags.output,
+        },
+        { session: controlSession, jsonFlag }
+      );
     } finally {
       connection?.close();
     }
@@ -217,61 +296,29 @@ export default class SimulatorControl extends EasCommand {
 
   private async runActionAsync(
     connection: HostActionConnection,
-    entry: HostActionCatalogEntry,
-    {
-      sessionId,
-      action,
-      values,
-      outputPath,
-      jsonFlag,
-    }: {
-      sessionId: string;
-      action: string;
-      values: string[];
-      outputPath: string | undefined;
-      jsonFlag: boolean;
-    }
+    catalog: HostActionCatalog,
+    selection: ControlAction,
+    { session, jsonFlag }: { session: ControlSession; jsonFlag: boolean }
   ): Promise<void> {
-    const params = buildHostActionParams(action, entry, values);
-    await assertHostActionOutputAsync(action, entry, outputPath);
-    const localFile = await findLocalUploadAsync(entry, params);
-
-    const spinner = ora(`Running ${action} on simulator session ${sessionId}`).start();
-    let uploadId: string | undefined;
-    let succeeded = false;
+    const { action } = selection;
+    const plan = await prepareControlActionAsync(catalog, selection);
+    const spinner = ora(`Running ${action} on simulator session ${session.id}`).start();
     let output: string;
     let savedFile: string | null;
     try {
-      if (localFile) {
-        spinner.text = `Uploading ${localFile.path}`;
-        const upload = await uploadFileAsync(connection, localFile.path);
-        uploadId = upload.uploadId;
-        params[localFile.param] = entry.uploadAs === 'id' ? upload.uploadId : upload.path;
-        spinner.text = `Running ${action} on simulator session ${sessionId}`;
-      }
-      const result = await connection.requestAsync(action, params);
-      if (result.exitCode !== 0) {
-        const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
-        throw new Error(`The simulator could not run ${action}: ${detail}`);
-      }
-      succeeded = true;
-      savedFile = await saveHostActionOutputAsync(connection, entry, result.stdout, outputPath);
-      output = savedFile ? '' : result.stdout.trim();
-      spinner.succeed(`Ran ${action} on simulator session ${sessionId}`);
+      ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
+      spinner.succeed(`Ran ${action} on simulator session ${session.id}`);
     } catch (err) {
-      spinner.fail(`Failed to run ${action} on simulator session ${sessionId}`);
+      spinner.fail(`Failed to run ${action} on simulator session ${session.id}`);
       throw err;
-    } finally {
-      if (uploadId && (!entry.keepUpload || !succeeded)) {
-        await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
-      }
     }
 
     if (jsonFlag) {
       printJsonOnlyOutput({
-        id: sessionId,
+        id: session.id,
+        session,
         action,
-        output: parseJsonOutput(output),
+        output: parseControlActionOutput(output),
         file: savedFile,
       });
       return;
@@ -298,75 +345,4 @@ function withUploadPathHelp(entry: HostActionCatalogEntry): HostActionCatalogEnt
   return help
     ? { ...entry, description: [entry.description, help].filter(Boolean).join('\n\n') }
     : entry;
-}
-
-async function findLocalUploadAsync(
-  { upload: param, uploadWhen = {}, uploadAs }: HostActionCatalogEntry,
-  params: Record<string, unknown>
-): Promise<{ param: string; path: string } | null> {
-  const value = param ? params[param] : undefined;
-  const applies = Object.entries(uploadWhen).every(([name, expected]) => params[name] === expected);
-  if (!param || typeof value !== 'string' || !applies) {
-    return null;
-  }
-  if (value.startsWith('host:')) {
-    if (uploadAs === 'id') {
-      throw new Error(
-        'This action requires a local file to upload; host: paths are not supported.'
-      );
-    }
-    const hostPath = value.slice('host:'.length);
-    if (!path.posix.isAbsolute(hostPath)) {
-      throw new Error(
-        `A host: path must be absolute, for example host:/tmp/app.tar.gz. For a local filename beginning with host:, use ./${value}.`
-      );
-    }
-    params[param] = hostPath;
-    return null;
-  }
-  const stat = await fs.stat(value).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
-      return null;
-    }
-    throw error;
-  });
-  if (stat?.isDirectory()) {
-    throw new Error(`${value} is a folder. Pass the path of a file.`);
-  }
-  if (!stat) {
-    throw new Error(
-      `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
-    );
-  }
-  return stat ? { param, path: value } : null;
-}
-
-function assertControllableSession(
-  session: Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>
-): PreviewApiAccess {
-  if (session.status !== DeviceRunSessionStatus.InProgress) {
-    throw new Error(
-      `Simulator session ${session.id} is ${session.status.toLowerCase()}. Simulator actions need a running session. Start one with \`eas simulator:start\`.`
-    );
-  }
-  if (session.platform !== AppPlatform.Ios) {
-    throw new Error(
-      `Simulator session ${session.id} runs on ${session.platform.toLowerCase()}. Simulator actions are available only for iOS sessions.`
-    );
-  }
-  const access = session.remoteConfig ? getPreviewApiAccess(session.remoteConfig) : null;
-  if (!access) {
-    throw new Error(
-      `Simulator session ${session.id} does not expose a preview server with a token. Simulator actions use that server. Start a new session with \`eas simulator:start\`.`
-    );
-  }
-  return access;
-}
-
-function parseJsonOutput(output: string): unknown {
-  try {
-    return JSON.parse(output);
-  } catch {
-    return output;
-  }
 }
