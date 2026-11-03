@@ -414,7 +414,8 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     maxIdleTimeMinutes?: number,
     runtimePlatform = BuildRuntimePlatform.LINUX,
     startupInputs: Record<string, { value: unknown }> = {},
-    warm = false
+    warm = false,
+    signal?: AbortSignal
   ): Promise<void> {
     await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext, { warm }).fn!(
       {
@@ -428,6 +429,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
           ...startupInputs,
         },
         outputs: {},
+        signal,
         env: {
           DEVICE_RUN_SESSION_ID: 'device-run-session-id',
           EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'tunnel.example.com',
@@ -445,6 +447,30 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       'Could not stop the Appium server during remote session teardown.'
     );
   }
+
+  it('does not allocate Appium or a host after parent cancellation during Xcode selection', async () => {
+    const controller = new AbortController();
+    const failure = new Error('parent step cancelled');
+    jest
+      .mocked(selectXcodeDeveloperDirectoryAsync)
+      .mockImplementationOnce(async () => controller.abort(failure));
+    await expect(
+      runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, false, controller.signal)
+    ).rejects.toBe(failure);
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves an aggregate host startup failure', async () => {
+    const failure = new AggregateError([
+      new Error('host failed'),
+      new Error('host cleanup failed'),
+    ]);
+    jest.mocked(startDeviceSessionHostAsync).mockRejectedValueOnce(failure);
+    stopAppium.mockResolvedValue(undefined);
+    await expect(runSessionAsync(logger)).rejects.toBe(failure);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
 
   it('reports late host cleanup failure after startup Stop', async () => {
     stopAppium.mockResolvedValue(undefined);
