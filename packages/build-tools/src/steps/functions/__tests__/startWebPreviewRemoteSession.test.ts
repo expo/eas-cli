@@ -103,6 +103,22 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     stopAsync.mockResolvedValue(undefined);
   });
 
+  it('does not start a host when the parent aborts during Xcode selection', async () => {
+    const controller = new AbortController();
+    const failure = new Error('parent step cancelled');
+    jest
+      .mocked(selectXcodeDeveloperDirectoryAsync)
+      .mockImplementationOnce(async () => controller.abort(failure));
+    await expect(runAsync(BuildRuntimePlatform.DARWIN, {}, controller.signal)).rejects.toBe(
+      failure
+    );
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(watchDeviceRunSessionStartup).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.finishAsync
+    ).toHaveBeenCalled();
+  });
+
   it('keeps watching startup when warm adoption retries cold', async () => {
     const adoption = new Error('warm adoption failed');
     jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation(async (_claim, run) => {
