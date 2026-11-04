@@ -8,6 +8,7 @@ import {
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
+import { AppObserveUserEventPropertyFilter } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
@@ -61,6 +62,12 @@ export default class ObserveEvents extends EasCommand {
       description:
         'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
+    property: Flags.custom<AppObserveUserEventPropertyFilter>({
+      description:
+        'Filter by event property (key=value, exact match). Repeat to require all. Without an event name, lists matching events.',
+      multiple: true,
+      parse: parsePropertyFilterAsync,
+    })(),
     'all-events': Flags.boolean({
       description:
         'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
@@ -101,10 +108,10 @@ export default class ObserveEvents extends EasCommand {
 
     const platforms = observePlatformsFromFlag(flags.platform);
 
-    // A session ID narrows to a single session, so show that session's events
+    // A session ID or property filter narrows the events, so show them
     // (like --all-events) instead of the account-wide name+count summary, which
-    // has no session filter.
-    if (!args.eventName && !flags['all-events'] && !flags['session-id']) {
+    // supports neither filter.
+    if (!args.eventName && !flags['all-events'] && !flags['session-id'] && !flags.property) {
       const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
         ObserveQuery.customEventNamesAsync(graphqlClient, {
           appId: projectId,
@@ -144,19 +151,21 @@ export default class ObserveEvents extends EasCommand {
         updateId: flags['update-id'],
         sessionId: flags['session-id'],
         environment: flags.environment,
+        propertyFilters: flags.property,
       })
     );
 
-    // A session, app version, build number, or update ID may not contain the
-    // event even when the name is valid, so only suggest other names when the
-    // event name is the sole narrowing filter.
+    // A session, app version, build number, update ID, or property may not
+    // contain the event even when the name is valid, so only suggest other names
+    // when the event name is the sole narrowing filter.
     if (
       args.eventName &&
       events.length === 0 &&
       !flags['session-id'] &&
       !flags['app-version'] &&
       !flags['build-number'] &&
-      !flags['update-id']
+      !flags['update-id'] &&
+      !flags.property
     ) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
@@ -198,4 +207,13 @@ export default class ObserveEvents extends EasCommand {
       );
     }
   }
+}
+
+// Split on the first "=" so values may contain "=".
+async function parsePropertyFilterAsync(input: string): Promise<AppObserveUserEventPropertyFilter> {
+  const separatorIndex = input.indexOf('=');
+  if (separatorIndex <= 0) {
+    throw new Error(`Invalid property filter "${input}". Expected key=value format.`);
+  }
+  return { key: input.slice(0, separatorIndex), value: input.slice(separatorIndex + 1) };
 }
