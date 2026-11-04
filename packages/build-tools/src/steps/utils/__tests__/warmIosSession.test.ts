@@ -37,7 +37,11 @@ it('does not claim when the job does not use the warm Simulator', async () => {
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });
 
-it('claims the requested device and returns the launcher record', async () => {
+it('logs the wait before claiming, without logging the private launcher record', async () => {
+  jest.mocked(runSimulatorLauncherAsync).mockImplementationOnce(async () => {
+    expect(logger.info).toHaveBeenCalledWith('Waiting for the warm Simulator launcher.');
+    return JSON.stringify(claim);
+  });
   const session = await tryClaimWarmIosSessionAsync({
     engine: 'serve-sim',
     requestedDevice: 'iPhone 17',
@@ -48,6 +52,10 @@ it('claims the requested device and returns the launcher record', async () => {
     env,
     signal: undefined,
   });
+  expect(jest.mocked(logger.info).mock.calls).toEqual([
+    ['Waiting for the warm Simulator launcher.'],
+    ['Claimed the warm Simulator iPhone 17 (UDID).'],
+  ]);
   expect(session).toMatchObject({
     device: claim.device,
     server: { pid: 10, port: 3200, token: 'serve-token' },
