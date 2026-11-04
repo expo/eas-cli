@@ -1,25 +1,38 @@
-import { type AndroidEmulatorLogSource } from '../../../utils/androidEmulatorLogSources';
 import { type BuildStepGlobalContext } from '@expo/steps';
-import fs from 'node:fs';
-import fsPromises, { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
+import { once } from 'node:events';
+import fsPromises, {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { PassThrough, Readable } from 'node:stream';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { type AndroidEmulatorLogSource } from '../../../utils/androidEmulatorLogSources';
 import {
   collectAndroidEmulatorLogsAsync,
-  registerAndroidEmulatorLogDirectory,
+  getAndroidEmulatorLogCapture,
 } from '../androidEmulatorLogs';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 
 jest.mock('../deviceRunSessionArtifacts');
+jest.unmock('fs');
+jest.unmock('node:fs');
+jest.unmock('fs/promises');
+jest.unmock('node:fs/promises');
 
 const ctx = {} as CustomBuildContext;
-const directory = path.join(os.tmpdir(), 'android-logs');
-const emulatorPath = path.join(directory, 'device-attempt-1-emulator.log');
-const logcatPath = path.join(directory, 'device-attempt-1-logcat.log');
 const upload = jest.mocked(uploadDeviceRunSessionArtifactAsync);
+let directory: string;
+let emulatorPath: string;
+let logcatPath: string;
 let global: BuildStepGlobalContext;
 let logger: ReturnType<typeof createMockLogger>;
 let uploadedContents: Map<string, string>;
@@ -28,7 +41,9 @@ beforeEach(async () => {
   global = {} as BuildStepGlobalContext;
   logger = createMockLogger();
   uploadedContents = new Map();
-  await mkdir(directory, { recursive: true });
+  directory = await mkdtemp(path.join(os.tmpdir(), 'android-log-collection-'));
+  emulatorPath = path.join(directory, 'device-attempt-1-emulator.log');
+  logcatPath = path.join(directory, 'device-attempt-1-logcat.log');
   upload.mockReset().mockImplementation(async (_ctx, { filename, openStream }) => {
     const chunks: Buffer[] = [];
     for await (const chunk of openStream()) {
@@ -38,51 +53,57 @@ beforeEach(async () => {
   });
 });
 
+afterEach(async () => {
+  jest.restoreAllMocks();
+  await rm(directory, { recursive: true, force: true });
+});
+
+async function captureLog(
+  filePath: string,
+  source: AndroidEmulatorLogSource,
+  text: string,
+  workflow = global
+): Promise<void> {
+  const capture = getAndroidEmulatorLogCapture(workflow);
+  const input = Readable.from([Buffer.from(text)]);
+  capture.attach(input, filePath, source);
+  await once(input, 'end');
+  await capture.finishFileAsync(filePath);
+}
+
 function collect(
-  maxBytes?: number,
   sources: readonly AndroidEmulatorLogSource[] = ['emulator-output', 'device-logcat']
 ): Promise<void> {
   return collectAndroidEmulatorLogsAsync(ctx, {
     global,
     deviceRunSessionId: 'session',
     logger,
-    maxBytes,
     sources,
   });
 }
 
 it('uploads only emulator output when sources are omitted', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'sensitive device output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  const open = jest.spyOn(fsPromises, 'open');
-  try {
-    await collectAndroidEmulatorLogsAsync(ctx, { global, deviceRunSessionId: 'session', logger });
-    expect([...uploadedContents.keys()]).toEqual([path.basename(emulatorPath)]);
-    expect(open).not.toHaveBeenCalledWith(logcatPath, expect.anything());
-  } finally {
-    open.mockRestore();
-  }
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'sensitive device output');
+  const stat = jest.spyOn(fsPromises, 'stat');
+  await collectAndroidEmulatorLogsAsync(ctx, { global, deviceRunSessionId: 'session', logger });
+  expect([...uploadedContents.keys()]).toEqual([path.basename(emulatorPath)]);
+  expect(stat).not.toHaveBeenCalledWith(logcatPath);
 });
 
 it('uploads only explicitly selected logcat and uploads nothing for an empty selection', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'device output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  await collect(undefined, []);
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'device output');
+  await collect([]);
   expect(upload).not.toHaveBeenCalled();
-  await collect(undefined, ['device-logcat']);
+  await collect(['device-logcat']);
   expect([...uploadedContents.keys()]).toEqual([path.basename(logcatPath)]);
 });
 
 it('honors different source selections during concurrent cleanup without duplicate uploads', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'device output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  await Promise.all([
-    collect(undefined, ['emulator-output']),
-    collect(undefined, ['emulator-output', 'device-logcat']),
-  ]);
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'device output');
+  await Promise.all([collect(['emulator-output']), collect(['emulator-output', 'device-logcat'])]);
   expect([...uploadedContents.keys()].sort()).toEqual([
     path.basename(emulatorPath),
     path.basename(logcatPath),
@@ -90,31 +111,31 @@ it('honors different source selections during concurrent cleanup without duplica
   expect(upload).toHaveBeenCalledTimes(2);
 });
 
-it('uploads both logs for every attempt from registered directories only', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'Android output');
-  await writeFile(path.join(directory, 'device-attempt-2-emulator.log'), 'retry output');
-  await writeFile(path.join(directory, 'unrelated.txt'), 'not a log');
-  const elsewhere = path.join(os.tmpdir(), 'unregistered');
+it('uses captured source records and ignores files outside the capture inventory', async () => {
+  const first = path.join(directory, 'first.txt');
+  const second = path.join(directory, 'second.txt');
+  await captureLog(first, 'emulator-output', 'host output');
+  await captureLog(second, 'device-logcat', 'Android output');
+  await captureLog(path.join(directory, 'retry.txt'), 'emulator-output', 'retry output');
+  await writeFile(emulatorPath, 'not captured');
+  const elsewhere = path.join(directory, 'elsewhere');
   await mkdir(elsewhere);
   await writeFile(path.join(elsewhere, 'other-emulator.log'), 'another job');
-  await symlink(
-    path.join(elsewhere, 'other-emulator.log'),
-    path.join(directory, 'link-logcat.log')
-  );
-  registerAndroidEmulatorLogDirectory(global, directory);
+  await symlink(path.join(elsewhere, 'other-emulator.log'), logcatPath);
   await collect();
 
   expect([...uploadedContents.values()]).toEqual(['host output', 'Android output', 'retry output']);
   expect(upload).toHaveBeenCalledWith(
     ctx,
     expect.objectContaining({
-      filename: 'device-attempt-1-emulator.log',
+      filename: 'first.txt',
       kind: 'simulator-log',
       metadata: expect.objectContaining({
         platform: 'android',
         source: 'emulator-output',
         scope: 'emulator-process',
+        originalSizeBytes: 11,
+        omittedBytes: 0,
         truncated: false,
       }),
       signal: expect.any(AbortSignal),
@@ -124,48 +145,23 @@ it('uploads both logs for every attempt from registered directories only', async
   expect(upload).toHaveBeenCalledWith(
     ctx,
     expect.objectContaining({
-      filename: 'device-attempt-1-logcat.log',
+      filename: 'second.txt',
       metadata: expect.objectContaining({ source: 'device-logcat', scope: 'device' }),
     })
   );
-  expect(await readdir(os.tmpdir())).not.toEqual(
-    expect.arrayContaining([expect.stringMatching(/^eas-android-log-snapshot-/)])
-  );
 });
 
-it('keeps the earliest bytes and records truncation', async () => {
-  await writeFile(emulatorPath, 'old output\ncrash\n');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  await collect(6);
-  expect(uploadedContents.get(path.basename(emulatorPath))).toBe('old ou');
-  expect(upload).toHaveBeenCalledWith(
-    ctx,
-    expect.objectContaining({
-      size: 6,
-      name: expect.stringContaining('truncated, 6 bytes retained'),
-      metadata: expect.objectContaining({
-        originalSizeBytes: 17,
-        omittedBytes: 11,
-        truncated: true,
-      }),
-    })
-  );
-  expect(await readFile(emulatorPath, 'utf8')).toBe('old output\ncrash\n');
-});
-
-it('fixes the snapshot range before append and keeps upload retries identical', async () => {
-  await writeFile(emulatorPath, 'before');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  const createReadStream = fs.createReadStream;
-  const read = jest.spyOn(fs, 'createReadStream').mockImplementationOnce((filePath, options) => {
-    fs.appendFileSync(emulatorPath, ' during snapshot');
-    return createReadStream(filePath, options);
-  });
+it('seals a live producer before upload and keeps retry bodies identical without copying files', async () => {
+  const input = new PassThrough();
+  const capture = getAndroidEmulatorLogCapture(global);
+  capture.attach(input, emulatorPath, 'emulator-output');
+  input.write('before');
   const contents: string[] = [];
-  upload.mockImplementationOnce(async (_ctx, { size, openStream }) => {
+  upload.mockImplementationOnce(async (_ctx, { size, openStream, metadata }) => {
     expect(size).toBe(6);
+    expect(metadata).toEqual(expect.objectContaining({ originalSizeBytes: 6, truncated: false }));
     for (let attempt = 0; attempt < 2; attempt++) {
-      await writeFile(emulatorPath, 'rewritten after snapshot');
+      input.write(' ignored after finalization');
       const chunks: Buffer[] = [];
       for await (const chunk of openStream()) {
         chunks.push(Buffer.from(chunk));
@@ -176,15 +172,22 @@ it('fixes the snapshot range before append and keeps upload retries identical', 
   try {
     await collect();
     expect(contents).toEqual(['before', 'before']);
+    expect(await readFile(emulatorPath, 'utf8')).toBe('before');
+    expect(await readdir(directory)).toEqual([path.basename(emulatorPath)]);
+    expect(input.readableFlowing).toBe(true);
+    const late = new PassThrough();
+    capture.attach(late, logcatPath, 'device-logcat');
+    late.end('not captured');
+    expect(late.readableFlowing).toBe(true);
+    await expect(fsPromises.stat(logcatPath)).rejects.toMatchObject({ code: 'ENOENT' });
   } finally {
-    read.mockRestore();
+    input.end();
   }
 });
 
 it('continues after a failed upload and retries only unsuccessful files on another collection', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'Android output');
-  registerAndroidEmulatorLogDirectory(global, directory);
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'Android output');
   upload.mockRejectedValueOnce(new Error('storage unavailable'));
   await expect(collect()).resolves.toBeUndefined();
   expect(upload).toHaveBeenCalledTimes(2);
@@ -198,52 +201,17 @@ it('continues after a failed upload and retries only unsuccessful files on anoth
   expect(upload.mock.calls[0][1].signal).not.toBe(upload.mock.calls[1][1].signal);
 });
 
-it('shares concurrent collection and skips successful uploads on repeated cleanup', async () => {
-  await writeFile(emulatorPath, 'host output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  registerAndroidEmulatorLogDirectory(global, directory);
+it('shares workflow capture and skips successful uploads on repeated or concurrent cleanup', async () => {
+  expect(getAndroidEmulatorLogCapture(global)).toBe(getAndroidEmulatorLogCapture(global));
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
   await Promise.all([collect(), collect()]);
   await collect();
   expect(upload).toHaveBeenCalledTimes(1);
 });
 
-it('keeps successful uploads deduplicated when snapshot cleanup fails', async () => {
-  await writeFile(emulatorPath, 'host output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  const open = fsPromises.open;
-  const openFile = jest.spyOn(fsPromises, 'open').mockImplementationOnce(async (...args) => {
-    const file = await open(...args);
-    const close = file.close.bind(file);
-    file.close = async () => {
-      await close();
-      throw new Error('close failed');
-    };
-    return file;
-  });
-  const remove = jest.spyOn(fsPromises, 'rm').mockRejectedValueOnce(new Error('remove failed'));
-  try {
-    await expect(collect()).resolves.toBeUndefined();
-    await collect();
-    expect(upload).toHaveBeenCalledTimes(1);
-    expect(remove).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.stringContaining('Could not close')
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.stringContaining('Could not remove')
-    );
-  } finally {
-    openFile.mockRestore();
-    remove.mockRestore();
-  }
-});
-
 it('uses a fresh 30 second budget for the next file after an upload times out', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'Android output');
-  registerAndroidEmulatorLogDirectory(global, directory);
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'Android output');
   const controllers: AbortController[] = [];
   const timeout = jest.spyOn(AbortSignal, 'timeout').mockImplementation(() => {
     const controller = new AbortController();
@@ -254,56 +222,31 @@ it('uses a fresh 30 second budget for the next file after an upload times out', 
     controllers[0].abort(new Error('upload timed out'));
     signal?.throwIfAborted();
   });
-  try {
-    await expect(collect()).resolves.toBeUndefined();
-    expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
-    expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
-    expect(upload.mock.calls[1][1].signal?.aborted).toBe(false);
-  } finally {
-    timeout.mockRestore();
-  }
+  await expect(collect()).resolves.toBeUndefined();
+  expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
+  expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
+  expect(upload.mock.calls[1][1].signal?.aborted).toBe(false);
 });
 
-it('does not collect another workflow or empty files and tolerates missing directories', async () => {
-  registerAndroidEmulatorLogDirectory({} as BuildStepGlobalContext, directory);
-  await writeFile(emulatorPath, 'other workflow');
+it('does not collect another workflow or empty files and continues after a captured file disappears', async () => {
+  await captureLog(emulatorPath, 'emulator-output', 'other workflow', {} as BuildStepGlobalContext);
   await collect();
   expect(upload).not.toHaveBeenCalled();
-  await writeFile(emulatorPath, '');
-  registerAndroidEmulatorLogDirectory(global, path.join(os.tmpdir(), 'missing'));
-  registerAndroidEmulatorLogDirectory(global, directory);
+  await captureLog(logcatPath, 'device-logcat', '');
+  await captureLog(path.join(directory, 'missing.log'), 'emulator-output', 'removed');
+  await rm(path.join(directory, 'missing.log'));
   await expect(collect()).resolves.toBeUndefined();
   expect(upload).not.toHaveBeenCalled();
   expect(logger.warn).toHaveBeenCalledWith(
     expect.anything(),
-    expect.stringContaining('Could not read')
+    expect.stringContaining('missing.log')
   );
 });
 
-it('handles a snapshot read failure and still uploads the other log', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'Android output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  const createReadStream = fs.createReadStream;
-  const read = jest.spyOn(fs, 'createReadStream').mockImplementationOnce((filePath, options) => {
-    const stream = createReadStream(filePath, options);
-    stream.destroy(new Error('source read failed'));
-    return stream;
-  });
-  try {
-    await expect(collect()).resolves.toBeUndefined();
-    expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
-    expect(upload).toHaveBeenCalledTimes(1);
-  } finally {
-    read.mockRestore();
-  }
-});
-
-it('aborts an upload on a genuine snapshot file read error and continues with the other log', async () => {
-  await writeFile(emulatorPath, 'host output');
-  await writeFile(logcatPath, 'Android output');
-  registerAndroidEmulatorLogDirectory(global, directory);
-  const readError = Object.assign(new Error('snapshot read failed'), { code: 'EIO' });
+it('aborts on a genuine log file read error and continues with the other log', async () => {
+  await captureLog(emulatorPath, 'emulator-output', 'host output');
+  await captureLog(logcatPath, 'device-logcat', 'Android output');
+  const readError = Object.assign(new Error('log read failed'), { code: 'EIO' });
   upload.mockImplementationOnce(async (_ctx, { openStream, signal }) => {
     const stream = openStream();
     await new Promise<void>(resolve => {

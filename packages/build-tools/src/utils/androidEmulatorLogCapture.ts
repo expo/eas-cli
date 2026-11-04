@@ -10,7 +10,14 @@ import { type AndroidEmulatorLogSource } from './androidEmulatorLogSources';
 
 export const MAX_ANDROID_LOG_BYTES_PER_SOURCE = 20 * 1024 * 1024;
 
+export type FinalizedAndroidEmulatorLog = {
+  readonly filePath: string;
+  readonly source: AndroidEmulatorLogSource;
+  readonly bytesSeen: number;
+};
+
 type Capture = {
+  source: AndroidEmulatorLogSource;
   stream: Writable;
   inputs: Set<Readable>;
   done: Promise<void>;
@@ -72,7 +79,7 @@ export class AndroidEmulatorLogCapture {
             .then(() => callback());
         },
       });
-      capture = { stream, inputs: new Set(), done: finished(stream), bytesSeen: 0 };
+      capture = { source, stream, inputs: new Set(), done: finished(stream), bytesSeen: 0 };
       this.captures.set(filePath, capture);
     }
     capture.inputs.add(input);
@@ -94,13 +101,15 @@ export class AndroidEmulatorLogCapture {
     await capture.done;
   }
 
-  async finishAsync(): Promise<void> {
+  async finishAsync(): Promise<readonly FinalizedAndroidEmulatorLog[]> {
     this.finishing = true;
     await Promise.all([...this.captures.keys()].map(file => this.finishFileAsync(file)));
-  }
-
-  getBytesSeen(filePath: string): number | undefined {
-    return this.captures.get(filePath)?.bytesSeen;
+    // Every writer is closed, so uploads can reopen these files on each retry.
+    return [...this.captures].map(([filePath, { source, bytesSeen }]) => ({
+      filePath,
+      source,
+      bytesSeen,
+    }));
   }
 
   /** Keep logcat separate from emulator stderr without an unbounded intermediate file. */

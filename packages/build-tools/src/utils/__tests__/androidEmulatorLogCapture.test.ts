@@ -47,11 +47,15 @@ it('shares a source budget across launches, with independent budgets for the two
   const logcat = Readable.from([Buffer.from('device logs are separate')]);
   capture.attach(logcat, device, 'device-logcat');
   await once(logcat, 'end');
-  await capture.finishAsync();
+  const logs = await capture.finishAsync();
+  expect(logs).toEqual([
+    { filePath: first, source: 'emulator-output', bytesSeen: 6 },
+    { filePath: retry, source: 'emulator-output', bytesSeen: 22 },
+    { filePath: device, source: 'device-logcat', bytesSeen: 24 },
+  ]);
   expect(await fs.readFile(first, 'utf8')).toBe('first!');
   expect(await fs.readFile(retry, 'utf8')).toBe('seco');
   expect(await fs.readFile(device, 'utf8')).toBe('device log');
-  expect(capture.getBytesSeen(retry)).toBe(22);
 });
 
 it('reserves bytes across simultaneous captures and drains after finalization', async () => {
@@ -103,12 +107,14 @@ it('drains a real FIFO beyond 20 MiB, retains the prefix, and closes after the w
     pipe.close();
     pipe.close();
     await pipe.closed;
-    await capture.finishAsync();
+    const logs = await capture.finishAsync();
     const result = await fs.readFile(file);
     expect(result.length).toBe(MAX_ANDROID_LOG_BYTES_PER_SOURCE);
     expect(result.subarray(0, 6).toString()).toBe('BEGIN\n');
     expect(result.subarray(-4).toString()).toBe('xxxx');
-    expect(capture.getBytesSeen(file)).toBe(64 * 1024 * 1024 + 10);
+    expect(logs).toEqual([
+      { filePath: file, source: 'device-logcat', bytesSeen: 64 * 1024 * 1024 + 10 },
+    ]);
     await expect(fs.stat(pipe.path)).rejects.toMatchObject({ code: 'ENOENT' });
   } finally {
     writer.kill();

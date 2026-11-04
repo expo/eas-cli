@@ -28,7 +28,7 @@ import {
   AndroidEmulatorLogSourcesSchema,
   LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
 } from '../../utils/androidEmulatorLogSources';
-import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
+import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -96,8 +96,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
-      const capture = registerAndroidEmulatorLogDirectory(global, logcatDirectory);
-      const logCapture = env.DEVICE_RUN_SESSION_ID ? capture : undefined;
+      const logCapture = env.DEVICE_RUN_SESSION_ID
+        ? getAndroidEmulatorLogCapture(global)
+        : undefined;
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;

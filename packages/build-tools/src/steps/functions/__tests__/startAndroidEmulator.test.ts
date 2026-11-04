@@ -10,7 +10,7 @@ import {
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
 import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
-import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
+import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -102,7 +102,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
   ])('preserves $sources through boot retries and clones', async ({ sources }) => {
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
     const capture = new AndroidEmulatorLogCapture();
-    jest.mocked(registerAndroidEmulatorLogDirectory).mockReturnValue(capture);
+    jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     await createStep(
       { android_log_sources: sources, count: 2 },
       { DEVICE_RUN_SESSION_ID: 'session' }
@@ -372,7 +372,9 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       .mockResolvedValueOnce(createStartResult('emulator-attempt-3'));
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValue(new Error('network unavailable'));
 
-    await expect(createStep().executeAsync()).rejects.toThrow('network unavailable');
+    await expect(
+      createStep(undefined, { DEVICE_RUN_SESSION_ID: 'session' }).executeAsync()
+    ).rejects.toThrow('network unavailable');
 
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
       3,
@@ -383,13 +385,10 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
-    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledWith(
-      expect.anything(),
-      '/tmp/logcat-directory'
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything());
+    expect(jest.mocked(getAndroidEmulatorLogCapture).mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
     );
-    expect(
-      jest.mocked(registerAndroidEmulatorLogDirectory).mock.invocationCallOrder[0]
-    ).toBeLessThan(mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]);
   });
 
   it('outputs and uses a temporary logcat directory', async () => {
@@ -403,10 +402,8 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
-    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledWith(
-      step.ctx.global,
-      '/tmp/logcat-directory'
-    );
+    expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
+    expect(mockedAndroidUtils.startAsync.mock.calls[0][0].logCapture).toBeUndefined();
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',
