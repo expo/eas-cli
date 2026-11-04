@@ -7,6 +7,7 @@ import {
 } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import { startDeviceSessionHostAsync } from '../utils/deviceSessionHost';
 import {
   createWarmDeviceSessionServer,
@@ -96,11 +97,20 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           'Web preview idle timeouts require iOS preview activity reporting. Omit max_idle_time_minutes for Android sessions.'
         );
       }
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
+      const startupStop = new AbortController();
+      const watchSignal = signal
+        ? AbortSignal.any([signal, startupStop.signal])
+        : startupStop.signal;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
+      });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+        const startupAbortController = new AbortController();
+        const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
@@ -111,7 +121,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           openUrl: inputs.open_url?.value,
           env,
           logger,
-          signal,
+          signal: startupSignal,
         });
         const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
           {
@@ -136,7 +146,8 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             logger,
             timeoutMs: STARTUP_TIMEOUT_MS,
             preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
-            signal,
+            signal: startupSignal,
+            onStartupError: error => startupAbortController.abort(error),
             packageVersion,
             disableShare: inputs.public_preview?.value === false,
             privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
@@ -149,9 +160,15 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             networkCaptureFields,
           },
           ...(warmSession ? [createWarmDeviceSessionServer(ctx, logger, warmSession)] : [])
-        );
+        ).catch(error => {
+          if (startupSignal.reason === startupWatch.stopped && !(error instanceof AggregateError)) {
+            throw startupWatch.stopped;
+          }
+          throw error;
+        });
 
         try {
+          startupSignal.throwIfAborted();
           const webPreview = await sessionHost.openPreviewAsync();
           logger.info(
             webPreview.sharePageUrl
@@ -160,7 +177,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           );
           const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
             env,
-            signal,
+            signal: startupSignal,
             ctx,
             deviceRunSessionId,
             // WEB_PREVIEW_ONLY sessions read webPreviewUrl and webPreviewToken. Legacy SERVE_SIM
@@ -183,6 +200,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             return;
           }
 
+          await startupWatch.completeAsync();
           await waitForDeviceRunSessionStoppedAsync({
             ctx,
             deviceRunSessionId,
@@ -202,20 +220,32 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
           await sessionHost.finishAsync();
         }
       };
-      if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await runOnWarmIosSimulatorAsync(
-          {
-            engine: 'serve-sim',
-            requestedDevice: deviceIdentifier,
-            packageVersion,
-            env,
-            logger,
-            signal,
-          },
-          startSessionAsync
-        );
-      } else {
-        await startSessionAsync();
+      try {
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
+        }
+        watchSignal.throwIfAborted();
+        if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await runOnWarmIosSimulatorAsync(
+            {
+              engine: 'serve-sim',
+              requestedDevice: deviceIdentifier,
+              packageVersion,
+              env,
+              logger,
+              signal: watchSignal,
+            },
+            startSessionAsync
+          );
+        } else {
+          await startSessionAsync();
+        }
+      } catch (error) {
+        if (error !== startupWatch.stopped) {
+          throw error;
+        }
+      } finally {
+        await startupWatch.finishAsync();
       }
     }),
   });
