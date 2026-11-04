@@ -1,10 +1,10 @@
 import {
-  CompositeFunctionCatalog,
   CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
   HookKey,
   Hooks,
+  LocalFunctionCatalog,
   Step,
   isHookAnchorId,
   isStepFunctionStep,
@@ -44,7 +44,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
   private readonly hooks: Hooks;
   /** Pre-loaded composite function configs keyed by normalized path (e.g. `./.eas/functions/setup`). */
-  private readonly compositeFunctionCatalog: CompositeFunctionCatalog;
+  private readonly compositeFunctionCatalog: LocalFunctionCatalog;
   private readonly loadCompositeFunction?: (
     compositeFunctionPath: string
   ) => Promise<CompositeFunctionConfig>;
@@ -65,7 +65,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       hooks: Hooks | undefined;
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
-      compositeFunctionCatalog?: CompositeFunctionCatalog;
+      compositeFunctionCatalog?: LocalFunctionCatalog;
       /** Loads a hook composite missing from the catalog. When omitted, missing entries fail as unknown. */
       loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
     }

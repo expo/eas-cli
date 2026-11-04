@@ -1,6 +1,6 @@
 import {
-  CompositeFunctionCatalog,
   HookAnchorId,
+  LocalFunctionCatalog,
   ShellStep,
   Step,
   isStepFunctionStep,
@@ -78,7 +78,7 @@ export async function constructHookEntriesAsync(
     externalFunctions?: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
     /** When omitted, composite `uses:` fail as missing from an empty catalog. */
-    compositeFunctionCatalog?: CompositeFunctionCatalog;
+    compositeFunctionCatalog?: LocalFunctionCatalog;
   }
 ): Promise<HookEntry[]> {
   // An empty array is a valid no-op (e.g. opting out of a default hook);
