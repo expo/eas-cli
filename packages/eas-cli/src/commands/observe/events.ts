@@ -147,7 +147,9 @@ export default class ObserveEvents extends EasCommand {
       })
     );
 
-    if (args.eventName && events.length === 0) {
+    // Suggest other event names only when the name is the sole narrowing filter.
+    // Otherwise an empty result does not mean the name is wrong.
+    if (args.eventName && events.length === 0 && !flags['session-id']) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
         startTime,
