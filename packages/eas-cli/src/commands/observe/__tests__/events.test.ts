@@ -340,6 +340,14 @@ describe(ObserveEvents, () => {
     expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
   });
 
+  it('forwards an empty value when --property has nothing after "="', async () => {
+    const command = createCommand(['my_event', '--property', 'note=']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.propertyFilters).toEqual([{ key: 'note', value: '' }]);
+  });
+
   it('does not pass platforms, appVersion, updateId, or sessionId when flags are not provided', async () => {
     const command = createCommand(['my_event']);
     await command.runAsync();
