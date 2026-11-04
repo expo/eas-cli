@@ -252,24 +252,179 @@ describe('IosSimulatorUtils', () => {
   });
 
   describe(IosSimulatorUtils.waitForReadyAsync, () => {
+    const readinessScreenshotPath = path.join(os.tmpdir(), 'eas-simulator-readiness.png');
+
     it('takes the readiness screenshot into a writable temp file, not /dev/null', async () => {
-      await IosSimulatorUtils.waitForReadyAsync({
-        udid: 'test-udid' as any,
-        env: process.env,
-      });
+      mockSimulator({});
+
+      await IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env });
 
       expect(mockedSpawn).toHaveBeenCalledWith(
         'xcrun',
-        [
-          'simctl',
-          'io',
-          'test-udid',
-          'screenshot',
-          path.join(os.tmpdir(), 'eas-simulator-readiness.png'),
-        ],
+        ['simctl', 'io', 'test-udid', 'screenshot', readinessScreenshotPath],
         { env: process.env }
       );
     });
+
+    it('names the first integrated screen when the device has several (iPhone Duo on iOS 27.2)', async () => {
+      // Connected screens from `xcrun simctl io <udid> enumerate` on an iPhone Duo (iOS 27.2).
+      mockSimulator({
+        version: '27.2',
+        connectedScreens: `    Connected Screens:
+    (1) LCD:
+        Screen ID: 1
+        Screen Type: Integrated
+    (2) TVOut:
+        Screen ID: 2
+        Screen Type: TVOut
+    (3) LCD-1:
+        Screen ID: 3
+        Screen Type: Integrated
+`,
+      });
+
+      await IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'io', 'test-udid', 'screenshot', '--display=1', readinessScreenshotPath],
+        { env: process.env }
+      );
+    });
+
+    it('takes the first listed integrated screen, skipping screens that are not integrated', async () => {
+      mockSimulator({
+        connectedScreens: `    Connected Screens:
+    (1) TVOut:
+        Screen ID: 1
+        Screen Type: TVOut
+    (2) LCD-1:
+        Screen ID: 5
+        Screen Type: Integrated
+    (3) LCD:
+        Screen ID: 3
+        Screen Type: Integrated
+`,
+      });
+
+      await IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'io', 'test-udid', 'screenshot', '--display=5', readinessScreenshotPath],
+        { env: process.env }
+      );
+    });
+
+    it('keeps the plain screenshot when the device has one integrated screen', async () => {
+      mockSimulator({
+        connectedScreens: `    Connected Screens:
+    (2) TVOut:
+        Screen ID: 2
+        Screen Type: TVOut
+    (1) LCD:
+        Screen ID: 1
+        Screen Type: Integrated
+`,
+      });
+
+      await IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'io', 'test-udid', 'screenshot', readinessScreenshotPath],
+        { env: process.env }
+      );
+    });
+
+    it.each(['27.2', '27.3', '28.0'])(
+      'does not wait for com.apple.datamigrator to exit on iOS %s, where it stays resident',
+      async version => {
+        mockSimulator({ version, dataMigratorRunning: true });
+
+        await IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env });
+
+        expect(mockedSpawn).not.toHaveBeenCalledWith('ps', expect.anything(), expect.anything());
+      }
+    );
+
+    it.each(['27.1', '26.3.1', '18.6'])(
+      'waits for com.apple.datamigrator to exit on iOS %s',
+      async version => {
+        mockSimulator({ version, dataMigratorRunning: true });
+
+        await expect(
+          IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env })
+        ).rejects.toThrow('com.apple.datamigrator still running');
+        expect(mockedSpawn).toHaveBeenCalledWith('ps', ['-eo', 'pid,comm'], { env: process.env });
+      }
+    );
+
+    it('waits for com.apple.datamigrator to exit when the device is not listed', async () => {
+      mockSimulator({ listed: false, dataMigratorRunning: true });
+
+      await expect(
+        IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env })
+      ).rejects.toThrow('com.apple.datamigrator still running');
+    });
+
+    it('waits for com.apple.datamigrator to exit when the runtime reports no version', async () => {
+      mockSimulator({ version: null, dataMigratorRunning: true });
+      await expect(
+        IosSimulatorUtils.waitForReadyAsync({ udid: 'test-udid' as any, env: process.env })
+      ).rejects.toThrow('com.apple.datamigrator still running');
+    });
+
+    function mockSimulator({
+      version = '26.4',
+      listed = true,
+      connectedScreens = '',
+      dataMigratorRunning = false,
+    }: {
+      version?: string | null;
+      listed?: boolean;
+      connectedScreens?: string;
+      dataMigratorRunning?: boolean;
+    }): void {
+      const runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-26-4';
+      const otherRuntime = {
+        identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-27-2',
+        version: '27.2',
+      };
+      mockedSpawn.mockImplementation((async (command: string, args: string[]) => {
+        if (command === 'ps') {
+          return {
+            stdout: dataMigratorRunning
+              ? '  123 /sbin/launchd_sim\n  456 /Library/Developer/CoreSimulator/Volumes/iOS_23E244/XPCServices/com.apple.datamigrator.xpc/com.apple.datamigrator\n'
+              : '  123 /sbin/launchd_sim\n',
+            stderr: '',
+          } as any;
+        }
+        if (args.includes('runtimes')) {
+          return {
+            stdout: JSON.stringify({
+              runtimes: [
+                otherRuntime,
+                version === null ? { identifier: runtime } : { identifier: runtime, version },
+              ],
+            }),
+            stderr: '',
+          } as any;
+        }
+        if (args.includes('list')) {
+          return {
+            stdout: JSON.stringify({
+              devices: { [runtime]: listed ? [{ udid: 'test-udid' }] : [] },
+            }),
+            stderr: '',
+          } as any;
+        }
+        if (args.includes('enumerate')) {
+          return { stdout: connectedScreens, stderr: '' } as any;
+        }
+        return { stdout: '', stderr: '' } as any;
+      }) as any);
+    }
   });
 
   describe(IosSimulatorUtils.disableApsdAsync, () => {
@@ -425,6 +580,15 @@ describe('IosSimulatorUtils', () => {
         })
       ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
       expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('uppercases a udid given in lowercase, matching how simctl lists devices', async () => {
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: '8027f627-9534-4679-85bf-0f14aff228e8' as any,
+          env: process.env,
+        })
+      ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
     });
 
     it('resolves a device name to the first available device with that name', async () => {
