@@ -1,6 +1,9 @@
 import { Args } from '@oclif/core';
+import path from 'path';
+
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { collectReferencedWorkflowFilesAsync } from '../../commandUtils/workflow/referencedFiles';
 import {
   logWorkflowValidationErrors,
   validateWorkflowFileAsync,
@@ -53,7 +56,19 @@ export class WorkflowValidate extends EasCommand {
       });
       Log.log(`Using workflow file from ${workflowFileContents.filePath}`);
 
-      await validateWorkflowFileAsync(workflowFileContents, projectDir, graphqlClient, projectId);
+      const referencedFiles = await collectReferencedWorkflowFilesAsync({
+        projectDir,
+        rootFileName: path.basename(workflowFileContents.filePath),
+        rootYamlConfig: workflowFileContents.yamlConfig,
+      });
+
+      await validateWorkflowFileAsync(
+        workflowFileContents,
+        projectDir,
+        graphqlClient,
+        projectId,
+        referencedFiles
+      );
 
       spinner.succeed('Workflow configuration YAML is valid.');
     } catch (error) {
