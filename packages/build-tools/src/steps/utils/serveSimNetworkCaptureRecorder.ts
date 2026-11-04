@@ -1,7 +1,7 @@
 import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import { createReadStream } from 'node:fs';
-import { mkdtemp, open, rename, stat } from 'node:fs/promises';
+import { mkdtemp, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
@@ -151,13 +151,13 @@ export namespace ServeSimNetworkCaptureRecorder {
     const recorded = new Map<string, Set<string>>();
     for (const follower of session.followers) {
       try {
-        if (!(await removeRepeatedRequestsAsync(follower, requestsFor(recorded, follower.udid)))) {
+        if (!(await rebuildHarAsync(follower, requestsFor(recorded, follower.udid)))) {
           continue;
         }
       } catch (err) {
         logger.warn(
           { err },
-          `Could not remove repeated requests from a network capture for ${follower.udid}; it is kept as recorded.`
+          `Could not rebuild a network capture for ${follower.udid}; its HAR is kept as serve-sim wrote it.`
         );
       }
       const size = await stat(follower.filePath).then(
@@ -228,9 +228,15 @@ async function ensureFollowerAsync(
     }
   }
   // A new follower replays the requests serve-sim already holds, so an exited follower that recorded
-  // no new request holds no capture of its own and does not use a recording slot.
+  // no new request holds no capture of its own and does not use a recording slot. Another server's
+  // current follower waits for its own restart, which reads its entry log.
+  const current = new Set(session.current.values());
   for (const follower of [...session.followers]) {
-    if (follower.kept || follower.handle.getExitError() === undefined) {
+    if (
+      follower.kept ||
+      follower.handle.getExitError() === undefined ||
+      (follower !== previous && current.has(follower))
+    ) {
       continue;
     }
     const keptRequests = requestsFor(session.keptRequests, follower.udid);
@@ -244,6 +250,7 @@ async function ensureFollowerAsync(
       }
     } else {
       session.followers.splice(session.followers.indexOf(follower), 1);
+      await removeFollowerFilesAsync(follower, session.logger);
     }
   }
   if (session.followers.length >= MAX_RECORDINGS) {
@@ -293,6 +300,18 @@ function entriesPathFor(follower: Follower): string {
   return follower.filePath.replace(/\.har$/, '.entries.ndjson');
 }
 
+/** Removes the HAR and the working files serve-sim names after it, such as its entry log. */
+async function removeFollowerFilesAsync(follower: Follower, logger: bunyan): Promise<void> {
+  const directory = path.dirname(follower.filePath);
+  const prefix = `${path.basename(follower.filePath, '.har')}.`;
+  try {
+    const names = (await readdir(directory)).filter(name => name.startsWith(prefix));
+    await Promise.all(names.map(name => rm(path.join(directory, name), { force: true })));
+  } catch (err) {
+    logger.warn({ err }, `Could not remove a replayed network capture for ${follower.udid}.`);
+  }
+}
+
 async function hasEntriesAsync(follower: Follower): Promise<boolean> {
   return await stat(entriesPathFor(follower)).then(
     stats => stats.size > 0,
@@ -309,27 +328,35 @@ function requestsFor(requests: Map<string, Set<string>>, udid: string): Set<stri
   return forDevice;
 }
 
+type Entry = { _captureId?: unknown; _captureStartedAt?: unknown; startedDateTime?: unknown };
+
+/**
+ * Reads an entry log line; null when it is not JSON, such as a line a killed follower cut off.
+ * Entries without a valid start time sort last.
+ */
+function parseEntry(line: string): { key: string | null; start: number } | null {
+  let entry: Entry;
+  try {
+    entry = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  const start = Date.parse(String(entry?.startedDateTime));
+  return { key: requestKey(entry), start: Number.isNaN(start) ? Number.POSITIVE_INFINITY : start };
+}
+
 /**
  * A request's identity, as serve-sim's `capture har` matches its replays: request ids restart in
  * every capture session, so the request's start time tells them apart. null when serve-sim did not
  * record an id, so the request cannot be matched.
  */
-function requestKey(line: string): string | null {
-  try {
-    const entry = JSON.parse(line) as {
-      _captureId?: unknown;
-      _captureStartedAt?: unknown;
-      startedDateTime?: unknown;
-    };
-    if (typeof entry._captureId !== 'string') {
-      return null;
-    }
-    return entry._captureStartedAt !== undefined
-      ? `${entry._captureId} ${entry._captureStartedAt}`
-      : `${entry._captureId} ${entry.startedDateTime}`;
-  } catch {
+function requestKey(entry: Entry | null): string | null {
+  if (typeof entry?._captureId !== 'string') {
     return null;
   }
+  return entry._captureStartedAt !== undefined
+    ? `${entry._captureId} ${entry._captureStartedAt}`
+    : `${entry._captureId} ${entry.startedDateTime}`;
 }
 
 /** Streams the entry log, so a large recording never has to fit in memory. */
@@ -364,50 +391,40 @@ async function forEachEntryAsync(
 
 async function readRequestKeysAsync(entriesPath: string): Promise<(string | null)[]> {
   const keys: (string | null)[] = [];
-  await forEachEntryAsync(entriesPath, line => keys.push(requestKey(line)));
+  await forEachEntryAsync(entriesPath, line => {
+    const entry = parseEntry(line);
+    if (entry) {
+      keys.push(entry.key);
+    }
+  });
   return keys;
 }
 
 /**
- * Rewrites a stopped follower's HAR without the requests an earlier follower for the device
- * recorded, and adds its requests to `recorded`. Returns false when it holds no new request.
+ * Rebuilds a stopped follower's HAR from its entry log, which a killed follower's HAR can lag,
+ * without the requests an earlier follower for the device recorded. Then adds its requests to
+ * `recorded`. Returns false when it holds no new request.
  */
-async function removeRepeatedRequestsAsync(
-  follower: Follower,
-  recorded: Set<string>
-): Promise<boolean> {
+async function rebuildHarAsync(follower: Follower, recorded: Set<string>): Promise<boolean> {
   const entriesPath = entriesPathFor(follower);
   const entries: { start: number; offset: number; length: number }[] = [];
   const requests: string[] = [];
-  let repeated = 0;
   await forEachEntryAsync(entriesPath, (line, offset) => {
-    const key = requestKey(line);
-    if (key !== null && recorded.has(key)) {
-      repeated += 1;
+    const entry = parseEntry(line);
+    if (!entry || (entry.key !== null && recorded.has(entry.key))) {
       return;
     }
-    if (key !== null) {
-      requests.push(key);
+    if (entry.key !== null) {
+      requests.push(entry.key);
     }
-    let start = Number.POSITIVE_INFINITY;
-    try {
-      const parsed = Date.parse(
-        (JSON.parse(line) as { startedDateTime?: string }).startedDateTime ?? ''
-      );
-      if (!Number.isNaN(parsed)) {
-        start = parsed;
-      }
-    } catch {}
-    entries.push({ start, offset, length: Buffer.byteLength(line) });
+    entries.push({ start: entry.start, offset, length: Buffer.byteLength(line) });
   });
-  for (const request of requests) {
-    recorded.add(request);
-  }
   if (entries.length === 0) {
     return false;
   }
-  if (repeated > 0) {
-    await writeHarAsync(follower.filePath, entriesPath, entries);
+  await writeHarAsync(follower.filePath, entriesPath, entries);
+  for (const request of requests) {
+    recorded.add(request);
   }
   return true;
 }
@@ -435,7 +452,7 @@ async function writeHarAsync(
   if (at === -1) {
     throw new Error('The HAR does not start like a serve-sim HAR.');
   }
-  const tempPath = `${harPath}.deduplicated.tmp`;
+  const tempPath = `${harPath}.rebuilt.tmp`;
   const out = await open(tempPath, 'wx', 0o600);
   const source = await open(entriesPath, 'r');
   try {
