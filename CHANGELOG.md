@@ -4,6 +4,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ## [27.4.1](https://github.com/expo/eas-cli/releases/tag/v27.4.1) - 2026-11-04
 
+- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved out of `.eas/build` configs into local `function.yml` files can be called from workflows. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Validate local functions declaring `command` or `path` referenced from workflows, including that the module directory of a `path` function exists. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [simulator-launcher][build-tools] Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))

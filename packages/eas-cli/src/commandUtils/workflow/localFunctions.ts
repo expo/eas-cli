@@ -1,12 +1,12 @@
-import { buildLocalCompositeFunctionCatalogAsync } from '@expo/steps';
+import { buildLocalFunctionCatalogAsync } from '@expo/steps';
 
 import Log from '../../log';
 
-export async function validateWorkflowLocalCompositeFunctionsAsync(
+export async function validateWorkflowLocalFunctionsAsync(
   parsedYaml: any,
   projectDir: string
 ): Promise<void> {
-  await buildLocalCompositeFunctionCatalogAsync(projectDir, {
+  await buildLocalFunctionCatalogAsync(projectDir, {
     rootSteps: stepsFromWorkflow(parsedYaml),
     logger: {
       debug: message => {

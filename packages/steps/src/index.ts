@@ -17,5 +17,5 @@ export * from './interpolation';
 export * from './utils/shell/spawn';
 export * from './utils/jsepEval';
 export * from './utils/hashFiles';
-export * from './utils/localCompositeFunctions';
+export * from './utils/localFunctions';
 export { StepMetric, StepMetricResult, WorkflowHookMetric } from './StepMetrics';
