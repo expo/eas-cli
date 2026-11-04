@@ -8,7 +8,7 @@ import Log, { link } from '../log';
 import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { Actor } from '../user/User';
 
-const SIMULATORS_LAUNCH_AT = new Date('2026-11-10T18:00:00Z');
+const SIMULATORS_LAUNCH_AT = new Date('2026-11-12T18:00:00Z');
 const SIMULATORS_LAUNCH_HINT_PREFERENCE_KEY = 'simulators-launch-cli-hint-seen';
 const REQUEST_TIMEOUT_MS = 3000;
 const SIMULATORS_QUICKSTART_URL =
