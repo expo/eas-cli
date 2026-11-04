@@ -15,6 +15,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
+import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
@@ -196,8 +197,18 @@ export function createStartAgentDeviceSessionBuildFunction(
         { runtimePlatform }
       );
 
+      const startup = new AbortController();
+      const startupSignal = signal ? AbortSignal.any([signal, startup.signal]) : startup.signal;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId: sessionEnv.deviceRunSessionId,
+        logger,
+        startup: { signal: startupSignal, abort: reason => startup.abort(reason) },
+      });
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
-        const tasks = createStartupTasks(logger, signal);
+        const tasks = createStartupTasks(logger, startupSignal);
+        let booted: Promise<void> | undefined;
+        let sessionOwnsTeardown = false;
         let downloaded: Promise<string> | undefined;
         let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
 
@@ -227,7 +238,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             logger.info(`Selected iOS Simulator: ${iosSimulatorUdid}.`);
           }
 
-          const booted = iosSimulatorUdid
+          booted = iosSimulatorUdid
             ? Promise.resolve()
             : tasks.run('Android Emulator boot', async taskLogger => {
                 const logcatDirectory = await fs.promises.mkdtemp(
@@ -295,7 +306,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             });
           } else if (!isIos && (installAppPath || downloadedApp)) {
             applicationReady = tasks.run('app install and launch', async taskLogger => {
-              await tasks.untilAborted(booted);
+              await tasks.untilAborted(booted!);
               const artifactPath = installAppPath ?? (await downloadedApp);
               if (!artifactPath) {
                 throw new Error('No app artifact was prepared.');
@@ -320,6 +331,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             });
           }
 
+          sessionOwnsTeardown = true;
           await runAgentDeviceRemoteSessionAsync(ctx, {
             env,
             logger,
@@ -337,6 +349,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             corsOrigins: parseCorsOriginsInput(inputs.cors_origins?.value),
             tasks,
             warm: warmSession,
+            onStarted: () => startupWatch.completeAsync(),
             device: iosSimulatorUdid
               ? {
                   iosSimulatorUdid,
@@ -348,26 +361,43 @@ export function createStartAgentDeviceSessionBuildFunction(
                   ready: applicationReady ?? tasks.untilAborted(booted),
                 },
           });
+        } catch (error) {
+          if (
+            !sessionOwnsTeardown &&
+            tasks.signal.reason === startupWatch.stopped &&
+            !(error instanceof AggregateError)
+          ) {
+            throw startupWatch.stopped;
+          }
+          throw error;
         } finally {
           tasks.abort(new Error('Agent-device session ended.'));
-          await Promise.allSettled([downloaded, applicationReady]);
+          await Promise.allSettled([booted, downloaded, applicationReady]);
         }
       };
-      // The warm path installs only a local app; build_id and application_archive_url start cold.
-      if (warm && isIos && !download) {
-        await runOnWarmIosSimulatorAsync(
-          {
-            engine: 'agent-device',
-            requestedDevice: deviceIdentifier,
-            packageVersion: inputs.package_version.value as string | undefined,
-            env,
-            logger,
-            signal,
-          },
-          startSessionAsync
-        );
-      } else {
-        await startSessionAsync();
+      try {
+        startupSignal.throwIfAborted();
+        if (warm && isIos && !download) {
+          await runOnWarmIosSimulatorAsync(
+            {
+              engine: 'agent-device',
+              requestedDevice: deviceIdentifier,
+              packageVersion: inputs.package_version.value as string | undefined,
+              env,
+              logger,
+              signal: startupSignal,
+            },
+            startSessionAsync
+          );
+        } else {
+          await startSessionAsync();
+        }
+      } catch (error) {
+        if (error !== startupWatch.stopped) {
+          throw error;
+        }
+      } finally {
+        await startupWatch.finishAsync();
       }
     }),
   });

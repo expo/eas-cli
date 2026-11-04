@@ -10,7 +10,10 @@ import {
   resolveLocalEgressServeSimBootEnvironmentAsync,
   startLocalEgressGuardRelayAsync,
 } from '../../utils/localEgressGuard';
-import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
+import {
+  selectXcodeDeveloperDirectoryAsync,
+  waitForDeviceRunSessionStoppedAsync,
+} from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
@@ -36,6 +39,7 @@ jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
+  waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
 jest.mock('../startIosSimulator', () => ({
   ...jest.requireActual('../startIosSimulator'),
@@ -149,6 +153,25 @@ function sessionDevice(): Device {
 }
 
 describe(createStartAgentDeviceSessionBuildFunction, () => {
+  function mockStalledDownload(): { aborted: () => boolean; settled: () => boolean } {
+    let aborted = false;
+    let settled = false;
+    jest.mocked(downloadBuildAsync).mockImplementation(
+      ({ signal }) =>
+        new Promise((_resolve, reject) => {
+          signal!.addEventListener('abort', () => {
+            aborted = true;
+            // Settles a bit later, like a request that winds down.
+            setImmediate(() => {
+              settled = true;
+              reject(new Error('The user aborted a request.'));
+            });
+          });
+        })
+    );
+    return { aborted: () => aborted, settled: () => settled };
+  }
+
   beforeEach(() => {
     deviceLaunch = undefined;
     jest.clearAllMocks();
@@ -161,6 +184,13 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
       .mockResolvedValue([{ name: 'iPhone 17', udid: 'SELECTED-UDID' }] as never);
     jest.mocked(getAgentDeviceRemoteSessionEnvOrThrow).mockReturnValue(sessionEnv);
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async ({ signal }) => {
+      if (!signal?.aborted) {
+        await new Promise<void>(resolve =>
+          signal?.addEventListener('abort', () => resolve(), { once: true })
+        );
+      }
+    });
     jest
       .mocked(runAgentDeviceRemoteSessionAsync)
       .mockImplementation(async (_ctx, { device, tasks }) => {
@@ -183,6 +213,43 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     jest.mocked(readIosApplicationIdentifierAsync).mockResolvedValue('dev.example.app');
   });
 
+  it.each([false, true])(
+    'observes Stop during warm claim and preserves cleanup failure=%s',
+    async failCleanup => {
+      const stopped = deferred();
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+      let entered!: () => void;
+      const claiming = new Promise<void>(resolve => {
+        entered = resolve;
+      });
+      const cleanup = new Error('warm cleanup failed');
+      jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation(async claim => {
+        entered();
+        await new Promise<void>((_resolve, reject) => {
+          claim.signal!.addEventListener(
+            'abort',
+            () =>
+              reject(
+                failCleanup
+                  ? new AggregateError([claim.signal!.reason, cleanup])
+                  : claim.signal!.reason
+              ),
+            { once: true }
+          );
+        });
+      });
+      const running = runStep(BuildRuntimePlatform.DARWIN, {}, undefined, ctx, true);
+      running.catch(() => {});
+      await claiming;
+      stopped.resolve();
+      if (failCleanup) {
+        await expect(running).rejects.toMatchObject({ errors: expect.arrayContaining([cleanup]) });
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
+      expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    }
+  );
   it('hands guarded iOS boot to serve-sim and starts reporting before host startup', async () => {
     const bootEnv = {
       SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
@@ -260,6 +327,33 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     ).rejects.toThrow('shutdown failed');
 
     expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats Stop during guarded device shutdown as normal cancellation', async () => {
+    const stopped = deferred();
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
+    jest.mocked(spawn).mockImplementation(
+      (_command, _args, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(new Error('shutdown aborted')), {
+            once: true,
+          });
+        }) as ReturnType<typeof spawn>
+    );
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' });
+    step.catch(() => {});
+    await flushAsync();
+    expect(spawn).toHaveBeenCalled();
+    stopped.resolve();
+    await expect(step).resolves.toBeUndefined();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
     expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -386,6 +480,113 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
 
     expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'observes Stop during a held download on %s and drains startup normally',
+    async runtimePlatform => {
+      const download = mockStalledDownload();
+      const stopped = deferred();
+      const controller = new AbortController();
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+      const step = runStep(runtimePlatform, { build_id: 'build-id' }, controller.signal);
+      step.catch(() => {});
+      try {
+        await flushAsync();
+        expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            deviceRunSessionId: sessionEnv.deviceRunSessionId,
+            signal: expect.any(AbortSignal),
+          })
+        );
+        stopped.resolve();
+        await expect(step).resolves.toBeUndefined();
+        expect(download.aborted()).toBe(true);
+        expect(download.settled()).toBe(true);
+        expect(installBuildAsync).not.toHaveBeenCalled();
+        expect(launchApplicationAsync).not.toHaveBeenCalled();
+        expect(readIosApplicationIdentifierAsync).not.toHaveBeenCalled();
+      } finally {
+        controller.abort(new Error('test cleanup'));
+        stopped.resolve();
+        await step.catch(() => {});
+      }
+    }
+  );
+
+  it('waits for an in-flight Android boot after Stop without installing or launching', async () => {
+    const boot = deferred<Awaited<ReturnType<typeof startAndroidEmulatorAsync>>>();
+    const stopped = deferred();
+    jest.mocked(startAndroidEmulatorAsync).mockReturnValue(boot.promise);
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    let settled = false;
+    const step = runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' });
+    void step
+      .finally(() => {
+        settled = true;
+      })
+      .catch(() => {});
+    try {
+      await flushAsync();
+      expect(startAndroidEmulatorAsync).toHaveBeenCalled();
+      stopped.resolve();
+      await flushAsync();
+      expect(settled).toBe(false);
+    } finally {
+      boot.resolve({} as Awaited<ReturnType<typeof startAndroidEmulatorAsync>>);
+      stopped.resolve();
+      await step;
+    }
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+  });
+
+  it('retires the startup watch without treating its abort as user Stop', async () => {
+    jest
+      .mocked(runAgentDeviceRemoteSessionAsync)
+      .mockImplementation(async (_ctx, { onStarted, tasks }) => {
+        await onStarted!();
+        expect(tasks.signal.aborted).toBe(false);
+      });
+    await expect(runStep(BuildRuntimePlatform.DARWIN)).resolves.toBeUndefined();
+    const options = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(options.maxDurationSeconds).toBeUndefined();
+    expect(options.idleTimeout).toBeUndefined();
+    expect(options.signal!.aborted).toBe(true);
+  });
+
+  it('preserves a download failure that wins before Stop', async () => {
+    const failed = new Error('download failed first');
+    const stopped = deferred();
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    jest.mocked(downloadBuildAsync).mockRejectedValue(failed);
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' });
+    step.catch(() => {});
+    await flushAsync();
+    stopped.resolve();
+    await expect(step).rejects.toBe(failed);
+  });
+
+  it('fails when the startup status watch rejects', async () => {
+    const failed = new Error('session errored');
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValue(failed);
+    await expect(runStep(BuildRuntimePlatform.DARWIN)).rejects.toBe(failed);
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('cancels and drains a pending download through the external signal', async () => {
+    const controller = new AbortController();
+    const download = mockStalledDownload();
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' }, controller.signal);
+    const failure = expect(step).rejects.toThrow('cancelled');
+    await flushAsync();
+    controller.abort(new Error('cancelled'));
+
+    await failure;
+    expect(download.aborted()).toBe(true);
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
   });
 
   it('does not start device or app work after cancellation during Xcode selection', async () => {
