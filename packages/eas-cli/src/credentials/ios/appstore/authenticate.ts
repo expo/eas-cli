@@ -18,6 +18,7 @@ import {
   Team,
   UserAuthCtx,
 } from './authenticateTypes';
+import { ASC_API_KEY_TOKEN_DURATION_SECONDS } from './constants';
 import {
   deletePasswordAsync,
   promptPasswordAsync,
@@ -191,7 +192,6 @@ async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKe
   // Resolve the user credentials, optimizing for password-less login.
   const ascApiKey = await resolveAscApiKeyAsync(options.ascApiKey);
   const team = await resolveAppleTeamAsync(options);
-  const jwtDurationSeconds = 1200; // 20 minutes
   return {
     team,
     authState: {
@@ -200,7 +200,7 @@ async function authenticateWithApiKeyAsync(options: Options = {}): Promise<ApiKe
           key: ascApiKey.keyP8,
           issuerId: ascApiKey.issuerId,
           keyId: ascApiKey.keyId,
-          duration: jwtDurationSeconds,
+          duration: ASC_API_KEY_TOKEN_DURATION_SECONDS,
         }),
       },
     },
