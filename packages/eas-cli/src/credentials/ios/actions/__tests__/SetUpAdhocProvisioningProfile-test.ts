@@ -3,6 +3,7 @@ import { EasJson } from '@expo/eas-json';
 
 import { Analytics } from '../../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import DeviceCreateAction, { RegistrationMethod } from '../../../../devices/actions/create/action';
 import {
   Account,
   AppleAppIdentifierFragment,
@@ -10,11 +11,12 @@ import {
   AppleDeviceClass,
   AppleDeviceFragment,
   AppleDistributionCertificateFragment,
+  AppleTeamFragment,
   IosAppBuildCredentialsFragment,
 } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { getApplePlatformFromTarget } from '../../../../project/ios/target';
-import { selectAsync } from '../../../../prompts';
+import { pressAnyKeyToContinueAsync, selectAsync } from '../../../../prompts';
 import { Actor } from '../../../../user/User';
 import { Client } from '../../../../vcs/vcs';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../../../context';
@@ -56,6 +58,11 @@ jest.mock('../SetUpDistributionCertificate', () => ({
 import { SetUpDistributionCertificate } from '../SetUpDistributionCertificate';
 jest.mock('../../../../project/ios/target');
 jest.mock('../../../../prompts');
+jest.mock('../../../../devices/actions/create/action', () => ({
+  __esModule: true,
+  ...jest.requireActual('../../../../devices/actions/create/action'),
+  default: jest.fn(),
+}));
 
 describe(doUDIDsMatch, () => {
   it('return false if UDIDs do not match', () => {
@@ -225,6 +232,73 @@ describe('runAsync', () => {
     await expect(setUpAdhocProvisioningProfile.runAsync(ctx)).rejects.toThrow(
       'Cannot refresh ad-hoc provisioning profile when credentials are frozen'
     );
+  });
+});
+
+describe('registerDevicesAsync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+  });
+
+  const setUpAdhocProvisioningProfile = new SetUpAdhocProvisioningProfile({
+    app: { account: {} as Account, projectName: 'projName', bundleIdentifier: 'bundleId' },
+    target: { targetName: 'targetName', bundleIdentifier: 'bundleId', entitlements: {} },
+  });
+
+  async function registerDevicesAsync(
+    ctx: CredentialsContext,
+    method: RegistrationMethod
+  ): Promise<AppleDeviceFragment[]> {
+    jest
+      .mocked(DeviceCreateAction)
+      .mockImplementation(() => ({ runAsync: jest.fn().mockResolvedValue(method) }) as any);
+    return await (setUpAdhocProvisioningProfile as any).registerDevicesAsync(
+      ctx,
+      {} as AppleTeamFragment
+    );
+  }
+
+  it('returns the devices registered by the chosen method', async () => {
+    const { ctx } = setUpTest();
+
+    await expect(registerDevicesAsync(ctx, RegistrationMethod.DEVELOPER_PORTAL)).resolves.toEqual([
+      { identifier: 'id1' },
+      { identifier: 'id2' },
+      { identifier: 'id3' },
+    ]);
+  });
+
+  it('gives up when the developer portal method registers nothing', async () => {
+    const { ctx } = setUpTest();
+    ctx.ios.getDevicesForAppleTeamAsync = jest.fn().mockResolvedValue([]);
+
+    await expect(registerDevicesAsync(ctx, RegistrationMethod.DEVELOPER_PORTAL)).rejects.toThrow(
+      `No devices were registered. Run 'eas device:create' to register your devices first.`
+    );
+    expect(ctx.ios.getDevicesForAppleTeamAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the input method failing on its own', async () => {
+    const { ctx } = setUpTest();
+    ctx.ios.getDevicesForAppleTeamAsync = jest.fn().mockResolvedValue([]);
+
+    await expect(registerDevicesAsync(ctx, RegistrationMethod.INPUT)).rejects.toThrow(
+      'Input registration method has failed'
+    );
+  });
+
+  it('waits for the website method until the devices show up', async () => {
+    const { ctx } = setUpTest();
+    ctx.ios.getDevicesForAppleTeamAsync = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ identifier: 'id1' }] as AppleDeviceFragment[]);
+
+    await expect(registerDevicesAsync(ctx, RegistrationMethod.WEBSITE)).resolves.toEqual([
+      { identifier: 'id1' },
+    ]);
+    expect(pressAnyKeyToContinueAsync).toHaveBeenCalledTimes(2);
   });
 });
 
