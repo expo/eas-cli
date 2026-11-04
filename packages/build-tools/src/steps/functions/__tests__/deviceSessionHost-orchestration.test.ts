@@ -7,6 +7,7 @@ import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startAgentDeviceEventCollectionAsync } from '../../utils/agentDeviceEvents';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
@@ -45,6 +46,26 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   waitForFileAsync: jest.fn(),
 }));
 
+// Agent-device also polls for Stop while it starts up. That watch sets neither an idle timeout nor
+// a duration; keep it pending until startup retires it, and give each lifetime wait its own mock.
+const lifetimeWait = jest.fn<
+  ReturnType<typeof waitForDeviceRunSessionStoppedAsync>,
+  Parameters<typeof waitForDeviceRunSessionStoppedAsync>
+>();
+function routeStartupWatch(): void {
+  lifetimeWait.mockReset();
+  jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async args => {
+    if ('idleTimeout' in args || 'maxDurationSeconds' in args) {
+      return await lifetimeWait(args);
+    }
+    if (!args.signal?.aborted) {
+      await new Promise<void>(resolve =>
+        args.signal?.addEventListener('abort', () => resolve(), { once: true })
+      );
+    }
+  });
+}
+
 const finishHost = jest.fn();
 const closePreview = jest.fn();
 const stopTool = jest.fn();
@@ -55,6 +76,8 @@ const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnTh
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
+  routeStartupWatch();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
   // Only the emulator logcat folder: the Appium step writes into its own temp folder.
@@ -100,7 +123,7 @@ beforeEach(() => {
   jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(startAppiumEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
-  jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
+  lifetimeWait.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -153,7 +176,11 @@ describe.each([
 
   it('holds the host until session completion', async () => {
     await runAsync();
-    expect(openPreview).toHaveBeenCalledWith({ baseDomain: 'example.test', authtoken: 'token' });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ preview: { baseDomain: 'example.test', authtoken: 'token' } })
+    );
+    expect(openPreview).toHaveBeenCalledWith();
     expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
@@ -165,7 +192,7 @@ describe.each([
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(closePreview).not.toHaveBeenCalled();
     expect(finishHost.mock.invocationCallOrder[0]).toBeGreaterThan(
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
+      lifetimeWait.mock.invocationCallOrder[0]
     );
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopEvents).toHaveBeenCalledTimes(1);
@@ -310,7 +337,7 @@ describe.each([
     } else if (phase === 'config') {
       jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
     } else {
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+      lifetimeWait.mockRejectedValueOnce(error);
     }
     await expect(runAsync()).rejects.toBe(error);
     expect(finishHost).toHaveBeenCalledTimes(1);
@@ -358,6 +385,10 @@ describe('Appium ffmpeg setup', () => {
   }
 
   function holdFfmpegInstall({ appiumError }: { appiumError?: Error } = {}) {
+    let markStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      markStarted = resolve;
+    });
     let finish!: (outcome: 'installed' | 'failed') => void;
     const install = new Promise((resolve, reject) => {
       finish = outcome =>
@@ -368,25 +399,26 @@ describe('Appium ffmpeg setup', () => {
         return Promise.reject(new Error('ffmpeg missing'));
       }
       if (args.includes('install') && args.includes('ffmpeg')) {
+        markStarted();
         return install;
       }
       return command === 'npm' && appiumError
         ? Promise.reject(appiumError)
         : Promise.resolve({ stdout: '{}' });
     }) as never);
-    return finish;
+    return { finish, started };
   }
 
   it.each(['installed', 'failed'] as const)(
     'starts Appium after the ffmpeg install settles (%s)',
     async outcome => {
-      const finishFfmpegInstall = holdFfmpegInstall();
+      const { finish, started } = holdFfmpegInstall();
 
       const run = runAppiumAsync();
-      await new Promise(resolve => setImmediate(resolve));
+      await started;
       expect(spawnDetached).not.toHaveBeenCalled();
 
-      finishFfmpegInstall(outcome);
+      finish(outcome);
       await run;
       expect(spawnDetached).toHaveBeenCalledTimes(1);
     }
@@ -394,16 +426,16 @@ describe('Appium ffmpeg setup', () => {
 
   it('waits for the ffmpeg install before failing on an Appium install error', async () => {
     const appiumError = new Error('npm failed');
-    const finishFfmpegInstall = holdFfmpegInstall({ appiumError });
+    const { finish, started } = holdFfmpegInstall({ appiumError });
 
     let settled = false;
     const run = runAppiumAsync().finally(() => {
       settled = true;
     });
-    await new Promise(resolve => setImmediate(resolve));
+    await started;
     expect(settled).toBe(false);
 
-    finishFfmpegInstall('installed');
+    finish('installed');
     await expect(run).rejects.toBe(appiumError);
   });
 });

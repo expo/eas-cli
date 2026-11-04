@@ -325,7 +325,7 @@ test('stop during post-adopt preparation prevents toolsReady and waits for owned
   const [completion] = await beginSession();
   await status('ready');
   jest.spyOn(process.stdout, 'write').mockReturnValue(true);
-  await claimAsync(boot, 'serve-sim');
+  await claimAsync(boot, 'appium');
   const entered = deferred();
   const release = deferred();
   let preparationSignal: AbortSignal;

@@ -1,5 +1,20 @@
 # @expo/worker
 
+## 27.4.1
+
+No changes in this release.
+
+## 27.4.0
+
+No changes in this release.
+
+## 27.3.0
+
+### Patch Changes
+
+- Mask secrets in every record the worker process writes to its stdout: the build log records and the worker's own records. ([#4782](https://github.com/expo/eas-cli/pull/4782) by [@hSATAC](https://github.com/hSATAC))
+- Stop warmup in the background for jobs that do not use the warm Simulator, so job setup does not wait for it. Before build-tools boots or clones a Simulator, it waits until the launcher's state file records that cleanup finished, and fails if cleanup does not finish in time. ([#4721](https://github.com/expo/eas-cli/pull/4721) by [@gwdp](https://github.com/gwdp))
+
 ## 27.2.0
 
 ### Patch Changes

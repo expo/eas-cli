@@ -4,13 +4,14 @@ import path from 'node:path';
 
 import { claimAsync } from '../commands/claim';
 import { stopAsync } from '../commands/stop';
+import * as launcherState from '../utils/state';
 import {
   LAUNCHER_STATE_FILE,
   readLauncherStateAsync,
   updateLauncherStateAsync,
   waitForLauncherStateAsync,
 } from '../utils/state';
-import { deferred } from './helpers';
+import { deferred, until } from './helpers';
 
 const boot = 'boot-one';
 let root: string;
@@ -30,6 +31,7 @@ const info = {
   argentEventLogPath: '/argent/events',
 };
 const directory = () => path.join(root, 'control');
+const pollLauncherStateAsync = waitForLauncherStateAsync;
 
 const nativeFs = {
   readFile: fs.readFile.bind(fs),
@@ -46,6 +48,7 @@ const remap = (file: unknown): unknown =>
     : file;
 
 beforeEach(async () => {
+  jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'launcher-state-'));
   jest.spyOn(os, 'homedir').mockReturnValue(root);
   await fs.mkdir(path.join(root, 'control'));
@@ -192,6 +195,7 @@ test('two job claims acquire only one ready session and the result includes its 
   await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
   await Promise.all(claims);
   expect(results.filter(value => value === 0)).toHaveLength(1);
+  expect(process.stderr.write).not.toHaveBeenCalled();
   expect(JSON.parse(String(output.mock.calls[0][0]))).toMatchObject({
     ...info,
     status: 'claimed',
@@ -199,6 +203,252 @@ test('two job claims acquire only one ready session and the result includes its 
   });
   await expect(claimAsync(boot, 'serve-sim')).rejects.toThrow('available');
 });
+
+async function beginStartingClaimAsync(engine = 'serve-sim') {
+  let observedStarting = false;
+  jest
+    .spyOn(launcherState, 'waitForLauncherStateAsync')
+    .mockImplementationOnce((bootUuid, isComplete, timeoutMs) =>
+      pollLauncherStateAsync(
+        bootUuid,
+        state => {
+          const complete = isComplete(state);
+          observedStarting ||= state?.status === 'starting';
+          return complete;
+        },
+        timeoutMs
+      )
+    );
+  const result = claimAsync(boot, engine, 'iPhone 17').then(
+    value => value,
+    error => error as Error
+  );
+  await until(() => observedStarting);
+  return { result };
+}
+
+test('a claim waits for the minimal starting record to become ready without changing it', async () => {
+  const starting = {
+    bootUuid: boot,
+    status: 'starting' as const,
+    controllerPid: info.controllerPid,
+    launcherVersion: '27.4.0',
+  };
+  await updateLauncherStateAsync(boot, () => starting);
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  const { result } = await beginStartingClaimAsync();
+  expect(await readLauncherStateAsync(boot)).toEqual(starting);
+  expect(await fs.readdir(directory())).toEqual([path.basename(LAUNCHER_STATE_FILE)]);
+  expect(output).not.toHaveBeenCalled();
+
+  await updateLauncherStateAsync(boot, state => ({ ...state!, ...info, status: 'ready' }));
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
+  expect(await result).toBe(0);
+  expect(JSON.parse(String(output.mock.calls[0][0]))).toMatchObject({
+    ...info,
+    status: 'claimed',
+    engine: 'serve-sim',
+    requestedDevice: 'iPhone 17',
+  });
+});
+
+test('two claims waiting for startup still acquire only one session', async () => {
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: info.controllerPid,
+  }));
+  jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  const first = await beginStartingClaimAsync();
+  const second = await beginStartingClaimAsync('argent');
+  await updateLauncherStateAsync(boot, state => ({ ...state!, ...info, status: 'ready' }));
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
+  const results = await Promise.all([first.result, second.result]);
+  expect(results.filter(value => value === 0)).toHaveLength(1);
+  expect(results.filter(value => value instanceof Error)).toHaveLength(1);
+});
+
+test('startup wait progress is throttled and stdout remains the claim JSON', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  const progress = jest.mocked(process.stderr.write);
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: info.controllerPid,
+  }));
+  const { result } = await beginStartingClaimAsync();
+  expect(progress.mock.calls).toEqual([
+    ['Warm Simulator is still starting; waiting (0s elapsed, 420s limit).\n'],
+  ]);
+  const reads = jest.mocked(fs.readFile).mock.calls.length;
+  now = 10_000;
+  await until(() => jest.mocked(fs.readFile).mock.calls.length >= reads + 2);
+  expect(progress).toHaveBeenCalledTimes(1);
+  expect(output).not.toHaveBeenCalled();
+  now = 30_000;
+  await until(() => progress.mock.calls.length === 2);
+  expect(progress.mock.calls[1]).toEqual([
+    'Warm Simulator is still starting; waiting (30s elapsed, 420s limit).\n',
+  ]);
+  now = 31_000;
+  await updateLauncherStateAsync(boot, state => ({ ...state!, ...info, status: 'ready' }));
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  await updateLauncherStateAsync(boot, state => ({ ...state!, status: 'claimed' }));
+  expect(await result).toBe(0);
+  expect(progress.mock.calls).toHaveLength(3);
+  expect(progress.mock.calls[2]).toEqual(['Warm Simulator became ready after waiting 31s.\n']);
+  expect(output).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(output.mock.calls[0][0]))).toMatchObject({
+    status: 'claimed',
+    server: { token: info.server.token },
+  });
+  expect(progress.mock.calls.flat().join('')).not.toContain(info.server.token);
+});
+
+test.each(['stopping', 'disabled'] as const)(
+  'a waiting claim preserves a startup failure in %s state',
+  async status => {
+    await updateLauncherStateAsync(boot, () => ({
+      bootUuid: boot,
+      status: 'starting',
+      controllerPid: info.controllerPid,
+    }));
+    const { result } = await beginStartingClaimAsync();
+    await updateLauncherStateAsync(boot, state => ({
+      ...state!,
+      status,
+      error: 'serve-sim exited',
+    }));
+    expect(await result).toEqual(
+      new Error(
+        'Simulator preparation was interrupted; cleanup may still be running. serve-sim exited'
+      )
+    );
+    expect((await readLauncherStateAsync(boot))?.status).toBe(status);
+  }
+);
+
+test.each(['missing', 'old boot', 'different controller', 'different start time'] as const)(
+  'a waiting claim cannot acquire %s state',
+  async replacement => {
+    await updateLauncherStateAsync(boot, () => ({
+      bootUuid: boot,
+      status: 'starting',
+      controllerPid: info.controllerPid,
+      controllerStartTime: info.controllerStartTime,
+    }));
+    const { result } = await beginStartingClaimAsync();
+    if (replacement === 'missing') {
+      await fs.rm(LAUNCHER_STATE_FILE);
+    } else if (replacement === 'old boot') {
+      await updateLauncherStateAsync('other-boot', () => ({
+        bootUuid: 'other-boot',
+        status: 'ready',
+        ...info,
+      }));
+    } else {
+      await updateLauncherStateAsync(boot, state => ({
+        ...state!,
+        ...info,
+        status: 'ready',
+        ...(replacement === 'different controller'
+          ? { controllerPid: info.controllerPid + 1 }
+          : { controllerStartTime: 'replacement-start' }),
+      }));
+    }
+    expect(await result).toBeInstanceOf(Error);
+    expect((await readLauncherStateAsync(boot))?.status).not.toBe('claiming');
+  }
+);
+
+test('a claim rechecks controller identity under the state lock', async () => {
+  await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));
+  jest.spyOn(fs, 'mkdir').mockImplementationOnce(async file => {
+    await nativeFs.writeFile(
+      remap(LAUNCHER_STATE_FILE) as string,
+      JSON.stringify({ bootUuid: boot, status: 'ready', ...info, controllerPid: 9002 })
+    );
+    await nativeFs.mkdir(remap(file) as string);
+    return undefined;
+  });
+  await expect(claimAsync(boot, 'serve-sim')).rejects.toThrow('different session');
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    status: 'ready',
+    controllerPid: 9002,
+  });
+});
+
+test('startup and claim acknowledgement share one timeout', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: info.controllerPid,
+  }));
+  const { result } = await beginStartingClaimAsync();
+  now = 419_000;
+  await updateLauncherStateAsync(boot, state => ({ ...state!, ...info, status: 'ready' }));
+  await waitForLauncherStateAsync(boot, state => state?.status === 'claiming', 1_000);
+  now = 420_001;
+  let settled = false;
+  void result.then(() => {
+    settled = true;
+  });
+  try {
+    await until(() => settled);
+    expect(await result).toEqual(
+      new Error('Timed out waiting for the Simulator launcher; cleanup may still be running.')
+    );
+  } finally {
+    now = 1_000_000;
+    await result;
+  }
+});
+
+test('startup times out without acquiring or changing the starting record', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: info.controllerPid,
+  }));
+  const { result } = await beginStartingClaimAsync();
+  now = 420_001;
+  expect(await result).toEqual(
+    new Error('Timed out waiting for the Simulator launcher; cleanup may still be running.')
+  );
+  expect((await readLauncherStateAsync(boot))?.status).toBe('starting');
+});
+
+test('a claim cannot acquire after the deadline expires while taking the state lock', async () => {
+  let now = 0;
+  jest.spyOn(Date, 'now').mockImplementation(() => now);
+  await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));
+  jest.spyOn(fs, 'mkdir').mockImplementationOnce(async file => {
+    now = 420_001;
+    await nativeFs.mkdir(remap(file) as string);
+    return undefined;
+  });
+  await expect(claimAsync(boot, 'serve-sim')).rejects.toThrow('Timed out');
+  expect((await readLauncherStateAsync(boot))?.status).toBe('ready');
+});
+
+test.each(['missing', 'old boot', 'starting without a controller'] as const)(
+  'a claim immediately rejects %s state',
+  async state => {
+    if (state !== 'missing') {
+      const bootUuid = state === 'old boot' ? 'old-boot' : boot;
+      await updateLauncherStateAsync(bootUuid, () => ({ bootUuid, status: 'starting' }));
+    }
+    await expect(claimAsync(boot, 'serve-sim')).rejects.toThrow('available');
+  }
+);
 
 test('a claim fails when the launcher hands over a different device than requested', async () => {
   await updateLauncherStateAsync(boot, () => ({ bootUuid: boot, status: 'ready', ...info }));

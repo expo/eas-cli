@@ -1,5 +1,22 @@
 # eas-cli
 
+## 27.4.1
+
+No changes in this release.
+
+## 27.4.0
+
+### Patch Changes
+
+- Show the Expo Simulators hint after a successful build from November 10 instead of November 5. ([#4801](https://github.com/expo/eas-cli/pull/4801) by [@williamgrosset](https://github.com/williamgrosset))
+
+## 27.3.0
+
+### Patch Changes
+
+- Bump `@expo/apple-utils` to `2.3.0` to fix iOS capability sync when App Store Connect rejects enabling, disabling or changing a capability. ([#4790](https://github.com/expo/eas-cli/pull/4790) by [@douglowder](https://github.com/douglowder))
+- Keep already linked App Groups, Merchant IDs and iCloud containers when capability sync links another identifier. ([#4584](https://github.com/expo/eas-cli/pull/4584) by [@ceydaakin](https://github.com/ceydaakin))
+
 ## 27.2.0
 
 ### Minor Changes

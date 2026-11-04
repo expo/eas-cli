@@ -1,5 +1,21 @@
 # @expo/simulator-launcher
 
+## 27.4.1
+
+### Patch Changes
+
+- Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
+
+## 27.4.0
+
+### Minor Changes
+
+- Add `eas/start_warm_appium_remote_session`, which runs the Appium session on the warm Simulator, or starts cold. An `appium` claim stops the unused tools first, so WDA does not share the Simulator with the agent-device runner. ([#4735](https://github.com/expo/eas-cli/pull/4735) by [@gwdp](https://github.com/gwdp))
+
+## 27.3.0
+
+No changes in this release.
+
 ## 27.2.0
 
 ### Minor Changes

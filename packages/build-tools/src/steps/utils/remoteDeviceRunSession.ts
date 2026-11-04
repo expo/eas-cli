@@ -9,9 +9,7 @@ import {
   spawnAsync,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import * as ngrok from '@ngrok/ngrok';
 import { z } from 'zod';
-import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { createServer } from 'node:net';
 import path from 'node:path';
@@ -131,6 +129,8 @@ export type DeviceRunSessionIdleTimeout = {
   getLastPreviewActivityAt?: () => Date | undefined;
 };
 
+export class DeviceRunSessionStoppedError extends Error {}
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
@@ -164,9 +164,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }, maxDurationSeconds * 1_000);
 
   try {
-    logger.info(
-      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-    );
+    logger.info(`Polling device run session ${deviceRunSessionId} until it is stopped.`);
     if (durationTimeout !== undefined) {
       logger.info(
         `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
@@ -212,6 +210,9 @@ export async function waitForDeviceRunSessionStoppedAsync({
       } catch (err) {
         if (err instanceof SystemError) {
           throw err;
+        }
+        if (signal.aborted) {
+          return;
         }
 
         const error = err instanceof Error ? err : new Error(String(err));
@@ -558,12 +559,15 @@ export async function uploadRemoteSessionConfigAsync({
   deviceRunSessionId,
   remoteConfig,
   logger,
+  signal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   remoteConfig: Record<string, unknown>;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<'started' | 'stopped'> {
+  signal?.throwIfAborted();
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
@@ -571,10 +575,11 @@ export async function uploadRemoteSessionConfigAsync({
   try {
     await workerApi.startAsync(
       { remoteConfig },
-      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger }
+      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger, signal }
     );
     return 'started';
   } catch (err) {
+    signal?.throwIfAborted();
     if (
       err instanceof DeviceRunSessionWorkerApiError &&
       err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
@@ -609,7 +614,7 @@ export function isProcessRunning(pid: number): boolean {
   }
 }
 
-async function stopDetachedProcessAsync(
+export async function stopDetachedProcessAsync(
   pid: number | undefined,
   gracePeriodMs = 5_000
 ): Promise<void> {
@@ -775,7 +780,7 @@ export function createIosSessionStartupInputProviders(): ReturnType<
 }
 
 export type ServeSimApplicationOptions = ServeSimLaunchOptions & {
-  installAppPath: string;
+  installAppPath?: string;
   launchAppIdentifier: string;
 };
 
@@ -967,63 +972,7 @@ export async function findAvailablePortAsync(): Promise<number> {
   return address.port;
 }
 
-export type NgrokTunnelHandle = {
-  url: string;
-  subdomainId: string;
-  stopAsync: () => Promise<void>;
-};
-
-export async function startNgrokTunnelAsync({
-  port,
-  subdomainPrefix,
-  subdomainId: subdomainIdArg,
-  baseDomain,
-  authtoken,
-  rewriteHostHeader,
-  logger,
-}: {
-  port: number;
-  subdomainPrefix: string;
-  subdomainId?: string;
-  baseDomain: string;
-  authtoken: string;
-  rewriteHostHeader?: boolean;
-  logger: bunyan;
-}): Promise<NgrokTunnelHandle> {
-  const subdomainId = subdomainIdArg ?? randomBytes(16).toString('hex');
-  const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
-  logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
-  // Run the ngrok agent in-process via the SDK; it keeps the session alive until
-  // the process exits, and the step blocks forever to hold it open.
-  const listener = await ngrok.forward({
-    addr: port,
-    authtoken,
-    domain,
-    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
-  });
-  const url = listener.url();
-  if (!url) {
-    await listener.close();
-    throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
-  }
-  let stopTask: Promise<void> | undefined;
-  return {
-    url,
-    subdomainId,
-    stopAsync: () =>
-      (stopTask ??= (async () => {
-        try {
-          await withDeviceRunSessionTimeoutAsync(
-            { name: 'Ngrok tunnel stop', timeoutMs: 4_000 },
-            async () => await listener.close()
-          );
-        } catch (error) {
-          logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
-          throw error;
-        }
-      })()),
-  };
-}
+export { type NgrokTunnelHandle, startNgrokTunnelAsync } from './ngrokTunnel';
 
 export async function waitForFileAsync<T>({
   filePath,

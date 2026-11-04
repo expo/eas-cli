@@ -932,7 +932,7 @@ describe(waitForWebPreviewReadyAsync, () => {
 
 describe(startNgrokTunnelAsync, () => {
   it.each(['rejected', 'stalled'] as const)(
-    'retains a %s close failure on repeated stops',
+    'bounds %s listener retirement and reuses the stop promise',
     async mode => {
       jest.useFakeTimers();
       try {
@@ -954,14 +954,12 @@ describe(startNgrokTunnelAsync, () => {
           logger: createLoggerMock(),
         });
         const stopping = tunnel.stopAsync();
-        const assertion = expect(stopping).rejects.toThrow(
-          mode === 'rejected' ? 'close failed' : 'Ngrok tunnel stop timed out after 4000ms.'
-        );
+        const assertion = expect(stopping).rejects.toThrow(/stop timed out after 4000ms/);
         expect(tunnel.stopAsync()).toBe(stopping);
         await jest.advanceTimersByTimeAsync(4_000);
         await assertion;
         await expect(tunnel.stopAsync()).rejects.toThrow();
-        expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalled();
       } finally {
         jest.useRealTimers();
       }
@@ -985,7 +983,7 @@ describe(startNgrokTunnelAsync, () => {
 
     expect(ngrok.forward).toHaveBeenCalledWith(
       expect.objectContaining({
-        addr: 4321,
+        addr: expect.any(Number),
         authtoken: 'token',
         domain: expect.stringMatching(/^web-preview-[a-f0-9]{32}\.eas-simulator\.ngrok\.dev$/),
       })
@@ -1089,7 +1087,13 @@ describe(startDeviceSessionHostAsync, () => {
   beforeEach(() => {
     jest.mocked(uploadDeviceRunSessionScreenRecordingsAsync).mockReset();
     jest.mocked(spawn).mockReset();
-    jest.mocked(ngrok.forward).mockReset();
+    jest
+      .mocked(ngrok.forward)
+      .mockReset()
+      .mockResolvedValue({
+        url: () => 'https://preview.example.test',
+        close: jest.fn().mockResolvedValue(undefined),
+      } as never);
     jest.mocked(turtleFetch).mockReset();
     jest
       .mocked(readServeSimServersAsync)
@@ -1152,6 +1156,7 @@ describe(startDeviceSessionHostAsync, () => {
   it('gives serve-sim its recording grace period on shutdown', async () => {
     const spawnDetachedSpy = jest.spyOn(remoteDeviceRunSession, 'spawnDetached');
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1169,6 +1174,7 @@ describe(startDeviceSessionHostAsync, () => {
     'passes private sharing flags directly to serve-sim version %s',
     async packageVersion => {
       const host = await startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env,
         logger: createLoggerMock(),
@@ -1197,6 +1203,7 @@ describe(startDeviceSessionHostAsync, () => {
     const privatePreviewUrl =
       'https://expo.dev/accounts/owner/projects/app/simulator-sessions/session-id/preview';
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1204,7 +1211,7 @@ describe(startDeviceSessionHostAsync, () => {
       disableShare: true,
       privatePreviewUrl,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const serveSimArgs = jest
       .mocked(spawn)
@@ -1224,13 +1231,14 @@ describe(startDeviceSessionHostAsync, () => {
       close: jest.fn().mockResolvedValue(undefined),
     } as never);
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       disableShare: true,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const serveSimArgs = jest
       .mocked(spawn)
@@ -1257,13 +1265,14 @@ describe(startDeviceSessionHostAsync, () => {
       .mockReturnValueOnce(Promise.resolve({}) as unknown as ReturnType<typeof spawn>);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const spawnCalls = jest.mocked(spawn).mock.calls;
     expect(spawnCalls[0]).toEqual([
@@ -1302,7 +1311,10 @@ describe(startDeviceSessionHostAsync, () => {
         recordingDirectory,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://android-preview.example.test');
 
     await host.finishAsync();
@@ -1317,12 +1329,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewToken).toBe('tok-1');
     expect(preview.apiUrl).toBe('https://preview.example.test');
@@ -1352,12 +1365,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: { ...env, EXPO_STAGING: '1' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewPageUrl).toMatch(
       /^https:\/\/staging\.expo\.dev\/simulator-preview\/[a-f0-9]{32}$/
@@ -1377,6 +1391,7 @@ describe(startDeviceSessionHostAsync, () => {
 
     await expect(
       startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.DARWIN,
         env,
         logger: createLoggerMock(),
@@ -1394,12 +1409,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     expect(preview.previewToken).toBe('hub-token');
     const [, args] = jest.mocked(spawn).mock.calls.find(([command]) => command === 'npx')!;
@@ -1416,13 +1432,14 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1438,7 +1455,10 @@ describe(startDeviceSessionHostAsync, () => {
         packageVersion,
       }),
     ]);
-    expect(ngrok.forward).toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({ addr: expect.any(Number) })
+    );
+    expect(ngrok.forward).not.toHaveBeenCalledWith(expect.objectContaining({ addr: port }));
     expect(preview.apiUrl).toBe('https://ios-preview.example.test');
 
     await host.finishAsync();
@@ -1455,13 +1475,14 @@ describe(startDeviceSessionHostAsync, () => {
 
     const bunEnv = { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' };
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: bunEnv,
       logger: createLoggerMock(),
       timeoutMs: 10_000,
       packageVersion: '4.5.6',
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1490,12 +1511,13 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: { ...env, EAS_FALLBACK_PACKAGE_MANAGER: 'bun' },
       logger: createLoggerMock(),
       timeoutMs: 10_000,
     });
-    const preview = await host.openPreviewAsync({ baseDomain, authtoken });
+    const preview = await host.openPreviewAsync();
 
     const [command, args] = jest.mocked(spawn).mock.calls[0];
     const port = Number(args[args.indexOf('--port') + 1]);
@@ -1521,6 +1543,7 @@ describe(startDeviceSessionHostAsync, () => {
     } as never);
 
     const host = await startDeviceSessionHostAsync(createCtxMock(), {
+      preview: { baseDomain, authtoken },
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env,
       logger: createLoggerMock(),
@@ -1547,6 +1570,7 @@ describe(startDeviceSessionHostAsync, () => {
   it('refuses to launch an application on Linux, where expo-device-hub cannot', async () => {
     await expect(
       startDeviceSessionHostAsync(createCtxMock(), {
+        preview: { baseDomain, authtoken },
         runtimePlatform: BuildRuntimePlatform.LINUX,
         env,
         logger: createLoggerMock(),
@@ -1827,6 +1851,23 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
+  it('preserves an errored status when the duration timer fires during the response', async () => {
+    const ctx = createStatusCtxMock([]);
+    jest.mocked(turtleFetch).mockImplementationOnce(async () => {
+      (jest.mocked(setTimeoutCallback).mock.calls[0][0] as () => void)();
+      return workerApiResponse({ id: 'drs-id', status: 'errored' });
+    });
+    await expect(
+      waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger: createLoggerMock(),
+        maxDurationSeconds: 30,
+      })
+    ).rejects.toThrow('Device run session drs-id errored.');
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
   it('clears the duration timeout when the build step is aborted', async () => {
     const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const abortController = new AbortController();
@@ -1843,6 +1884,33 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
     expect(workerApiCallCount('session')).toBe(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('does not warn when retiring a watch aborts its pending status request', async () => {
+    const controller = new AbortController();
+    const logger = createLoggerMock();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(new Error('request aborted')), {
+            once: true,
+          });
+        })
+    );
+    const waiting = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await waiting;
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it('logs and retries transient polling errors', async () => {
@@ -2023,6 +2091,65 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
       );
     });
+  });
+});
+
+describe('remote configuration cancellation', () => {
+  beforeEach(() => jest.mocked(turtleFetch).mockReset());
+
+  it('does not report readiness for an already stopped startup', async () => {
+    const controller = new AbortController();
+    const stopped = new Error('startup stopped');
+    controller.abort(stopped);
+
+    await expect(
+      remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+        ctx: createCtxMock(),
+        deviceRunSessionId: 'drs-id',
+        remoteConfig: {},
+        logger: createLoggerMock(),
+        signal: controller.signal,
+      })
+    ).rejects.toBe(stopped);
+    expect(turtleFetch).not.toHaveBeenCalled();
+  });
+
+  it('forwards cancellation to the in-flight readiness HTTP request', async () => {
+    const controller = new AbortController();
+    const ctx = createCtxMock();
+    ctx.env.EAS_DEVICE_RUN_SESSION_TOKEN = 'worker-token';
+    const stopped = new Error('session cancelled');
+    let entered!: () => void;
+    const requested = new Promise<void>(resolve => {
+      entered = resolve;
+    });
+    let requestAborted = false;
+    jest.mocked(turtleFetch).mockImplementation(
+      async (_url, _method, options) =>
+        new Promise((_resolve, reject) => {
+          entered();
+          options!.signal!.addEventListener(
+            'abort',
+            () => {
+              requestAborted = true;
+              reject(new Error('ready request aborted'));
+            },
+            { once: true }
+          );
+        })
+    );
+    const reporting = remoteDeviceRunSession.uploadRemoteSessionConfigAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      remoteConfig: {},
+      logger: createLoggerMock(),
+      signal: controller.signal,
+    });
+    await requested;
+    controller.abort(stopped);
+
+    await expect(reporting).rejects.toBe(stopped);
+    expect(requestAborted).toBe(true);
   });
 });
 

@@ -97,7 +97,12 @@ export async function resolveIosSessionStartupAsync({
     signal?.throwIfAborted();
     if (device && device.state !== 'Shutdown') {
       logger.info(`Shutting down ${iosSimulatorUdid} to apply the local egress guard at boot.`);
-      await spawn('xcrun', ['simctl', 'shutdown', iosSimulatorUdid], { env, logger, signal });
+      try {
+        await spawn('xcrun', ['simctl', 'shutdown', iosSimulatorUdid], { env, logger, signal });
+      } catch (error) {
+        signal?.throwIfAborted();
+        throw error;
+      }
     }
     signal?.throwIfAborted();
     await startLocalEgressGuardRelayAsync({ logger });
