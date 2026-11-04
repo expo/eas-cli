@@ -1,6 +1,6 @@
 import { bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,20 +34,24 @@ async function writeServerAsync(udid: string, state: Record<string, unknown>): P
 
 /** Writes what `capture har` leaves: a HAR, and its entry log with one line per request. */
 function record(harPath: string, entries: number): void {
-  writeFileSync(harPath, JSON.stringify({ log: { entries: Array(entries).fill({}) } }));
+  writeFileSync(harPath, `${JSON.stringify({ log: { entries: Array(entries).fill({}) } })}\n`);
   writeFileSync(harPath.replace(/\.har$/, '.entries.ndjson'), '{}\n'.repeat(entries));
 }
 
 type Request = { id: string; startedAt: number };
 
-/** Writes a recording as serve-sim does: entries by completion time, the HAR in start order. */
-function recordRequests(harPath: string, requests: Request[]): void {
-  const entries = requests.map(({ id, startedAt }) => ({
+function entryFor({ id, startedAt }: Request) {
+  return {
     startedDateTime: new Date(startedAt).toISOString(),
     request: { url: `https://example.com/${id}` },
     _captureId: id,
     _captureStartedAt: startedAt,
-  }));
+  };
+}
+
+/** Writes a recording as serve-sim does: entries by completion time, the HAR in start order. */
+function recordRequests(harPath: string, requests: Request[]): void {
+  const entries = requests.map(entryFor);
   const sorted = [...entries].sort((a, b) => a._captureStartedAt - b._captureStartedAt);
   writeFileSync(
     harPath,
@@ -185,7 +189,7 @@ it('stops every follower and returns only the HARs that hold requests', async ()
 
   expect(stopFollower).toHaveBeenCalledTimes(2);
   expect(captures).toEqual([
-    { udid: 'SIM-A', filePath: recorded[recorded.indexOf('-o') + 1], size: 24 },
+    { udid: 'SIM-A', filePath: recorded[recorded.indexOf('-o') + 1], size: 25 },
   ]);
   expect(outputDirectory).toBe(path.dirname(captures[0].filePath));
   expect(logger.info).toHaveBeenCalledWith(
@@ -270,7 +274,7 @@ describe('restarting followers', () => {
     record(outPath(1), 1);
 
     const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
-    expect(captures).toEqual([{ udid: 'SIM-A', filePath: outPath(1), size: 24 }]);
+    expect(captures).toEqual([{ udid: 'SIM-A', filePath: outPath(1), size: 25 }]);
     expect(stopFollower).toHaveBeenCalledTimes(1);
   });
 
@@ -291,8 +295,8 @@ describe('restarting followers', () => {
 
     const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
     expect(captures).toEqual([
-      { udid: 'SIM-A', filePath: outPath(0), size: 27 },
-      { udid: 'SIM-A', filePath: outPath(1), size: 24 },
+      { udid: 'SIM-A', filePath: outPath(0), size: 28 },
+      { udid: 'SIM-A', filePath: outPath(1), size: 25 },
     ]);
   });
 
@@ -338,6 +342,61 @@ describe('restarting followers', () => {
       expect(har.log.creator).toEqual({ name: '@expo/serve-sim', version: '0.10.2' });
       expect(har.log.entries.map((entry: any) => entry._captureStartedAt)).toEqual([2_000, 4_000]);
       expect(captures[1].size).toBe((await readFile(outPath(1))).length);
+    });
+
+    it('keeps the requests a killed follower logged before its HAR caught up', async () => {
+      const r3 = { id: 'r3', startedAt: 3_000 };
+      await startAsync();
+      // serve-sim writes the entry log before it rebuilds the HAR, so a killed follower's HAR can
+      // lack r2 although its entry log has it.
+      recordRequests(outPath(0), [r1]);
+      appendFileSync(
+        outPath(0).replace(/\.har$/, '.entries.ndjson'),
+        `${JSON.stringify(entryFor(r2))}\n`
+      );
+      exits[0] = new Error('Process exited with code 1.');
+      await waitForFollowersAsync(2);
+      recordRequests(outPath(1), [r1, r2, r3]);
+
+      const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+      expect(captures.map(capture => capture.filePath)).toEqual([outPath(0), outPath(1)]);
+      const ids = async (harPath: string): Promise<string[]> =>
+        (await readHarAsync(harPath)).log.entries.map((entry: any) => entry._captureId);
+      expect(await ids(outPath(0))).toEqual(['r1', 'r2']);
+      expect(await ids(outPath(1))).toEqual(['r3']);
+    });
+
+    it('leaves out a line a killed follower cut off', async () => {
+      await startAsync();
+      recordRequests(outPath(0), [r1]);
+      appendFileSync(outPath(0).replace(/\.har$/, '.entries.ndjson'), '{"startedDateTime":"20');
+
+      const { captures } = await ServeSimNetworkCaptureRecorder.finishAsync({ logger });
+      expect(captures.map(capture => capture.filePath)).toEqual([outPath(0)]);
+      const har = await readHarAsync(outPath(0));
+      expect(har.log.entries.map((entry: any) => entry._captureId)).toEqual(['r1']);
+    });
+
+    it('removes the files of a part that holds only replayed requests', async () => {
+      await startAsync();
+      recordRequests(outPath(0), [r1]);
+      exits[0] = new Error('Process exited with code 1.');
+      await waitForFollowersAsync(2);
+      recordRequests(outPath(1), [r1]);
+      const replayedFiles = [
+        outPath(1),
+        outPath(1).replace(/\.har$/, '.entries.ndjson'),
+        outPath(1).replace(/\.har$/, '.network-capture.json'),
+        `${outPath(1)}.0f7c2a4e-9d1b-4c3a-8e5f-6a7b8c9d0e1f.seed.tmp`,
+      ];
+      for (const file of replayedFiles.slice(2)) {
+        writeFileSync(file, '{}');
+      }
+      exits[1] = new Error('Process exited with code 1.');
+      await waitForFollowersAsync(3);
+
+      expect(replayedFiles.filter(file => existsSync(file))).toEqual([]);
+      expect(existsSync(outPath(0))).toBe(true);
     });
 
     it('does not use a recording slot for followers that recorded no new request', async () => {
