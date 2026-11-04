@@ -4,6 +4,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ## [27.4.1](https://github.com/expo/eas-cli/releases/tag/v27.4.1) - 2026-11-04
 
+- [eas-cli] Warn from workflow validation when YAML overwrites reserved `EAS_BUILD*` environment variables. ([#4427](https://github.com/expo/eas-cli/pull/4427) by [@sregg](https://github.com/sregg))
+- [build-tools] Warn when a job overwrites reserved `EAS_BUILD*` environment variables, and fail if `EAS_BUILD_ID` is replaced with a different value. ([#4427](https://github.com/expo/eas-cli/pull/4427) by [@sregg](https://github.com/sregg))
+
 ### 🐛 Bug fixes
 
 - [simulator-launcher][build-tools] Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
