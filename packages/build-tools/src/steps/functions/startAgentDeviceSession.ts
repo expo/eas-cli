@@ -16,12 +16,12 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
-import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import {
   AndroidEmulatorLogSourcesSchema,
   LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
 } from '../../utils/androidEmulatorLogSources';
 import { registerAndroidEmulatorLogDirectory } from '../utils/androidEmulatorLogs';
+import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
 import { runOnWarmIosSimulatorAsync } from '../utils/warmDeviceSessionHost';
@@ -258,7 +258,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                 const logcatDirectory = await fs.promises.mkdtemp(
                   path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
                 );
-                registerAndroidEmulatorLogDirectory(global, logcatDirectory);
+                const capture = registerAndroidEmulatorLogDirectory(global, logcatDirectory);
                 tasks.signal.throwIfAborted();
                 await startAndroidEmulatorAsync({
                   deviceName: ANDROID_DEVICE_NAME,
@@ -269,6 +269,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                   lcdDensity: inputs.lcd_density.value as number | undefined,
                   logcatDirectory,
                   logSources,
+                  logCapture: env.DEVICE_RUN_SESSION_ID ? capture : undefined,
                   env,
                   logger: taskLogger,
                 });

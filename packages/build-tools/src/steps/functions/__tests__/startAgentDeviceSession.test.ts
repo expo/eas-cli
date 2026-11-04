@@ -4,6 +4,7 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
 import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
@@ -110,7 +111,8 @@ function runStep(
   inputValues: Record<string, unknown> = {},
   signal?: AbortSignal,
   stepCtx: CustomBuildContext = ctx,
-  warm = false
+  warm = false,
+  env: NodeJS.ProcessEnv = {}
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx, { warm });
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
@@ -155,7 +157,7 @@ function runStep(
         staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
       },
     } as unknown as BuildStepContext,
-    { inputs, outputs: {}, env: {}, signal } as never
+    { inputs, outputs: {}, env, signal } as never
   ) as Promise<void>;
 }
 
@@ -462,9 +464,20 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     { sources: ['device-logcat'] },
     { sources: ['emulator-output', 'device-logcat'] },
   ])('selects $sources before Android boot', async ({ sources }) => {
-    await runStep(BuildRuntimePlatform.LINUX, { android_log_sources: sources });
+    const capture = new AndroidEmulatorLogCapture();
+    jest.mocked(registerAndroidEmulatorLogDirectory).mockReturnValue(capture);
+    await runStep(
+      BuildRuntimePlatform.LINUX,
+      { android_log_sources: sources },
+      undefined,
+      ctx,
+      false,
+      {
+        DEVICE_RUN_SESSION_ID: 'session',
+      }
+    );
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ logSources: sources })
+      expect.objectContaining({ logSources: sources, logCapture: capture })
     );
   });
 
@@ -505,6 +518,24 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
+  });
+
+  it('stops the download and waits for it when Android boot fails', async () => {
+    const download = mockStalledDownload();
+    jest.mocked(startAndroidEmulatorAsync).mockRejectedValue(new Error('boot failed'));
+
+    await expect(runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' })).rejects.toThrow(
+      'boot failed'
+    );
+
+    expect(download.aborted()).toBe(true);
+    // The step returned only after the download stopped.
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(registerAndroidEmulatorLogDirectory).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(registerAndroidEmulatorLogDirectory).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(startAndroidEmulatorAsync).mock.invocationCallOrder[0]);
   });
 
   it('does not start work for an already cancelled step', async () => {

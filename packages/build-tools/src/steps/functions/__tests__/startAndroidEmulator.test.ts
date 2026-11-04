@@ -9,6 +9,7 @@ import {
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
+import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
 import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
@@ -100,10 +101,16 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     { sources: ['emulator-output', 'device-logcat'] },
   ])('preserves $sources through boot retries and clones', async ({ sources }) => {
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
-    await createStep({ android_log_sources: sources, count: 2 }).executeAsync();
+    const capture = new AndroidEmulatorLogCapture();
+    jest.mocked(registerAndroidEmulatorLogDirectory).mockReturnValue(capture);
+    await createStep(
+      { android_log_sources: sources, count: 2 },
+      { DEVICE_RUN_SESSION_ID: 'session' }
+    ).executeAsync();
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(4);
     for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
       expect(options.logSources).toEqual(sources);
+      expect(options.logCapture).toBe(capture);
     }
   });
 

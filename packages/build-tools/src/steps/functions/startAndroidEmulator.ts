@@ -20,6 +20,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
+import { type AndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogCapture';
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 import {
@@ -95,7 +96,8 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
-      registerAndroidEmulatorLogDirectory(global, logcatDirectory);
+      const capture = registerAndroidEmulatorLogDirectory(global, logcatDirectory);
+      const logCapture = env.DEVICE_RUN_SESSION_ID ? capture : undefined;
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
@@ -110,6 +112,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           lcdDensity: inputs.lcd_density.value as number | undefined,
           logcatDirectory,
           logSources,
+          logCapture,
           env,
           logger,
         });
@@ -149,6 +152,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   env,
                   logcatDirectory,
                   logSources,
+                  logCapture,
                 });
                 cloneSerialId = startResult.serialId;
 
@@ -219,6 +223,7 @@ export async function startAndroidEmulatorAsync({
   lcdDensity,
   logcatDirectory,
   logSources,
+  logCapture,
   env,
   logger,
 }: {
@@ -230,6 +235,7 @@ export async function startAndroidEmulatorAsync({
   lcdDensity?: number;
   logcatDirectory: string;
   logSources?: readonly AndroidEmulatorLogSource[];
+  logCapture?: AndroidEmulatorLogCapture;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<{
@@ -312,6 +318,7 @@ export async function startAndroidEmulatorAsync({
           env,
           logcatDirectory,
           logSources,
+          logCapture,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
         });
         attemptSerialId = startResult.serialId;

@@ -17,6 +17,7 @@ import {
   type AndroidEmulatorLogSource,
   LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
 } from './androidEmulatorLogSources';
+import { type AndroidEmulatorLogCapture } from './androidEmulatorLogCapture';
 import { retryAsync } from './retry';
 
 /** Android Virtual Device is the device we run. */
@@ -332,12 +333,14 @@ export namespace AndroidEmulatorUtils {
     logcatDirectory,
     logSources = LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
     launchGate,
+    logCapture,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
     logSources?: readonly AndroidEmulatorLogSource[];
     launchGate?: AndroidEmulatorLaunchGate;
+    logCapture?: AndroidEmulatorLogCapture;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
@@ -367,6 +370,10 @@ export namespace AndroidEmulatorUtils {
       });
     }
 
+    const logcatPipe =
+      logCapture && logcatOutputPath
+        ? await logCapture.createLogcatPipeAsync(logcatOutputPath)
+        : undefined;
     const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
     const emulatorArgs = [
       '-no-window',
@@ -374,7 +381,9 @@ export namespace AndroidEmulatorUtils {
       '-writable-system',
       '-noaudio',
       '-no-snapshot-save',
-      ...(logcatOutputPath ? ['-logcat', '*:v', '-logcat-output', logcatOutputPath] : []),
+      ...(logcatOutputPath
+        ? ['-logcat', '*:v', '-logcat-output', logcatPipe?.path ?? logcatOutputPath]
+        : []),
       '-avd',
       deviceName,
       '-accel',
@@ -406,7 +415,19 @@ export namespace AndroidEmulatorUtils {
           ignoreStdio: true,
           env: emulatorEnv,
         });
-    if (emulatorOutputPath) {
+    if (logcatPipe) {
+      emulatorPromise.child.once('close', logcatPipe.close);
+    }
+    if (emulatorOutputPath && logCapture) {
+      for (const input of [emulatorPromise.child.stdout, emulatorPromise.child.stderr]) {
+        if (input) {
+          logCapture.attach(input, emulatorOutputPath, 'emulator-output');
+        }
+      }
+      emulatorPromise.child.once('close', () => {
+        void logCapture.finishFileAsync(emulatorOutputPath);
+      });
+    } else if (emulatorOutputPath) {
       const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
       let reportedEmulatorOutputError = false;
       emulatorOutputStream.on('error', err => {

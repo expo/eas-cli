@@ -14,6 +14,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
+import { AndroidEmulatorLogCapture } from '../androidEmulatorLogCapture';
 import { AndroidEmulatorLogSourcesSchema } from '../androidEmulatorLogSources';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -340,6 +341,44 @@ describe('AndroidEmulatorUtils', () => {
           expect(stdin.end).toHaveBeenCalledWith('go\n');
         }
       });
+    });
+
+    it.each([
+      { sources: [] },
+      { sources: ['emulator-output'] },
+      { sources: ['device-logcat'] },
+      { sources: ['emulator-output', 'device-logcat'] },
+    ])('bounds only selected session sources: $sources', async ({ sources }) => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bounded-logs-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'bounded-emulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const capture = new AndroidEmulatorLogCapture(10);
+      const close = jest.fn();
+      const createPipe = jest.spyOn(capture, 'createLogcatPipeAsync').mockResolvedValue({
+        path: '/logcat.pipe',
+        close,
+        closed: Promise.resolve(),
+      });
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        logSources: AndroidEmulatorLogSourcesSchema.parse(sources),
+        logCapture: capture,
+      });
+      const hasLogcat = sources.includes('device-logcat');
+      expect(createPipe).toHaveBeenCalledTimes(hasLogcat ? 1 : 0);
+      expect(mockedSpawn.mock.calls[0][1].includes('/logcat.pipe')).toBe(hasLogcat);
+      child.stdout.emit('data', Buffer.from('first stdout'));
+      child.stderr.emit('data', Buffer.from('later stderr'));
+      child.emit('close');
+      await capture.finishAsync();
+      expect(close).toHaveBeenCalledTimes(hasLogcat ? 1 : 0);
+      if (sources.includes('emulator-output')) {
+        expect(await fs.promises.readFile(result.emulatorOutputPath!, 'utf8')).toBe('first stdo');
+      }
+      expect(await fs.promises.readdir(outputDir)).toHaveLength(sources.length);
     });
 
     it('spawns the emulator directly with the same arguments when there is no launch gate', async () => {
