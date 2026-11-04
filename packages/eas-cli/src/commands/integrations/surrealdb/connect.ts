@@ -14,8 +14,8 @@ import { upsertEnvVarAsync, upsertEnvVarsSequentiallyAsync } from '../../../envi
 import { writeEnvLocalAsync } from '../../../integrations/shared/envFile';
 import { installSdkPackagesAsync } from '../../../integrations/shared/sdk';
 import {
-  SURREALIST_URL,
   SURREAL_EXPO_GUIDE_URL,
+  SURREAL_STUDIO_URL,
   isCleartextEndpoint,
   isSurrealEndpointReachableAsync,
   parseSurrealEndpoint,
@@ -179,7 +179,7 @@ export default class IntegrationsSurrealdbConnect extends EasCommand {
         database,
         reachable,
         environments: targetEnvironments,
-        dashboardUrl: SURREALIST_URL,
+        dashboardUrl: SURREAL_STUDIO_URL,
         envLocalWritten,
         environmentVariables: envVars.map((v, i) => ({ name: v.name, easWritten: easWritten[i] })),
         manualSteps,
@@ -225,7 +225,7 @@ export default class IntegrationsSurrealdbConnect extends EasCommand {
       )
     );
     Log.newLine();
-    Log.log(`${chalk.bold('Surrealist')}: ${link(SURREALIST_URL, { dim: false })}`);
+    Log.log(`${chalk.bold('SurrealDB Studio')}: ${link(SURREAL_STUDIO_URL, { dim: false })}`);
     Log.newLine();
     Log.log('Next steps:');
     Log.log(

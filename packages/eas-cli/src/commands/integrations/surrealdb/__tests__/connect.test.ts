@@ -234,7 +234,7 @@ describe(IntegrationsSurrealdbConnect, () => {
       database: 'main',
       reachable: true,
       environments: ['production', 'preview', 'development'],
-      dashboardUrl: 'https://app.surrealdb.com',
+      dashboardUrl: 'https://studio.surrealdb.com',
       envLocalWritten: true,
       environmentVariables: [
         { name: 'EXPO_PUBLIC_SURREAL_ENDPOINT', easWritten: true },

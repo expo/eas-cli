@@ -20,7 +20,7 @@ jest.mock('../../../../ora', () => ({
   })),
 }));
 
-const SURREALIST_URL = 'https://app.surrealdb.com';
+const SURREAL_STUDIO_URL = 'https://studio.surrealdb.com';
 
 describe(IntegrationsSurrealdbDashboard, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
@@ -44,7 +44,7 @@ describe(IntegrationsSurrealdbDashboard, () => {
     jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
   });
 
-  it('lists the endpoints and opens Surrealist', async () => {
+  it('lists the endpoints and opens SurrealDB Studio', async () => {
     await createCommand([]).runAsync();
 
     expect(loadProjectScopedEnvVarsAsync).toHaveBeenCalledWith(
@@ -54,7 +54,7 @@ describe(IntegrationsSurrealdbDashboard, () => {
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('wss://prod.example.com'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('wss://preview.example.com'));
-    expect(openBrowserAsync).toHaveBeenCalledWith(SURREALIST_URL);
+    expect(openBrowserAsync).toHaveBeenCalledWith(SURREAL_STUDIO_URL);
   });
 
   it('prints the URL and endpoints as JSON', async () => {
@@ -62,7 +62,7 @@ describe(IntegrationsSurrealdbDashboard, () => {
 
     expect(openBrowserAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
-      dashboardUrl: SURREALIST_URL,
+      dashboardUrl: SURREAL_STUDIO_URL,
       endpoints: [
         { endpoint: 'wss://prod.example.com', environments: ['production'] },
         { endpoint: 'wss://preview.example.com', environments: ['preview', 'development'] },
@@ -74,7 +74,7 @@ describe(IntegrationsSurrealdbDashboard, () => {
     await createCommand(['--non-interactive']).runAsync();
 
     expect(openBrowserAsync).not.toHaveBeenCalled();
-    expect(Log.log).toHaveBeenCalledWith(SURREALIST_URL);
+    expect(Log.log).toHaveBeenCalledWith(SURREAL_STUDIO_URL);
   });
 
   it('warns when no SurrealDB instance is connected', async () => {

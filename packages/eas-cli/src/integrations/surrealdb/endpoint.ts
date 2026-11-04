@@ -1,9 +1,9 @@
 import fetch from '../../fetch';
 import Log from '../../log';
 
-// Surrealist connects to any instance, including SurrealDB Cloud ones, so it is the dashboard for
-// every endpoint.
-export const SURREALIST_URL = 'https://app.surrealdb.com';
+// SurrealDB Studio (formerly Surrealist) connects to any instance, including SurrealDB Cloud ones,
+// so it is the dashboard for every endpoint.
+export const SURREAL_STUDIO_URL = 'https://studio.surrealdb.com';
 export const SURREAL_EXPO_GUIDE_URL =
   'https://surrealdb.com/docs/reference/javascript/frameworks/expo';
 

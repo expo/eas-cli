@@ -7,7 +7,7 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../../commandUtils/flags';
 import { loadProjectScopedEnvVarsAsync } from '../../../environments/variables';
-import { SURREALIST_URL } from '../../../integrations/surrealdb/endpoint';
+import { SURREAL_STUDIO_URL } from '../../../integrations/surrealdb/endpoint';
 import { EAS_SURREAL_ENDPOINT_ENV_VAR_NAME } from '../../../integrations/surrealdb/env';
 import Log from '../../../log';
 import { ora } from '../../../ora';
@@ -15,7 +15,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
 export default class IntegrationsSurrealdbDashboard extends EasCommand {
   static override description =
-    "open Surrealist and list this app's SurrealDB endpoints (or print the URL with --non-interactive)";
+    "open SurrealDB Studio and list this app's SurrealDB endpoints (or print the URL with --non-interactive)";
 
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
@@ -71,7 +71,7 @@ export default class IntegrationsSurrealdbDashboard extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput({ dashboardUrl: SURREALIST_URL, endpoints });
+      printJsonOnlyOutput({ dashboardUrl: SURREAL_STUDIO_URL, endpoints });
       return;
     }
 
@@ -79,20 +79,22 @@ export default class IntegrationsSurrealdbDashboard extends EasCommand {
       Log.log(`${chalk.bold(environments.join(', ') || 'no environment')}: ${endpoint}`);
     }
     if (nonInteractive) {
-      Log.log(SURREALIST_URL);
+      Log.log(SURREAL_STUDIO_URL);
       return;
     }
 
-    const spinner = ora('Opening Surrealist').start();
+    const spinner = ora('Opening SurrealDB Studio').start();
     try {
-      const opened = await openBrowserAsync(SURREALIST_URL);
+      const opened = await openBrowserAsync(SURREAL_STUDIO_URL);
       if (opened) {
-        spinner.succeed('Opened Surrealist. Connect to the endpoint above to browse your data.');
+        spinner.succeed(
+          'Opened SurrealDB Studio. Connect to the endpoint above to browse your data.'
+        );
       } else {
-        spinner.fail(`Unable to open a web browser. Surrealist: ${SURREALIST_URL}`);
+        spinner.fail(`Unable to open a web browser. SurrealDB Studio: ${SURREAL_STUDIO_URL}`);
       }
     } catch (error) {
-      spinner.fail(`Unable to open a web browser. Surrealist: ${SURREALIST_URL}`);
+      spinner.fail(`Unable to open a web browser. SurrealDB Studio: ${SURREAL_STUDIO_URL}`);
       throw error;
     }
   }
