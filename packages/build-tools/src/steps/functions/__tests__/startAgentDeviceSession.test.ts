@@ -5,6 +5,7 @@ import spawn from '@expo/turtle-spawn';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { DeviceRunSessionWorkerApi } from '../../utils/deviceRunSessionWorkerApi';
+import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
 import { registerAndroidEmulatorLogDirectory } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
@@ -104,7 +105,8 @@ function runStep(
   runtimePlatform: BuildRuntimePlatform,
   inputValues: Record<string, unknown> = {},
   signal?: AbortSignal,
-  stepCtx: CustomBuildContext = ctx
+  stepCtx: CustomBuildContext = ctx,
+  env: NodeJS.ProcessEnv = {}
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx);
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
@@ -147,7 +149,7 @@ function runStep(
         staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
       },
     } as unknown as BuildStepContext,
-    { inputs, outputs: {}, env: {}, signal } as never
+    { inputs, outputs: {}, env, signal } as never
   ) as Promise<void>;
 }
 
@@ -431,9 +433,13 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     { sources: ['device-logcat'] },
     { sources: ['emulator-output', 'device-logcat'] },
   ])('selects $sources before Android boot', async ({ sources }) => {
-    await runStep(BuildRuntimePlatform.LINUX, { android_log_sources: sources });
+    const capture = new AndroidEmulatorLogCapture();
+    jest.mocked(registerAndroidEmulatorLogDirectory).mockReturnValue(capture);
+    await runStep(BuildRuntimePlatform.LINUX, { android_log_sources: sources }, undefined, ctx, {
+      DEVICE_RUN_SESSION_ID: 'session',
+    });
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ logSources: sources })
+      expect.objectContaining({ logSources: sources, logCapture: capture })
     );
   });
 

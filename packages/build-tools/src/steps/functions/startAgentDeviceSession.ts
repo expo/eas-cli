@@ -221,7 +221,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
               const logcatDirectory = await fs.promises.mkdtemp(
                 path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
               );
-              registerAndroidEmulatorLogDirectory(global, logcatDirectory);
+              const capture = registerAndroidEmulatorLogDirectory(global, logcatDirectory);
               tasks.signal.throwIfAborted();
               await startAndroidEmulatorAsync({
                 deviceName: ANDROID_DEVICE_NAME,
@@ -232,6 +232,7 @@ export function createStartAgentDeviceSessionBuildFunction(ctx: CustomBuildConte
                 lcdDensity: inputs.lcd_density.value as number | undefined,
                 logcatDirectory,
                 logSources,
+                logCapture: env.DEVICE_RUN_SESSION_ID ? capture : undefined,
                 env,
                 logger: taskLogger,
               });
