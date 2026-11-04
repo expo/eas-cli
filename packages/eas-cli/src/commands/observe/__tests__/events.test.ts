@@ -410,6 +410,25 @@ describe(ObserveEvents, () => {
     );
   });
 
+  it('emits empty events JSON without suggestions when an event name and --session-id return 0 events and --json is set', async () => {
+    const pageInfo = { hasNextPage: false, hasPreviousPage: false };
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({ events: [], pageInfo });
+
+    const command = createCommand([
+      'my_event',
+      '--session-id',
+      'session-xyz',
+      '--json',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsJson).toHaveBeenCalledWith([], pageInfo);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
   it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [],
