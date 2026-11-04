@@ -566,6 +566,14 @@
           "userGeneratedContent": {
             "type": "boolean",
             "description": "Does your app contain or display user-generated content?"
+          },
+          "socialMedia": {
+            "type": "boolean",
+            "description": "Does your app include social media features?"
+          },
+          "socialMediaAgeRestricted": {
+            "type": "boolean",
+            "description": "Are your app's social media features age restricted?"
           }
         }
       },
