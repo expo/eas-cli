@@ -33,6 +33,7 @@ import { createSubmitToGooglePlayBuildFunction } from './functions/submitToGoogl
 import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
+import { createUpdateResolvedVersionBuildFunction } from './functions/updateResolvedVersion';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -112,8 +113,11 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
     createStartAgentDeviceSessionBuildFunction(ctx),
+    createStartAgentDeviceSessionBuildFunction(ctx, { warm: true }),
     createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartArgentRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAppiumRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
@@ -122,6 +126,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
+    createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),
@@ -156,6 +161,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     functions.push(
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
+        createUpdateResolvedVersionBuildFunction(ctx),
         createUploadEmbeddedBundleBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),

@@ -2,6 +2,46 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.4.1](https://github.com/expo/eas-cli/releases/tag/v27.4.1) - 2026-11-04
+
+### 🐛 Bug fixes
+
+- [simulator-launcher][build-tools] Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
+
+## [27.4.0](https://github.com/expo/eas-cli/releases/tag/v27.4.0) - 2026-11-03
+
+### 🎉 New features
+
+- [simulator-launcher][build-tools] Add `eas/start_warm_appium_remote_session`, which runs the Appium session on the warm Simulator, or starts cold. An `appium` claim stops the unused tools first, so WDA does not share the Simulator with the agent-device runner. ([#4735](https://github.com/expo/eas-cli/pull/4735) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add warm iOS session steps (`eas/start_warm_serve_sim_remote_session`, `eas/start_warm_agent_device_session`, `eas/start_warm_argent_remote_session`). They run the existing session on the warm Simulator, or start cold. `eas/start_agent_device_session` also accepts `install_app_path` and `launch_app_identifier`. ([#4723](https://github.com/expo/eas-cli/pull/4723) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Update the app version and build number from the final application archive, so the build shows the values the native build resolved. ([#3499](https://github.com/expo/eas-cli/pull/3499) by [@kadikraman](https://github.com/kadikraman))
+
+### 🐛 Bug fixes
+
+- [build-tools] Upload the final agent-device session artifacts before stopping the daemon, including sessions that reuse a warm Simulator. ([#4750](https://github.com/expo/eas-cli/pull/4750) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add internal helpers that claim the warm Simulator through the launcher and adopt it on the warm serve-sim. Skip the Expo Go install when the warm Simulator already has the same Expo Go version. ([#4724](https://github.com/expo/eas-cli/pull/4724) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Recover warm Simulator recordings when their MP4 exists before the shutdown manifest is ready. ([#4789](https://github.com/expo/eas-cli/pull/4789) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Show the Expo Simulators hint after a successful build from November 10 instead of November 5. ([#4801](https://github.com/expo/eas-cli/pull/4801) by [@williamgrosset](https://github.com/williamgrosset))
+
+### 🧹 Chores
+
+- [build-tools] Move iOS Simulator startup behind a shared session host contract. ([#4752](https://github.com/expo/eas-cli/pull/4752) by [@gwdp](https://github.com/gwdp))
+
+## [27.3.0](https://github.com/expo/eas-cli/releases/tag/v27.3.0) - 2026-11-02
+
+### 🎉 New features
+
+- [eas-build-job] Add optional Observe error context to workflow jobs. ([#4787](https://github.com/expo/eas-cli/pull/4787) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Bump `@expo/apple-utils` to `2.3.0` to fix iOS capability sync when App Store Connect rejects enabling, disabling or changing a capability. ([#4790](https://github.com/expo/eas-cli/pull/4790) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Keep already linked App Groups, Merchant IDs and iCloud containers when capability sync links another identifier. ([#4584](https://github.com/expo/eas-cli/pull/4584) by [@ceydaakin](https://github.com/ceydaakin))
+- [worker] Mask secrets in every record the worker process writes to its stdout: the build log records and the worker's own records. ([#4782](https://github.com/expo/eas-cli/pull/4782) by [@hSATAC](https://github.com/hSATAC))
+- [worker][build-tools] Stop warmup in the background for jobs that do not use the warm Simulator, so job setup does not wait for it. Before build-tools boots or clones a Simulator, it waits until the launcher's state file records that cleanup finished, and fails if cleanup does not finish in time. ([#4721](https://github.com/expo/eas-cli/pull/4721) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Recover unhealthy device-session tunnels without changing their URLs and block further traffic when shutdown starts, even if ngrok cleanup times out. ([#4526](https://github.com/expo/eas-cli/pull/4526) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stop sending the SSH host when registering an SSH session. ([#4784](https://github.com/expo/eas-cli/pull/4784) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## [27.2.0](https://github.com/expo/eas-cli/releases/tag/v27.2.0) - 2026-10-29
 
 ### 🎉 New features

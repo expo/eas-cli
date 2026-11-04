@@ -468,7 +468,8 @@ export function createWarmSimulatorSession({
       // runs in the background but is joined before teardown.
       startSimulatorsSetupAsync([info.device.udid], Promise.resolve()).catch(() => {});
       const tool = warmTools.find(tool => tool.name === engine);
-      if (tool?.name === 'agent-device' && !startedTools.has(tool)) {
+      // In particular, Appium cannot start WDA until old XCTest retirement succeeded.
+      if (engine === 'appium' || (tool?.name === 'agent-device' && !startedTools.has(tool))) {
         const results = await toolRetirement;
         const failed = results.find(result => result.status === 'rejected');
         if (failed?.status === 'rejected') {
