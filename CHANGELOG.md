@@ -2,6 +2,12 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.4.1](https://github.com/expo/eas-cli/releases/tag/v27.4.1) - 2026-11-04
+
+### 🐛 Bug fixes
+
+- [simulator-launcher][build-tools] Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
+
 ## [27.4.0](https://github.com/expo/eas-cli/releases/tag/v27.4.0) - 2026-11-03
 
 ### 🎉 New features

@@ -1,5 +1,11 @@
 # @expo/build-tools
 
+## 27.4.1
+
+### Patch Changes
+
+- Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
+
 ## 27.4.0
 
 ### Minor Changes
