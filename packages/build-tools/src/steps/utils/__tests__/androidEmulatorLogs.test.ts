@@ -214,9 +214,11 @@ it('does not collect another workflow and warns when a captured file disappears'
   );
 });
 
-it('uploads a truncated log with the retained size and omission metadata', async () => {
+it('uploads the tail of a truncated log with the retained size and omission metadata', async () => {
   const capture = getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' });
-  const input = Readable.from([Buffer.alloc(MAX_ANDROID_LOG_BYTES_PER_SOURCE + 6, 'a')]);
+  const input = Readable.from([
+    Buffer.concat([Buffer.from('head: '), Buffer.alloc(MAX_ANDROID_LOG_BYTES_PER_SOURCE, 'b')]),
+  ]);
   capture.attach(input, emulatorPath, 'emulator-output');
   await once(input, 'end');
   await collect();
@@ -224,7 +226,7 @@ it('uploads a truncated log with the retained size and omission metadata', async
     ctx,
     expect.objectContaining({
       size: MAX_ANDROID_LOG_BYTES_PER_SOURCE,
-      name: expect.stringContaining('truncated, 20 MiB retained'),
+      name: expect.stringContaining('truncated, last 20 MiB retained'),
       metadata: expect.objectContaining({
         originalSizeBytes: MAX_ANDROID_LOG_BYTES_PER_SOURCE + 6,
         omittedBytes: 6,
@@ -232,7 +234,7 @@ it('uploads a truncated log with the retained size and omission metadata', async
       }),
     })
   );
-  expect(uploadedContents.get(path.basename(emulatorPath))).toHaveLength(
-    MAX_ANDROID_LOG_BYTES_PER_SOURCE
-  );
+  const uploaded = uploadedContents.get(path.basename(emulatorPath));
+  expect(uploaded).toHaveLength(MAX_ANDROID_LOG_BYTES_PER_SOURCE);
+  expect(uploaded).not.toContain('head');
 });

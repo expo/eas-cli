@@ -115,7 +115,7 @@ async function uploadLogAsync(
     describe: size => {
       const retainedSize =
         size >= 1024 * 1024 ? `${Number((size / (1024 * 1024)).toFixed(2))} MiB` : `${size} bytes`;
-      const truncationNote = size < bytesSeen ? `; truncated, ${retainedSize} retained` : '';
+      const truncationNote = size < bytesSeen ? `; truncated, last ${retainedSize} retained` : '';
       return {
         deviceRunSessionId,
         artifactId: filename,
@@ -128,6 +128,7 @@ async function uploadLogAsync(
           source,
           scope: LOG_SOURCE_DETAILS[source].scope,
           originalSizeBytes: bytesSeen,
+          // The capture keeps the newest bytes, so the omitted bytes are the head.
           omittedBytes: bytesSeen - size,
           truncated: size < bytesSeen,
         },
