@@ -25,16 +25,19 @@ type Collection = {
 // A worker can execute more than one job; each workflow owns its capture and uploads.
 const collections = new WeakMap<BuildStepGlobalContext, Collection>();
 
+/** The first launch of a workflow fixes its source selection; later calls reuse the capture. */
 export function getAndroidEmulatorLogCapture(
   global: BuildStepGlobalContext,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  sources: readonly AndroidEmulatorLogSource[]
 ): AndroidEmulatorLogCapture {
   let collection = collections.get(global);
   if (!collection) {
     collection = {
-      capture: new AndroidEmulatorLogCapture(
-        env.DEVICE_RUN_SESSION_ID ? MAX_ANDROID_LOG_BYTES_PER_SOURCE : Infinity
-      ),
+      capture: new AndroidEmulatorLogCapture({
+        sources,
+        maxBytes: env.DEVICE_RUN_SESSION_ID ? MAX_ANDROID_LOG_BYTES_PER_SOURCE : Infinity,
+      }),
     };
     collections.set(global, collection);
   }

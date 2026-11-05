@@ -101,7 +101,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
   it('preserves an explicit empty source list and one capture through boot retries and clones', async () => {
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
-    const capture = new AndroidEmulatorLogCapture();
+    const capture = new AndroidEmulatorLogCapture({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     await createStep(
       { android_log_sources: [], count: 2 },
@@ -109,11 +109,11 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     ).executeAsync();
     expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' })
+      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' }),
+      []
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(4);
     for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
-      expect(options.logSources).toEqual([]);
       expect(options.logCapture).toBe(capture);
     }
   });
@@ -144,8 +144,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         deviceName: 'EasAndroidDevice01',
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
-        logCapture: expect.any(AndroidEmulatorLogCapture),
+        logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),

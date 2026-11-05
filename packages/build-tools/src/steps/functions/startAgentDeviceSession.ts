@@ -264,8 +264,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                   lcdHeight: inputs.lcd_height.value as number | undefined,
                   lcdDensity: inputs.lcd_density.value as number | undefined,
                   logcatDirectory,
-                  logSources,
-                  logCapture: getAndroidEmulatorLogCapture(global, env),
+                  logCapture: getAndroidEmulatorLogCapture(global, env, logSources),
                   env,
                   logger: taskLogger,
                 });
