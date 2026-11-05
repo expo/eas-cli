@@ -447,12 +447,14 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
     await step.executeAsync();
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ logSources: ['emulator-output'] })
+      expect.objectContaining({
+        logCapture: expect.objectContaining({ sources: ['emulator-output'] }),
+      })
     );
   });
 
   it('passes an explicit empty source list and the workflow capture to Android boot', async () => {
-    const capture = new AndroidEmulatorLogCapture();
+    const capture = new AndroidEmulatorLogCapture({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     const env = { DEVICE_RUN_SESSION_ID: 'session' };
     await runStep(
@@ -463,9 +465,9 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       false,
       env
     );
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env);
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env, []);
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ logSources: [], logCapture: capture })
+      expect.objectContaining({ logCapture: capture })
     );
   });
 

@@ -80,8 +80,10 @@ describe('AndroidEmulatorUtils', () => {
         logger: createMockLogger({ logToConsole: true }),
       });
       ({ serialId } = await AndroidEmulatorUtils.startAsync({
-        logCapture: new AndroidEmulatorLogCapture(Infinity),
-        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        logCapture: new AndroidEmulatorLogCapture({
+          sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+          maxBytes: Infinity,
+        }),
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory,
@@ -109,8 +111,10 @@ describe('AndroidEmulatorUtils', () => {
       logger: createMockLogger({ logToConsole: true }),
     });
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      logCapture: new AndroidEmulatorLogCapture(Infinity),
-      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      logCapture: new AndroidEmulatorLogCapture({
+        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        maxBytes: Infinity,
+      }),
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,
@@ -141,8 +145,10 @@ describe('AndroidEmulatorUtils', () => {
 
     const { serialId: serialIdClone, emulatorPromise: emulatorPromiseClone } =
       await AndroidEmulatorUtils.startAsync({
-        logCapture: new AndroidEmulatorLogCapture(Infinity),
-        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        logCapture: new AndroidEmulatorLogCapture({
+          sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+          maxBytes: Infinity,
+        }),
         deviceName: cloneDeviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory,
@@ -180,8 +186,10 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      logCapture: new AndroidEmulatorLogCapture(Infinity),
-      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      logCapture: new AndroidEmulatorLogCapture({
+        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        maxBytes: Infinity,
+      }),
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,
@@ -236,8 +244,10 @@ describe('AndroidEmulatorUtils', () => {
           });
 
           const startResult = await AndroidEmulatorUtils.startAsync({
-            logCapture: new AndroidEmulatorLogCapture(Infinity),
-            logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+            logCapture: new AndroidEmulatorLogCapture({
+              sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+              maxBytes: Infinity,
+            }),
             deviceName,
             env: envForAttempt,
             logcatDirectory,
@@ -321,8 +331,10 @@ describe('AndroidEmulatorUtils', () => {
         logger,
       });
       const startResult = await AndroidEmulatorUtils.startAsync({
-        logCapture: new AndroidEmulatorLogCapture(Infinity),
-        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        logCapture: new AndroidEmulatorLogCapture({
+          sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+          maxBytes: Infinity,
+        }),
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory: testLogcatDirectory,
@@ -416,8 +428,10 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      logCapture: new AndroidEmulatorLogCapture(Infinity),
-      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      logCapture: new AndroidEmulatorLogCapture({
+        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+        maxBytes: Infinity,
+      }),
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,

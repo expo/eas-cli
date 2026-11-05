@@ -13,7 +13,6 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { Sentry } from '../sentry';
-import { type AndroidEmulatorLogSource } from './androidEmulatorLogSources';
 import { type AndroidEmulatorLogCapture } from './androidEmulatorLogCapture';
 import { retryAsync } from './retry';
 
@@ -328,14 +327,12 @@ export namespace AndroidEmulatorUtils {
     deviceName,
     env,
     logcatDirectory,
-    logSources,
     launchGate,
     logCapture,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
-    logSources: readonly AndroidEmulatorLogSource[];
     launchGate?: AndroidEmulatorLaunchGate;
     logCapture: AndroidEmulatorLogCapture;
   }): Promise<{
@@ -351,13 +348,11 @@ export namespace AndroidEmulatorUtils {
         .toString(16)
         .padStart(8, '0');
       const outputName = `${safeDeviceName}-${timestamp}-${randomBytes(2).toString('hex')}`;
-      if (logSources.includes('device-logcat')) {
+      if (logCapture.sources.includes('device-logcat')) {
         logcatOutputPath = path.join(logcatDirectory, `${outputName}-logcat.log`);
-        await fs.promises.writeFile(logcatOutputPath, '');
       }
-      if (logSources.includes('emulator-output')) {
+      if (logCapture.sources.includes('emulator-output')) {
         emulatorOutputPath = path.join(logcatDirectory, `${outputName}-emulator.log`);
-        await fs.promises.writeFile(emulatorOutputPath, '');
       }
     } catch (err) {
       throw new SystemError(`Failed to prepare Android emulator output for ${deviceName}.`, {
