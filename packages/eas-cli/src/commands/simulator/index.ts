@@ -192,7 +192,7 @@ With local egress, actions wait for the connection and require interactive mode.
     }),
     'android-log-source': Flags.option({
       description:
-        'Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted and are retained for 90 days.',
+        'Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted.',
       options: ['emulator-output', 'device-logcat'],
       multiple: true,
     })(),
