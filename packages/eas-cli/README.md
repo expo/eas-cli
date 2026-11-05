@@ -3058,15 +3058,21 @@ USAGE
   $ eas sim:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--android-log-source
+    emulator-output|device-logcat...] [--network-capture-field <value>... --network-capture] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...]
+    [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
       Device platform
       <options: android|ios>
+
+  --android-log-source=<option>...
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted.
+      <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
       Application archive URL to download, install, and launch before the simulator session is ready.
@@ -3214,15 +3220,21 @@ USAGE
   $ eas simulator [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--android-log-source
+    emulator-output|device-logcat...] [--network-capture-field <value>... --network-capture] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...]
+    [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
       Device platform
       <options: android|ios>
+
+  --android-log-source=<option>...
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted.
+      <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
       Application archive URL to download, install, and launch before the simulator session is ready.
@@ -3580,15 +3592,21 @@ USAGE
   $ eas simulator:start [-p android|ios] [--name <value>] [--tag <value>...] [--device <value>] [--system-image
     <value>] [--build-id <value> | --build-fingerprint <value> | --application-archive-url <value> | --expo-go]
     [--sdk-version <value>] [--launch-arg <value>...] [--open-url <value>] [--type
-    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--network-capture-field <value>...
-    --network-capture] [--max-duration-minutes <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>...
-    --egress local] [--cors-origin <value>...] [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv]
-    [--public-link] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only] [--package-version <value>] [--android-log-source
+    emulator-output|device-logcat...] [--network-capture-field <value>... --network-capture] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--egress-allow <value>... --egress local] [--cors-origin <value>...]
+    [--frame-ancestor <value>...] [--force] [--out-config-type env|dotenv] [--public-link] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>
       Device platform
       <options: android|ios>
+
+  --android-log-source=<option>...
+      Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default
+      emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not
+      redacted.
+      <options: emulator-output|device-logcat>
 
   --application-archive-url=<value>
       Application archive URL to download, install, and launch before the simulator session is ready.
