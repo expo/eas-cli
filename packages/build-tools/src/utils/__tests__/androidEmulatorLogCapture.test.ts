@@ -37,25 +37,56 @@ async function record(
   await capture.finishFileAsync(file);
 }
 
-it('shares a source budget across launches, with independent budgets for the two sources', async () => {
+it('keeps the newest bytes of a source across launches, with independent budgets for the two sources', async () => {
   const capture = new AndroidEmulatorLogCapture(10);
   const first = path.join(directory, 'first.log');
   const retry = path.join(directory, 'retry.log');
   const device = path.join(directory, 'logcat.log');
   await record(capture, first, 'first!');
-  await record(capture, retry, 'second log is too long');
+  await record(capture, retry, 'second!!');
   const logcat = Readable.from([Buffer.from('device logs are separate')]);
   capture.attach(logcat, device, 'device-logcat');
   await once(logcat, 'end');
   const logs = await capture.finishAsync();
   expect(logs).toEqual([
     { filePath: first, source: 'emulator-output', bytesSeen: 6 },
-    { filePath: retry, source: 'emulator-output', bytesSeen: 22 },
+    { filePath: retry, source: 'emulator-output', bytesSeen: 8 },
     { filePath: device, source: 'device-logcat', bytesSeen: 24 },
   ]);
-  expect(await fs.readFile(first, 'utf8')).toBe('first!');
-  expect(await fs.readFile(retry, 'utf8')).toBe('seco');
-  expect(await fs.readFile(device, 'utf8')).toBe('device log');
+  // The retry evicts the head of the earlier launch; its own tail stays whole.
+  expect(await fs.readFile(first, 'utf8')).toBe('t!');
+  expect(await fs.readFile(retry, 'utf8')).toBe('second!!');
+  expect(await fs.readFile(device, 'utf8')).toBe('e separate');
+});
+
+it('frees a finished file on disk once a later launch evicts all of it', async () => {
+  const capture = new AndroidEmulatorLogCapture(10);
+  const first = path.join(directory, 'first.log');
+  const retry = path.join(directory, 'retry.log');
+  await record(capture, first, 'first!');
+  const input = new PassThrough();
+  capture.attach(input, retry, 'emulator-output');
+  input.write('second log is too long');
+  const deadline = Date.now() + 2_000;
+  while ((await fs.stat(first)).size > 0 && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  expect((await fs.stat(first)).size).toBe(0);
+  await capture.finishAsync();
+  expect(await fs.readFile(first, 'utf8')).toBe('');
+  expect(await fs.readFile(retry, 'utf8')).toBe('s too long');
+});
+
+it('keeps the tail of a wrapped ring in order', async () => {
+  const capture = new AndroidEmulatorLogCapture(10);
+  const file = path.join(directory, 'wrapped.log');
+  const input = new PassThrough();
+  capture.attach(input, file, 'emulator-output');
+  for (const piece of ['0123', '4567', '89ab', 'cdef']) {
+    input.write(piece);
+  }
+  await capture.finishAsync();
+  expect(await fs.readFile(file, 'utf8')).toBe('6789abcdef');
 });
 
 it('reserves bytes across simultaneous captures and drains after finalization', async () => {
@@ -69,15 +100,16 @@ it('reserves bytes across simultaneous captures and drains after finalization', 
   a.write('12345678');
   b.write('abcdefgh');
   await capture.finishAsync();
-  expect(await fs.readFile(first, 'utf8')).toBe('12345678');
-  expect(await fs.readFile(second, 'utf8')).toBe('ab');
+  // Eviction follows attach order: the later capture keeps its bytes.
+  expect(await fs.readFile(first, 'utf8')).toBe('78');
+  expect(await fs.readFile(second, 'utf8')).toBe('abcdefgh');
   a.end('ignored after cleanup');
   b.end('also ignored');
   expect(a.readableFlowing).toBe(true);
   expect(b.readableFlowing).toBe(true);
 });
 
-it('drains a real FIFO beyond 20 MiB, retains the prefix, and closes after the writer exits', async () => {
+it('drains a real FIFO beyond 20 MiB, retains the tail, and closes after the writer exits', async () => {
   const file = path.join(directory, 'logcat.log');
   const capture = new AndroidEmulatorLogCapture();
   const pipe = await capture.prepareLogcatOutputAsync(file);
@@ -110,8 +142,8 @@ it('drains a real FIFO beyond 20 MiB, retains the prefix, and closes after the w
     const logs = await capture.finishAsync();
     const result = await fs.readFile(file);
     expect(result.length).toBe(MAX_ANDROID_LOG_BYTES_PER_SOURCE);
-    expect(result.subarray(0, 6).toString()).toBe('BEGIN\n');
-    expect(result.subarray(-4).toString()).toBe('xxxx');
+    expect(result.subarray(0, 4).toString()).toBe('xxxx');
+    expect(result.subarray(-4).toString()).toBe('\nEND');
     expect(logs).toEqual([
       { filePath: file, source: 'device-logcat', bytesSeen: 64 * 1024 * 1024 + 10 },
     ]);
