@@ -883,6 +883,38 @@ describe(Simulator, () => {
     );
   });
 
+  it('accumulates repeated --android-log-source flags in order', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--android-log-source',
+      'emulator-output',
+      '--android-log-source',
+      'device-logcat',
+    ]);
+    await command.runAsync();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ android: { logSources: ['emulator-output', 'device-logcat'] } })
+    );
+  });
+
+  it('leaves Android log sources omitted unless explicitly requested', async () => {
+    const { command } = createCommand(['--platform', 'android', '--non-interactive']);
+    await command.runAsync();
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1].android?.logSources).toBeUndefined();
+  });
+
+  it.each([
+    { args: ['--platform', 'ios', '--android-log-source', 'device-logcat'] },
+    { args: ['--platform', 'android', '--android-log-source', 'unknown'] },
+  ])('rejects invalid Android logging options $args', async ({ args }) => {
+    const { command } = createCommand([...args, '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('passes --network-capture to the createDeviceRunSession mutation', async () => {
     const { command } = createCommand([
       '--platform',
