@@ -23,6 +23,10 @@ import {
 } from '../../simulator/utils';
 import { fromNow } from '../../utils/date';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
@@ -51,7 +55,8 @@ const PLATFORM_BY_FLAG_VALUE = Object.fromEntries(
 );
 
 export default class SimulatorList extends EasCommand {
-  static override aliases = ['sim:list'];
+  static override aliases = getSimulatorCommandAliases('list');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('list');
   static override description =
     '[EXPERIMENTAL] list remote simulator sessions for the current project';
 

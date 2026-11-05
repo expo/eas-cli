@@ -9,6 +9,7 @@ const actionHelp = [
   ['simulator:control', 'rotate', '--help'],
   ['sim:control', 'screenshot.capture', '-h', '--id', 'session-123'],
   ['simulator:control', '--id', 'session-123', '--help', 'rotate'],
+  ['emulators:control', 'rotate', '--help'],
 ];
 const incompleteFlags = [
   ['simulator:control', 'screenshot.capture', '--help', '--output'],
