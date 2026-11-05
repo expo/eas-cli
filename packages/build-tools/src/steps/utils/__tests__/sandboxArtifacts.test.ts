@@ -23,7 +23,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { inspect } from 'node:util';
 
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
-import { type LegacySandboxApi } from '../legacySandboxApi';
 import { type SandboxWorkerApi } from '../sandboxWorkerApi';
 import { WorkerApiError } from '../workerApi';
 
@@ -66,7 +65,7 @@ describe('sandbox artifact uploads', () => {
     logger = { info: jest.fn(), error: jest.fn() };
     uploadArtifactAsync = async options =>
       await startSandboxArtifactUploadAsync({
-        workerApi: workerApi as unknown as SandboxWorkerApi | LegacySandboxApi,
+        workerApi: workerApi as unknown as SandboxWorkerApi,
         logger: logger as unknown as bunyan,
         ...options,
       });
@@ -390,7 +389,7 @@ describe('sandbox artifact uploads', () => {
 
   function createManager(signal: AbortSignal): SandboxArtifactUploadManager {
     return new SandboxArtifactUploadManager({
-      workerApi: workerApi as unknown as SandboxWorkerApi | LegacySandboxApi,
+      workerApi: workerApi as unknown as SandboxWorkerApi,
       logger: logger as unknown as bunyan,
       signal,
     });

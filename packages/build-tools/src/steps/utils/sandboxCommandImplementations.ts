@@ -13,7 +13,6 @@ import { performance } from 'node:perf_hooks';
 import { readBytesAsync, readTextAsync } from '../../utils/files';
 import { detectFileType } from '../../utils/files/filetypes';
 import { SandboxArtifactUploadManager } from './sandboxArtifacts';
-import { type LegacySandboxApi } from './legacySandboxApi';
 import { type SandboxWorkerApi } from './sandboxWorkerApi';
 import { ShellSessionManager } from './shellSessionManager';
 
@@ -37,7 +36,7 @@ export function createSandboxCommandImplementations({
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
   signal: AbortSignal;
-  workerApi: SandboxWorkerApi | LegacySandboxApi;
+  workerApi: SandboxWorkerApi;
   logger: bunyan;
 }): {
   commandImplementations: SandboxDaemonCommandImplementations;

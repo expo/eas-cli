@@ -1,4 +1,4 @@
-import { type Env, type EnvironmentSecret, type Job } from '@expo/eas-build-job';
+import { type Env, type EnvironmentSecret, type Job, SystemError } from '@expo/eas-build-job';
 import { z } from 'zod';
 
 import {
@@ -96,4 +96,20 @@ export function getSandboxWorkerApi(ctx: {
 }): SandboxWorkerApi | null {
   const token = getSandboxWorkerTokenFromEnvironmentSecrets(ctx.job.secrets?.environmentSecrets);
   return token ? new SandboxWorkerApi(getExpoApiV2BaseUrl(ctx), token) : null;
+}
+
+export function requireSandboxWorkerApi(ctx: {
+  job: Job;
+  env: Env;
+  expoApiV2BaseUrl?: string;
+}): SandboxWorkerApi {
+  const workerApi = getSandboxWorkerApi(ctx);
+  if (!workerApi) {
+    throw new SystemError(
+      `This sandbox job has no ${SANDBOX_WORKER_TOKEN_ENV} secret. ` +
+        'www gives one to every sandbox job, and the worker needs it to call the sandbox API. ' +
+        'Start a new sandbox, and contact support if it happens again.'
+    );
+  }
+  return workerApi;
 }

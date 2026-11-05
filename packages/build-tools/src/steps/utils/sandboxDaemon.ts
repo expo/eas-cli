@@ -16,7 +16,6 @@ import {
   type SandboxDaemonCommandImplementations,
   createSandboxCommandImplementations,
 } from './sandboxCommandImplementations';
-import { type LegacySandboxApi } from './legacySandboxApi';
 import { type SandboxWorkerApi } from './sandboxWorkerApi';
 
 export interface SandboxDaemonOptions {
@@ -27,7 +26,7 @@ export interface SandboxDaemonOptions {
   signal?: AbortSignal;
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
-  workerApi: SandboxWorkerApi | LegacySandboxApi;
+  workerApi: SandboxWorkerApi;
 }
 
 export interface SandboxDaemon {
