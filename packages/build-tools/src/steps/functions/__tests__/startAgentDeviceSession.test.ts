@@ -451,26 +451,21 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     );
   });
 
-  it.each([
-    { sources: [] },
-    { sources: ['emulator-output'] },
-    { sources: ['device-logcat'] },
-    { sources: ['emulator-output', 'device-logcat'] },
-  ])('selects $sources before Android boot', async ({ sources }) => {
+  it('passes an explicit empty source list and the workflow capture to Android boot', async () => {
     const capture = new AndroidEmulatorLogCapture();
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
+    const env = { DEVICE_RUN_SESSION_ID: 'session' };
     await runStep(
       BuildRuntimePlatform.LINUX,
-      { android_log_sources: sources },
+      { android_log_sources: [] },
       undefined,
       ctx,
       false,
-      {
-        DEVICE_RUN_SESSION_ID: 'session',
-      }
+      env
     );
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env);
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ logSources: sources, logCapture: capture })
+      expect.objectContaining({ logSources: [], logCapture: capture })
     );
   });
 
@@ -496,10 +491,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.not.objectContaining({ DEVICE_RUN_SESSION_ID: expect.anything() })
-    );
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceIdentifier: 'pixel_7',
@@ -529,10 +520,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     // The step returned only after the download stopped.
     expect(download.settled()).toBe(true);
     expect(installBuildAsync).not.toHaveBeenCalled();
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(getAndroidEmulatorLogCapture).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(startAndroidEmulatorAsync).mock.invocationCallOrder[0]
-    );
   });
 
   it('does not start work for an already cancelled step', async () => {

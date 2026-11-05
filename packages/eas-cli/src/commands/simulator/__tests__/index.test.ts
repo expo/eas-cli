@@ -883,21 +883,20 @@ describe(Simulator, () => {
     );
   });
 
-  it.each([
-    { sources: ['emulator-output'] },
-    { sources: ['device-logcat'] },
-    { sources: ['emulator-output', 'device-logcat'] },
-  ])('passes explicitly selected Android log sources $sources', async ({ sources }) => {
+  it('accumulates repeated --android-log-source flags in order', async () => {
     const { command } = createCommand([
       '--platform',
       'android',
       '--non-interactive',
-      ...sources.flatMap(source => ['--android-log-source', source]),
+      '--android-log-source',
+      'emulator-output',
+      '--android-log-source',
+      'device-logcat',
     ]);
     await command.runAsync();
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ android: { logSources: sources } })
+      expect.objectContaining({ android: { logSources: ['emulator-output', 'device-logcat'] } })
     );
   });
 

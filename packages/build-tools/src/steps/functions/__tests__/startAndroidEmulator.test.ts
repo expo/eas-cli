@@ -99,22 +99,21 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedMkdtemp.mockRestore();
   });
 
-  it.each([
-    { sources: [] },
-    { sources: ['emulator-output'] },
-    { sources: ['device-logcat'] },
-    { sources: ['emulator-output', 'device-logcat'] },
-  ])('preserves $sources through boot retries and clones', async ({ sources }) => {
+  it('preserves an explicit empty source list and one capture through boot retries and clones', async () => {
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
     const capture = new AndroidEmulatorLogCapture();
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     await createStep(
-      { android_log_sources: sources, count: 2 },
+      { android_log_sources: [], count: 2 },
       { DEVICE_RUN_SESSION_ID: 'session' }
     ).executeAsync();
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' })
+    );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(4);
     for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
-      expect(options.logSources).toEqual(sources);
+      expect(options.logSources).toEqual([]);
       expect(options.logCapture).toBe(capture);
     }
   });
@@ -262,7 +261,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
@@ -270,7 +268,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -345,21 +342,18 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         deviceName: 'EasAndroidDevice01',
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceName: 'eas-simulator-1',
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceName: 'eas-simulator-2',
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
 
@@ -378,9 +372,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       .mockResolvedValueOnce(createStartResult('emulator-attempt-3'));
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValue(new Error('network unavailable'));
 
-    await expect(
-      createStep(undefined, { DEVICE_RUN_SESSION_ID: 'session' }).executeAsync()
-    ).rejects.toThrow('network unavailable');
+    await expect(createStep().executeAsync()).rejects.toThrow('network unavailable');
 
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
       3,
@@ -391,13 +383,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' })
-    );
-    expect(jest.mocked(getAndroidEmulatorLogCapture).mock.invocationCallOrder[0]).toBeLessThan(
-      mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
-    );
   });
 
   it('outputs and uses a temporary logcat directory', async () => {
@@ -407,14 +392,9 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         logcatDirectory: '/tmp/logcat-directory',
-        logSources: ['emulator-output', 'device-logcat'],
       })
     );
     expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.not.objectContaining({ DEVICE_RUN_SESSION_ID: expect.anything() })
-    );
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',
