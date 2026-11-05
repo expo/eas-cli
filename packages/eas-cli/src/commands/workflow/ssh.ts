@@ -102,8 +102,6 @@ export function parseSshArgv(rawArgv: readonly string[]): {
 }
 
 export default class WorkflowSsh extends EasCommand {
-  static override hidden = true;
-
   static override description =
     '[EXPERIMENTAL] open an ssh session on the worker running a workflow job';
 
