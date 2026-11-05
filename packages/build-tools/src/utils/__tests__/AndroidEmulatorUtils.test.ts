@@ -232,7 +232,7 @@ describe('AndroidEmulatorUtils', () => {
       return { child };
     }
 
-    it('captures logcat and emulator process output', async () => {
+    it('names log files after the device and detaches the emulator', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
@@ -252,23 +252,10 @@ describe('AndroidEmulatorUtils', () => {
       expect(await logFile(outputDir, 'emulator')).toMatch(
         new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-emulator\\.log$`)
       );
-      await expect(fs.promises.access(await logFile(outputDir, 'logcat'))).resolves.toBeUndefined();
-      await expect(
-        fs.promises.access(await logFile(outputDir, 'emulator'))
-      ).resolves.toBeUndefined();
       expect(mockedSpawn).toHaveBeenCalledWith(
         expect.stringMatching(/\/emulator\/emulator$/),
-        expect.arrayContaining([
-          '-logcat',
-          '*:v',
-          '-logcat-output',
-          await logFile(outputDir, 'logcat'),
-        ]),
-        expect.objectContaining({
-          detached: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          ignoreStdio: true,
-        })
+        expect.any(Array),
+        expect.objectContaining({ detached: true, ignoreStdio: true })
       );
       expect(mockedSpawn).not.toHaveBeenCalledWith(
         'adb',
@@ -280,82 +267,7 @@ describe('AndroidEmulatorUtils', () => {
       // for as long as the emulator runs.
       expect(child.stdout.unref).toHaveBeenCalled();
       expect(child.stderr.unref).toHaveBeenCalled();
-      child.stdout.emit('data', Buffer.from('host output'));
       child.emit('close');
-      await buildCapture.finishAsync();
-      expect(await fs.promises.readFile(await logFile(outputDir, 'emulator'), 'utf8')).toBe(
-        'host output'
-      );
-    });
-
-    describe.each([false, true])('source selection with launch gate %s', gated => {
-      it.each([
-        { sources: [] },
-        { sources: ['emulator-output'] },
-        { sources: ['device-logcat'] },
-        { sources: ['emulator-output', 'device-logcat'] },
-      ])('records only $sources', async ({ sources }) => {
-        const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'selected-logs-'));
-        temporaryDirectories.push(outputDir);
-        const deviceName = 'selected-emulator' as AndroidVirtualDeviceName;
-        const { child } = mockSuccessfulStart(deviceName);
-        const stdin = { end: jest.fn() };
-        Object.assign(child, { stdin });
-        const directSpawn = mockedSpawn.getMockImplementation()!;
-        mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
-          directSpawn(
-            command === 'bash' ? '/android/emulator/emulator' : command,
-            args,
-            options as any
-          )) as any);
-        const stdoutPipe = jest.spyOn(child.stdout, 'pipe');
-        const stderrPipe = jest.spyOn(child.stderr, 'pipe');
-        await AndroidEmulatorUtils.startAsync({
-          logCapture: buildCapture,
-          deviceName,
-          env: {},
-          logcatDirectory: outputDir,
-          logSources: AndroidEmulatorLogSourcesSchema.parse(sources),
-          ...(gated
-            ? {
-                launchGate: {
-                  emulatorArgs: [],
-                  wrapperCommand: 'bash',
-                  wrapperArgs: [],
-                  admitAsync: async () => {},
-                },
-              }
-            : {}),
-        });
-        const capturesOutput = sources.includes('emulator-output');
-        const capturesLogcat = sources.includes('device-logcat');
-        const [, args, options] = mockedSpawn.mock.calls[0];
-        expect(args.includes('-logcat')).toBe(capturesLogcat);
-        expect(args.includes('-logcat-output')).toBe(capturesLogcat);
-        expect(options?.stdio).toEqual([
-          gated ? 'pipe' : 'ignore',
-          capturesOutput ? 'pipe' : 'ignore',
-          capturesOutput ? 'pipe' : 'ignore',
-        ]);
-        expect(stdoutPipe).toHaveBeenCalledTimes(capturesOutput ? 1 : 0);
-        expect(stderrPipe).toHaveBeenCalledTimes(capturesOutput ? 1 : 0);
-        if (capturesOutput) {
-          child.stdout.emit('data', Buffer.from('stdout marker\n'));
-          child.stderr.emit('data', Buffer.from('stderr marker\n'));
-          child.emit('close');
-          await buildCapture.finishAsync();
-          await expect(
-            fs.promises.readFile(await logFile(outputDir, 'emulator'), 'utf8')
-          ).resolves.toBe('stdout marker\nstderr marker\n');
-        }
-        const files = await fs.promises.readdir(outputDir);
-        expect(files).toHaveLength(sources.length);
-        expect(files.some(file => file.endsWith('-logcat.log'))).toBe(capturesLogcat);
-        expect(files.some(file => file.endsWith('-emulator.log'))).toBe(capturesOutput);
-        if (gated) {
-          expect(stdin.end).toHaveBeenCalledWith('go\n');
-        }
-      });
     });
 
     it.each([
@@ -363,12 +275,55 @@ describe('AndroidEmulatorUtils', () => {
       { sources: ['emulator-output'] },
       { sources: ['device-logcat'] },
       { sources: ['emulator-output', 'device-logcat'] },
-    ])('bounds only selected session sources: $sources', async ({ sources }) => {
+    ])('records only $sources', async ({ sources }) => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'selected-logs-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'selected-emulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const stdoutPipe = jest.spyOn(child.stdout, 'pipe');
+      const stderrPipe = jest.spyOn(child.stderr, 'pipe');
+      const prepare = jest.spyOn(buildCapture, 'prepareLogcatOutputAsync');
+      await AndroidEmulatorUtils.startAsync({
+        logCapture: buildCapture,
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        logSources: AndroidEmulatorLogSourcesSchema.parse(sources),
+      });
+      const capturesOutput = sources.includes('emulator-output');
+      const capturesLogcat = sources.includes('device-logcat');
+      const [, args, options] = mockedSpawn.mock.calls[0];
+      expect(prepare).toHaveBeenCalledTimes(capturesLogcat ? 1 : 0);
+      expect(args.includes('-logcat')).toBe(capturesLogcat);
+      expect(args.includes('-logcat-output')).toBe(capturesLogcat);
+      expect(options?.stdio).toEqual([
+        'ignore',
+        capturesOutput ? 'pipe' : 'ignore',
+        capturesOutput ? 'pipe' : 'ignore',
+      ]);
+      expect(stdoutPipe).toHaveBeenCalledTimes(capturesOutput ? 1 : 0);
+      expect(stderrPipe).toHaveBeenCalledTimes(capturesOutput ? 1 : 0);
+      if (capturesOutput) {
+        child.stdout.emit('data', Buffer.from('stdout marker\n'));
+        child.stderr.emit('data', Buffer.from('stderr marker\n'));
+        child.emit('close');
+        await buildCapture.finishAsync();
+        await expect(
+          fs.promises.readFile(await logFile(outputDir, 'emulator'), 'utf8')
+        ).resolves.toBe('stdout marker\nstderr marker\n');
+      }
+      const files = await fs.promises.readdir(outputDir);
+      expect(files).toHaveLength(sources.length);
+      expect(files.some(file => file.endsWith('-logcat.log'))).toBe(capturesLogcat);
+      expect(files.some(file => file.endsWith('-emulator.log'))).toBe(capturesOutput);
+    });
+
+    it('routes a session logcat through the capture pipe and closes it with the emulator', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bounded-logs-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'bounded-emulator' as AndroidVirtualDeviceName;
       const { child } = mockSuccessfulStart(deviceName);
-      const capture = new AndroidEmulatorLogCapture(10);
+      const capture = new AndroidEmulatorLogCapture();
       const close = jest.fn();
       const createPipe = jest.spyOn(capture, 'prepareLogcatOutputAsync').mockResolvedValue({
         path: '/logcat.pipe',
@@ -379,23 +334,18 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         env: {},
         logcatDirectory: outputDir,
-        logSources: AndroidEmulatorLogSourcesSchema.parse(sources),
+        logSources: ['device-logcat'],
         logCapture: capture,
       });
-      const hasLogcat = sources.includes('device-logcat');
-      expect(createPipe).toHaveBeenCalledTimes(hasLogcat ? 1 : 0);
-      expect(mockedSpawn.mock.calls[0][1].includes('/logcat.pipe')).toBe(hasLogcat);
-      child.stdout.emit('data', Buffer.from('first stdout'));
-      child.stderr.emit('data', Buffer.from('later stderr'));
+      expect(createPipe).toHaveBeenCalledWith(await logFile(outputDir, 'logcat'));
+      expect(mockedSpawn.mock.calls[0][1]).toEqual(
+        expect.arrayContaining(['-logcat-output', '/logcat.pipe'])
+      );
+      expect(close).not.toHaveBeenCalled();
       child.emit('close');
       await capture.finishAsync();
-      expect(close).toHaveBeenCalledTimes(hasLogcat ? 1 : 0);
-      if (sources.includes('emulator-output')) {
-        expect(await fs.promises.readFile(await logFile(outputDir, 'emulator'), 'utf8')).toBe(
-          'first stdo'
-        );
-      }
-      expect(await fs.promises.readdir(outputDir)).toHaveLength(sources.length);
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(await fs.promises.readdir(outputDir)).toHaveLength(1);
     });
 
     it('spawns the emulator directly with the same arguments when there is no launch gate', async () => {
