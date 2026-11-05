@@ -1,5 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -23,6 +25,14 @@ import {
   prepareControlActionAsync,
 } from '../../simulator/controlActions';
 import {
+  ControlConfigExecutionError,
+  ControlConfigResult,
+  PreparedControlConfig,
+  executeControlConfigAsync,
+  prepareControlConfigAsync,
+  serializeControlConfigResults,
+} from '../../simulator/controlConfig';
+import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
@@ -42,6 +52,8 @@ import {
   getSimulatorCommandAliases,
   getSimulatorCommandHiddenAliases,
 } from '../../simulator/commandAliases';
+import formatFields from '../../utils/formatFields';
+import { sanitizeTerminalText, truncate } from '../../utils/terminalText';
 import { formatMilliseconds } from '../../utils/timer';
 
 export default class SimulatorControl extends EasCommand {
@@ -55,6 +67,16 @@ Use --keep-alive to reuse the connection across commands, or prepare it with sim
 
 To save a screenshot locally, run \`eas simulator:control screenshot.capture --output ./screenshot.png\`.
 
+Use --import to run the actions from a JSON file. The start section is used only by simulator:start:
+
+{
+  "version": 1,
+  "start": {"device": "iPhone 17 Pro", "type": "web-preview-only"},
+  "actions": [{"action": "appearance.set", "params": {"value": "dark"}}]
+}
+
+The file is checked before any actions run. Actions run in order and stop on the first failure. Local paths are relative to the JSON file; paths in params refer to the simulator host.
+
 Existing output files are overwritten. When saving to a directory, an existing file with the generated name causes the action to fail.`;
   static override strict = false;
 
@@ -63,6 +85,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     '$ eas simulator:control --id <session-id>',
     '$ eas simulator:control screenshot.capture --help',
     '$ eas simulator:control clipboard.write -- --some-text',
+    '$ eas simulator:control --import ./simulator-control.json',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
     '$ eas simulator:control app.install ./MyApp.ipa',
@@ -90,6 +113,9 @@ Existing output files are overwritten. When saving to a directory, an existing f
     }),
     output: Flags.string({
       description: 'Local file or existing directory for saved output',
+    }),
+    import: Flags.string({
+      description: 'Run saved actions from a JSON file',
     }),
     'keep-alive': Flags.boolean({
       description:
@@ -125,6 +151,10 @@ Existing output files are overwritten. When saving to a directory, an existing f
       assertControlKeepAliveSupported();
     }
     const action = flags.list && !flags.help ? undefined : args.action;
+    const importing = flags.import !== undefined;
+    if (importing && (args.action || flags.list || flags.output !== undefined)) {
+      throw new Error('--import cannot be combined with an action, --list, or --output.');
+    }
     if (!action && flags.output) {
       throw new Error('--output requires an action.');
     }
@@ -173,7 +203,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
           catalog = borrowed.catalog;
           controlSession = borrowed.info.session;
           spinner.stop();
-          if (flags['keep-alive'] && !action && !flags.list && !flags.help) {
+          if (flags['keep-alive'] && !action && !importing && !flags.list && !flags.help) {
             if (jsonFlag) {
               printJsonOnlyOutput({ connected: true, id: sessionId, connection: borrowed.info });
             } else {
@@ -190,7 +220,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
           controlSession = {
             ...session,
             device:
-              jsonFlag && Boolean(action) && !flags.list && !flags.help
+              importing || (jsonFlag && Boolean(action) && !flags.list && !flags.help)
                 ? await fetchHostActionDeviceAsync(access, connection.udid)
                 : { udid: connection.udid },
           };
@@ -200,7 +230,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
         spinner.fail(`Failed to connect to simulator session ${sessionId}`);
         throw err;
       }
-      if (!action) {
+      if (!action && !importing) {
         this.printCatalog(catalog, jsonFlag);
         return;
       }
@@ -214,19 +244,133 @@ Existing output files are overwritten. When saving to a directory, an existing f
         this.printActionHelp(action, entry, jsonFlag);
         return;
       }
-      const entry = Object.hasOwn(catalog, action) ? catalog[action] : undefined;
-      await this.runActionAsync(
-        connection,
-        catalog,
-        {
-          action,
-          params: entry ? buildHostActionParams(action, entry, argv.slice(1).map(String)) : {},
-          outputPath: flags.output,
-        },
-        { session: controlSession, jsonFlag }
-      );
+      if (importing) {
+        await this.importConfigAsync(connection, catalog, flags.import!, {
+          session: controlSession,
+          jsonFlag,
+        });
+      } else {
+        const entry = Object.hasOwn(catalog, action!) ? catalog[action!] : undefined;
+        await this.runActionAsync(
+          connection,
+          catalog,
+          {
+            action: action!,
+            params: entry ? buildHostActionParams(action!, entry, argv.slice(1).map(String)) : {},
+            outputPath: flags.output,
+          },
+          { session: controlSession, jsonFlag }
+        );
+      }
     } finally {
       connection?.close();
+    }
+  }
+
+  private async importConfigAsync(
+    connection: HostActionConnection,
+    catalog: HostActionCatalog,
+    filePath: string,
+    { session, jsonFlag }: { session: ControlSession; jsonFlag: boolean }
+  ): Promise<void> {
+    const spinner = jsonFlag ? undefined : ora(`Validating ${path.basename(filePath)}`).start();
+    const startedAt = Date.now();
+    let stepStartedAt = startedAt;
+    let config: PreparedControlConfig | undefined;
+    let results: ControlConfigResult[];
+    try {
+      config = await prepareControlConfigAsync(catalog, filePath, connection.udid);
+      if (spinner) {
+        spinner.succeed(`Validated ${formatActionCount(config.actions.length)}`);
+        this.printSessionHeader(session);
+        Log.log(chalk.bold(path.basename(config.path)));
+        Log.gray(config.path);
+        for (const { plan } of config.actions) {
+          if (plan.localFile) {
+            Log.gray(`  Read: ${plan.localFile.path}`);
+          }
+          if (plan.outputPath) {
+            Log.gray(`  Output: ${plan.outputPath}`);
+          }
+        }
+        if (config.actions.some(({ plan }) => plan.outputPath)) {
+          Log.gray(
+            'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+          );
+        }
+        Log.newLine();
+      }
+      const prepared = config;
+      results = await executeControlConfigAsync(connection, prepared, {
+        onProgress: spinner
+          ? progress => {
+              const label = `[${progress.step}/${progress.total}] ${progress.action}`;
+              if (progress.status === 'running') {
+                stepStartedAt = Date.now();
+                spinner.start(label);
+              } else {
+                spinner.succeed(`${label} ${chalk.dim(formatElapsed(stepStartedAt))}`);
+                this.printConfigResult(progress.result);
+              }
+            }
+          : undefined,
+      });
+    } catch (error) {
+      if (error instanceof ControlConfigExecutionError && config) {
+        spinner?.fail(
+          `[${error.step}/${config.actions.length}] ${error.action} ${chalk.dim(formatElapsed(stepStartedAt))}`
+        );
+        if (jsonFlag) {
+          printJsonOnlyOutput({
+            id: session.id,
+            session,
+            config: config.path,
+            results: serializeControlConfigResults(error.completed),
+            error: { step: error.step, action: error.action, message: error.message },
+          });
+          process.exitCode = 1;
+          return;
+        }
+        const skipped = config.actions.length - error.step;
+        Log.newLine();
+        Log.log(`${error.completed.length} completed · 1 failed · ${skipped} skipped`);
+        for (const [index, { plan }] of config.actions.entries()) {
+          if (index >= error.step) {
+            Log.gray(`  [${index + 1}/${config.actions.length}] ${plan.action} skipped`);
+          }
+        }
+      } else {
+        spinner?.fail(config ? 'Import failed' : 'Validation failed. No actions were run.');
+      }
+      throw error;
+    }
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        id: session.id,
+        session,
+        config: config.path,
+        results: serializeControlConfigResults(results),
+      });
+    } else {
+      Log.newLine();
+      Log.succeed(
+        `Import complete · ${formatActionCount(results.length)} · ${formatElapsed(startedAt)}`
+      );
+    }
+  }
+
+  private printConfigResult(result: ControlConfigResult): void {
+    if (result.file) {
+      Log.log(`  Saved: ${result.file}`);
+    } else if (result.output) {
+      const output = parseControlActionOutput(result.output);
+      const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+      Log.log(
+        text
+          .split('\n')
+          .map(line => `  ${line}`)
+          .join('\n')
+      );
     }
   }
 
@@ -294,6 +438,34 @@ Existing output files are overwritten. When saving to a directory, an existing f
     Log.newLine();
   }
 
+  private printSessionHeader(session: ControlSession): void {
+    const clean = (value: string): string =>
+      sanitizeTerminalText(
+        stripVTControlCharacters(value).replace(/[\u202A-\u202E\u2066-\u2069]/g, '')
+      );
+    const runtime = clean(session.device.runtime ?? '')
+      .replace(/^([A-Za-z]+)-/, '$1 ')
+      .replaceAll('-', '.');
+    Log.newLine();
+    Log.log(chalk.bold('Simulator controls'));
+    Log.log(
+      formatFields([
+        { label: 'Session', value: truncate(clean(session.name ?? '') || 'Unnamed session', 80) },
+        { label: 'Project', value: clean(session.project) },
+        {
+          label: 'Device',
+          value: [truncate(clean(session.device.name ?? '') || 'Unavailable', 80), runtime]
+            .filter(Boolean)
+            .join(' · '),
+        },
+        { label: 'State', value: session.status.toLowerCase().replaceAll('_', ' ') },
+        { label: 'Session ID', value: clean(session.id) },
+        { label: 'Device ID', value: clean(session.device.udid) },
+      ])
+    );
+    Log.newLine();
+  }
+
   private async runActionAsync(
     connection: HostActionConnection,
     catalog: HostActionCatalog,
@@ -345,4 +517,12 @@ function withUploadPathHelp(entry: HostActionCatalogEntry): HostActionCatalogEnt
   return help
     ? { ...entry, description: [entry.description, help].filter(Boolean).join('\n\n') }
     : entry;
+}
+
+function formatElapsed(startedAt: number): string {
+  return formatMilliseconds(Date.now() - startedAt) || '<1s';
+}
+
+function formatActionCount(count: number): string {
+  return `${count} action${count === 1 ? '' : 's'}`;
 }
