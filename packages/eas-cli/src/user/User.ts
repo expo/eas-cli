@@ -1,4 +1,5 @@
 import {
+  AccountFragment,
   CurrentUserQuery,
   PartnerActor,
   Permission,
@@ -59,10 +60,11 @@ export function getCreatableAccountNames(actor: Actor): string[] {
   if (actor.__typename === 'Robot') {
     return creatableAccounts.map(it => it.name);
   }
+  const personalAccountId = getPersonalAccount(actor)?.id;
   return [
-    ...creatableAccounts.filter(a => a.ownerUserActor?.id === actor.id),
-    ...creatableAccounts.filter(a => a.ownerUserActor && a.ownerUserActor.id !== actor.id),
-    ...creatableAccounts.filter(a => !a.ownerUserActor),
+    ...creatableAccounts.filter(a => a.id === personalAccountId),
+    ...creatableAccounts.filter(a => a.ownerUserActor && a.id !== personalAccountId),
+    ...creatableAccounts.filter(a => !a.ownerUserActor && a.id !== personalAccountId),
   ].map(it => it.name);
 }
 
@@ -99,6 +101,27 @@ export function getActorUsername(actor?: Actor): string | null {
     case 'SSOUser':
     case 'PartnerActor':
       return actor.username;
+    case 'Robot':
+    case undefined:
+      return null;
+  }
+}
+
+/**
+ * Resolve the personal account of an actor. Use this helper instead of
+ * assuming that a user's personal account name equals their username.
+ *
+ * Returns `null` for actors without a personal account (e.g. robots), and when the session's
+ * scope doesn't include the personal account.
+ */
+export function getPersonalAccount(actor?: Actor): AccountFragment | null {
+  switch (actor?.__typename) {
+    case 'User':
+    case 'SSOUser':
+      return actor.accounts.find(account => account.ownerUserActor?.id === actor.id) ?? null;
+    case 'PartnerActor':
+      // ownerUserActor only resolves to a User or SSOUser, so match on the primary account id
+      return actor.accounts.find(account => account.id === actor.primaryAccount.id) ?? null;
     case 'Robot':
     case undefined:
       return null;
