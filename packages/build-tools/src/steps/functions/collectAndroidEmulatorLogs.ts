@@ -1,13 +1,7 @@
-import {
-  BuildFunction,
-  BuildRuntimePlatform,
-  BuildStepInput,
-  BuildStepInputValueTypeName,
-} from '@expo/steps';
+import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { AndroidEmulatorLogSourcesSchema } from '../../utils/androidEmulatorLogSources';
 import { collectAndroidEmulatorLogsAsync } from '../utils/androidEmulatorLogs';
 import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 
@@ -20,21 +14,12 @@ export function createCollectAndroidEmulatorLogsBuildFunction(
     name: 'Collect Android emulator logs',
     __metricsId: 'eas/collect_android_emulator_logs',
     supportedRuntimePlatforms: [BuildRuntimePlatform.LINUX],
-    inputProviders: [
-      BuildStepInput.createProvider({
-        id: 'sources',
-        required: false,
-        defaultValue: ['emulator-output'],
-        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
-      }),
-    ],
-    fn: async ({ logger, global }, { inputs, env }) => {
+    fn: async ({ logger, global }, { env }) => {
       try {
         await collectAndroidEmulatorLogsAsync(ctx, {
           global,
           deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
           logger,
-          sources: AndroidEmulatorLogSourcesSchema.parse(inputs.sources.value),
         });
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));

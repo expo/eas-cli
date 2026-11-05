@@ -22,6 +22,7 @@ it('uploads NDJSON with explicit user-app scope', async () => {
       kind: 'simulator-log',
       filename: 'app-logs.ndjson',
       size: 11,
+      attempts: 1,
       metadata: expect.objectContaining({ scope: 'user-apps', udid: 'A' }),
     })
   );

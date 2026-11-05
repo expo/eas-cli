@@ -28,7 +28,7 @@ it('retries a finalized capped log while its producer keeps writing, with one ar
   const filePath = path.join(directory, 'device-emulator.log');
   const global = {} as BuildStepGlobalContext;
   const logger = createMockLogger();
-  const capture = getAndroidEmulatorLogCapture(global);
+  const capture = getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' });
   const input = new PassThrough();
   capture.attach(input, filePath, 'emulator-output');
   input.write(payload);

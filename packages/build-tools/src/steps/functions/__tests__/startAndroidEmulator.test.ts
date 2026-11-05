@@ -66,6 +66,11 @@ function createStartResult(serialId: string) {
 
 describe(createStartAndroidEmulatorBuildFunction, () => {
   beforeEach(() => {
+    jest
+      .mocked(getAndroidEmulatorLogCapture)
+      .mockImplementation(
+        jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
+      );
     mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
@@ -141,6 +146,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
         logSources: ['emulator-output', 'device-logcat'],
+        logCapture: expect.objectContaining({ maxBytes: Infinity }),
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),
@@ -385,7 +391,10 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
-    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything());
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' })
+    );
     expect(jest.mocked(getAndroidEmulatorLogCapture).mock.invocationCallOrder[0]).toBeLessThan(
       mockedAndroidUtils.startAsync.mock.invocationCallOrder[0]
     );
@@ -402,8 +411,10 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
-    expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
-    expect(mockedAndroidUtils.startAsync.mock.calls[0][0].logCapture).toBeUndefined();
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ DEVICE_RUN_SESSION_ID: expect.anything() })
+    );
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',

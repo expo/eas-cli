@@ -13,6 +13,8 @@ import {
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
+import { AndroidEmulatorLogCapture } from '../androidEmulatorLogCapture';
+import { ALL_ANDROID_EMULATOR_LOG_SOURCES } from '../androidEmulatorLogSources';
 
 // We need to use real fs for cloning devices to work.
 jest.unmock('fs');
@@ -78,6 +80,8 @@ describe('AndroidEmulatorUtils', () => {
         logger: createMockLogger({ logToConsole: true }),
       });
       ({ serialId } = await AndroidEmulatorUtils.startAsync({
+        logCapture: new AndroidEmulatorLogCapture(Infinity),
+        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory,
@@ -105,6 +109,8 @@ describe('AndroidEmulatorUtils', () => {
       logger: createMockLogger({ logToConsole: true }),
     });
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+      logCapture: new AndroidEmulatorLogCapture(Infinity),
+      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,
@@ -135,6 +141,8 @@ describe('AndroidEmulatorUtils', () => {
 
     const { serialId: serialIdClone, emulatorPromise: emulatorPromiseClone } =
       await AndroidEmulatorUtils.startAsync({
+        logCapture: new AndroidEmulatorLogCapture(Infinity),
+        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
         deviceName: cloneDeviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory,
@@ -172,6 +180,8 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+      logCapture: new AndroidEmulatorLogCapture(Infinity),
+      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,
@@ -226,6 +236,8 @@ describe('AndroidEmulatorUtils', () => {
           });
 
           const startResult = await AndroidEmulatorUtils.startAsync({
+            logCapture: new AndroidEmulatorLogCapture(Infinity),
+            logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
             deviceName,
             env: envForAttempt,
             logcatDirectory,
@@ -309,6 +321,8 @@ describe('AndroidEmulatorUtils', () => {
         logger,
       });
       const startResult = await AndroidEmulatorUtils.startAsync({
+        logCapture: new AndroidEmulatorLogCapture(Infinity),
+        logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
         logcatDirectory: testLogcatDirectory,
@@ -319,7 +333,16 @@ describe('AndroidEmulatorUtils', () => {
       await AndroidEmulatorUtils.waitForReadyAsync({ serialId, env: process.env });
       await retryAsync(
         async () => {
-          const contents = await fs.promises.readFile(startResult.emulatorOutputPath!, 'utf-8');
+          const filename = (await fs.promises.readdir(testLogcatDirectory)).find(file =>
+            file.endsWith('-emulator.log')
+          );
+          if (!filename) {
+            throw new Error('Missing emulator output');
+          }
+          const contents = await fs.promises.readFile(
+            path.join(testLogcatDirectory, filename),
+            'utf-8'
+          );
           if (!contents.includes('Android emulator version')) {
             throw new Error('Did not find the emulator version in emulator process output yet.');
           }
@@ -340,7 +363,16 @@ describe('AndroidEmulatorUtils', () => {
 
       await retryAsync(
         async () => {
-          const contents = await fs.promises.readFile(startResult.logcatOutputPath!, 'utf-8');
+          const filename = (await fs.promises.readdir(testLogcatDirectory)).find(file =>
+            file.endsWith('-logcat.log')
+          );
+          if (!filename) {
+            throw new Error('Missing logcat output');
+          }
+          const contents = await fs.promises.readFile(
+            path.join(testLogcatDirectory, filename),
+            'utf-8'
+          );
           if (!contents.includes(marker)) {
             throw new Error(`Did not find marker ${marker} in logcat output yet.`);
           }
@@ -384,6 +416,8 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+      logCapture: new AndroidEmulatorLogCapture(Infinity),
+      logSources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
       logcatDirectory,

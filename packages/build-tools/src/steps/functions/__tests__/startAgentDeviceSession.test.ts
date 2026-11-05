@@ -186,6 +186,11 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   }
 
   beforeEach(() => {
+    jest
+      .mocked(getAndroidEmulatorLogCapture)
+      .mockImplementation(
+        jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
+      );
     deviceLaunch = undefined;
     jest.clearAllMocks();
     jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
@@ -481,13 +486,15 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     );
   });
 
-  it('rejects invalid Android log sources before boot', async () => {
+  it('rejects invalid Android log sources before boot or downloading', async () => {
     await expect(
       runStep(BuildRuntimePlatform.LINUX, {
         android_log_sources: ['unknown'],
+        build_id: 'build-id',
       })
     ).rejects.toThrow();
     expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -501,8 +508,10 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
 
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
-    expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
-    expect(jest.mocked(startAndroidEmulatorAsync).mock.calls[0][0].logCapture).toBeUndefined();
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ DEVICE_RUN_SESSION_ID: expect.anything() })
+    );
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         deviceIdentifier: 'pixel_7',

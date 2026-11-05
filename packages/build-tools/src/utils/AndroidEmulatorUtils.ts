@@ -13,10 +13,7 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { Sentry } from '../sentry';
-import {
-  type AndroidEmulatorLogSource,
-  LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
-} from './androidEmulatorLogSources';
+import { type AndroidEmulatorLogSource } from './androidEmulatorLogSources';
 import { type AndroidEmulatorLogCapture } from './androidEmulatorLogCapture';
 import { retryAsync } from './retry';
 
@@ -331,21 +328,19 @@ export namespace AndroidEmulatorUtils {
     deviceName,
     env,
     logcatDirectory,
-    logSources = LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
+    logSources,
     launchGate,
     logCapture,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
-    logSources?: readonly AndroidEmulatorLogSource[];
+    logSources: readonly AndroidEmulatorLogSource[];
     launchGate?: AndroidEmulatorLaunchGate;
-    logCapture?: AndroidEmulatorLogCapture;
+    logCapture: AndroidEmulatorLogCapture;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
-    logcatOutputPath: string | undefined;
-    emulatorOutputPath: string | undefined;
   }> {
     let logcatOutputPath: string | undefined;
     let emulatorOutputPath: string | undefined;
@@ -370,8 +365,9 @@ export namespace AndroidEmulatorUtils {
       });
     }
 
+    // Ordinary builds retain the emulator's direct, uncapped logcat file writer.
     const logcatPipe =
-      logCapture && logcatOutputPath
+      Number.isFinite(logCapture.maxBytes) && logcatOutputPath
         ? await logCapture.createLogcatPipeAsync(logcatOutputPath)
         : undefined;
     const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
@@ -418,7 +414,7 @@ export namespace AndroidEmulatorUtils {
     if (logcatPipe) {
       emulatorPromise.child.once('close', logcatPipe.close);
     }
-    if (emulatorOutputPath && logCapture) {
+    if (emulatorOutputPath) {
       for (const input of [emulatorPromise.child.stdout, emulatorPromise.child.stderr]) {
         if (input) {
           logCapture.attach(input, emulatorOutputPath, 'emulator-output');
@@ -426,33 +422,6 @@ export namespace AndroidEmulatorUtils {
       }
       emulatorPromise.child.once('close', () => {
         void logCapture.finishFileAsync(emulatorOutputPath);
-      });
-    } else if (emulatorOutputPath) {
-      const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
-      let reportedEmulatorOutputError = false;
-      emulatorOutputStream.on('error', err => {
-        process.stderr.write(
-          `Failed to write Android emulator output to ${emulatorOutputPath}: ${err}\n`
-        );
-        if (!reportedEmulatorOutputError) {
-          reportedEmulatorOutputError = true;
-          Sentry.capture('Failed to write Android emulator process output', err, {
-            level: 'warning',
-            tags: {
-              errorCode: (err as NodeJS.ErrnoException).code ?? 'unknown',
-            },
-            extras: {
-              deviceName,
-              emulatorOutputPath,
-            },
-          });
-        }
-      });
-      // Keep process output out of the build log. Device sessions upload this file during cleanup.
-      emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
-      emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
-      emulatorPromise.child.once('close', () => {
-        emulatorOutputStream.end();
       });
     }
     // Piped stdio creates socket handles in this process which, unlike inherited
@@ -504,7 +473,7 @@ export namespace AndroidEmulatorUtils {
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
-    return { emulatorPromise, serialId, logcatOutputPath, emulatorOutputPath };
+    return { emulatorPromise, serialId };
   }
 
   export async function waitForReadyAsync({

@@ -17,8 +17,8 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
+  ALL_ANDROID_EMULATOR_LOG_SOURCES,
   AndroidEmulatorLogSourcesSchema,
-  LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
 } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
@@ -79,7 +79,7 @@ export function createStartAgentDeviceSessionBuildFunction(
       BuildStepInput.createProvider({
         id: 'android_log_sources',
         required: false,
-        defaultValue: [...LEGACY_ANDROID_EMULATOR_LOG_SOURCES],
+        defaultValue: [...ALL_ANDROID_EMULATOR_LOG_SOURCES],
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.
@@ -199,6 +199,9 @@ export function createStartAgentDeviceSessionBuildFunction(
       } else {
         validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
+      const logSources = isIos
+        ? []
+        : AndroidEmulatorLogSourcesSchema.parse(inputs.android_log_sources.value);
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
         {
@@ -252,9 +255,6 @@ export function createStartAgentDeviceSessionBuildFunction(
           booted = iosSimulatorUdid
             ? Promise.resolve()
             : tasks.run('Android Emulator boot', async taskLogger => {
-                const logSources = AndroidEmulatorLogSourcesSchema.parse(
-                  inputs.android_log_sources.value
-                );
                 const logcatDirectory = await fs.promises.mkdtemp(
                   path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
                 );
@@ -268,9 +268,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                   lcdDensity: inputs.lcd_density.value as number | undefined,
                   logcatDirectory,
                   logSources,
-                  logCapture: env.DEVICE_RUN_SESSION_ID
-                    ? getAndroidEmulatorLogCapture(global)
-                    : undefined,
+                  logCapture: getAndroidEmulatorLogCapture(global, env),
                   env,
                   logger: taskLogger,
                 });

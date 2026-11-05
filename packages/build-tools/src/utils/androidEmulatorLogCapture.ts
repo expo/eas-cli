@@ -30,7 +30,7 @@ export class AndroidEmulatorLogCapture {
   private readonly captures = new Map<string, Capture>();
   private finishing = false;
 
-  constructor(private readonly maxBytes = MAX_ANDROID_LOG_BYTES_PER_SOURCE) {}
+  constructor(readonly maxBytes = MAX_ANDROID_LOG_BYTES_PER_SOURCE) {}
 
   attach(input: Readable, filePath: string, source: AndroidEmulatorLogSource): void {
     if (this.finishing) {
@@ -56,9 +56,10 @@ export class AndroidEmulatorLogCapture {
           );
         }
       };
+      const record = { source, inputs: new Set<Readable>(), bytesSeen: 0 };
       const stream = new Writable({
         write: (chunk: Buffer, _encoding, callback) => {
-          capture!.bytesSeen += chunk.length;
+          record.bytesSeen += chunk.length;
           const used = this.bytes.get(source) ?? 0;
           const length = Math.min(chunk.length, this.maxBytes - used);
           if (failed || length <= 0) {
@@ -79,7 +80,7 @@ export class AndroidEmulatorLogCapture {
             .then(() => callback());
         },
       });
-      capture = { source, stream, inputs: new Set(), done: finished(stream), bytesSeen: 0 };
+      capture = Object.assign(record, { stream, done: finished(stream) });
       this.captures.set(filePath, capture);
     }
     capture.inputs.add(input);

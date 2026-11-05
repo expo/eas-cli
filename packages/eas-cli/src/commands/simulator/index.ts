@@ -373,6 +373,19 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         nonInteractive,
       });
+      const android = {
+        ...(deviceIdentifier ? { deviceIdentifier } : {}),
+        ...(systemImagePackage ? { systemImagePackage } : {}),
+        ...(androidLogSources ? { logSources: androidLogSources } : {}),
+      };
+      const platformInput =
+        platform === AppPlatform.Ios
+          ? deviceIdentifier
+            ? { ios: { deviceIdentifier } }
+            : {}
+          : Object.keys(android).length
+            ? { android }
+            : {};
       const session = await withSimulatorRequestAnalyticsAsync(
         analytics,
         requestProperties,
@@ -388,19 +401,7 @@ export default class Simulator extends EasCommand {
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-            ...(platform === AppPlatform.Ios
-              ? deviceIdentifier
-                ? { ios: { deviceIdentifier } }
-                : {}
-              : deviceIdentifier || systemImagePackage || androidLogSources
-                ? {
-                    android: {
-                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
-                      ...(systemImagePackage ? { systemImagePackage } : {}),
-                      ...(androidLogSources ? { logSources: androidLogSources } : {}),
-                    },
-                  }
-                : {}),
+            ...platformInput,
             ...(buildId ? { buildId } : {}),
             ...(buildFingerprint ? { buildFingerprint } : {}),
             ...(applicationArchiveUrlFromFlag

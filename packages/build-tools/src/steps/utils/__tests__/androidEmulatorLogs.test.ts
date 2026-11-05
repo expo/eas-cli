@@ -64,51 +64,37 @@ async function captureLog(
   text: string,
   workflow = global
 ): Promise<void> {
-  const capture = getAndroidEmulatorLogCapture(workflow);
+  const capture = getAndroidEmulatorLogCapture(workflow, { DEVICE_RUN_SESSION_ID: 'session' });
   const input = Readable.from([Buffer.from(text)]);
   capture.attach(input, filePath, source);
   await once(input, 'end');
   await capture.finishFileAsync(filePath);
 }
 
-function collect(
-  sources: readonly AndroidEmulatorLogSource[] = ['emulator-output', 'device-logcat']
-): Promise<void> {
+function collect(): Promise<void> {
   return collectAndroidEmulatorLogsAsync(ctx, {
     global,
     deviceRunSessionId: 'session',
     logger,
-    sources,
   });
 }
 
-it('uploads only emulator output when sources are omitted', async () => {
-  await captureLog(emulatorPath, 'emulator-output', 'host output');
-  await captureLog(logcatPath, 'device-logcat', 'sensitive device output');
-  const stat = jest.spyOn(fsPromises, 'stat');
-  await collectAndroidEmulatorLogsAsync(ctx, { global, deviceRunSessionId: 'session', logger });
-  expect([...uploadedContents.keys()]).toEqual([path.basename(emulatorPath)]);
-  expect(stat).not.toHaveBeenCalledWith(logcatPath);
-});
+it.each(['emulator-output', 'device-logcat'] as const)(
+  'uploads the captured %s without collect-side configuration',
+  async source => {
+    const filePath = source === 'emulator-output' ? emulatorPath : logcatPath;
+    await captureLog(filePath, source, 'selected output');
+    await collect();
+    expect([...uploadedContents.keys()]).toEqual([path.basename(filePath)]);
+  }
+);
 
-it('uploads only explicitly selected logcat and uploads nothing for an empty selection', async () => {
-  await captureLog(emulatorPath, 'emulator-output', 'host output');
-  await captureLog(logcatPath, 'device-logcat', 'device output');
-  await collect([]);
-  expect(upload).not.toHaveBeenCalled();
-  await collect(['device-logcat']);
-  expect([...uploadedContents.keys()]).toEqual([path.basename(logcatPath)]);
-});
-
-it('honors different source selections during concurrent cleanup without duplicate uploads', async () => {
-  await captureLog(emulatorPath, 'emulator-output', 'host output');
-  await captureLog(logcatPath, 'device-logcat', 'device output');
-  await Promise.all([collect(['emulator-output']), collect(['emulator-output', 'device-logcat'])]);
-  expect([...uploadedContents.keys()].sort()).toEqual([
-    path.basename(emulatorPath),
-    path.basename(logcatPath),
-  ]);
-  expect(upload).toHaveBeenCalledTimes(2);
+it('keeps ordinary builds uncapped and simulator sessions bounded', () => {
+  expect(getAndroidEmulatorLogCapture(global, {}).maxBytes).toBe(Infinity);
+  expect(
+    getAndroidEmulatorLogCapture({} as BuildStepGlobalContext, { DEVICE_RUN_SESSION_ID: 'session' })
+      .maxBytes
+  ).toBe(20 * 1024 * 1024);
 });
 
 it('uses captured source records and ignores files outside the capture inventory', async () => {
@@ -153,7 +139,7 @@ it('uses captured source records and ignores files outside the capture inventory
 
 it('seals a live producer before upload and keeps retry bodies identical without copying files', async () => {
   const input = new PassThrough();
-  const capture = getAndroidEmulatorLogCapture(global);
+  const capture = getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' });
   capture.attach(input, emulatorPath, 'emulator-output');
   input.write('before');
   const contents: string[] = [];
@@ -185,7 +171,7 @@ it('seals a live producer before upload and keeps retry bodies identical without
   }
 });
 
-it('continues after a failed upload and retries only unsuccessful files on another collection', async () => {
+it('continues after a failed file without repeating the collection', async () => {
   await captureLog(emulatorPath, 'emulator-output', 'host output');
   await captureLog(logcatPath, 'device-logcat', 'Android output');
   upload.mockRejectedValueOnce(new Error('storage unavailable'));
@@ -196,13 +182,14 @@ it('continues after a failed upload and retries only unsuccessful files on anoth
     expect.stringContaining('other logs will continue')
   );
   await collect();
-  expect(upload).toHaveBeenCalledTimes(3);
-  expect(upload.mock.calls[2][1].filename).toBe(path.basename(emulatorPath));
+  expect(upload).toHaveBeenCalledTimes(2);
   expect(upload.mock.calls[0][1].signal).not.toBe(upload.mock.calls[1][1].signal);
 });
 
 it('shares workflow capture and skips successful uploads on repeated or concurrent cleanup', async () => {
-  expect(getAndroidEmulatorLogCapture(global)).toBe(getAndroidEmulatorLogCapture(global));
+  expect(getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' })).toBe(
+    getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' })
+  );
   await captureLog(emulatorPath, 'emulator-output', 'host output');
   await Promise.all([collect(), collect()]);
   await collect();

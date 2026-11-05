@@ -24,9 +24,9 @@ import { type AndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogCa
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 import {
+  ALL_ANDROID_EMULATOR_LOG_SOURCES,
   type AndroidEmulatorLogSource,
   AndroidEmulatorLogSourcesSchema,
-  LEGACY_ANDROID_EMULATOR_LOG_SOURCES,
 } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 
@@ -43,7 +43,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       BuildStepInput.createProvider({
         id: 'android_log_sources',
         required: false,
-        defaultValue: [...LEGACY_ANDROID_EMULATOR_LOG_SOURCES],
+        defaultValue: [...ALL_ANDROID_EMULATOR_LOG_SOURCES],
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       BuildStepInput.createProvider({
@@ -96,9 +96,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
-      const logCapture = env.DEVICE_RUN_SESSION_ID
-        ? getAndroidEmulatorLogCapture(global)
-        : undefined;
+      const logCapture = getAndroidEmulatorLogCapture(global, env);
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
@@ -235,8 +233,8 @@ export async function startAndroidEmulatorAsync({
   lcdHeight?: number;
   lcdDensity?: number;
   logcatDirectory: string;
-  logSources?: readonly AndroidEmulatorLogSource[];
-  logCapture?: AndroidEmulatorLogCapture;
+  logSources: readonly AndroidEmulatorLogSource[];
+  logCapture: AndroidEmulatorLogCapture;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<{

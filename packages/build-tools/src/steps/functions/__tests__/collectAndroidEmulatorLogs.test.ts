@@ -24,7 +24,7 @@ function createStep(callInputs: Record<string, unknown> = {}) {
   return { ctx, global, logger, fn, step };
 }
 
-it('defaults an existing workflow without inputs to emulator output only', async () => {
+it('collects captured logs without a second source selection', async () => {
   const { ctx, global, fn, step } = createStep();
   expect(fn.supportedRuntimePlatforms).toEqual([BuildRuntimePlatform.LINUX]);
   await step.executeAsync();
@@ -32,35 +32,7 @@ it('defaults an existing workflow without inputs to emulator output only', async
     global,
     deviceRunSessionId: 'session',
     logger: expect.anything(),
-    sources: ['emulator-output'],
   });
-});
-
-it.each([
-  { sources: ['emulator-output', 'device-logcat'] },
-  { sources: ['device-logcat'] },
-  { sources: [] },
-])('passes an explicit selection of $sources through the step input', async ({ sources }) => {
-  const { step } = createStep({ sources });
-  await step.executeAsync();
-  expect(collectAndroidEmulatorLogsAsync).toHaveBeenCalledWith(
-    expect.anything(),
-    expect.objectContaining({ sources })
-  );
-});
-
-it.each([
-  { sources: ['unknown'] },
-  { sources: ['emulator-output', 'unknown'] },
-  { sources: [1] },
-  { sources: { logcat: true } },
-])('does not collect any logs for invalid sources %j', async ({ sources }) => {
-  const { step } = createStep({ sources });
-  const collect = jest.mocked(collectAndroidEmulatorLogsAsync);
-  collect.mockClear();
-  await step.executeAsync();
-  expect(collect).not.toHaveBeenCalled();
-  expect(Sentry.capture).toHaveBeenCalled();
 });
 
 it('reports collection failure without changing the session result', async () => {
