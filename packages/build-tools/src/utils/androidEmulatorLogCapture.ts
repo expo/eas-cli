@@ -16,11 +16,29 @@ export type FinalizedAndroidEmulatorLog = {
   readonly bytesSeen: number;
 };
 
-/**
- * One output file. Capped, it is a ring of `maxBytes` bytes: `writePos` wraps
- * and the newest `retained` bytes end at it. Uncapped, it is a plain append.
- */
-type Output = {
+export type AndroidLogcatOutput = {
+  /** Where the emulator writes its logcat: a FIFO for sessions, the file itself for builds. */
+  path: string;
+  close: () => void;
+  /**
+   * Resolves once the pipe reader exited and the FIFO is removed. Emulator
+   * launch does not wait for it, because the emulator can outlive log
+   * collection; tests use it to observe the cleanup.
+   */
+  closed: Promise<void>;
+};
+
+/** Records emulator output per launch file; `getAndroidEmulatorLogCapture` picks the writer. */
+export type AndroidEmulatorLogCapture = {
+  readonly sources: readonly AndroidEmulatorLogSource[];
+  attach(input: Readable, filePath: string, source: AndroidEmulatorLogSource): void;
+  finishFileAsync(filePath: string): Promise<void>;
+  finishAsync(): Promise<readonly FinalizedAndroidEmulatorLog[]>;
+  prepareLogcatOutputAsync(filePath: string): Promise<AndroidLogcatOutput>;
+};
+
+/** One ring of `maxBytes` bytes: `writePos` wraps and the newest `retained` bytes end at it. */
+type Ring = {
   filePath: string;
   source: AndroidEmulatorLogSource;
   /** Runs one file operation after every earlier one on the same handle. */
@@ -33,29 +51,25 @@ type Output = {
 
 /** One emulator launch. Launches of a source can overlap: clones, or a late exit. */
 type Launch = {
-  output: Output;
+  ring: Ring;
   stream: Writable;
   inputs: Set<Readable>;
   done: Promise<void>;
 };
 
 /**
- * One budget per workflow, shared by all emulator launches and retries.
+ * One budget per session, shared by all emulator launches and retries.
  *
- * Sessions (capped) keep one ring file per source, `<source>.log` beside the
- * launch files, so the last `maxBytes` bytes of a source survive across
- * launches and the tail of the final attempt is always kept. A marker line
- * names each launch that produced output. Overlapping launches share the ring,
- * so their lines can interleave.
- *
- * Ordinary builds (uncapped) keep one plain file per launch, closed when the
- * launch ends, and never finalize anything.
+ * Each source has one ring file, `<source>.log` beside the launch files, so
+ * the last `maxBytes` bytes of a source survive across launches and the tail
+ * of the final attempt is always kept. A marker line names each launch that
+ * produced output. Overlapping launches share the ring, so their lines can
+ * interleave. Logcat arrives through a named pipe so the budget applies to it.
  */
-export class AndroidEmulatorLogCapture {
+export class AndroidEmulatorLogRing implements AndroidEmulatorLogCapture {
   readonly sources: readonly AndroidEmulatorLogSource[];
   private readonly maxBytes: number;
-  /** Keyed by source when capped, by launch file otherwise. */
-  private readonly outputs = new Map<string, Output>();
+  private readonly rings = new Map<AndroidEmulatorLogSource, Ring>();
   private readonly launches = new Map<string, Launch>();
   private finishing = false;
 
@@ -70,10 +84,6 @@ export class AndroidEmulatorLogCapture {
     this.maxBytes = maxBytes;
   }
 
-  private get capped(): boolean {
-    return Number.isFinite(this.maxBytes);
-  }
-
   attach(input: Readable, filePath: string, source: AndroidEmulatorLogSource): void {
     if (this.finishing) {
       input.resume();
@@ -81,7 +91,7 @@ export class AndroidEmulatorLogCapture {
     }
     let launch = this.launches.get(filePath);
     if (!launch) {
-      launch = this.startLaunch(filePath, this.outputFor(filePath, source));
+      launch = this.startLaunch(filePath, this.ringFor(filePath, source));
       this.launches.set(filePath, launch);
     }
     launch.inputs.add(input);
@@ -101,57 +111,38 @@ export class AndroidEmulatorLogCapture {
     launch.inputs.clear();
     launch.stream.end();
     await launch.done;
-    // An uncapped output belongs to this launch alone: release it now.
-    if (!this.capped) {
-      await this.sealAsync(launch.output);
-    }
   }
 
   async finishAsync(): Promise<readonly FinalizedAndroidEmulatorLog[]> {
     this.finishing = true;
     await Promise.all([...this.launches.keys()].map(file => this.finishFileAsync(file)));
-    await Promise.all([...this.outputs.values()].map(output => this.sealAsync(output)));
-    if (!this.capped) {
-      return [];
-    }
+    await Promise.all([...this.rings.values()].map(ring => this.sealAsync(ring)));
     // Every writer is closed, so uploads can reopen these files on each retry.
-    return [...this.outputs.values()].map(({ filePath, source, bytesSeen }) => ({
+    return [...this.rings.values()].map(({ filePath, source, bytesSeen }) => ({
       filePath,
       source,
       bytesSeen,
     }));
   }
 
-  /** Select the output transport without exposing the capture budget to emulator launch. */
-  async prepareLogcatOutputAsync(
-    filePath: string
-  ): Promise<{ path: string; close: () => void; closed: Promise<void> }> {
-    // Ordinary builds retain the emulator's direct, uncapped logcat file writer.
-    if (!this.capped) {
-      await fs.promises.writeFile(filePath, '');
-      return { path: filePath, close: () => {}, closed: Promise.resolve() };
-    }
+  async prepareLogcatOutputAsync(filePath: string): Promise<AndroidLogcatOutput> {
     const pipe = await createAndroidLogcatPipeAsync(`${filePath}.pipe`);
     this.attach(pipe.stream, filePath, 'device-logcat');
     const closed = pipe.closed.then(() => this.finishFileAsync(filePath)).catch(() => {});
     return { path: pipe.path, close: pipe.close, closed };
   }
 
-  private outputFor(filePath: string, source: AndroidEmulatorLogSource): Output {
-    const key = this.capped ? source : filePath;
-    let output = this.outputs.get(key);
-    if (!output) {
-      const outputPath = this.capped
-        ? path.join(path.dirname(filePath), `${source}.log`)
-        : filePath;
-      output = this.open(outputPath, source);
-      this.outputs.set(key, output);
+  private ringFor(filePath: string, source: AndroidEmulatorLogSource): Ring {
+    let ring = this.rings.get(source);
+    if (!ring) {
+      ring = this.open(path.join(path.dirname(filePath), `${source}.log`), source);
+      this.rings.set(source, ring);
     }
-    return output;
+    return ring;
   }
 
-  private open(filePath: string, source: AndroidEmulatorLogSource): Output {
-    const file = fs.promises.open(filePath, this.capped ? 'w+' : 'a');
+  private open(filePath: string, source: AndroidEmulatorLogSource): Ring {
+    const file = fs.promises.open(filePath, 'w+');
     // Handle open errors even if the process never produces output.
     void file.catch(() => {});
     let failed = false;
@@ -179,8 +170,8 @@ export class AndroidEmulatorLogCapture {
     return { filePath, source, run, bytesSeen: 0, writePos: 0, retained: 0 };
   }
 
-  private startLaunch(filePath: string, output: Output): Launch {
-    let marked = !this.capped;
+  private startLaunch(filePath: string, ring: Ring): Launch {
+    let marked = false;
     const stream = new Writable({
       write: (chunk: Buffer, _encoding, callback) => {
         if (!marked) {
@@ -188,56 +179,51 @@ export class AndroidEmulatorLogCapture {
           // Written before the first chunk only, so a silent launch leaves no trace.
           const name = path.basename(filePath, '.log');
           const marker = `==== ${name} ${new Date().toISOString()} ====\n`;
-          void this.write(output, Buffer.from(output.bytesSeen > 0 ? `\n${marker}` : marker));
+          void this.write(ring, Buffer.from(ring.bytesSeen > 0 ? `\n${marker}` : marker));
         }
-        void this.write(output, chunk).then(() => callback());
+        void this.write(ring, chunk).then(() => callback());
       },
     });
-    return { output, stream, inputs: new Set(), done: finished(stream) };
+    return { ring, stream, inputs: new Set(), done: finished(stream) };
   }
 
   /** Account synchronously, then queue the I/O, so overlapping launches share one ring consistently. */
-  private write(output: Output, chunk: Buffer): Promise<void> {
-    output.bytesSeen += chunk.length;
-    if (!this.capped) {
-      return output.run(handle => handle.writeFile(chunk));
-    }
+  private write(ring: Ring, chunk: Buffer): Promise<void> {
     const max = this.maxBytes;
+    ring.bytesSeen += chunk.length;
     const data = chunk.length > max ? chunk.subarray(chunk.length - max) : chunk;
-    const position = output.writePos;
+    const position = ring.writePos;
     const head = Math.min(data.length, max - position);
-    output.writePos = (position + data.length) % max;
-    output.retained = Math.min(output.retained + data.length, max);
-    return output.run(async handle => {
+    ring.writePos = (position + data.length) % max;
+    ring.retained = Math.min(ring.retained + data.length, max);
+    return ring.run(async handle => {
       await writeAtAsync(handle, data.subarray(0, head), position);
       await writeAtAsync(handle, data.subarray(head), 0);
     });
   }
 
-  /** Rewrite a ring in log order, drop the overwritten bytes, and close the file. */
-  private sealAsync(output: Output): Promise<void> {
-    output.sealed ??= output.run(async handle => {
+  /** Rewrite the ring in log order, drop the overwritten bytes, and close the file. */
+  private sealAsync(ring: Ring): Promise<void> {
+    ring.sealed ??= ring.run(async handle => {
       try {
-        if (this.capped) {
-          const { retained } = output;
-          let start = output.writePos - retained;
-          if (start < 0) {
-            start += this.maxBytes;
-          }
-          if (start > 0) {
-            const tail = Buffer.alloc(retained);
-            const head = Math.min(retained, this.maxBytes - start);
-            await readAtAsync(handle, tail.subarray(0, head), start);
-            await readAtAsync(handle, tail.subarray(head), 0);
-            await writeAtAsync(handle, tail, 0);
-          }
-          await handle.truncate(retained);
+        const { retained } = ring;
+        let start = ring.writePos - retained;
+        if (start < 0) {
+          start += this.maxBytes;
         }
+        if (start > 0) {
+          const tail = Buffer.alloc(retained);
+          const head = Math.min(retained, this.maxBytes - start);
+          await readAtAsync(handle, tail.subarray(0, head), start);
+          await readAtAsync(handle, tail.subarray(head), 0);
+          await writeAtAsync(handle, tail, 0);
+        }
+        await handle.truncate(retained);
       } finally {
         await handle.close();
       }
     });
-    return output.sealed;
+    return ring.sealed;
   }
 }
 

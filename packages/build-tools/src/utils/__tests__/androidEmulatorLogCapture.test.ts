@@ -7,7 +7,7 @@ import { PassThrough, Readable } from 'node:stream';
 
 import { Sentry } from '../../sentry';
 import {
-  AndroidEmulatorLogCapture,
+  AndroidEmulatorLogRing,
   MAX_ANDROID_LOG_BYTES_PER_SOURCE,
 } from '../androidEmulatorLogCapture';
 import { ALL_ANDROID_EMULATOR_LOG_SOURCES } from '../androidEmulatorLogSources';
@@ -27,8 +27,8 @@ afterEach(async () => {
   await fs.rm(directory, { recursive: true, force: true });
 });
 
-function createCapture(maxBytes?: number): AndroidEmulatorLogCapture {
-  return new AndroidEmulatorLogCapture({ sources: ALL_ANDROID_EMULATOR_LOG_SOURCES, maxBytes });
+function createCapture(maxBytes?: number): AndroidEmulatorLogRing {
+  return new AndroidEmulatorLogRing({ sources: ALL_ANDROID_EMULATOR_LOG_SOURCES, maxBytes });
 }
 
 /** `==== <name> <ISO time> ====\n` */
@@ -37,7 +37,7 @@ function markerLength(name: string): number {
 }
 
 async function record(
-  capture: AndroidEmulatorLogCapture,
+  capture: AndroidEmulatorLogRing,
   file: string,
   text: string,
   source: 'emulator-output' | 'device-logcat' = 'emulator-output'
@@ -177,27 +177,6 @@ it('drains a real FIFO beyond 20 MiB, retains the tail, and closes after the wri
     pipe.close();
   }
 }, 30_000);
-
-it('writes ordinary builds to plain per-launch files without a FIFO and closes them per launch', async () => {
-  const opened = trackOpenedFiles();
-  const capture = createCapture(Infinity);
-  const logcat = path.join(directory, 'build-logcat.log');
-  const output = await capture.prepareLogcatOutputAsync(logcat);
-  expect(output.path).toBe(logcat);
-  expect(await fs.readdir(directory)).toEqual(['build-logcat.log']);
-  output.close();
-  await output.closed;
-  const first = path.join(directory, 'first-emulator.log');
-  await record(capture, first, 'ordinary build output');
-  expect(opened).toHaveLength(1);
-  expect(opened[0].fd).toBe(-1);
-  expect(await fs.readFile(first, 'utf8')).toBe('ordinary build output');
-  await record(capture, path.join(directory, 'retry-emulator.log'), 'retry output');
-  expect(await fs.readFile(path.join(directory, 'retry-emulator.log'), 'utf8')).toBe(
-    'retry output'
-  );
-  expect(await capture.finishAsync()).toEqual([]);
-});
 
 it('closes an unused logcat pipe when the emulator fails to launch', async () => {
   const file = path.join(directory, 'empty.log');
