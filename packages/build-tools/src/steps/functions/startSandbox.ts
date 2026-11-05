@@ -1,21 +1,11 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
+import { getLegacySandboxConnection } from '../utils/legacySandboxApi';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
-
-const MARK_SANDBOX_READY_MUTATION = graphql(`
-  mutation MarkSandboxReady($sandboxId: ID!) {
-    sandbox {
-      markSandboxReady(sandboxId: $sandboxId) {
-        id
-      }
-    }
-  }
-`);
+import { getSandboxWorkerApi } from '../utils/sandboxWorkerApi';
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
@@ -39,16 +29,22 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }),
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
-      // The daemon needs this credential, but shell commands do not.
-      const { __EAS_SANDBOX_MCP_TOKEN: sandboxToken, ...commandEnv } = env;
-      if (!sandboxToken) {
-        throw new SystemError('__EAS_SANDBOX_MCP_TOKEN is required to start the sandbox daemon.');
-      }
+      const workerApi = getSandboxWorkerApi(ctx);
+      const { sandboxApi, credential, commandEnv } = workerApi
+        ? {
+            sandboxApi: workerApi,
+            credential: workerApi.token,
+            commandEnv: env,
+          }
+        : getLegacySandboxConnection({
+            graphqlClient: ctx.graphqlClient,
+            env,
+            sandboxId: String(inputs.sandbox_id.value),
+          });
       const mcpServerUrl = ctx.mcpServerUrl;
       if (!mcpServerUrl) {
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
-      const sandboxId = String(inputs.sandbox_id.value);
       const maxDurationSeconds = inputs.max_duration_seconds?.value;
       if (
         maxDurationSeconds !== undefined &&
@@ -62,20 +58,25 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         );
       }
       const daemon = await startSandboxDaemonAsync({
-        credential: sandboxToken,
+        credential,
         serverUrl: mcpServerUrl,
         reconnectDelayMs: RECONNECT_DELAY_MS,
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
         env: commandEnv,
-        graphqlClient: ctx.graphqlClient,
-        sandboxId,
+        workerApi: sandboxApi,
       });
       try {
         await daemon.ready;
         signal?.throwIfAborted();
-        await markSandboxReadyAsync(ctx, sandboxId, signal);
+        await sandboxApi.markReadyAsync({ signal }).catch((error: unknown) => {
+          signal?.throwIfAborted();
+          throw new SystemError(
+            `Failed to mark sandbox ${String(inputs.sandbox_id.value)} as ready.`,
+            { cause: error }
+          );
+        });
         signal?.throwIfAborted();
         stepCtx.logger.info('Sandbox daemon started.');
 
@@ -101,23 +102,6 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }
     },
   });
-}
-
-export async function markSandboxReadyAsync(
-  ctx: CustomBuildContext,
-  sandboxId: string,
-  signal?: AbortSignal
-): Promise<void> {
-  signal?.throwIfAborted();
-  const result = await ctx.graphqlClient
-    .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
-    .toPromise();
-  signal?.throwIfAborted();
-  if (result.error) {
-    throw new SystemError(`Failed to mark sandbox ${sandboxId} as ready.`, {
-      cause: result.error,
-    });
-  }
 }
 
 async function waitForCompletionAsync(signal: AbortSignal): Promise<void> {

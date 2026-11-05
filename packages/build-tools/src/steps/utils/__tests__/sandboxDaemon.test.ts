@@ -1,12 +1,13 @@
 import { SandboxDaemonResponseZ, SystemError } from '@expo/eas-build-job';
 import Log from '@expo/logger';
-import { type Client } from '@urql/core';
 import http from 'node:http';
 import net, { AddressInfo } from 'node:net';
 import WebSocket, { WebSocketServer } from 'ws';
 
 import * as sandboxCommandImplementations from '../sandboxCommandImplementations';
 import { startSandboxDaemonAsync } from '../sandboxDaemon';
+import { type LegacySandboxApi } from '../legacySandboxApi';
+import { type SandboxWorkerApi } from '../sandboxWorkerApi';
 
 jest.unmock('@expo/logger');
 jest.unmock('fs');
@@ -16,7 +17,7 @@ jest.unmock('node:fs/promises');
 
 describe(startSandboxDaemonAsync.name, () => {
   const logger = Log.child({ buildStepId: 'sandbox-test' });
-  const graphqlClient = {} as Client;
+  const workerApi = {} as SandboxWorkerApi | LegacySandboxApi;
   it.each(['ftp://localhost', 'not a URL'])('reports invalid server URL %s', async serverUrl => {
     const errorLog = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const daemon = await startSandboxDaemonAsync({
@@ -26,8 +27,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -53,8 +53,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     try {
       const socket = await connection;
@@ -89,8 +88,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     try {
       await expect(daemon.ready).rejects.toBeInstanceOf(SystemError);
@@ -121,8 +119,7 @@ describe(startSandboxDaemonAsync.name, () => {
       signal: controller.signal,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const connectionError = daemon.ready.catch(error => error);
 
@@ -151,8 +148,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
 
     await expect(daemon.ready).rejects.toThrow('Sandbox MCP server connection failed');
@@ -186,8 +182,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const socket = await connection;
     const daemon = await daemonPromise;
@@ -219,8 +214,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const socket = await connection;
     await daemon.ready;
@@ -264,8 +258,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const socket = await connection;
     await daemon.ready;
@@ -350,8 +343,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const socket = await connection;
     await daemon.ready;
@@ -396,8 +388,7 @@ describe(startSandboxDaemonAsync.name, () => {
       logger,
       workingDirectory: process.cwd(),
       env: process.env,
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi,
     });
     const socket = await connection;
     const daemon = await daemonPromise;
