@@ -365,11 +365,9 @@ export namespace AndroidEmulatorUtils {
       });
     }
 
-    // Ordinary builds retain the emulator's direct, uncapped logcat file writer.
-    const logcatPipe =
-      Number.isFinite(logCapture.maxBytes) && logcatOutputPath
-        ? await logCapture.createLogcatPipeAsync(logcatOutputPath)
-        : undefined;
+    const logcatOutput = logcatOutputPath
+      ? await logCapture.prepareLogcatOutputAsync(logcatOutputPath)
+      : undefined;
     const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
     const emulatorArgs = [
       '-no-window',
@@ -377,9 +375,7 @@ export namespace AndroidEmulatorUtils {
       '-writable-system',
       '-noaudio',
       '-no-snapshot-save',
-      ...(logcatOutputPath
-        ? ['-logcat', '*:v', '-logcat-output', logcatPipe?.path ?? logcatOutputPath]
-        : []),
+      ...(logcatOutput ? ['-logcat', '*:v', '-logcat-output', logcatOutput.path] : []),
       '-avd',
       deviceName,
       '-accel',
@@ -411,8 +407,8 @@ export namespace AndroidEmulatorUtils {
           ignoreStdio: true,
           env: emulatorEnv,
         });
-    if (logcatPipe) {
-      emulatorPromise.child.once('close', logcatPipe.close);
+    if (logcatOutput) {
+      emulatorPromise.child.once('close', logcatOutput.close);
     }
     if (emulatorOutputPath) {
       for (const input of [emulatorPromise.child.stdout, emulatorPromise.child.stderr]) {

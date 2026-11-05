@@ -370,7 +370,7 @@ describe('AndroidEmulatorUtils', () => {
       const { child } = mockSuccessfulStart(deviceName);
       const capture = new AndroidEmulatorLogCapture(10);
       const close = jest.fn();
-      const createPipe = jest.spyOn(capture, 'createLogcatPipeAsync').mockResolvedValue({
+      const createPipe = jest.spyOn(capture, 'prepareLogcatOutputAsync').mockResolvedValue({
         path: '/logcat.pipe',
         close,
         closed: Promise.resolve(),

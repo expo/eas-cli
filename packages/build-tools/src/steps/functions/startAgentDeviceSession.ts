@@ -16,10 +16,7 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
-import {
-  ALL_ANDROID_EMULATOR_LOG_SOURCES,
-  AndroidEmulatorLogSourcesSchema,
-} from '../../utils/androidEmulatorLogSources';
+import { AndroidEmulatorLogSourcesSchema } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
@@ -79,7 +76,7 @@ export function createStartAgentDeviceSessionBuildFunction(
       BuildStepInput.createProvider({
         id: 'android_log_sources',
         required: false,
-        defaultValue: [...ALL_ANDROID_EMULATOR_LOG_SOURCES],
+        defaultValue: ['emulator-output'],
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.

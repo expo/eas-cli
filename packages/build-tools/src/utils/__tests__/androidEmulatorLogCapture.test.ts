@@ -91,7 +91,7 @@ it('reserves bytes across simultaneous captures and drains after finalization', 
 it('drains a real FIFO beyond 20 MiB, retains the prefix, and closes after the writer exits', async () => {
   const file = path.join(directory, 'logcat.log');
   const capture = new AndroidEmulatorLogCapture();
-  const pipe = await capture.createLogcatPipeAsync(file);
+  const pipe = await capture.prepareLogcatOutputAsync(file);
   expect((await fs.stat(pipe.path)).isFIFO()).toBe(true);
   const writer = spawn(
     process.execPath,
@@ -133,13 +133,66 @@ it('drains a real FIFO beyond 20 MiB, retains the prefix, and closes after the w
   }
 }, 30_000);
 
+it('uses the original logcat path for ordinary builds without creating a FIFO', async () => {
+  const file = path.join(directory, 'build-logcat.log');
+  const capture = new AndroidEmulatorLogCapture(Infinity);
+  const output = await capture.prepareLogcatOutputAsync(file);
+  expect(output.path).toBe(file);
+  expect(await fs.readdir(directory)).toEqual([]);
+  output.close();
+  await output.closed;
+  expect(await capture.finishAsync()).toEqual([]);
+});
+
 it('closes an unused logcat pipe when the emulator fails to launch', async () => {
   const capture = new AndroidEmulatorLogCapture();
-  const pipe = await capture.createLogcatPipeAsync(path.join(directory, 'empty.log'));
+  const pipe = await capture.prepareLogcatOutputAsync(path.join(directory, 'empty.log'));
   pipe.close();
   await pipe.closed;
   await capture.finishAsync();
 });
+
+it('keeps draining the FIFO after capture finishes while the emulator is alive', async () => {
+  const file = path.join(directory, 'live-logcat.log');
+  const capture = new AndroidEmulatorLogCapture(10);
+  const output = await capture.prepareLogcatOutputAsync(file);
+  const writer = spawn(
+    process.execPath,
+    [
+      '-e',
+      `
+    const fs = require('node:fs');
+    const fd = fs.openSync(process.argv[1], 'w');
+    process.stdout.write('ready');
+    process.stdin.once('data', () => {
+      const chunk = Buffer.alloc(64 * 1024, 'x');
+      for (let i = 0; i < 128; i++) {
+        let offset = 0;
+        while (offset < chunk.length) offset += fs.writeSync(fd, chunk, offset);
+      }
+      fs.closeSync(fd);
+      process.stdin.destroy();
+    });
+  `,
+      output.path,
+    ],
+    { stdio: ['pipe', 'pipe', 'pipe'] }
+  );
+  try {
+    await once(writer.stdout, 'data');
+    await capture.finishAsync();
+    writer.stdin.end('go');
+    expect(await once(writer, 'close')).toEqual([0, null]);
+    output.close();
+    await output.closed;
+    expect((await fs.stat(file)).size).toBe(0);
+    await expect(fs.stat(output.path)).rejects.toMatchObject({ code: 'ENOENT' });
+  } finally {
+    writer.kill();
+    output.close();
+    await output.closed;
+  }
+}, 10_000);
 
 it('reports a disk write failure once and continues draining output', async () => {
   const capture = new AndroidEmulatorLogCapture(10);

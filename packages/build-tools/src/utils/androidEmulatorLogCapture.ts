@@ -1,12 +1,10 @@
-import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
-import { Socket } from 'node:net';
 import { type Readable, Writable } from 'node:stream';
 import { finished } from 'node:stream/promises';
-import { promisify } from 'node:util';
 
 import { Sentry } from '../sentry';
 import { type AndroidEmulatorLogSource } from './androidEmulatorLogSources';
+import { createAndroidLogcatPipeAsync } from './androidLogcatPipe';
 
 export const MAX_ANDROID_LOG_BYTES_PER_SOURCE = 20 * 1024 * 1024;
 
@@ -30,7 +28,7 @@ export class AndroidEmulatorLogCapture {
   private readonly captures = new Map<string, Capture>();
   private finishing = false;
 
-  constructor(readonly maxBytes = MAX_ANDROID_LOG_BYTES_PER_SOURCE) {}
+  constructor(private readonly maxBytes = MAX_ANDROID_LOG_BYTES_PER_SOURCE) {}
 
   attach(input: Readable, filePath: string, source: AndroidEmulatorLogSource): void {
     if (this.finishing) {
@@ -113,64 +111,17 @@ export class AndroidEmulatorLogCapture {
     }));
   }
 
-  /** Keep logcat separate from emulator stderr without an unbounded intermediate file. */
-  async createLogcatPipeAsync(
+  /** Select the output transport without exposing the capture budget to emulator launch. */
+  async prepareLogcatOutputAsync(
     filePath: string
   ): Promise<{ path: string; close: () => void; closed: Promise<void> }> {
-    const pipePath = `${filePath}.pipe`;
-    await promisify(execFile)('mkfifo', ['-m', '600', pipePath]);
-    // The sentinel keeps the FIFO open before emulator launch. The reader signals
-    // after opening it, so even a failed launch can close the pipe without a race.
-    const sentinel = fs.openSync(pipePath, fs.constants.O_RDWR | fs.constants.O_NONBLOCK);
-    let sentinelOpen = true;
-    const close = (): void => {
-      if (sentinelOpen) {
-        sentinelOpen = false;
-        fs.closeSync(sentinel);
-      }
-    };
-    const reader = spawn(
-      'sh',
-      ['-c', 'exec 3<"$1" || exit 1; printf ready >&2; exec cat <&3', 'android-logcat', pipePath],
-      {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-    );
-    const ready = new Promise<void>((resolve, reject) => {
-      reader.once('error', reject);
-      reader.once('exit', () =>
-        reject(new Error('Android logcat reader exited before opening its pipe.'))
-      );
-      reader.stderr.once('data', () => resolve());
-    });
-    this.attach(reader.stdout, filePath, 'device-logcat');
-    reader.on('error', err => {
-      close();
-      Sentry.capture('Failed to read Android logcat pipe', err, { level: 'warning' });
-    });
-    const closed = new Promise<void>(resolve => {
-      reader.once('close', () => {
-        close();
-        void this.finishFileAsync(filePath)
-          .then(() => fs.promises.rm(pipePath, { force: true }))
-          .catch(() => {})
-          .then(resolve);
-      });
-    });
-    try {
-      await ready;
-    } catch (err) {
-      close();
-      reader.kill();
-      await closed;
-      throw err;
+    // Ordinary builds retain the emulator's direct, uncapped logcat file writer.
+    if (!Number.isFinite(this.maxBytes)) {
+      return { path: filePath, close: () => {}, closed: Promise.resolve() };
     }
-    reader.unref();
-    for (const stream of [reader.stdout, reader.stderr]) {
-      if (stream instanceof Socket) {
-        stream.unref();
-      }
-    }
-    return { path: pipePath, close, closed };
+    const pipe = await createAndroidLogcatPipeAsync(`${filePath}.pipe`);
+    this.attach(pipe.stream, filePath, 'device-logcat');
+    const closed = pipe.closed.then(() => this.finishFileAsync(filePath)).catch(() => {});
+    return { path: pipe.path, close: pipe.close, closed };
   }
 }

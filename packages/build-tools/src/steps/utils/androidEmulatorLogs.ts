@@ -8,9 +8,14 @@ import {
   type FinalizedAndroidEmulatorLog,
   MAX_ANDROID_LOG_BYTES_PER_SOURCE,
 } from '../../utils/androidEmulatorLogCapture';
+import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
 import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 const UPLOAD_TIMEOUT_MS = 30_000;
+const LOG_SOURCE_DETAILS = {
+  'emulator-output': { name: 'Emulator output', scope: 'emulator-process' },
+  'device-logcat': { name: 'Android device logcat', scope: 'device' },
+} satisfies Record<AndroidEmulatorLogSource, { name: string; scope: string }>;
 
 type Collection = {
   capture: AndroidEmulatorLogCapture;
@@ -114,14 +119,14 @@ async function uploadLogAsync(
       return {
         deviceRunSessionId,
         artifactId: filename,
-        name: `${source === 'emulator-output' ? 'Emulator output' : 'Android device logcat'} (${filename}${truncationNote})`,
+        name: `${LOG_SOURCE_DETAILS[source].name} (${filename}${truncationNote})`,
         filename,
         kind: 'simulator-log',
         metadata: {
           __eas_type: 'simulator-log',
           platform: 'android',
           source,
-          scope: source === 'emulator-output' ? 'emulator-process' : 'device',
+          scope: LOG_SOURCE_DETAILS[source].scope,
           originalSizeBytes: bytesSeen,
           omittedBytes: bytesSeen - size,
           truncated: size < bytesSeen,

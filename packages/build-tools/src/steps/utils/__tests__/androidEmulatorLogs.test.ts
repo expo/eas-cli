@@ -89,12 +89,16 @@ it.each(['emulator-output', 'device-logcat'] as const)(
   }
 );
 
-it('keeps ordinary builds uncapped and simulator sessions bounded', () => {
-  expect(getAndroidEmulatorLogCapture(global, {}).maxBytes).toBe(Infinity);
-  expect(
-    getAndroidEmulatorLogCapture({} as BuildStepGlobalContext, { DEVICE_RUN_SESSION_ID: 'session' })
-      .maxBytes
-  ).toBe(20 * 1024 * 1024);
+it.each([
+  { env: {}, expectedBytes: 20 * 1024 * 1024 + 1 },
+  { env: { DEVICE_RUN_SESSION_ID: 'session' }, expectedBytes: 20 * 1024 * 1024 },
+])('retains $expectedBytes with workflow environment $env', async ({ env, expectedBytes }) => {
+  const capture = getAndroidEmulatorLogCapture(global, env);
+  const input = Readable.from([Buffer.alloc(20 * 1024 * 1024 + 1, 'x')]);
+  capture.attach(input, emulatorPath, 'emulator-output');
+  await once(input, 'end');
+  await capture.finishAsync();
+  expect((await fsPromises.stat(emulatorPath)).size).toBe(expectedBytes);
 });
 
 it('uses captured source records and ignores files outside the capture inventory', async () => {

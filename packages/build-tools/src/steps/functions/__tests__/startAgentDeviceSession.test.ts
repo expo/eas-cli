@@ -116,46 +116,21 @@ function runStep(
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx, { warm });
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+  const global = createGlobalContextMock({
+    runtimePlatform,
+    staticContextContent: { job: { secrets: { robotAccessToken: 'robot-token' } } },
+  });
   const inputs = Object.fromEntries(
-    [
-      'android_log_sources',
-      'device_identifier',
-      'system_image_package',
-      'lcd_width',
-      'lcd_height',
-      'lcd_density',
-      'install_app_path',
-      'build_id',
-      'application_archive_url',
-      'launch_app_identifier',
-      'launch_args',
-      'open_url',
-      'network_capture',
-      'network_capture_fields',
-      'public_preview',
-      'private_preview_url',
-      'frame_ancestors',
-      'cors_origins',
-      'package_version',
-      'max_idle_time_minutes',
-      'max_duration_seconds',
-    ].map(id => [
-      id,
-      {
-        value:
-          id === 'android_log_sources' && !(id in inputValues)
-            ? ['emulator-output', 'device-logcat']
-            : inputValues[id],
-      },
-    ])
+    (buildFunction.inputProviders ?? []).map(provider => {
+      const input = provider(global, 'test');
+      input.set(inputValues[input.id]);
+      return [input.id, { value: input.rawValue }];
+    })
   );
   return buildFunction.fn!(
     {
       logger,
-      global: {
-        runtimePlatform,
-        staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
-      },
+      global,
     } as unknown as BuildStepContext,
     { inputs, outputs: {}, env, signal } as never
   ) as Promise<void>;
@@ -461,6 +436,19 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       bootEnv: undefined,
       application: undefined,
     });
+  });
+
+  it('defaults an omitted session log input to emulator output through the step boundary', async () => {
+    const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
+    const global = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+    const step = buildFunction.createBuildStepFromFunctionCall(global, {
+      callInputs: {},
+      env: { DEVICE_RUN_SESSION_ID: 'session' },
+    });
+    await step.executeAsync();
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logSources: ['emulator-output'] })
+    );
   });
 
   it.each([

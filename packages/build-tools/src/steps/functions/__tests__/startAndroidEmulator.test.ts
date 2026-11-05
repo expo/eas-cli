@@ -146,7 +146,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
         logSources: ['emulator-output', 'device-logcat'],
-        logCapture: expect.objectContaining({ maxBytes: Infinity }),
+        logCapture: expect.any(AndroidEmulatorLogCapture),
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),
