@@ -6,9 +6,11 @@ import path from 'path';
 import {
   ControlActionResult,
   PreparedControlAction,
+  assertLocalFileAsync,
   executeControlActionAsync,
   parseControlActionOutput,
   prepareControlActionAsync,
+  resolveControlActionPath,
 } from './controlActions';
 import { HostActionCatalog, HostActionConnection, createHostActionUploadId } from './hostActions';
 import { SimulatorSessionConfig, readSimulatorSessionConfigAsync } from './sessionConfig';
@@ -101,6 +103,31 @@ export async function prepareControlConfigAsync(
     }
   }
   return { path: absolutePath, udid, actions };
+}
+
+/** Check local inputs before requesting a paid session; runtime validation still uses the live catalog. */
+export async function preflightControlConfigFilesAsync(
+  config: SimulatorSessionConfig
+): Promise<void> {
+  for (const [index, action] of (config.actions ?? []).entries()) {
+    try {
+      if (Object.hasOwn(action.params, 'udid')) {
+        throw new Error('The simulator is selected by the session; remove params.udid.');
+      }
+      if (action.file) {
+        await assertLocalFileAsync(path.resolve(path.dirname(config.path), action.file));
+      }
+      if (action.output) {
+        await assertWritableOutputAsync(
+          resolveControlActionPath(action.output, path.dirname(config.path))
+        );
+      }
+    } catch (error) {
+      throw new Error(`Config step ${index + 1} (${action.action}): ${errorMessage(error)}`, {
+        cause: error,
+      });
+    }
+  }
 }
 
 async function assertWritableOutputAsync(outputPath: string): Promise<void> {
