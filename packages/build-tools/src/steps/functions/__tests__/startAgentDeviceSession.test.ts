@@ -4,6 +4,8 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
+import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
 import {
@@ -35,6 +37,7 @@ jest.mock('../../utils/localEgressGuard', () => ({
   startLocalEgressGuardRelayAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../utils/androidEmulatorLogs');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -108,43 +111,28 @@ function runStep(
   inputValues: Record<string, unknown> = {},
   signal?: AbortSignal,
   stepCtx: CustomBuildContext = ctx,
-  warm = false
+  warm = false,
+  env: NodeJS.ProcessEnv = {}
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx, { warm });
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+  const global = createGlobalContextMock({
+    runtimePlatform,
+    staticContextContent: { job: { secrets: { robotAccessToken: 'robot-token' } } },
+  });
   const inputs = Object.fromEntries(
-    [
-      'device_identifier',
-      'system_image_package',
-      'lcd_width',
-      'lcd_height',
-      'lcd_density',
-      'install_app_path',
-      'build_id',
-      'application_archive_url',
-      'launch_app_identifier',
-      'launch_args',
-      'open_url',
-      'network_capture',
-      'network_capture_fields',
-      'public_preview',
-      'private_preview_url',
-      'frame_ancestors',
-      'cors_origins',
-      'package_version',
-      'max_idle_time_minutes',
-      'max_duration_seconds',
-    ].map(id => [id, { value: inputValues[id] }])
+    (buildFunction.inputProviders ?? []).map(provider => {
+      const input = provider(global, 'test');
+      input.set(inputValues[input.id]);
+      return [input.id, { value: input.rawValue }];
+    })
   );
   return buildFunction.fn!(
     {
       logger,
-      global: {
-        runtimePlatform,
-        staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
-      },
+      global,
     } as unknown as BuildStepContext,
-    { inputs, outputs: {}, env: {}, signal } as never
+    { inputs, outputs: {}, env, signal } as never
   ) as Promise<void>;
 }
 
@@ -173,6 +161,11 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   }
 
   beforeEach(() => {
+    jest
+      .mocked(getAndroidEmulatorLogCapture)
+      .mockImplementation(
+        jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
+      );
     deviceLaunch = undefined;
     jest.clearAllMocks();
     jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
@@ -437,11 +430,54 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
 
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
     expect(sessionDevice()).toEqual({
       iosSimulatorUdid: 'SELECTED-UDID',
       bootEnv: undefined,
       application: undefined,
     });
+  });
+
+  it('defaults an omitted session log input to emulator output through the step boundary', async () => {
+    const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
+    const global = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+    const step = buildFunction.createBuildStepFromFunctionCall(global, {
+      callInputs: {},
+      env: { DEVICE_RUN_SESSION_ID: 'session' },
+    });
+    await step.executeAsync();
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logSources: ['emulator-output'] })
+    );
+  });
+
+  it('passes an explicit empty source list and the workflow capture to Android boot', async () => {
+    const capture = new AndroidEmulatorLogCapture();
+    jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
+    const env = { DEVICE_RUN_SESSION_ID: 'session' };
+    await runStep(
+      BuildRuntimePlatform.LINUX,
+      { android_log_sources: [] },
+      undefined,
+      ctx,
+      false,
+      env
+    );
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env);
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logSources: [], logCapture: capture })
+    );
+  });
+
+  it('rejects invalid Android log sources before boot or downloading', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, {
+        android_log_sources: ['unknown'],
+        build_id: 'build-id',
+      })
+    ).rejects.toThrow();
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -468,6 +504,22 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
+  });
+
+  it('stops the download and waits for it when Android boot fails', async () => {
+    const download = mockStalledDownload();
+    jest.mocked(startAndroidEmulatorAsync).mockRejectedValue(new Error('boot failed'));
+
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' }, undefined, ctx, false, {
+        DEVICE_RUN_SESSION_ID: 'session',
+      })
+    ).rejects.toThrow('boot failed');
+
+    expect(download.aborted()).toBe(true);
+    // The step returned only after the download stopped.
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
   });
 
   it('does not start work for an already cancelled step', async () => {
@@ -617,6 +669,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
     ).toEqual([
+      'android_log_sources',
       'device_identifier',
       'system_image_package',
       'lcd_width',
