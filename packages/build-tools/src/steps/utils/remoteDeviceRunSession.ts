@@ -29,9 +29,9 @@ import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
-  DeviceRunSessionWorkerApiError,
   requireDeviceRunSessionWorkerApi,
 } from './deviceRunSessionWorkerApi';
+import { WorkerApiError } from './workerApi';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
@@ -525,10 +525,7 @@ export async function fetchWebPreviewTurnArgsAsync(
     }
     return args;
   } catch (err) {
-    if (
-      err instanceof DeviceRunSessionWorkerApiError &&
-      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
-    ) {
+    if (err instanceof WorkerApiError && err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED') {
       logger.info('Device run session was stopped before TURN credentials were fetched.');
       return [];
     }
@@ -580,10 +577,7 @@ export async function uploadRemoteSessionConfigAsync({
     return 'started';
   } catch (err) {
     signal?.throwIfAborted();
-    if (
-      err instanceof DeviceRunSessionWorkerApiError &&
-      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
-    ) {
+    if (err instanceof WorkerApiError && err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED') {
       logger.info(`Device run session ${deviceRunSessionId} was stopped during startup.`);
       return 'stopped';
     }
