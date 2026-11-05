@@ -2,6 +2,31 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.5.0](https://github.com/expo/eas-cli/releases/tag/v27.5.0) - 2026-11-05
+
+### 🎉 New features
+
+- [eas-cli] Import ordered action configurations with `eas simulator:control --import` and show progress for each action. ([#4686](https://github.com/expo/eas-cli/pull/4686) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Reuse simulator control connections with `--keep-alive` or `simulator:control:connection open`. Set an idle timeout, inspect the connection, or close it without stopping the simulator session. Keep-alive currently supports macOS and Linux. ([#4791](https://github.com/expo/eas-cli/pull/4791) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Start simulator sessions from saved settings and apply control actions after readiness. ([#4687](https://github.com/expo/eas-cli/pull/4687) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Run `eas simulator` commands also as `eas simulators`, `eas emulator` and `eas emulators`, for example `eas emulators:start` or `eas simulators:list`. These aliases are hidden from help. ([#4794](https://github.com/expo/eas-cli/pull/4794) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] List `eas workflow:ssh` in `eas --help`. ([#4793](https://github.com/expo/eas-cli/pull/4793) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### 🐛 Bug fixes
+
+- [build-tools] Stop an agent-device session that is still starting up when it is stopped. ([#4666](https://github.com/expo/eas-cli/pull/4666) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stop an Appium session that is still starting up when it is stopped. ([#4668](https://github.com/expo/eas-cli/pull/4668) by [@gwdp](https://github.com/gwdp))
+  Report temporary-directory cleanup failures when Stop interrupts Appium installation.
+- [build-tools] Stop an Argent session that is still starting up when it is stopped. ([#4667](https://github.com/expo/eas-cli/pull/4667) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Find the personal account by its owner instead of assuming that its name equals the username. ([#3922](https://github.com/expo/eas-cli/pull/3922) by [@byronkarlen](https://github.com/byronkarlen))
+- [build-tools][worker] Use the sandbox worker token for sandbox jobs when www provides one, and keep Expo credentials out of the commands of those jobs. ([#4807](https://github.com/expo/eas-cli/pull/4807) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [eas-cli] Show the Expo Simulators hint after a successful build from November 12 instead of November 10. ([#4817](https://github.com/expo/eas-cli/pull/4817) by [@williamgrosset](https://github.com/williamgrosset))
+- [build-tools] Stop a web-preview session that is still starting up when it is stopped. ([#4669](https://github.com/expo/eas-cli/pull/4669) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
+- [build-tools] Extract the worker API client core from the device run session worker API client. ([#4806](https://github.com/expo/eas-cli/pull/4806) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## [27.4.1](https://github.com/expo/eas-cli/releases/tag/v27.4.1) - 2026-11-04
 
 ### 🐛 Bug fixes

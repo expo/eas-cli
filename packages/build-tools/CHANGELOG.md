@@ -1,5 +1,16 @@
 # @expo/build-tools
 
+## 27.5.0
+
+### Patch Changes
+
+- Stop an agent-device session that is still starting up when it is stopped. ([#4666](https://github.com/expo/eas-cli/pull/4666) by [@gwdp](https://github.com/gwdp))
+- Stop an Appium session that is still starting up when it is stopped. ([#4668](https://github.com/expo/eas-cli/pull/4668) by [@gwdp](https://github.com/gwdp))
+  Report temporary-directory cleanup failures when Stop interrupts Appium installation.
+- Stop an Argent session that is still starting up when it is stopped. ([#4667](https://github.com/expo/eas-cli/pull/4667) by [@gwdp](https://github.com/gwdp))
+- Use the sandbox worker token for sandbox jobs when www provides one, and keep Expo credentials out of the commands of those jobs. ([#4807](https://github.com/expo/eas-cli/pull/4807) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Stop a web-preview session that is still starting up when it is stopped. ([#4669](https://github.com/expo/eas-cli/pull/4669) by [@gwdp](https://github.com/gwdp))
+
 ## 27.4.1
 
 ### Patch Changes

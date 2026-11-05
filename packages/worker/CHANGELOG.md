@@ -1,5 +1,11 @@
 # @expo/worker
 
+## 27.5.0
+
+### Patch Changes
+
+- Use the sandbox worker token for sandbox jobs when www provides one, and keep Expo credentials out of the commands of those jobs. ([#4807](https://github.com/expo/eas-cli/pull/4807) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.4.1
 
 No changes in this release.
