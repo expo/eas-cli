@@ -1,11 +1,35 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
-import { Client, fetchExchange } from '@urql/core';
+import { EnvironmentSecretType, SystemError, UserError } from '@expo/eas-build-job';
+import fetch from 'node-fetch';
 
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
+import { SandboxWorkerApi } from '../../utils/sandboxWorkerApi';
+import { createStartSandboxBuildFunction } from '../startSandbox';
 
-import { createStartSandboxBuildFunction, markSandboxReadyAsync } from '../startSandbox';
+const { AbortError, Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+const context = {
+  job: {
+    secrets: {
+      environmentSecrets: [
+        {
+          name: 'EAS_SANDBOX_WORKER_TOKEN',
+          type: EnvironmentSecretType.STRING,
+          value: 'worker-token',
+        },
+      ],
+    },
+  },
+  env: {},
+  expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+  mcpServerUrl: 'ws://localhost:8787',
+};
+const inputs = { sandbox_id: { value: 'sandbox-id' } };
 
 describe('sandbox build functions', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it.each([
     { completion: 'duration', duration: 0.02 },
     { completion: 'cancellation', duration: 60 },
@@ -16,49 +40,41 @@ describe('sandbox build functions', () => {
       const controller = new AbortController();
       let ready!: () => void;
       const stopAsync = jest.fn(async () => {});
-      const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockResolvedValue({
+      jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockResolvedValue({
         ready: new Promise<void>(resolve => {
           ready = resolve;
         }),
         stopAsync,
       });
-      const mutation = jest.fn(() => ({ toPromise: async () => ({ data: {} }) }));
+      const markReady = jest
+        .spyOn(SandboxWorkerApi.prototype, 'markReadyAsync')
+        .mockResolvedValue(undefined);
       const logger = { info: jest.fn(), child: jest.fn() };
       logger.child.mockReturnValue(logger);
-      const fn = createStartSandboxBuildFunction({
-        mcpServerUrl: 'ws://localhost:8787',
-        graphqlClient: { mutation },
-      } as any);
-      try {
-        const pending = fn.fn!({ logger } as any, {
-          inputs: {
-            sandbox_id: { value: 'sandbox-id' },
-            max_duration_seconds: { value: duration },
-          },
-          outputs: {},
-          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-          signal: controller.signal,
-        });
-        await new Promise(resolve => setTimeout(resolve, 40));
-        expect(mutation).not.toHaveBeenCalled();
+      const fn = createStartSandboxBuildFunction(context as any);
+      const pending = fn.fn!({ logger } as any, {
+        inputs: { ...inputs, max_duration_seconds: { value: duration } },
+        outputs: {},
+        env: {},
+        signal: controller.signal,
+      });
+      await new Promise(resolve => setTimeout(resolve, 40));
+      expect(markReady).not.toHaveBeenCalled();
+      expect(stopAsync).not.toHaveBeenCalled();
+      ready();
+      if (completion === 'cancellation') {
+        await new Promise(resolve => setImmediate(resolve));
         expect(stopAsync).not.toHaveBeenCalled();
-        ready();
-        if (completion === 'cancellation') {
-          await new Promise(resolve => setImmediate(resolve));
-          expect(stopAsync).not.toHaveBeenCalled();
-          controller.abort();
-        }
-        await pending;
-        expect(mutation).toHaveBeenCalledTimes(1);
-        expect(stopAsync).toHaveBeenCalledTimes(1);
-        const timeoutMessage = `Sandbox reached its maximum runtime of ${duration} seconds. Stopping.`;
-        if (completion === 'duration') {
-          expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
-        } else {
-          expect(logger.info).not.toHaveBeenCalledWith(timeoutMessage);
-        }
-      } finally {
-        start.mockRestore();
+        controller.abort();
+      }
+      await pending;
+      expect(markReady).toHaveBeenCalledTimes(1);
+      expect(stopAsync).toHaveBeenCalledTimes(1);
+      const timeoutMessage = `Sandbox reached its maximum runtime of ${duration} seconds. Stopping.`;
+      if (completion === 'duration') {
+        expect(logger.info).toHaveBeenCalledWith(timeoutMessage);
+      } else {
+        expect(logger.info).not.toHaveBeenCalledWith(timeoutMessage);
       }
     }
   );
@@ -67,177 +83,186 @@ describe('sandbox build functions', () => {
     'rejects invalid maximum duration %s before starting the daemon',
     async duration => {
       const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
-      const fn = createStartSandboxBuildFunction({
-        mcpServerUrl: 'ws://localhost:8787',
-      } as any);
-      try {
-        const result = fn.fn!({} as any, {
-          inputs: {
-            sandbox_id: { value: 'sandbox-id' },
-            max_duration_seconds: { value: duration },
-          },
-          outputs: {},
-          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-        });
-        await expect(result).rejects.toBeInstanceOf(UserError);
-        await expect(result).rejects.toThrow(
-          `Invalid sandbox maximum duration: ${duration}. Provide a finite number greater than zero, or omit max_duration_seconds.`
-        );
-        expect(start).not.toHaveBeenCalled();
-      } finally {
-        start.mockRestore();
-      }
+      const fn = createStartSandboxBuildFunction(context as any);
+      const result = fn.fn!({} as any, {
+        inputs: { ...inputs, max_duration_seconds: { value: duration } },
+        outputs: {},
+        env: {},
+      });
+      await expect(result).rejects.toBeInstanceOf(UserError);
+      await expect(result).rejects.toThrow(
+        `Invalid sandbox maximum duration: ${duration}. Provide a finite number greater than zero, or omit max_duration_seconds.`
+      );
+      expect(start).not.toHaveBeenCalled();
     }
   );
 
-  it('aborts an active ready request and keeps its authentication headers', async () => {
-    const controller = new AbortController();
-    let requestStarted!: () => void;
-    const started = new Promise<void>(resolve => {
-      requestStarted = resolve;
-    });
-    const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
-      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
-      return await new Promise<Response>((_resolve, reject) => {
-        init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason), { once: true });
-        requestStarted();
-      });
-    });
-    const graphqlClient = new Client({
-      url: 'https://api.expo.test/graphql',
-      exchanges: [fetchExchange],
-      fetchOptions: { headers: { Authorization: 'Bearer test-token' } },
-    });
-    try {
-      const pending = markSandboxReadyAsync(
-        { graphqlClient } as any,
-        'sandbox-id',
-        controller.signal
-      );
-      const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-      await started;
-      controller.abort();
-      await rejected;
-    } finally {
-      fetchMock.mockRestore();
-    }
-  });
-  it('does not mark the sandbox ready if startup was canceled', async () => {
-    const controller = new AbortController();
-    const stopAsync = jest.fn(async () => {});
-    const start = jest
-      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
-      .mockImplementation(async options => {
-        expect(options.signal).toBe(controller.signal);
-        controller.abort();
-        return { ready: Promise.resolve(), stopAsync };
-      });
-    const mutation = jest.fn();
-    const fn = createStartSandboxBuildFunction({
-      env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-      mcpServerUrl: 'ws://localhost:8787',
-      graphqlClient: { mutation },
-    } as any);
-    try {
-      await expect(
-        fn.fn!({ logger: {} } as any, {
-          inputs: { sandbox_id: { value: 'sandbox-id' } },
-          outputs: {},
-          env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-          signal: controller.signal,
-        })
-      ).rejects.toMatchObject({ name: 'AbortError' });
-      expect(mutation).not.toHaveBeenCalled();
-      expect(stopAsync).toHaveBeenCalledTimes(1);
-    } finally {
-      start.mockRestore();
-    }
-  });
-  it('excludes the MCP token from the command environment', async () => {
-    const env = {
-      PREPARED_BY_EARLIER_STEP: 'value',
-      EXPO_TOKEN: 'expo-token',
-      __EAS_SANDBOX_MCP_TOKEN: 'token',
-    };
+  it('connects with the worker token from the job secrets, which the step env does not have', async () => {
+    const env = { PREPARED_BY_EARLIER_STEP: 'value' };
     const startupError = new Error('stop after checking options');
     const start = jest
       .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
       .mockRejectedValue(startupError);
-    const fn = createStartSandboxBuildFunction({
-      env: { __EAS_SANDBOX_MCP_TOKEN: 'token' },
-      mcpServerUrl: 'ws://localhost:8787',
-    } as any);
-    try {
-      await expect(
-        fn.fn!({ logger: {} } as any, {
-          inputs: { sandbox_id: { value: 'sandbox-id' } },
-          outputs: {},
-          env,
-        })
-      ).rejects.toBe(startupError);
-      expect(start.mock.calls[0][0]).toMatchObject({ credential: 'token' });
-      expect(start.mock.calls[0][0].env).toEqual({
-        PREPARED_BY_EARLIER_STEP: 'value',
-        EXPO_TOKEN: 'expo-token',
+    const fn = createStartSandboxBuildFunction(context as any);
+
+    await expect(fn.fn!({ logger: {} } as any, { inputs, outputs: {}, env })).rejects.toBe(
+      startupError
+    );
+    expect(start.mock.calls[0][0]).toMatchObject({ credential: 'worker-token', env });
+  });
+
+  it('does not mark the sandbox ready if startup was canceled', async () => {
+    const controller = new AbortController();
+    const stopAsync = jest.fn(async () => {});
+    jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockImplementation(async options => {
+      expect(options.signal).toBe(controller.signal);
+      controller.abort();
+      return { ready: Promise.resolve(), stopAsync };
+    });
+    const fn = createStartSandboxBuildFunction(context as any);
+
+    await expect(
+      fn.fn!({ logger: {} } as any, { inputs, outputs: {}, env: {}, signal: controller.signal })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the sandbox ready with only the worker token and aborts the request when canceled', async () => {
+    const controller = new AbortController();
+    const stopAsync = jest.fn(async () => {});
+    jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
+    let requestStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      requestStarted = resolve;
+    });
+    jest.mocked(fetch).mockImplementationOnce(async (url, init) => {
+      expect(url).toBe('https://api.expo.test/v2/sandbox-worker/ready');
+      expect(init?.headers).toEqual({ 'expo-sandbox-worker-token': 'worker-token' });
+      return await new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => reject(new AbortError('Aborted')));
+        requestStarted();
       });
-      expect(env.__EAS_SANDBOX_MCP_TOKEN).toBe('token');
-    } finally {
-      start.mockRestore();
-    }
-  });
-
-  it('throws a system error when the sandbox token is missing', async () => {
-    const fn = createStartSandboxBuildFunction({
-      job: {},
+    });
+    const fn = createStartSandboxBuildFunction(context as any);
+    const pending = fn.fn!({ logger: {} } as any, {
+      inputs,
+      outputs: {},
       env: {},
-      mcpServerUrl: 'ws://localhost:8787',
-    } as any);
+      signal: controller.signal,
+    });
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 
-    await expect(
-      fn.fn!({} as any, {
-        inputs: { sandbox_id: { value: 'sandbox-id' } },
-        outputs: {},
-        env: {},
-      })
-    ).rejects.toBeInstanceOf(SystemError);
+    await started;
+    controller.abort();
+    await rejected;
+    expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('throws a system error when the MCP server URL is missing', async () => {
-    const fn = createStartSandboxBuildFunction({
-      job: {},
-      env: { __EAS_SANDBOX_MCP_TOKEN: 'sandbox-token' },
-    } as any);
-
-    await expect(
-      fn.fn!({} as any, {
-        inputs: { sandbox_id: { value: 'sandbox-id' } },
-        outputs: {},
-        env: { __EAS_SANDBOX_MCP_TOKEN: 'sandbox-token' },
+  it('throws a system error and stops the daemon when readiness fails', async () => {
+    const stopAsync = jest.fn(async () => {});
+    jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
+    jest.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ errors: [{ message: 'Sandbox has stopped.' }] }), {
+        status: 400,
       })
-    ).rejects.toThrow('MCP server URL is required to start the sandbox daemon.');
+    );
+    const fn = createStartSandboxBuildFunction(context as any);
+
+    const result = fn.fn!({ logger: {} } as any, { inputs, outputs: {}, env: {} });
+
+    await expect(result).rejects.toBeInstanceOf(SystemError);
+    await expect(result).rejects.toMatchObject({
+      message: 'Failed to mark sandbox sandbox-id as ready.',
+      cause: expect.objectContaining({ status: 400 }),
+    });
+    expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('marks the sandbox as ready', async () => {
+  it('falls back to the legacy token and keeps the Expo token for commands without a worker token', async () => {
+    const startupError = new Error('stop after checking options');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({ ...context, job: {} } as any);
+
+    await expect(
+      fn.fn!({ logger: {} } as any, {
+        inputs,
+        outputs: {},
+        env: {
+          PREPARED_BY_EARLIER_STEP: 'value',
+          EXPO_TOKEN: 'expo-token',
+          __EAS_SANDBOX_MCP_TOKEN: 'legacy-token',
+        },
+      })
+    ).rejects.toBe(startupError);
+    expect(start.mock.calls[0][0]).toMatchObject({ credential: 'legacy-token' });
+    expect(start.mock.calls[0][0].env).toEqual({
+      PREPARED_BY_EARLIER_STEP: 'value',
+      EXPO_TOKEN: 'expo-token',
+    });
+  });
+
+  it('marks the sandbox ready over GraphQL without a worker token', async () => {
+    const stopAsync = jest.fn(async () => {});
+    jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
     const mutation = jest.fn(() => ({
       toPromise: async () => ({ data: { sandbox: { markSandboxReady: { id: 'sandbox-id' } } } }),
     }));
+    const logger = { info: jest.fn(), child: jest.fn() };
+    logger.child.mockReturnValue(logger);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {},
+      graphqlClient: { mutation },
+    } as any);
 
-    await markSandboxReadyAsync({ graphqlClient: { mutation } } as any, 'sandbox-id');
+    await fn.fn!({ logger } as any, {
+      inputs: { ...inputs, max_duration_seconds: { value: 0.0001 } },
+      outputs: {},
+      env: { __EAS_SANDBOX_MCP_TOKEN: 'legacy-token' },
+    });
 
     expect(mutation).toHaveBeenCalledWith(
       expect.anything(),
       { sandboxId: 'sandbox-id' },
       undefined
     );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('throws a system error when marking the sandbox as ready fails', async () => {
-    const mutation = jest.fn(() => ({
-      toPromise: async () => ({ error: new Error('request failed') }),
-    }));
+  it.each([
+    {
+      missing: 'a sandbox worker token or a legacy token',
+      overrides: { job: {} },
+      message: 'This sandbox job has neither EAS_SANDBOX_WORKER_TOKEN nor __EAS_SANDBOX_MCP_TOKEN.',
+    },
+    {
+      missing: 'the MCP server URL',
+      overrides: { mcpServerUrl: undefined },
+      message: 'MCP server URL is required to start the sandbox daemon.',
+    },
+    {
+      missing: 'the API server URL',
+      overrides: { expoApiV2BaseUrl: undefined },
+      message: 'The API server URL is not set',
+    },
+  ])('throws a system error without $missing', async ({ overrides, message }) => {
+    const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
+    const fn = createStartSandboxBuildFunction({ ...context, ...overrides } as any);
 
-    await expect(
-      markSandboxReadyAsync({ graphqlClient: { mutation } } as any, 'sandbox-id')
-    ).rejects.toThrow('Failed to mark sandbox sandbox-id as ready.');
+    const result = fn.fn!({} as any, { inputs, outputs: {}, env: {} });
+
+    await expect(result).rejects.toBeInstanceOf(SystemError);
+    await expect(result).rejects.toThrow(message);
+    expect(start).not.toHaveBeenCalled();
   });
 });

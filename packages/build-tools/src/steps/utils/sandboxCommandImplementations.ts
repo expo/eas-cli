@@ -6,7 +6,6 @@ import {
   type SandboxDaemonMethod,
 } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client } from '@urql/core';
 import fs, { type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -14,6 +13,8 @@ import { performance } from 'node:perf_hooks';
 import { readBytesAsync, readTextAsync } from '../../utils/files';
 import { detectFileType } from '../../utils/files/filetypes';
 import { SandboxArtifactUploadManager } from './sandboxArtifacts';
+import { type LegacySandboxApi } from './legacySandboxApi';
+import { type SandboxWorkerApi } from './sandboxWorkerApi';
 import { ShellSessionManager } from './shellSessionManager';
 
 const DEFAULT_EXEC_YIELD_TIME_MS = 10_000;
@@ -30,15 +31,13 @@ export function createSandboxCommandImplementations({
   workingDirectory,
   env,
   signal,
-  graphqlClient,
-  sandboxId,
+  workerApi,
   logger,
 }: {
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
   signal: AbortSignal;
-  graphqlClient: Client;
-  sandboxId: string;
+  workerApi: SandboxWorkerApi | LegacySandboxApi;
   logger: bunyan;
 }): {
   commandImplementations: SandboxDaemonCommandImplementations;
@@ -46,8 +45,7 @@ export function createSandboxCommandImplementations({
 } {
   const sessions = new ShellSessionManager({ workingDirectory, env, signal });
   const artifactUploads = new SandboxArtifactUploadManager({
-    graphqlClient,
-    sandboxId,
+    workerApi,
     logger,
     signal,
   });
