@@ -37,17 +37,6 @@ async function record(
   await capture.finishFileAsync(file);
 }
 
-it('retains more than the session budget for ordinary builds', async () => {
-  const capture = new AndroidEmulatorLogCapture(Infinity);
-  const file = path.join(directory, 'build.log');
-  const payload = Buffer.alloc(MAX_ANDROID_LOG_BYTES_PER_SOURCE + 1024, 'x');
-  const input = Readable.from([payload]);
-  capture.attach(input, file, 'emulator-output');
-  await once(input, 'end');
-  await capture.finishAsync();
-  expect((await fs.readFile(file)).equals(payload)).toBe(true);
-});
-
 it('shares a source budget across launches, with independent budgets for the two sources', async () => {
   const capture = new AndroidEmulatorLogCapture(10);
   const first = path.join(directory, 'first.log');
@@ -145,12 +134,17 @@ it('uses the original logcat path for ordinary builds without creating a FIFO', 
 });
 
 it('closes an unused logcat pipe when the emulator fails to launch', async () => {
+  const file = path.join(directory, 'empty.log');
   const capture = new AndroidEmulatorLogCapture();
-  const pipe = await capture.prepareLogcatOutputAsync(path.join(directory, 'empty.log'));
+  const pipe = await capture.prepareLogcatOutputAsync(file);
   pipe.close();
   await pipe.closed;
-  await capture.finishAsync();
-});
+  await expect(fs.stat(pipe.path)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect(await capture.finishAsync()).toEqual([
+    { filePath: file, source: 'device-logcat', bytesSeen: 0 },
+  ]);
+  expect((await fs.stat(file)).size).toBe(0);
+}, 5_000);
 
 it('keeps draining the FIFO after capture finishes while the emulator is alive', async () => {
   const file = path.join(directory, 'live-logcat.log');

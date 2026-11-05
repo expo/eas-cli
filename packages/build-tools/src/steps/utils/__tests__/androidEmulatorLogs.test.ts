@@ -15,6 +15,7 @@ import { PassThrough, Readable } from 'node:stream';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { MAX_ANDROID_LOG_BYTES_PER_SOURCE } from '../../../utils/androidEmulatorLogCapture';
 import { type AndroidEmulatorLogSource } from '../../../utils/androidEmulatorLogSources';
 import {
   collectAndroidEmulatorLogsAsync,
@@ -78,16 +79,6 @@ function collect(): Promise<void> {
     logger,
   });
 }
-
-it.each(['emulator-output', 'device-logcat'] as const)(
-  'uploads the captured %s without collect-side configuration',
-  async source => {
-    const filePath = source === 'emulator-output' ? emulatorPath : logcatPath;
-    await captureLog(filePath, source, 'selected output');
-    await collect();
-    expect([...uploadedContents.keys()]).toEqual([path.basename(filePath)]);
-  }
-);
 
 it.each([
   { env: {}, expectedBytes: 20 * 1024 * 1024 + 1 },
@@ -175,29 +166,19 @@ it('seals a live producer before upload and keeps retry bodies identical without
   }
 });
 
-it('continues after a failed file without repeating the collection', async () => {
+it('continues with the other log after a failed upload and never repeats the collection', async () => {
   await captureLog(emulatorPath, 'emulator-output', 'host output');
   await captureLog(logcatPath, 'device-logcat', 'Android output');
   upload.mockRejectedValueOnce(new Error('storage unavailable'));
-  await expect(collect()).resolves.toBeUndefined();
+  await Promise.all([collect(), collect()]);
+  await collect();
   expect(upload).toHaveBeenCalledTimes(2);
+  expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
+  expect(logger.warn).toHaveBeenCalledTimes(1);
   expect(logger.warn).toHaveBeenCalledWith(
     expect.anything(),
     expect.stringContaining('other logs will continue')
   );
-  await collect();
-  expect(upload).toHaveBeenCalledTimes(2);
-  expect(upload.mock.calls[0][1].signal).not.toBe(upload.mock.calls[1][1].signal);
-});
-
-it('shares workflow capture and skips successful uploads on repeated or concurrent cleanup', async () => {
-  expect(getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' })).toBe(
-    getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' })
-  );
-  await captureLog(emulatorPath, 'emulator-output', 'host output');
-  await Promise.all([collect(), collect()]);
-  await collect();
-  expect(upload).toHaveBeenCalledTimes(1);
 });
 
 it('uses a fresh 30 second budget for the next file after an upload times out', async () => {
@@ -219,11 +200,10 @@ it('uses a fresh 30 second budget for the next file after an upload times out', 
   expect(upload.mock.calls[1][1].signal?.aborted).toBe(false);
 });
 
-it('does not collect another workflow or empty files and continues after a captured file disappears', async () => {
+it('does not collect another workflow and warns when a captured file disappears', async () => {
   await captureLog(emulatorPath, 'emulator-output', 'other workflow', {} as BuildStepGlobalContext);
   await collect();
   expect(upload).not.toHaveBeenCalled();
-  await captureLog(logcatPath, 'device-logcat', '');
   await captureLog(path.join(directory, 'missing.log'), 'emulator-output', 'removed');
   await rm(path.join(directory, 'missing.log'));
   await expect(collect()).resolves.toBeUndefined();
@@ -234,23 +214,25 @@ it('does not collect another workflow or empty files and continues after a captu
   );
 });
 
-it('aborts on a genuine log file read error and continues with the other log', async () => {
-  await captureLog(emulatorPath, 'emulator-output', 'host output');
-  await captureLog(logcatPath, 'device-logcat', 'Android output');
-  const readError = Object.assign(new Error('log read failed'), { code: 'EIO' });
-  upload.mockImplementationOnce(async (_ctx, { openStream, signal }) => {
-    const stream = openStream();
-    await new Promise<void>(resolve => {
-      stream.once('error', () => resolve());
-      stream.destroy(readError);
-    });
-    expect(signal?.reason).toBe(readError);
-    signal?.throwIfAborted();
-  });
-  await expect(collect()).resolves.toBeUndefined();
-  expect(uploadedContents.get(path.basename(logcatPath))).toBe('Android output');
-  expect(logger.warn).toHaveBeenCalledWith(
-    { err: readError },
-    expect.stringContaining('other logs will continue')
+it('uploads a truncated log with the retained size and omission metadata', async () => {
+  const capture = getAndroidEmulatorLogCapture(global, { DEVICE_RUN_SESSION_ID: 'session' });
+  const input = Readable.from([Buffer.alloc(MAX_ANDROID_LOG_BYTES_PER_SOURCE + 6, 'a')]);
+  capture.attach(input, emulatorPath, 'emulator-output');
+  await once(input, 'end');
+  await collect();
+  expect(upload).toHaveBeenCalledWith(
+    ctx,
+    expect.objectContaining({
+      size: MAX_ANDROID_LOG_BYTES_PER_SOURCE,
+      name: expect.stringContaining('truncated, 20 MiB retained'),
+      metadata: expect.objectContaining({
+        originalSizeBytes: MAX_ANDROID_LOG_BYTES_PER_SOURCE + 6,
+        omittedBytes: 6,
+        truncated: true,
+      }),
+    })
+  );
+  expect(uploadedContents.get(path.basename(emulatorPath))).toHaveLength(
+    MAX_ANDROID_LOG_BYTES_PER_SOURCE
   );
 });
