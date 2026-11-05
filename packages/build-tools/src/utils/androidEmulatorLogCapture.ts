@@ -21,15 +21,16 @@ export type FinalizedAndroidEmulatorLog = {
  */
 type Capture = {
   source: AndroidEmulatorLogSource;
-  file: Promise<FileHandle>;
   stream: Writable;
   inputs: Set<Readable>;
   done: Promise<void>;
-  report: (err: unknown) => void;
+  /** Runs one file operation after every earlier one on the same handle. */
+  run: (operation: (handle: FileHandle) => Promise<void>) => Promise<void>;
+  sealed?: Promise<void>;
   bytesSeen: number;
   writePos: number;
   retained: number;
-  idle: boolean;
+  lastWrite: number;
 };
 
 /**
@@ -38,13 +39,18 @@ type Capture = {
  * A source keeps the last `maxBytes` bytes it produced, across files. The
  * oldest bytes go first, so an earlier launch gives up its head to a later
  * one and the final attempt always keeps its tail, where failures explain
- * themselves. Files are ordered by attach time; simultaneous captures evict
- * in that order rather than by exact write time.
+ * themselves. The least recently written file gives up bytes first, which
+ * approximates byte age without tracking every chunk.
+ *
+ * Eviction is bookkeeping until a file loses all its bytes, which frees it
+ * on disk at once. A partially evicted file keeps its size until it is
+ * sealed, so one source occupies at most twice its budget while recording.
  */
 export class AndroidEmulatorLogCapture {
   private readonly sources = new Map<AndroidEmulatorLogSource, Capture[]>();
   private readonly captures = new Map<string, Capture>();
   private finishing = false;
+  private writes = 0;
 
   constructor(private readonly maxBytes = MAX_ANDROID_LOG_BYTES_PER_SOURCE) {}
 
@@ -78,6 +84,10 @@ export class AndroidEmulatorLogCapture {
     capture.inputs.clear();
     capture.stream.end();
     await capture.done;
+    // Nothing can evict an uncapped file later, so release its handle now.
+    if (!Number.isFinite(this.maxBytes)) {
+      await this.sealAsync(capture);
+    }
   }
 
   async finishAsync(): Promise<readonly FinalizedAndroidEmulatorLog[]> {
@@ -124,15 +134,22 @@ export class AndroidEmulatorLogCapture {
         );
       }
     };
+    let queue: Promise<void> = Promise.resolve();
+    const run = (operation: (handle: FileHandle) => Promise<void>): Promise<void> => {
+      queue = queue
+        .then(() => file)
+        .then(operation)
+        .catch(report);
+      return queue;
+    };
     const record = {
       source,
-      file,
       inputs: new Set<Readable>(),
-      report,
+      run,
       bytesSeen: 0,
       writePos: 0,
       retained: 0,
-      idle: false,
+      lastWrite: 0,
     };
     const stream = new Writable({
       write: (chunk: Buffer, _encoding, callback) => {
@@ -148,18 +165,12 @@ export class AndroidEmulatorLogCapture {
         // Account before awaiting I/O so concurrent launches share the same cap.
         record.writePos = (position + data.length) % max;
         record.retained = Math.min(record.retained + data.length, max);
+        record.lastWrite = ++this.writes;
         this.evict(source);
-        void file
-          .then(async handle => {
-            await writeAtAsync(handle, data.subarray(0, head), position);
-            await writeAtAsync(handle, data.subarray(head), 0);
-          })
-          .catch(report)
-          .then(() => callback());
-      },
-      final: callback => {
-        record.idle = true;
-        callback();
+        void run(async handle => {
+          await writeAtAsync(handle, data.subarray(0, head), position);
+          await writeAtAsync(handle, data.subarray(head), 0);
+        }).then(() => callback());
       },
     });
     return Object.assign(record, { stream, done: finished(stream) });
@@ -167,7 +178,7 @@ export class AndroidEmulatorLogCapture {
 
   /** Drop the oldest bytes of a source until its files fit the budget together. */
   private evict(source: AndroidEmulatorLogSource): void {
-    const list = this.sources.get(source) ?? [];
+    const list = [...(this.sources.get(source) ?? [])].sort((a, b) => a.lastWrite - b.lastWrite);
     let excess = list.reduce((sum, capture) => sum + capture.retained, 0) - this.maxBytes;
     for (const capture of list) {
       if (excess <= 0) {
@@ -176,34 +187,36 @@ export class AndroidEmulatorLogCapture {
       const dropped = Math.min(capture.retained, excess);
       capture.retained -= dropped;
       excess -= dropped;
-      if (capture.retained === 0 && capture.idle) {
-        // Nothing of this file survives and no write is in flight: free the disk now.
-        void capture.file.then(handle => handle.truncate(0)).catch(capture.report);
+      if (dropped > 0 && capture.retained === 0) {
+        // Nothing of this file survives: free the disk after its queued writes land.
+        capture.writePos = 0;
+        void capture.run(handle => handle.truncate(0));
       }
     }
   }
 
   /** Rewrite the ring in log order, drop evicted bytes, and close the file. */
-  private async sealAsync(capture: Capture): Promise<void> {
-    try {
-      const handle = await capture.file;
-      const { retained } = capture;
-      let start = capture.writePos - retained;
-      if (start < 0) {
-        start += this.maxBytes;
+  private sealAsync(capture: Capture): Promise<void> {
+    capture.sealed ??= capture.run(async handle => {
+      try {
+        const { retained } = capture;
+        let start = capture.writePos - retained;
+        if (start < 0) {
+          start += this.maxBytes;
+        }
+        if (start > 0) {
+          const tail = Buffer.alloc(retained);
+          const head = Math.min(retained, this.maxBytes - start);
+          await readAtAsync(handle, tail.subarray(0, head), start);
+          await readAtAsync(handle, tail.subarray(head), 0);
+          await writeAtAsync(handle, tail, 0);
+        }
+        await handle.truncate(retained);
+      } finally {
+        await handle.close();
       }
-      if (start > 0) {
-        const tail = Buffer.alloc(retained);
-        const head = Math.min(retained, this.maxBytes - start);
-        await readAtAsync(handle, tail.subarray(0, head), start);
-        await readAtAsync(handle, tail.subarray(head), 0);
-        await writeAtAsync(handle, tail, 0);
-      }
-      await handle.truncate(retained);
-      await handle.close();
-    } catch (err) {
-      capture.report(err);
-    }
+    });
+    return capture.sealed;
   }
 }
 

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import fs from 'node:fs/promises';
+import fs, { type FileHandle } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -37,6 +37,25 @@ async function record(
   await capture.finishFileAsync(file);
 }
 
+async function waitForSize(file: string, size: number): Promise<void> {
+  const deadline = Date.now() + 2_000;
+  while ((await fs.stat(file)).size !== size && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  expect((await fs.stat(file)).size).toBe(size);
+}
+
+function trackOpenedFiles(): FileHandle[] {
+  const opened: FileHandle[] = [];
+  const open = fs.open;
+  jest.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+    const handle = await open(file, flags, mode);
+    opened.push(handle);
+    return handle;
+  });
+  return opened;
+}
+
 it('keeps the newest bytes of a source across launches, with independent budgets for the two sources', async () => {
   const capture = new AndroidEmulatorLogCapture(10);
   const first = path.join(directory, 'first.log');
@@ -47,6 +66,8 @@ it('keeps the newest bytes of a source across launches, with independent budgets
   const logcat = Readable.from([Buffer.from('device logs are separate')]);
   capture.attach(logcat, device, 'device-logcat');
   await once(logcat, 'end');
+  // A partially evicted file keeps its size on disk until it is sealed.
+  expect((await fs.stat(first)).size).toBe(6);
   const logs = await capture.finishAsync();
   expect(logs).toEqual([
     { filePath: first, source: 'emulator-output', bytesSeen: 6 },
@@ -67,14 +88,60 @@ it('frees a finished file on disk once a later launch evicts all of it', async (
   const input = new PassThrough();
   capture.attach(input, retry, 'emulator-output');
   input.write('second log is too long');
-  const deadline = Date.now() + 2_000;
-  while ((await fs.stat(first)).size > 0 && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
-  expect((await fs.stat(first)).size).toBe(0);
+  await waitForSize(first, 0);
   await capture.finishAsync();
   expect(await fs.readFile(first, 'utf8')).toBe('');
   expect(await fs.readFile(retry, 'utf8')).toBe('s too long');
+});
+
+it('frees a fully evicted live capture on disk and records its later output', async () => {
+  const capture = new AndroidEmulatorLogCapture(10);
+  const first = path.join(directory, 'first.log');
+  const second = path.join(directory, 'second.log');
+  const a = new PassThrough();
+  const b = new PassThrough();
+  capture.attach(a, first, 'emulator-output');
+  capture.attach(b, second, 'emulator-output');
+  // Wait between writes: two streams deliver their first chunks in either order.
+  a.write('0123456789');
+  await waitForSize(first, 10);
+  b.write('abcdefghij');
+  await waitForSize(first, 0);
+  await waitForSize(second, 10);
+  a.write('xy');
+  await capture.finishAsync();
+  expect(await fs.readFile(first, 'utf8')).toBe('xy');
+  expect(await fs.readFile(second, 'utf8')).toBe('cdefghij');
+});
+
+it('closes an uncapped file when its stream finishes', async () => {
+  const opened = trackOpenedFiles();
+  const capture = new AndroidEmulatorLogCapture(Infinity);
+  const file = path.join(directory, 'build.log');
+  await record(capture, file, 'ordinary build output');
+  expect(opened).toHaveLength(1);
+  expect(opened[0].fd).toBe(-1);
+  expect(await fs.readFile(file, 'utf8')).toBe('ordinary build output');
+  expect(await capture.finishAsync()).toEqual([
+    { filePath: file, source: 'emulator-output', bytesSeen: 21 },
+  ]);
+});
+
+it('closes the file and reports once when sealing fails', async () => {
+  const opened = trackOpenedFiles();
+  const capture = new AndroidEmulatorLogCapture(10);
+  const file = path.join(directory, 'wrapped.log');
+  await record(capture, file, '0123456789abcdef');
+  const diskError = Object.assign(new Error('full'), { code: 'ENOSPC' });
+  jest.spyOn(opened[0], 'truncate').mockRejectedValueOnce(diskError);
+  await capture.finishAsync();
+  expect(opened[0].fd).toBe(-1);
+  expect(Sentry.capture).toHaveBeenCalledTimes(1);
+  expect(Sentry.capture).toHaveBeenCalledWith(
+    'Failed to write Android diagnostic log',
+    diskError,
+    expect.anything()
+  );
 });
 
 it('keeps the tail of a wrapped ring in order', async () => {
@@ -98,9 +165,10 @@ it('reserves bytes across simultaneous captures and drains after finalization', 
   capture.attach(a, first, 'emulator-output');
   capture.attach(b, second, 'emulator-output');
   a.write('12345678');
+  await waitForSize(first, 8);
   b.write('abcdefgh');
   await capture.finishAsync();
-  // Eviction follows attach order: the later capture keeps its bytes.
+  // The least recently written capture gives up its bytes first.
   expect(await fs.readFile(first, 'utf8')).toBe('78');
   expect(await fs.readFile(second, 'utf8')).toBe('abcdefgh');
   a.end('ignored after cleanup');
