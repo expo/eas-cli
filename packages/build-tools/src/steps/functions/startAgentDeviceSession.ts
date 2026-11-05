@@ -16,6 +16,8 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
+import { AndroidEmulatorLogSourcesSchema } from '../../utils/androidEmulatorLogSources';
+import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
@@ -71,6 +73,12 @@ export function createStartAgentDeviceSessionBuildFunction(
     name: 'Start agent-device session',
     __metricsId: warm ? 'eas/start_warm_agent_device_session' : 'eas/start_agent_device_session',
     inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'android_log_sources',
+        required: false,
+        defaultValue: ['emulator-output'],
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.
       BuildStepInput.createProvider({
         id: 'device_identifier',
@@ -188,6 +196,9 @@ export function createStartAgentDeviceSessionBuildFunction(
       } else {
         validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
+      const logSources = isIos
+        ? []
+        : AndroidEmulatorLogSourcesSchema.parse(inputs.android_log_sources.value);
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
         {
@@ -253,6 +264,8 @@ export function createStartAgentDeviceSessionBuildFunction(
                   lcdHeight: inputs.lcd_height.value as number | undefined,
                   lcdDensity: inputs.lcd_density.value as number | undefined,
                   logcatDirectory,
+                  logSources,
+                  logCapture: getAndroidEmulatorLogCapture(global, env),
                   env,
                   logger: taskLogger,
                 });
