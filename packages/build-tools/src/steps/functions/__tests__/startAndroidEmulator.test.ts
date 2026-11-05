@@ -9,7 +9,7 @@ import {
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
-import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
+import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
 import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
@@ -101,7 +101,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
   it('preserves an explicit empty source list and one capture through boot retries and clones', async () => {
     mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
-    const capture = new AndroidEmulatorLogCapture({ sources: [] });
+    const capture = new AndroidEmulatorLogRing({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     await createStep(
       { android_log_sources: [], count: 2 },

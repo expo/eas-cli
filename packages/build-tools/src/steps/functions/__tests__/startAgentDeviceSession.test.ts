@@ -4,7 +4,7 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
-import { AndroidEmulatorLogCapture } from '../../../utils/androidEmulatorLogCapture';
+import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
 import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
@@ -454,7 +454,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   });
 
   it('passes an explicit empty source list and the workflow capture to Android boot', async () => {
-    const capture = new AndroidEmulatorLogCapture({ sources: [] });
+    const capture = new AndroidEmulatorLogRing({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     const env = { DEVICE_RUN_SESSION_ID: 'session' };
     await runStep(
