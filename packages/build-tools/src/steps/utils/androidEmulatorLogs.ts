@@ -4,10 +4,11 @@ import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import {
-  AndroidEmulatorLogCapture,
+  type AndroidEmulatorLogCapture,
+  AndroidEmulatorLogRing,
   type FinalizedAndroidEmulatorLog,
-  MAX_ANDROID_LOG_BYTES_PER_SOURCE,
 } from '../../utils/androidEmulatorLogCapture';
+import { AndroidEmulatorLogFiles } from '../../utils/androidEmulatorLogFiles';
 import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
 import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
@@ -34,10 +35,10 @@ export function getAndroidEmulatorLogCapture(
   let collection = collections.get(global);
   if (!collection) {
     collection = {
-      capture: new AndroidEmulatorLogCapture({
-        sources,
-        maxBytes: env.DEVICE_RUN_SESSION_ID ? MAX_ANDROID_LOG_BYTES_PER_SOURCE : Infinity,
-      }),
+      // Sessions upload a bounded ring per source; builds keep plain launch files.
+      capture: env.DEVICE_RUN_SESSION_ID
+        ? new AndroidEmulatorLogRing({ sources })
+        : new AndroidEmulatorLogFiles({ sources }),
     };
     collections.set(global, collection);
   }

@@ -14,7 +14,8 @@ import {
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
-import { AndroidEmulatorLogCapture } from '../androidEmulatorLogCapture';
+import { AndroidEmulatorLogRing } from '../androidEmulatorLogCapture';
+import { AndroidEmulatorLogFiles } from '../androidEmulatorLogFiles';
 import {
   ALL_ANDROID_EMULATOR_LOG_SOURCES,
   AndroidEmulatorLogSourcesSchema,
@@ -184,12 +185,9 @@ describe('AndroidEmulatorUtils', () => {
   });
 
   describe(AndroidEmulatorUtils.startAsync, () => {
-    let buildCapture: AndroidEmulatorLogCapture;
+    let buildCapture: AndroidEmulatorLogFiles;
     beforeEach(() => {
-      buildCapture = new AndroidEmulatorLogCapture({
-        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
-        maxBytes: Infinity,
-      });
+      buildCapture = new AndroidEmulatorLogFiles({ sources: ALL_ANDROID_EMULATOR_LOG_SOURCES });
     });
     afterEach(async () => {
       await buildCapture.finishAsync();
@@ -285,9 +283,8 @@ describe('AndroidEmulatorUtils', () => {
       const { child } = mockSuccessfulStart(deviceName);
       const stdoutPipe = jest.spyOn(child.stdout, 'pipe');
       const stderrPipe = jest.spyOn(child.stderr, 'pipe');
-      const capture = new AndroidEmulatorLogCapture({
+      const capture = new AndroidEmulatorLogFiles({
         sources: AndroidEmulatorLogSourcesSchema.parse(sources),
-        maxBytes: Infinity,
       });
       const prepare = jest.spyOn(capture, 'prepareLogcatOutputAsync');
       await AndroidEmulatorUtils.startAsync({
@@ -331,7 +328,7 @@ describe('AndroidEmulatorUtils', () => {
       temporaryDirectories.push(outputDir);
       const deviceName = 'bounded-emulator' as AndroidVirtualDeviceName;
       const { child } = mockSuccessfulStart(deviceName);
-      const capture = new AndroidEmulatorLogCapture({ sources: ['device-logcat'] });
+      const capture = new AndroidEmulatorLogRing({ sources: ['device-logcat'] });
       const close = jest.fn();
       const createPipe = jest.spyOn(capture, 'prepareLogcatOutputAsync').mockResolvedValue({
         path: '/logcat.pipe',
