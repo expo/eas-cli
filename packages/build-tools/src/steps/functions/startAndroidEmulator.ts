@@ -23,14 +23,8 @@ import {
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 import {
-  EMULATOR_CAPTURE_RENDERER_ARGS,
-  type EmulatorCaptureLaunch,
-  clearEmulatorCaptureHandoffAsync,
-  createExperimentalEmulatorCaptureVersionInputProvider,
-  finishEmulatorCaptureAsync,
   installEmulatorCaptureAsync,
   parseExperimentalEmulatorCaptureVersionInput,
-  prepareEmulatorCaptureLaunchAsync,
 } from '../utils/emulatorCapture';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
@@ -81,7 +75,12 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         defaultValue: 1,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
-      createExperimentalEmulatorCaptureVersionInputProvider(),
+      // Experimental: the expo-emulator-capture version that the emulator preloads.
+      BuildStepInput.createProvider({
+        id: 'experimental_emulator_capture_version',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -89,17 +88,20 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         required: true,
       }),
     ],
-    fn: async ({ logger }, { inputs, outputs, env }) => {
+    fn: async ({ logger, global }, { inputs, outputs, env }) => {
       const count = Number(inputs.count.value ?? 1);
-      const experimentalEmulatorCaptureVersion = parseExperimentalEmulatorCaptureVersionInput(
+      const emulatorCaptureVersion = parseExperimentalEmulatorCaptureVersionInput(
         inputs.experimental_emulator_capture_version.value
       );
-      if (experimentalEmulatorCaptureVersion && count > 1) {
+      if (emulatorCaptureVersion && count > 1) {
         throw new UserError(
           'EAS_EMULATOR_CAPTURE_INVALID_INPUT',
           'experimental_emulator_capture_version supports one emulator. Remove it, or set count to 1.'
         );
       }
+      const emulatorCaptureLibrary = emulatorCaptureVersion
+        ? await installEmulatorCaptureAsync({ version: emulatorCaptureVersion, env, logger })
+        : null;
 
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
@@ -119,8 +121,17 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           logcatDirectory,
           env,
           logger,
-          ...(experimentalEmulatorCaptureVersion ? { experimentalEmulatorCaptureVersion } : {}),
+          ...(emulatorCaptureLibrary ? { emulatorCaptureLibrary } : {}),
         });
+      if (emulatorCaptureLibrary) {
+        // The session step starts expo-device-hub with the job env. A Hub version without the
+        // emulator capture ignores these variables.
+        global.updateEnv({
+          ...global.env,
+          EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+          EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: emulatorCaptureLibrary,
+        });
+      }
 
       if (count > 1) {
         logger.info(`Requested ${count} emulators, shutting down ${deviceName} for cloning.`);
@@ -226,7 +237,7 @@ export async function startAndroidEmulatorAsync({
   logcatDirectory,
   env,
   logger,
-  experimentalEmulatorCaptureVersion,
+  emulatorCaptureLibrary,
 }: {
   deviceName: AndroidVirtualDeviceName;
   systemImagePackage: string;
@@ -237,8 +248,8 @@ export async function startAndroidEmulatorAsync({
   logcatDirectory: string;
   env: BuildStepEnv;
   logger: bunyan;
-  /** The expo-emulator-capture version that the emulator preloads (experimental). */
-  experimentalEmulatorCaptureVersion?: string;
+  /** The expo-emulator-capture agent library that the emulator preloads (experimental). */
+  emulatorCaptureLibrary?: string;
 }): Promise<{
   serialId: AndroidDeviceSerialId;
   emulatorPromise: Promise<unknown>;
@@ -272,23 +283,6 @@ export async function startAndroidEmulatorAsync({
   }
 
   const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
-  // A record from an earlier start would name an emulator that this start replaces.
-  await clearEmulatorCaptureHandoffAsync({ logger });
-  const emulatorCapture = experimentalEmulatorCaptureVersion
-    ? await installEmulatorCaptureAsync({
-        version: experimentalEmulatorCaptureVersion,
-        env,
-        logger,
-      })
-    : null;
-  const captureRendererArgs = experimentalEmulatorCaptureVersion
-    ? EMULATOR_CAPTURE_RENDERER_ARGS
-    : [];
-  if (experimentalEmulatorCaptureVersion) {
-    logger.info(
-      `The emulator uses ${captureRendererArgs.join(' ')} for the experimental emulator capture.`
-    );
-  }
 
   logger.info('Making sure system image is installed');
   await retryAsync(
@@ -309,8 +303,6 @@ export async function startAndroidEmulatorAsync({
 
   let emulatorPromise = null;
   let serialId = null;
-  // Set by each attempt; the cast keeps the type wide after the retry callback assigns it.
-  let captureLaunch = null as EmulatorCaptureLaunch | null;
   await retryAsync(
     async attemptCount => {
       const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
@@ -333,24 +325,34 @@ export async function startAndroidEmulatorAsync({
         });
 
         logger.info(`Starting emulator device${attemptSuffix}.`);
-        // A new port for each attempt: a failed attempt can leave its port in use. A launch that
-        // cannot be prepared starts the emulator without the agent instead of failing the start.
-        captureLaunch = emulatorCapture
-          ? await prepareEmulatorCaptureLaunchAsync({ capture: emulatorCapture, env }).catch(
-              (err: unknown) => {
-                logger.warn({ err }, 'The emulator starts without the capture agent.');
-                return null;
-              }
-            )
-          : null;
-        const extraArgs = [...(captureLaunch?.args ?? []), ...captureRendererArgs];
+        // expo-device-hub finds the capture agent's socket by the serial, so the console port,
+        // which sets the serial, is chosen before the start, again for each attempt.
+        const consolePort = emulatorCaptureLibrary
+          ? await AndroidEmulatorUtils.findFreeConsolePortAsync()
+          : undefined;
         const startResult = await AndroidEmulatorUtils.startAsync({
           deviceName,
           env,
           logcatDirectory,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
-          ...(extraArgs.length ? { extraArgs } : {}),
-          ...(captureLaunch ? { extraEnv: captureLaunch.env } : {}),
+          ...(emulatorCaptureLibrary && consolePort !== undefined
+            ? {
+                consolePort,
+                // The Linux agent kept 60 fps with the lavapipe renderer.
+                extraArgs: ['-gpu', 'lavapipe'],
+                extraEnv: {
+                  // A library that the job already preloads stays preloaded, after the agent.
+                  LD_PRELOAD: [emulatorCaptureLibrary, env.LD_PRELOAD].filter(Boolean).join(':'),
+                  // The agent creates the directory. expo-device-hub gets the job env, so it looks
+                  // for `<serial>.sock` in the same TMPDIR.
+                  EXPO_EMULATOR_CAPTURE_SOCKET: path.join(
+                    env.TMPDIR ?? os.tmpdir(),
+                    'expo-emulator-capture',
+                    `emulator-${consolePort}.sock`
+                  ),
+                },
+              }
+            : {}),
         });
         attemptSerialId = startResult.serialId;
         await AndroidEmulatorUtils.waitForReadyAsync({
@@ -404,14 +406,6 @@ export async function startAndroidEmulatorAsync({
 
   if (!serialId || !emulatorPromise) {
     throw new Error(`Failed to start emulator ${deviceName}.`);
-  }
-  if (emulatorCapture && captureLaunch) {
-    await finishEmulatorCaptureAsync({
-      capture: emulatorCapture,
-      launch: captureLaunch,
-      serialId,
-      logger,
-    });
   }
   return { serialId, emulatorPromise, shouldAdjustAnimationScale };
 }

@@ -59,7 +59,6 @@ import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createColdIosSessionAsync } from './coldIosSession';
 import { createStartupTasks } from './startupTasks';
-import { readEmulatorCaptureHubEnvAsync } from './emulatorCapture';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
 const IOS_SIMULATOR_UDID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -589,10 +588,6 @@ async function startDeviceSessionHostInternalAsync(
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
-  // On when the emulator start preloaded the expo-emulator-capture agent (experimental), else off.
-  const emulatorCaptureEnv = isAndroid
-    ? await readEmulatorCaptureHubEnvAsync({ env, logger, hubPackageSpec: packageSpec })
-    : null;
   const turnArgsResult = asyncResult(server.turnArgs);
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
@@ -768,7 +763,12 @@ async function startDeviceSessionHostInternalAsync(
       env: {
         ...env,
         ...bootEnv,
-        ...(emulatorCaptureEnv ?? {}),
+        // The emulator start turns the experimental emulator capture on in the job env. Otherwise
+        // keep it off, so a Hub build with the capture on by default does not try to attach the
+        // agent with a debugger.
+        ...(isAndroid && env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE === undefined
+          ? { EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '0' }
+          : {}),
         ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),

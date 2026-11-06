@@ -2,7 +2,7 @@ import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
-import { Socket } from 'node:net';
+import { Socket, createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -317,7 +317,7 @@ describe('AndroidEmulatorUtils', () => {
       ).toEqual([]);
     });
 
-    it('adds the extra arguments before $ANDROID_EMULATOR_EXTRA_ARGS and the extra environment', async () => {
+    it('adds the console port and extra arguments before $ANDROID_EMULATOR_EXTRA_ARGS', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
@@ -328,7 +328,8 @@ describe('AndroidEmulatorUtils', () => {
         deviceName,
         env,
         logcatDirectory: outputDir,
-        extraArgs: ['-port', '5556', '-gpu', 'lavapipe'],
+        consolePort: 5556,
+        extraArgs: ['-gpu', 'lavapipe'],
         extraEnv: { LD_PRELOAD: '/tmp/libexpo_emulator_capture.so' },
       });
 
@@ -466,6 +467,30 @@ describe('AndroidEmulatorUtils', () => {
         expect(mockedSpawn).not.toHaveBeenCalled();
       } finally {
         mkdirSpy.mockRestore();
+      }
+    });
+  });
+
+  describe(AndroidEmulatorUtils.findFreeConsolePortAsync, () => {
+    it('returns an even console port that adb scans', async () => {
+      const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+
+      expect(port % 2).toBe(0);
+      expect(port).toBeGreaterThanOrEqual(5554);
+      expect(port).toBeLessThanOrEqual(5584);
+    });
+
+    it('skips a console port whose adb port is in use', async () => {
+      const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+      const adbServer = createServer();
+      await new Promise<void>(resolve => adbServer.listen(port + 1, '127.0.0.1', resolve));
+      try {
+        const next = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+
+        expect(next).not.toBe(port);
+        expect(next % 2).toBe(0);
+      } finally {
+        await new Promise(resolve => adbServer.close(resolve));
       }
     });
   });

@@ -9,13 +9,7 @@ import {
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
-import {
-  type EmulatorCaptureLaunch,
-  clearEmulatorCaptureHandoffAsync,
-  finishEmulatorCaptureAsync,
-  installEmulatorCaptureAsync,
-  prepareEmulatorCaptureLaunchAsync,
-} from '../../utils/emulatorCapture';
+import { installEmulatorCaptureAsync } from '../../utils/emulatorCapture';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -33,10 +27,7 @@ jest.mock('../../utils/androidLocalEgress', () => ({
 
 jest.mock('../../utils/emulatorCapture', () => ({
   ...jest.requireActual('../../utils/emulatorCapture'),
-  clearEmulatorCaptureHandoffAsync: jest.fn(),
   installEmulatorCaptureAsync: jest.fn(),
-  prepareEmulatorCaptureLaunchAsync: jest.fn(),
-  finishEmulatorCaptureAsync: jest.fn(),
 }));
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
@@ -49,6 +40,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     waitForReadyAsync: jest.fn(),
     disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
+    findFreeConsolePortAsync: jest.fn(),
   },
 }));
 
@@ -65,7 +57,7 @@ function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.
   const step = fn.createBuildStepFromFunctionCall(globalCtx, {
     callInputs,
   });
-  return Object.assign(step, { logger });
+  return Object.assign(step, { logger, globalCtx });
 }
 
 function createStartResult(serialId: string) {
@@ -453,121 +445,100 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
   });
 
   describe('experimental emulator capture', () => {
-    const mockedClear = jest.mocked(clearEmulatorCaptureHandoffAsync);
+    const LIBRARY = '/tmp/package/libexpo_emulator_capture.so';
     const mockedInstall = jest.mocked(installEmulatorCaptureAsync);
-    const mockedPrepare = jest.mocked(prepareEmulatorCaptureLaunchAsync);
-    const mockedFinish = jest.mocked(finishEmulatorCaptureAsync);
-    const capture = {
-      version: '0.1.0',
-      library: '/tmp/package/libexpo_emulator_capture.so',
-      temporaryDirectory: '/tmp',
-    };
 
-    function createLaunch(port: number): EmulatorCaptureLaunch {
-      const socketPath = `/tmp/expo-emulator-capture/emulator-${port}.sock`;
-      const logPath = `/tmp/expo-emulator-capture/emulator-${port}.log`;
+    function captureStart(port: number) {
       return {
-        serialId: `emulator-${port}`,
-        args: ['-port', String(port)],
-        env: {
-          LD_PRELOAD: capture.library,
-          EXPO_EMULATOR_CAPTURE_SOCKET: socketPath,
-          EXPO_EMULATOR_CAPTURE_LOG: logPath,
+        deviceName: 'EasAndroidDevice01',
+        env: expect.any(Object),
+        logcatDirectory: '/tmp/logcat-directory',
+        consolePort: port,
+        extraArgs: ['-gpu', 'lavapipe'],
+        extraEnv: {
+          LD_PRELOAD: LIBRARY,
+          EXPO_EMULATOR_CAPTURE_SOCKET: `/tmp/job/expo-emulator-capture/emulator-${port}.sock`,
         },
-        socketPath,
-        logPath,
       };
     }
 
     beforeEach(() => {
-      mockedClear.mockReset().mockResolvedValue(undefined);
-      mockedInstall.mockReset().mockResolvedValue(capture);
-      mockedPrepare
+      mockedInstall.mockReset().mockResolvedValue(LIBRARY);
+      mockedAndroidUtils.findFreeConsolePortAsync
         .mockReset()
-        .mockResolvedValueOnce(createLaunch(5554))
-        .mockResolvedValueOnce(createLaunch(5556));
-      mockedFinish.mockReset().mockResolvedValue(undefined);
+        .mockResolvedValueOnce(5554)
+        .mockResolvedValueOnce(5556);
     });
 
-    it('preloads the agent into the emulator and records it after the boot', async () => {
-      mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-5554'));
+    it('preloads the agent and turns the capture on for expo-device-hub', async () => {
+      const step = createStep(
+        { experimental_emulator_capture_version: '0.1.0' },
+        { TMPDIR: '/tmp/job' }
+      );
 
-      await createStep({ experimental_emulator_capture_version: '0.1.0' }).executeAsync();
+      await step.executeAsync();
 
-      expect(mockedClear).toHaveBeenCalledTimes(1);
       expect(mockedInstall).toHaveBeenCalledWith({
         version: '0.1.0',
         env: expect.any(Object),
         logger: expect.anything(),
       });
-      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith({
-        deviceName: 'EasAndroidDevice01',
-        env: expect.any(Object),
-        logcatDirectory: '/tmp/logcat-directory',
-        extraArgs: ['-port', '5554', '-gpu', 'lavapipe'],
-        extraEnv: createLaunch(5554).env,
-      });
-      expect(mockedFinish).toHaveBeenCalledWith({
-        capture,
-        launch: createLaunch(5554),
-        serialId: 'emulator-5554',
-        logger: expect.anything(),
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(captureStart(5554));
+      expect(step.globalCtx.env).toMatchObject({
+        EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+        EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: LIBRARY,
       });
     });
 
-    it('prepares a new console port for each start attempt', async () => {
+    it('keeps a library that the job already preloads, after the agent', async () => {
+      await createStep(
+        { experimental_emulator_capture_version: '0.1.0' },
+        { TMPDIR: '/tmp/job', LD_PRELOAD: '/opt/other.so' }
+      ).executeAsync();
+
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          extraEnv: expect.objectContaining({ LD_PRELOAD: `${LIBRARY}:/opt/other.so` }),
+        })
+      );
+    });
+
+    it('chooses a new console port for each start attempt', async () => {
       mockedAndroidUtils.startAsync
         .mockRejectedValueOnce(new Error('emulator did not start'))
         .mockResolvedValue(createStartResult('emulator-5556'));
 
-      await createStep({ experimental_emulator_capture_version: '0.1.0' }).executeAsync();
+      await createStep(
+        { experimental_emulator_capture_version: '0.1.0' },
+        { TMPDIR: '/tmp/job' }
+      ).executeAsync();
 
-      expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ extraArgs: ['-port', '5556', '-gpu', 'lavapipe'] })
-      );
-      expect(mockedFinish).toHaveBeenCalledWith(
-        expect.objectContaining({ launch: createLaunch(5556), serialId: 'emulator-5556' })
-      );
+      expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(2, captureStart(5556));
     });
 
-    it('keeps the requested renderer but loads no agent when the install fails', async () => {
+    it('starts the emulator as without the input when the install fails', async () => {
       mockedInstall.mockResolvedValue(null);
-
-      await createStep({ experimental_emulator_capture_version: '0.1.0' }).executeAsync();
-
-      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith({
-        deviceName: 'EasAndroidDevice01',
-        env: expect.any(Object),
-        logcatDirectory: '/tmp/logcat-directory',
-        extraArgs: ['-gpu', 'lavapipe'],
-      });
-      expect(mockedPrepare).not.toHaveBeenCalled();
-      expect(mockedFinish).not.toHaveBeenCalled();
-    });
-
-    it('starts the emulator without the agent when the launch cannot be prepared', async () => {
-      mockedPrepare.mockReset().mockRejectedValue(new Error('No emulator console port is free.'));
       const step = createStep({ experimental_emulator_capture_version: '0.1.0' });
 
       await step.executeAsync();
 
-      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(1);
       expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith({
         deviceName: 'EasAndroidDevice01',
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
-        extraArgs: ['-gpu', 'lavapipe'],
       });
-      expect(mockedFinish).not.toHaveBeenCalled();
+      expect(mockedAndroidUtils.findFreeConsolePortAsync).not.toHaveBeenCalled();
+      expect(step.globalCtx.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
     });
 
-    it('installs nothing without the input, but clears an old record', async () => {
-      await createStep().executeAsync();
+    it('installs nothing without the input', async () => {
+      const step = createStep();
 
-      expect(mockedClear).toHaveBeenCalledTimes(1);
+      await step.executeAsync();
+
       expect(mockedInstall).not.toHaveBeenCalled();
-      expect(mockedFinish).not.toHaveBeenCalled();
+      expect(mockedAndroidUtils.findFreeConsolePortAsync).not.toHaveBeenCalled();
+      expect(step.globalCtx.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
     });
 
     it('rejects the capture for more than one emulator before it starts one', async () => {
@@ -579,12 +550,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
     });
 
-    it('rejects a version that is not an npm version or tag', async () => {
+    it('rejects a version that is not an exact npm version or a dist-tag', async () => {
       await expect(
-        createStep({ experimental_emulator_capture_version: '^0.1.0' }).executeAsync()
+        createStep({ experimental_emulator_capture_version: 'npm:other@1.0.0' }).executeAsync()
       ).rejects.toThrow('must be an exact npm version or a dist-tag of expo-emulator-capture');
 
-      expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
+      expect(mockedInstall).not.toHaveBeenCalled();
     });
   });
 });
