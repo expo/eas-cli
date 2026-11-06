@@ -183,67 +183,11 @@ describe('sandbox build functions', () => {
     expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the legacy token and keeps the Expo token for commands without a worker token', async () => {
-    const startupError = new Error('stop after checking options');
-    const start = jest
-      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
-      .mockRejectedValue(startupError);
-    const fn = createStartSandboxBuildFunction({ ...context, job: {} } as any);
-
-    await expect(
-      fn.fn!({ logger: {} } as any, {
-        inputs,
-        outputs: {},
-        env: {
-          PREPARED_BY_EARLIER_STEP: 'value',
-          EXPO_TOKEN: 'expo-token',
-          __EAS_SANDBOX_MCP_TOKEN: 'legacy-token',
-        },
-      })
-    ).rejects.toBe(startupError);
-    expect(start.mock.calls[0][0]).toMatchObject({ credential: 'legacy-token' });
-    expect(start.mock.calls[0][0].env).toEqual({
-      PREPARED_BY_EARLIER_STEP: 'value',
-      EXPO_TOKEN: 'expo-token',
-    });
-  });
-
-  it('marks the sandbox ready over GraphQL without a worker token', async () => {
-    const stopAsync = jest.fn(async () => {});
-    jest
-      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
-      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
-    const mutation = jest.fn(() => ({
-      toPromise: async () => ({ data: { sandbox: { markSandboxReady: { id: 'sandbox-id' } } } }),
-    }));
-    const logger = { info: jest.fn(), child: jest.fn() };
-    logger.child.mockReturnValue(logger);
-    const fn = createStartSandboxBuildFunction({
-      ...context,
-      job: {},
-      graphqlClient: { mutation },
-    } as any);
-
-    await fn.fn!({ logger } as any, {
-      inputs: { ...inputs, max_duration_seconds: { value: 0.0001 } },
-      outputs: {},
-      env: { __EAS_SANDBOX_MCP_TOKEN: 'legacy-token' },
-    });
-
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      { sandboxId: 'sandbox-id' },
-      undefined
-    );
-    expect(fetch).not.toHaveBeenCalled();
-    expect(stopAsync).toHaveBeenCalledTimes(1);
-  });
-
   it.each([
     {
-      missing: 'a sandbox worker token or a legacy token',
+      missing: 'the sandbox worker token',
       overrides: { job: {} },
-      message: 'This sandbox job has neither EAS_SANDBOX_WORKER_TOKEN nor __EAS_SANDBOX_MCP_TOKEN.',
+      message: 'This sandbox job has no EAS_SANDBOX_WORKER_TOKEN secret.',
     },
     {
       missing: 'the MCP server URL',
