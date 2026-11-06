@@ -64,7 +64,7 @@ export function terminalSshStatusMessage(
 ): string | null {
   switch (status) {
     case 'unknown':
-      return `No workflow job found for "${resourceId}". Pass a workflow job id from a run started with \`eas workflow:run --ssh\`.`;
+      return `No job found for ID "${resourceId}". The ID may be mistyped, or it may not be the ID in the job logs. Copy the ID from the "Start SSH session" step in the job logs of a run started with \`eas workflow:run --ssh\`, then try again.`;
     case 'not-enabled':
       return `SSH was not enabled for "${resourceId}". Start the run with \`eas workflow:run --ssh\` to enable it.`;
     case 'ended':
@@ -105,6 +105,13 @@ export default class WorkflowSsh extends EasCommand {
   static override description =
     '[EXPERIMENTAL] open an ssh session on the worker running a workflow job';
 
+  static override usage = 'workflow:ssh [--show-connect] ID';
+
+  static override examples = [
+    '$ eas workflow:ssh <ID>  \t # Open an SSH session on the worker. Use the ID in the job logs ("Start SSH session" step)',
+    '$ eas workflow:ssh --show-connect <ID>  \t # Print the ssh command to connect, without opening the SSH session',
+  ];
+
   static override strict = false;
 
   static override flags = {
@@ -126,7 +133,9 @@ export default class WorkflowSsh extends EasCommand {
     const { showConnect, resourceId, command } = parseSshArgv(rawArgv);
 
     if (typeof resourceId !== 'string' || resourceId.length === 0) {
-      throw new Error('Provide a workflow job id: eas workflow:ssh <workflow-job-id> [command...]');
+      throw new Error(
+        'Cannot open an SSH session without an ID. Copy the ID from the "Start SSH session" step in the job logs, then run: eas workflow:ssh <ID>'
+      );
     }
 
     const {
