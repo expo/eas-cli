@@ -82,7 +82,7 @@ describe(installEmulatorCaptureAsync, () => {
     expect(library).toBe(path.join(mockedInstall.mock.calls[0][0].directory, AGENT));
   });
 
-  it('returns null when the install fails', async () => {
+  it('returns undefined when the install fails', async () => {
     setHost('linux', 'x64');
     mockedInstall.mockRejectedValue(new Error('npm error 404'));
     const logger = createMockLogger();
@@ -96,7 +96,7 @@ describe(installEmulatorCaptureAsync, () => {
     );
   });
 
-  it('returns null when the package has no Linux agent library', async () => {
+  it('returns undefined when the package has no Linux agent library', async () => {
     setHost('linux', 'x64');
     mockedInstall.mockResolvedValue(undefined);
     const logger = createMockLogger();
@@ -104,10 +104,12 @@ describe(installEmulatorCaptureAsync, () => {
     await expect(
       installEmulatorCaptureAsync({ version: 'latest', env, logger })
     ).resolves.toBeUndefined();
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('expo-emulator-capture@latest has no Linux x86-64 agent at')
+    );
   });
 
-  it('returns null on a host that is not Linux x86-64', async () => {
+  it('returns undefined on a host that is not Linux x86-64', async () => {
     setHost('darwin', 'arm64');
     const logger = createMockLogger();
 

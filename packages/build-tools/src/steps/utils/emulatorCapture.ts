@@ -21,8 +21,9 @@ const LINUX_AGENT_LIBRARY = path.join(
   'libexpo_emulator_capture.so'
 );
 /**
- * An exact npm version or a dist-tag. It also keeps out specs that install another package,
- * such as `npm:`, `file:` or git URLs. eas-cli and www check the same pattern.
+ * An npm version, a simple range such as `0.1.x`, or a dist-tag: letters, digits, `.`, `_` and `-`.
+ * It keeps out specs that install another package, such as `npm:`, `file:` or git URLs. eas-cli
+ * and www check the same pattern.
  */
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$/;
 /** The registry normally answers in seconds; a stalled install must not hold the emulator. */
@@ -36,7 +37,7 @@ export function parseExperimentalEmulatorCaptureVersionInput(value: unknown): st
   if (typeof value !== 'string' || !VERSION_PATTERN.test(value)) {
     throw new UserError(
       'EAS_EMULATOR_CAPTURE_INVALID_VERSION',
-      `experimental_emulator_capture_version must be an exact npm version or a dist-tag of ${PACKAGE_NAME}.`
+      `experimental_emulator_capture_version must be an npm version or dist-tag of ${PACKAGE_NAME}, made of letters, digits, ".", "_" and "-".`
     );
   }
   return value;
@@ -62,10 +63,9 @@ export async function installEmulatorCaptureAsync({
     );
     return undefined;
   }
+  let directory: string;
   try {
-    const directory = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'eas-emulator-capture-package-')
-    );
+    directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-emulator-capture-package-'));
     logger.info(`Installing ${PACKAGE_NAME}@${version} for the experimental emulator capture.`);
     await installIsolatedNpmPackageAsync({
       packageSpec: `${PACKAGE_NAME}@${version}`,
@@ -75,11 +75,6 @@ export async function installEmulatorCaptureAsync({
       logger,
       signal: AbortSignal.timeout(INSTALL_TIMEOUT_MS),
     });
-    const library = path.join(directory, LINUX_AGENT_LIBRARY);
-    if (!fs.existsSync(library)) {
-      throw new Error(`${PACKAGE_NAME}@${version} has no Linux x86-64 agent at ${library}.`);
-    }
-    return library;
   } catch (err) {
     logger.warn(
       { err },
@@ -87,4 +82,12 @@ export async function installEmulatorCaptureAsync({
     );
     return undefined;
   }
+  const library = path.join(directory, LINUX_AGENT_LIBRARY);
+  if (!fs.existsSync(library)) {
+    logger.warn(
+      `${PACKAGE_NAME}@${version} has no Linux x86-64 agent at ${library}. The emulator starts without it.`
+    );
+    return undefined;
+  }
+  return library;
 }

@@ -109,7 +109,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
-      const { serialId, emulatorPromise, shouldAdjustAnimationScale } =
+      const { serialId, emulatorPromise, shouldAdjustAnimationScale, emulatorCaptureSocketPath } =
         await startAndroidEmulatorAsync({
           deviceName,
           systemImagePackage: `${inputs.system_image_package.value}`,
@@ -123,7 +123,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           logger,
           emulatorCaptureLibrary,
         });
-      if (emulatorCaptureLibrary) {
+      if (emulatorCaptureLibrary && emulatorCaptureSocketPath) {
         // The session step starts expo-device-hub with the job env. A Hub version without the
         // emulator capture ignores these variables.
         global.updateEnv({
@@ -131,6 +131,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
           EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: emulatorCaptureLibrary,
         });
+        logger.info(
+          `${serialId} preloads expo-emulator-capture@${emulatorCaptureVersion} with -gpu lavapipe, and its agent socket is ${emulatorCaptureSocketPath}. Later steps start expo-device-hub with the emulator capture on.`
+        );
       }
 
       if (count > 1) {
@@ -254,6 +257,8 @@ export async function startAndroidEmulatorAsync({
   serialId: AndroidDeviceSerialId;
   emulatorPromise: Promise<unknown>;
   shouldAdjustAnimationScale: boolean;
+  /** The capture agent's socket, when the emulator preloads the agent on the expected serial. */
+  emulatorCaptureSocketPath?: string;
 }> {
   if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
     await assertAndroidEmulatorHostSupportAsync({ env });
@@ -301,8 +306,16 @@ export async function startAndroidEmulatorAsync({
     }
   );
 
+  // expo-device-hub gets the job env and finds the agent sockets in `<tmpdir>/expo-emulator-capture`,
+  // where Node's os.tmpdir() applies this rule to that env. On EAS, TMPDIR is not set.
+  const captureSocketDirectory = path.join(
+    env.TMPDIR || env.TMP || env.TEMP || '/tmp',
+    'expo-emulator-capture'
+  );
   let emulatorPromise = null;
   let serialId = null;
+  // Set by the attempt that starts; the cast keeps the type wide after the retry callback.
+  let captureLaunch = undefined as { consolePort: number; socketPath: string } | undefined;
   await retryAsync(
     async attemptCount => {
       const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
@@ -330,26 +343,28 @@ export async function startAndroidEmulatorAsync({
         const consolePort = emulatorCaptureLibrary
           ? await AndroidEmulatorUtils.findFreeConsolePortAsync()
           : undefined;
+        const launch =
+          consolePort !== undefined
+            ? {
+                consolePort,
+                socketPath: path.join(captureSocketDirectory, `emulator-${consolePort}.sock`),
+              }
+            : undefined;
         const startResult = await AndroidEmulatorUtils.startAsync({
           deviceName,
           env,
           logcatDirectory,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
-          ...(emulatorCaptureLibrary && consolePort !== undefined
+          ...(emulatorCaptureLibrary && launch
             ? {
-                consolePort,
+                consolePort: launch.consolePort,
                 // The Linux agent kept 60 fps with the lavapipe renderer.
                 extraArgs: ['-gpu', 'lavapipe'],
                 extraEnv: {
                   // A library that the job already preloads stays preloaded, after the agent.
                   LD_PRELOAD: [emulatorCaptureLibrary, env.LD_PRELOAD].filter(Boolean).join(':'),
-                  // The agent creates the directory. expo-device-hub gets the job env, so it looks
-                  // for `<serial>.sock` in the same TMPDIR.
-                  EXPO_EMULATOR_CAPTURE_SOCKET: path.join(
-                    env.TMPDIR ?? os.tmpdir(),
-                    'expo-emulator-capture',
-                    `emulator-${consolePort}.sock`
-                  ),
+                  // The agent creates the directory.
+                  EXPO_EMULATOR_CAPTURE_SOCKET: launch.socketPath,
                 },
               }
             : {}),
@@ -374,6 +389,7 @@ export async function startAndroidEmulatorAsync({
 
         serialId = attemptSerialId;
         emulatorPromise = startResult.emulatorPromise;
+        captureLaunch = launch;
       } catch (err) {
         logger.warn({ err }, `${deviceName} failed to start on attempt ${attempt}/${maxAttempts}.`);
         try {
@@ -407,7 +423,19 @@ export async function startAndroidEmulatorAsync({
   if (!serialId || !emulatorPromise) {
     throw new Error(`Failed to start emulator ${deviceName}.`);
   }
-  return { serialId, emulatorPromise, shouldAdjustAnimationScale };
+  // The Hub looks for the socket by serial. $ANDROID_EMULATOR_EXTRA_ARGS can override -port.
+  if (captureLaunch && serialId !== `emulator-${captureLaunch.consolePort}`) {
+    logger.warn(
+      `${serialId} does not use console port ${captureLaunch.consolePort}, so expo-device-hub cannot find its capture agent socket ${captureLaunch.socketPath}. The session streams without the emulator capture. Remove -port from $ANDROID_EMULATOR_EXTRA_ARGS.`
+    );
+    captureLaunch = undefined;
+  }
+  return {
+    serialId,
+    emulatorPromise,
+    shouldAdjustAnimationScale,
+    emulatorCaptureSocketPath: captureLaunch?.socketPath,
+  };
 }
 
 async function assertAndroidEmulatorHostSupportAsync({

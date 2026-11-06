@@ -2,7 +2,7 @@ import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
-import { Socket, createServer } from 'node:net';
+import { type Server, Socket, createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -472,6 +472,21 @@ describe('AndroidEmulatorUtils', () => {
   });
 
   describe(AndroidEmulatorUtils.findFreeConsolePortAsync, () => {
+    /** Listens on the port, or returns null when another process already uses it. */
+    async function occupyAsync(port: number): Promise<Server | null> {
+      const server = createServer();
+      return await new Promise(resolve => {
+        server.once('error', () => resolve(null));
+        server.listen(port, '127.0.0.1', () => resolve(server));
+      });
+    }
+
+    async function closeAsync(servers: (Server | null)[]): Promise<void> {
+      await Promise.all(
+        servers.map(server => (server ? new Promise(resolve => server.close(resolve)) : null))
+      );
+    }
+
     it('returns an even console port that adb scans', async () => {
       const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
 
@@ -482,15 +497,30 @@ describe('AndroidEmulatorUtils', () => {
 
     it('skips a console port whose adb port is in use', async () => {
       const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
-      const adbServer = createServer();
-      await new Promise<void>(resolve => adbServer.listen(port + 1, '127.0.0.1', resolve));
+      const adbServer = await occupyAsync(port + 1);
       try {
+        expect(adbServer).not.toBeNull();
         const next = await AndroidEmulatorUtils.findFreeConsolePortAsync();
 
         expect(next).not.toBe(port);
         expect(next % 2).toBe(0);
       } finally {
-        await new Promise(resolve => adbServer.close(resolve));
+        await closeAsync([adbServer]);
+      }
+    });
+
+    it('throws when no console port is free', async () => {
+      const servers: (Server | null)[] = [];
+      try {
+        for (let port = 5555; port <= 5585; port += 2) {
+          servers.push(await occupyAsync(port));
+        }
+
+        await expect(AndroidEmulatorUtils.findFreeConsolePortAsync()).rejects.toThrow(
+          'No emulator console port from 5554 to 5584 is free.'
+        );
+      } finally {
+        await closeAsync(servers);
       }
     });
   });
