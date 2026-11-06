@@ -204,4 +204,122 @@ describe(BuildVersionSetView, () => {
     await expect(cmd.run()).rejects.toThrowError('Aborted.');
     expect(AppVersionMutation.createAppVersionAsync).not.toHaveBeenCalledWith();
   });
+
+  describe('non-interactive mode with --value flag', () => {
+    test('setting version for android with --value flag', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+      jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+
+      const cmd = mockTestCommand(BuildVersionSetView, ['--platform=android', '--value=130'], ctx);
+      await cmd.run();
+
+      expect(prompts.promptAsync).not.toHaveBeenCalled();
+      expect(AppVersionMutation.createAppVersionAsync).toHaveBeenCalledWith(
+        ctx.loggedIn.graphqlClient,
+        expect.objectContaining({
+          buildVersion: '130',
+        })
+      );
+    });
+
+    test('setting version for ios with --value flag', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+      jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+
+      const cmd = mockTestCommand(BuildVersionSetView, ['--platform=ios', '--value=1.2.3'], ctx);
+      await cmd.run();
+
+      expect(prompts.promptAsync).not.toHaveBeenCalled();
+      expect(AppVersionMutation.createAppVersionAsync).toHaveBeenCalledWith(
+        ctx.loggedIn.graphqlClient,
+        expect.objectContaining({
+          buildVersion: '1.2.3',
+        })
+      );
+    });
+
+    test('throws error when --value provided without --platform', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+
+      const cmd = mockTestCommand(BuildVersionSetView, ['--value=130'], ctx);
+
+      await expect(cmd.run()).rejects.toThrowError(
+        '--platform flag is required in non-interactive mode'
+      );
+    });
+
+    test('throws error for invalid android versionCode', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+      jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+
+      const cmd = mockTestCommand(
+        BuildVersionSetView,
+        ['--platform=android', '--value=invalid'],
+        ctx
+      );
+
+      await expect(cmd.run()).rejects.toThrowError('Invalid versionCode');
+    });
+
+    test('throws error for invalid ios buildNumber', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+      jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+
+      const cmd = mockTestCommand(
+        BuildVersionSetView,
+        ['--platform=ios', '--value=1.2.3.4'],
+        ctx
+      );
+
+      await expect(cmd.run()).rejects.toThrowError('Invalid buildNumber');
+    });
+
+    test('throws error for android versionCode exceeding max', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+      jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
+
+      const cmd = mockTestCommand(
+        BuildVersionSetView,
+        ['--platform=android', '--value=2100000001'],
+        ctx
+      );
+
+      await expect(cmd.run()).rejects.toThrowError('Invalid versionCode');
+    });
+
+    test('--non-interactive flag without --value throws error', async () => {
+      const ctx = mockCommandContext(BuildVersionSetView, {
+        easJson: withRemoteVersionSource(getMockEasJson()),
+      });
+      jest.mocked(AppQuery.byIdAsync).mockImplementation(async () => getMockAppFragment());
+
+      const cmd = mockTestCommand(
+        BuildVersionSetView,
+        ['--platform=android', '--non-interactive'],
+        ctx
+      );
+
+      await expect(cmd.run()).rejects.toThrowError(
+        '--value flag is required in non-interactive mode'
+      );
+    });
+  });
 });
