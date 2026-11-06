@@ -1,5 +1,5 @@
 import { ExpoGraphqlClient } from './createGraphqlClient';
-import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import { fetchServerEnvironmentVariablesAsync } from '../../../environments/serverEnvironmentVariables';
 import Log from '../../../log';
 
 const cachedServerSideEnvironmentVariables: Record<string, Record<string, string> | undefined> = {};
@@ -19,18 +19,10 @@ export async function loadServerSideEnvironmentVariablesAsync({
     return cachedEnvVarsForEnvironment;
   }
 
-  const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
-    graphqlClient,
-    {
-      appId: projectId,
-      environment,
-    }
-  );
-  const serverEnvVars = Object.fromEntries(
-    environmentVariables
-      .filter(({ name, value }) => name && value)
-      .map(({ name, value }) => [name, value])
-  ) as Record<string, string>;
+  const serverEnvVars = await fetchServerEnvironmentVariablesAsync(graphqlClient, {
+    appId: projectId,
+    environment,
+  });
 
   if (Object.keys(serverEnvVars).length > 0) {
     Log.log(
