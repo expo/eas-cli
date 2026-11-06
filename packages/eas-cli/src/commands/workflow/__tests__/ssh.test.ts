@@ -152,7 +152,7 @@ describe(terminalSshStatusMessage, () => {
   it('distinguishes not-enabled from ended', () => {
     expect(terminalSshStatusMessage('not-enabled', 'job-1')).toMatch(/SSH was not enabled/);
     expect(terminalSshStatusMessage('ended', 'job-1')).toMatch(/has ended/);
-    expect(terminalSshStatusMessage('unknown', 'job-1')).toMatch(/No job found/);
+    expect(terminalSshStatusMessage('unknown', 'job-1')).toMatch(/No workflow job found/);
   });
 });
 
@@ -224,15 +224,13 @@ describe(WorkflowSsh, () => {
   }
 
   it('throws when no workflow job id is given', async () => {
-    await expect(createCommand([]).runAsync()).rejects.toThrow(
-      'Cannot open an SSH session without an ID'
-    );
+    await expect(createCommand([]).runAsync()).rejects.toThrow('Provide a workflow job id');
   });
 
   it('reports unknown and exits 1 when the id does not resolve', async () => {
     mockConnectInfo.mockResolvedValue(null);
     await createCommand(['job-1']).runAsync();
-    expect(Log.error).toHaveBeenCalledWith(expect.stringContaining('No job found'));
+    expect(Log.error).toHaveBeenCalledWith(expect.stringContaining('No workflow job found'));
     expect(process.exitCode).toBe(1);
   });
 

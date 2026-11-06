@@ -64,7 +64,7 @@ export function terminalSshStatusMessage(
 ): string | null {
   switch (status) {
     case 'unknown':
-      return `No job found for ID "${resourceId}". The ID may be mistyped, or it may not be the ID in the job logs. Copy the ID from the "Start SSH session" step in the job logs of a run started with \`eas workflow:run --ssh\`, then try again.`;
+      return `No workflow job found for "${resourceId}". Pass a workflow job id from a run started with \`eas workflow:run --ssh\`.`;
     case 'not-enabled':
       return `SSH was not enabled for "${resourceId}". Start the run with \`eas workflow:run --ssh\` to enable it.`;
     case 'ended':
@@ -133,9 +133,7 @@ export default class WorkflowSsh extends EasCommand {
     const { showConnect, resourceId, command } = parseSshArgv(rawArgv);
 
     if (typeof resourceId !== 'string' || resourceId.length === 0) {
-      throw new Error(
-        'Cannot open an SSH session without an ID. Copy the ID from the "Start SSH session" step in the job logs, then run: eas workflow:ssh <ID>'
-      );
+      throw new Error('Provide a workflow job id: eas workflow:ssh <workflow-job-id> [command...]');
     }
 
     const {
