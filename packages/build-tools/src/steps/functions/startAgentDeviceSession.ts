@@ -211,6 +211,7 @@ export function createStartAgentDeviceSessionBuildFunction(
         let sessionOwnsTeardown = false;
         let downloaded: Promise<string> | undefined;
         let applicationReady: Promise<ServeSimApplicationOptions | void> | undefined;
+        let installedAndroidApplication: Promise<string> | undefined;
 
         try {
           if (isIos) {
@@ -305,7 +306,7 @@ export function createStartAgentDeviceSessionBuildFunction(
               installAppPath,
             });
           } else if (!isIos && (installAppPath || downloadedApp)) {
-            applicationReady = tasks.run('app install and launch', async taskLogger => {
+            installedAndroidApplication = tasks.run('app install and launch', async taskLogger => {
               await tasks.untilAborted(booted!);
               const artifactPath = installAppPath ?? (await downloadedApp);
               if (!artifactPath) {
@@ -328,6 +329,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                 env,
                 logger: taskLogger,
               });
+              return applicationIdentifier;
             });
           }
 
@@ -358,7 +360,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                 }
               : {
                   booted,
-                  ready: applicationReady ?? tasks.untilAborted(booted),
+                  ready: installedAndroidApplication ?? tasks.untilAborted(booted),
                 },
           });
         } catch (error) {
@@ -372,7 +374,12 @@ export function createStartAgentDeviceSessionBuildFunction(
           throw error;
         } finally {
           tasks.abort(new Error('Agent-device session ended.'));
-          await Promise.allSettled([booted, downloaded, applicationReady]);
+          await Promise.allSettled([
+            booted,
+            downloaded,
+            applicationReady,
+            installedAndroidApplication,
+          ]);
         }
       };
       try {
