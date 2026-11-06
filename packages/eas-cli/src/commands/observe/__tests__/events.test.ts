@@ -429,6 +429,26 @@ describe(ObserveEvents, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 
+  it.each([
+    ['--app-version', '2.1.0'],
+    ['--build-number', '42'],
+    ['--update-id', 'update-xyz'],
+  ])(
+    'does not suggest event names when an event name and %s return 0 events',
+    async (flag, value) => {
+      const command = createCommand(['my_event', flag, value]);
+      await command.runAsync();
+
+      expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsTable).toHaveBeenCalledWith(
+        [],
+        expect.anything(),
+        expect.objectContaining({ eventName: 'my_event' })
+      );
+    }
+  );
+
   it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [],

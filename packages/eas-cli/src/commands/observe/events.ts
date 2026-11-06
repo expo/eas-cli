@@ -147,9 +147,17 @@ export default class ObserveEvents extends EasCommand {
       })
     );
 
-    // A session may not contain the event even when the name is valid, so do
-    // not suggest other names when --session-id is set.
-    if (args.eventName && events.length === 0 && !flags['session-id']) {
+    // A session, app version, build number, or update ID may not contain the
+    // event even when the name is valid, so only suggest other names when the
+    // event name is the sole narrowing filter.
+    if (
+      args.eventName &&
+      events.length === 0 &&
+      !flags['session-id'] &&
+      !flags['app-version'] &&
+      !flags['build-number'] &&
+      !flags['update-id']
+    ) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
         startTime,
