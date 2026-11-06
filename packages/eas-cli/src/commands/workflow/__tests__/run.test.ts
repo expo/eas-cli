@@ -3,7 +3,7 @@ import {
   parseJsonInputs,
   parseWorkflowInputsFromYaml,
 } from '../../../commandUtils/workflow/inputs';
-import { resolveWorkflowRunSshInput } from '../run';
+import { resolveWorkflowRunGitInput, resolveWorkflowRunSshInput } from '../run';
 
 describe(resolveWorkflowRunSshInput, () => {
   it('is null when --ssh is not set', () => {
@@ -25,6 +25,35 @@ describe(resolveWorkflowRunSshInput, () => {
   it('rejects --ssh-idle-timeout without --ssh', () => {
     expect(() => resolveWorkflowRunSshInput({ ssh: false, idleTimeoutSeconds: 60 })).toThrow(
       '--ssh-idle-timeout requires --ssh.'
+    );
+  });
+});
+
+describe(resolveWorkflowRunGitInput, () => {
+  const commitHash = '1234567890abcdef1234567890abcdef12345678';
+
+  it('is undefined when neither flag is set', () => {
+    expect(
+      resolveWorkflowRunGitInput({ branch: undefined, commitHash: undefined })
+    ).toBeUndefined();
+  });
+
+  it('forwards the branch and commit hash when both flags are set', () => {
+    expect(resolveWorkflowRunGitInput({ branch: 'main', commitHash })).toEqual({
+      branch: 'main',
+      commitHash,
+    });
+  });
+
+  it('lowercases the commit hash', () => {
+    expect(
+      resolveWorkflowRunGitInput({ branch: 'main', commitHash: commitHash.toUpperCase() })
+    ).toEqual({ branch: 'main', commitHash });
+  });
+
+  it.each(['1234567', 'main'])('rejects the commit hash %j', badCommitHash => {
+    expect(() => resolveWorkflowRunGitInput({ branch: 'main', commitHash: badCommitHash })).toThrow(
+      '--git-commit-hash must be the full 40-character commit SHA'
     );
   });
 });
