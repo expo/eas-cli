@@ -2,7 +2,7 @@ import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
-import { Socket } from 'node:net';
+import { type Server, Socket, createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -317,6 +317,42 @@ describe('AndroidEmulatorUtils', () => {
       ).toEqual([]);
     });
 
+    it('adds the console port and extra arguments before $ANDROID_EMULATOR_EXTRA_ARGS', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      mockSuccessfulStart(deviceName);
+      const env = { ANDROID_EMULATOR_EXTRA_ARGS: '-gpu swiftshader_indirect' };
+
+      await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env,
+        logcatDirectory: outputDir,
+        consolePort: 5556,
+        extraArgs: ['-gpu', 'lavapipe'],
+        extraEnv: { LD_PRELOAD: '/tmp/libexpo_emulator_capture.so' },
+      });
+
+      const [, args, options] = mockedSpawn.mock.calls.find(([command]) =>
+        command.endsWith('/emulator/emulator')
+      )!;
+      expect(args.slice(-8)).toEqual([
+        '-accel',
+        'on',
+        '-port',
+        '5556',
+        '-gpu',
+        'lavapipe',
+        '-gpu',
+        'swiftshader_indirect',
+      ]);
+      expect(options?.env).toEqual({
+        ...env,
+        LD_PRELOAD: '/tmp/libexpo_emulator_capture.so',
+        ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+      });
+    });
+
     it('starts the emulator behind the launch gate and releases it once admitted', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
@@ -431,6 +467,60 @@ describe('AndroidEmulatorUtils', () => {
         expect(mockedSpawn).not.toHaveBeenCalled();
       } finally {
         mkdirSpy.mockRestore();
+      }
+    });
+  });
+
+  describe(AndroidEmulatorUtils.findFreeConsolePortAsync, () => {
+    /** Listens on the port, or returns null when another process already uses it. */
+    async function occupyAsync(port: number): Promise<Server | null> {
+      const server = createServer();
+      return await new Promise(resolve => {
+        server.once('error', () => resolve(null));
+        server.listen(port, '127.0.0.1', () => resolve(server));
+      });
+    }
+
+    async function closeAsync(servers: (Server | null)[]): Promise<void> {
+      await Promise.all(
+        servers.map(server => (server ? new Promise(resolve => server.close(resolve)) : null))
+      );
+    }
+
+    it('returns an even console port that adb scans', async () => {
+      const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+
+      expect(port % 2).toBe(0);
+      expect(port).toBeGreaterThanOrEqual(5554);
+      expect(port).toBeLessThanOrEqual(5584);
+    });
+
+    it('skips a console port whose adb port is in use', async () => {
+      const port = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+      const adbServer = await occupyAsync(port + 1);
+      try {
+        expect(adbServer).not.toBeNull();
+        const next = await AndroidEmulatorUtils.findFreeConsolePortAsync();
+
+        expect(next).not.toBe(port);
+        expect(next % 2).toBe(0);
+      } finally {
+        await closeAsync([adbServer]);
+      }
+    });
+
+    it('throws when no console port is free', async () => {
+      const servers: (Server | null)[] = [];
+      try {
+        for (let port = 5555; port <= 5585; port += 2) {
+          servers.push(await occupyAsync(port));
+        }
+
+        await expect(AndroidEmulatorUtils.findFreeConsolePortAsync()).rejects.toThrow(
+          'No emulator console port from 5554 to 5584 is free.'
+        );
+      } finally {
+        await closeAsync(servers);
       }
     });
   });

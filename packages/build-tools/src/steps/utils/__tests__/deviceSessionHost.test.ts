@@ -1115,6 +1115,36 @@ it.each([
   await host.finishAsync();
 });
 
+it('keeps the experimental emulator capture off in expo-device-hub by default', async () => {
+  const host = await startHostAsync();
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBe('0');
+  await host.finishAsync();
+});
+
+it('passes the emulator capture that the emulator start turned on to expo-device-hub', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env: {
+      ...env,
+      EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+      EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/package/libexpo_emulator_capture.so',
+    },
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env).toMatchObject({
+    EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+    EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/package/libexpo_emulator_capture.so',
+  });
+  // The env turns the capture on, because an expo-device-hub without it rejects unknown flags.
+  expect(options.args).not.toContain('--experimental-emulator-capture');
+  await host.finishAsync();
+});
+
 it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     preview: { baseDomain, authtoken },
@@ -1162,6 +1192,7 @@ it('leaves iOS recording to its existing build steps', async () => {
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.args).not.toContain('--android-recording-directory');
   expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
   await host.finishAsync();
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();

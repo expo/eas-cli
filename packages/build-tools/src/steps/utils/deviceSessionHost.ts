@@ -763,6 +763,12 @@ async function startDeviceSessionHostInternalAsync(
       env: {
         ...env,
         ...bootEnv,
+        // The emulator start turns the experimental emulator capture on in the job env. Otherwise
+        // keep it off, so a Hub build with the capture on by default does not try to attach the
+        // agent with a debugger.
+        ...(isAndroid && env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE === undefined
+          ? { EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '0' }
+          : {}),
         ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
