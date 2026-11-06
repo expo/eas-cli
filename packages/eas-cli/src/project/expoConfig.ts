@@ -57,6 +57,7 @@ async function getExpoConfigInternalAsync(
         projectDir,
         ['config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
         {
+          stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             EXPO_NO_DOTENV: '1',
           },

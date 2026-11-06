@@ -44,7 +44,6 @@ describe(createEasExportBuildFunction, () => {
         cwd: buildStep.ctx.workingDirectory,
         env: expect.objectContaining({ HOME: '/tmp/home' }),
         logger: buildStep.ctx.logger,
-        stdio: 'pipe',
       },
     });
     expect(buildStep.outputById.export_dir.value).toBe('dist');

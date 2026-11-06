@@ -93,7 +93,10 @@ it('uses the bundled config fallback when the local Expo CLI fails', async () =>
   expect(spawnExpoCommand).toHaveBeenCalledWith(
     projectDir,
     ['config', '--json', '--type', 'introspect'],
-    { env: expect.objectContaining({ EXPO_NO_DOTENV: '1' }) }
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: expect.objectContaining({ EXPO_NO_DOTENV: '1' }),
+    }
   );
   expect(getPrebuildConfigAsync).toHaveBeenCalledWith(projectDir, { platforms: ['ios'] });
 });

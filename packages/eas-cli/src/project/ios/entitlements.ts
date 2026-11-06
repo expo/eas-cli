@@ -28,6 +28,7 @@ export async function getManagedApplicationTargetEntitlementsAsync(
         projectDir,
         ['config', '--json', '--type', 'introspect'],
         {
+          stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...env,
             EXPO_NO_DOTENV: '1',
