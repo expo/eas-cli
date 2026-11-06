@@ -87,9 +87,9 @@ describe(installEmulatorCaptureAsync, () => {
     mockedInstall.mockRejectedValue(new Error('npm error 404'));
     const logger = createMockLogger();
 
-    await expect(installEmulatorCaptureAsync({ version: '0.1.0', env, logger })).resolves.toBe(
-      null
-    );
+    await expect(
+      installEmulatorCaptureAsync({ version: '0.1.0', env, logger })
+    ).resolves.toBeUndefined();
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
       expect.stringContaining('Could not install expo-emulator-capture@0.1.0')
@@ -101,9 +101,9 @@ describe(installEmulatorCaptureAsync, () => {
     mockedInstall.mockResolvedValue(undefined);
     const logger = createMockLogger();
 
-    await expect(installEmulatorCaptureAsync({ version: 'latest', env, logger })).resolves.toBe(
-      null
-    );
+    await expect(
+      installEmulatorCaptureAsync({ version: 'latest', env, logger })
+    ).resolves.toBeUndefined();
     expect(logger.warn).toHaveBeenCalled();
   });
 
@@ -111,9 +111,9 @@ describe(installEmulatorCaptureAsync, () => {
     setHost('darwin', 'arm64');
     const logger = createMockLogger();
 
-    await expect(installEmulatorCaptureAsync({ version: '0.1.0', env, logger })).resolves.toBe(
-      null
-    );
+    await expect(
+      installEmulatorCaptureAsync({ version: '0.1.0', env, logger })
+    ).resolves.toBeUndefined();
     expect(mockedInstall).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Linux x86-64'));
   });

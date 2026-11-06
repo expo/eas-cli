@@ -101,7 +101,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }
       const emulatorCaptureLibrary = emulatorCaptureVersion
         ? await installEmulatorCaptureAsync({ version: emulatorCaptureVersion, env, logger })
-        : null;
+        : undefined;
 
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
@@ -121,7 +121,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           logcatDirectory,
           env,
           logger,
-          ...(emulatorCaptureLibrary ? { emulatorCaptureLibrary } : {}),
+          emulatorCaptureLibrary,
         });
       if (emulatorCaptureLibrary) {
         // The session step starts expo-device-hub with the job env. A Hub version without the

@@ -517,7 +517,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     });
 
     it('starts the emulator as without the input when the install fails', async () => {
-      mockedInstall.mockResolvedValue(null);
+      mockedInstall.mockResolvedValue(undefined);
       const step = createStep({ experimental_emulator_capture_version: '0.1.0' });
 
       await step.executeAsync();

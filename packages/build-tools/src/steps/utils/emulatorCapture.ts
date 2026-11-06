@@ -43,9 +43,9 @@ export function parseExperimentalEmulatorCaptureVersionInput(value: unknown): st
 }
 
 /**
- * Installs the agent package and returns the path of its library. Returns null after a warning
- * when the agent cannot run on this host or the install fails. The emulator then starts as it
- * does without the capture.
+ * Installs the agent package and returns the path of its library. Returns undefined after a
+ * warning when the agent cannot run on this host or the install fails. The emulator then starts
+ * as it does without the capture.
  */
 export async function installEmulatorCaptureAsync({
   version,
@@ -55,12 +55,12 @@ export async function installEmulatorCaptureAsync({
   version: string;
   env: BuildStepEnv;
   logger: bunyan;
-}): Promise<string | null> {
+}): Promise<string | undefined> {
   if (process.platform !== 'linux' || process.arch !== 'x64') {
     logger.warn(
       `The experimental emulator capture runs only on Linux x86-64 hosts. The emulator starts without ${PACKAGE_NAME}.`
     );
-    return null;
+    return undefined;
   }
   try {
     const directory = await fs.promises.mkdtemp(
@@ -85,6 +85,6 @@ export async function installEmulatorCaptureAsync({
       { err },
       `Could not install ${PACKAGE_NAME}@${version}. The emulator starts without it.`
     );
-    return null;
+    return undefined;
   }
 }
