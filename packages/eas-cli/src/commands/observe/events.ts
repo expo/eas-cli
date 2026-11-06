@@ -34,6 +34,7 @@ import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
+const MAX_PROPERTY_FILTERS = 5;
 
 export default class ObserveEvents extends EasCommand {
   static override description =
@@ -63,8 +64,7 @@ export default class ObserveEvents extends EasCommand {
         'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
     property: Flags.custom<AppObserveUserEventPropertyFilter>({
-      description:
-        'Filter by event property (key=value, exact match). Repeat to require all. Without an event name, lists matching events.',
+      description: `Filter by event property (key=value, exact match). Repeat up to ${MAX_PROPERTY_FILTERS} times to require all (each key may be used once). Without an event name, lists matching events.`,
       multiple: true,
       parse: parsePropertyFilterAsync,
     })(),
@@ -90,6 +90,22 @@ export default class ObserveEvents extends EasCommand {
       throw new Error(
         '--all-events cannot be combined with an event name argument. Pass an event name to filter by it, or pass --all-events to list all events across all event names.'
       );
+    }
+
+    if (flags.property) {
+      if (flags.property.length > MAX_PROPERTY_FILTERS) {
+        throw new Error(
+          `--property can be used up to ${MAX_PROPERTY_FILTERS} times, but got ${flags.property.length}.`
+        );
+      }
+
+      const keys = flags.property.map(filter => filter.key);
+      const repeatedKey = keys.find((key, index) => keys.indexOf(key) !== index);
+      if (repeatedKey) {
+        throw new Error(
+          `--property key "${repeatedKey}" is used more than once. Each key can be filtered by only one value.`
+        );
+      }
     }
 
     const {
@@ -215,5 +231,9 @@ async function parsePropertyFilterAsync(input: string): Promise<AppObserveUserEv
   if (separatorIndex <= 0) {
     throw new Error(`Invalid property filter "${input}". Expected key=value format.`);
   }
-  return { key: input.slice(0, separatorIndex), value: input.slice(separatorIndex + 1) };
+  const value = input.slice(separatorIndex + 1);
+  if (!value) {
+    throw new Error(`Invalid property filter "${input}". The value cannot be empty.`);
+  }
+  return { key: input.slice(0, separatorIndex), value };
 }

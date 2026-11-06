@@ -340,12 +340,62 @@ describe(ObserveEvents, () => {
     expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
   });
 
-  it('forwards an empty value when --property has nothing after "="', async () => {
+  it('rejects --property with an empty value', async () => {
     const command = createCommand(['my_event', '--property', 'note=']);
+    await expect(command.runAsync()).rejects.toThrow(/value cannot be empty/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects more than 5 --property flags', async () => {
+    const command = createCommand([
+      'my_event',
+      '--property',
+      'a=1',
+      '--property',
+      'b=2',
+      '--property',
+      'c=3',
+      '--property',
+      'd=4',
+      '--property',
+      'e=5',
+      '--property',
+      'f=6',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(/--property can be used up to 5 times/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('accepts exactly 5 --property flags', async () => {
+    const command = createCommand([
+      'my_event',
+      '--property',
+      'a=1',
+      '--property',
+      'b=2',
+      '--property',
+      'c=3',
+      '--property',
+      'd=4',
+      '--property',
+      'e=5',
+    ]);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
-    expect(options.propertyFilters).toEqual([{ key: 'note', value: '' }]);
+    expect(options.propertyFilters).toEqual([
+      { key: 'a', value: '1' },
+      { key: 'b', value: '2' },
+      { key: 'c', value: '3' },
+      { key: 'd', value: '4' },
+      { key: 'e', value: '5' },
+    ]);
+  });
+
+  it('rejects a repeated --property key', async () => {
+    const command = createCommand(['my_event', '--property', 'a=1', '--property', 'a=2']);
+    await expect(command.runAsync()).rejects.toThrow(/key "a" is used more than once/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
   });
 
   it('does not pass platforms, appVersion, updateId, or sessionId when flags are not provided', async () => {
