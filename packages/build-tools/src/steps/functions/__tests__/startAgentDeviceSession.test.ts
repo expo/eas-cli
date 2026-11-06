@@ -468,6 +468,10 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
+    // The remote session reports it so clients can attach to an archive session's app.
+    await expect((sessionDevice() as { ready: Promise<unknown> }).ready).resolves.toBe(
+      'dev.example.app'
+    );
   });
 
   it('does not start work for an already cancelled step', async () => {

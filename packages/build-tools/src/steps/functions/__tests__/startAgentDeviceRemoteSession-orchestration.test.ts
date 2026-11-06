@@ -201,6 +201,50 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('reports the identifier of the iOS app the session host launched', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
+      device: {
+        iosSimulatorUdid: 'selected-udid',
+        application: Promise.resolve({
+          installAppPath: '/tmp/App.app',
+          launchAppIdentifier: 'com.example.archive',
+        }),
+      },
+    });
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({ applicationIdentifier: 'com.example.archive' }),
+      })
+    );
+  });
+
+  it('reports the identifier of the Android app the device installed', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await runAsync(logger, BuildRuntimePlatform.LINUX, {
+      device: { booted: Promise.resolve(), ready: Promise.resolve('com.example.archive') },
+    });
+
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteConfig: expect.objectContaining({ applicationIdentifier: 'com.example.archive' }),
+      })
+    );
+  });
+
+  it('reports no identifier when the session launched no app', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+
+    await runAsync(logger, BuildRuntimePlatform.LINUX);
+
+    expect(
+      jest.mocked(uploadRemoteSessionConfigAsync).mock.calls[0][0].remoteConfig
+    ).not.toHaveProperty('applicationIdentifier');
+  });
+
   it('uses the warm daemon after adoption and starts no daemon of its own', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
     const warmServer = { port: 3200 } as never;
