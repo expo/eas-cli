@@ -1,8 +1,8 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 
-import { fetchAndCheckoutRefAsync } from '../git';
+import { fetchAndCheckoutRefAsync, stripRepositoryCredentialsAsync } from '../git';
 
 jest.mock('@expo/turtle-spawn');
 
@@ -145,5 +145,66 @@ describe(fetchAndCheckoutRefAsync, () => {
     const error = await promise.catch(err => err);
     expect(error.message).toContain('Failed to fetch and check out ref "main"');
     expect(error.message).not.toContain('ghs_secret123');
+  });
+});
+
+describe(stripRepositoryCredentialsAsync, () => {
+  const token = 'ghs_secret123';
+
+  function mockRemoteUrl(url: string): void {
+    jest.mocked(spawn).mockResolvedValueOnce({ stdout: `${url}\n` } as never);
+  }
+
+  it('strips the token from the origin remote', async () => {
+    mockRemoteUrl(`https://x-access-token:${token}@github.com/expo/app.git`);
+
+    await stripRepositoryCredentialsAsync({ repositoryDirectory });
+
+    expect(spawn).toHaveBeenNthCalledWith(1, 'git', ['remote', 'get-url', 'origin'], {
+      cwd: repositoryDirectory,
+    });
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'git',
+      ['remote', 'set-url', 'origin', 'https://github.com/expo/app.git'],
+      { cwd: repositoryDirectory }
+    );
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the host and port of a GitHub Enterprise remote', async () => {
+    mockRemoteUrl(`https://x-access-token:${token}@ghe.example.com:8443/org/app.git`);
+
+    await stripRepositoryCredentialsAsync({ repositoryDirectory });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'git',
+      ['remote', 'set-url', 'origin', 'https://ghe.example.com:8443/org/app.git'],
+      { cwd: repositoryDirectory }
+    );
+  });
+
+  it('does nothing when the origin remote carries no credentials', async () => {
+    mockRemoteUrl('https://github.com/expo/app.git');
+
+    await stripRepositoryCredentialsAsync({ repositoryDirectory });
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when the remote URL cannot be rewritten', async () => {
+    mockRemoteUrl(`https://x-access-token:${token}@github.com/expo/app.git`);
+    const gitError = Object.assign(new Error('git exited with non-zero code: 128'), {
+      stderr: "fatal: No such remote 'origin'",
+    });
+    jest.mocked(spawn).mockRejectedValueOnce(gitError);
+
+    const promise = stripRepositoryCredentialsAsync({ repositoryDirectory });
+
+    await expect(promise).rejects.toBeInstanceOf(SystemError);
+    await expect(promise).rejects.toMatchObject({ cause: gitError });
+    const error = await promise.catch(err => err);
+    expect(error.message).not.toContain(token);
   });
 });
