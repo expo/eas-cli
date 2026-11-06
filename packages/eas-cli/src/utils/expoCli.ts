@@ -3,6 +3,7 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
 import type { CommonSpawnOptions } from 'node:child_process';
+import path from 'node:path';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
@@ -54,7 +55,15 @@ export function shouldUseVersionedExpoCLIExpensive(
   }
 
   // Finally ensure the CLI is available for sanity.
-  return !!resolveFrom.silent(projectDir, '@expo/cli');
+  if (resolveFrom.silent(projectDir, '@expo/cli')) {
+    return true;
+  }
+  // npm can leave @expo/cli nested under the expo package instead of hoisting it, where it can't be
+  // resolved from the project root. `expo/bin/cli` finds it from the expo package, so do the same.
+  const expoPackageJsonPath = resolveFrom.silent(projectDir, 'expo/package.json');
+  return (
+    !!expoPackageJsonPath && !!resolveFrom.silent(path.dirname(expoPackageJsonPath), '@expo/cli')
+  );
 }
 
 /**
