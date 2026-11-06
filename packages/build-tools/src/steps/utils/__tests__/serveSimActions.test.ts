@@ -137,6 +137,55 @@ it('aborts an in-flight action without resending it', async () => {
   expect(attempts).toBe(1);
 });
 
+it('cancels before dispatch while waiting for ready in drain mode', async () => {
+  const controller = new AbortController();
+  const actions = jest.fn();
+  server.on('connection', socket => {
+    socket.on('message', actions);
+    controller.abort(new Error('stopped before ready'));
+    socket.send(JSON.stringify({ ready: true }));
+  });
+  await expect(
+    runServeSimActionAsync({
+      ...request(),
+      signal: controller.signal,
+      drainAfterDispatch: true,
+    })
+  ).rejects.toThrow('stopped before ready');
+  expect(actions).not.toHaveBeenCalled();
+});
+
+it('drains dispatched actions after cancellation in drain mode', async () => {
+  const controller = new AbortController();
+  let reply!: () => void;
+  let dispatched!: () => void;
+  const ready = new Promise<void>(resolve => {
+    dispatched = resolve;
+  });
+  server.on('connection', socket => {
+    socket.send(JSON.stringify({ ready: true }));
+    socket.on('message', () => {
+      reply = () => socket.send(JSON.stringify({ id: 1, stdout: 'completed', exitCode: 0 }));
+      dispatched();
+    });
+  });
+  let settled = false;
+  const action = runServeSimActionAsync({
+    ...request(),
+    signal: controller.signal,
+    drainAfterDispatch: true,
+  });
+  void action.finally(() => {
+    settled = true;
+  });
+  await ready;
+  controller.abort(new Error('stopped after dispatch'));
+  await new Promise(resolve => setImmediate(resolve));
+  expect(settled).toBe(false);
+  reply();
+  await expect(action).resolves.toBeUndefined();
+});
+
 it('does not connect when already aborted', async () => {
   const connected = jest.fn();
   server.on('connection', connected);

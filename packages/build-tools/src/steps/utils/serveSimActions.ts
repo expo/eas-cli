@@ -37,6 +37,7 @@ export async function runServeSimActionAsync({
   params,
   timeoutMs,
   signal,
+  drainAfterDispatch = false,
 }: {
   port: number;
   token: string;
@@ -44,9 +45,11 @@ export async function runServeSimActionAsync({
   params: Record<string, unknown>;
   timeoutMs: number;
   signal?: AbortSignal;
+  /** Abort before dispatch; once sent, wait for its reply or deadline because exec-ws cannot cancel it. */
+  drainAfterDispatch?: boolean;
 }): Promise<void> {
   signal?.throwIfAborted();
-  await new Promise<void>((resolve, reject) => {
+  return await new Promise<void>((resolve, reject) => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/exec-ws`, [`serve-sim.token.${token}`]);
     let settled = false;
     let sent = false;
@@ -64,7 +67,11 @@ export async function runServeSimActionAsync({
         resolve();
       }
     };
-    const aborted = () => finish(signal?.reason ?? new Error('Serve-sim action aborted.'));
+    const aborted = () => {
+      if (!sent || !drainAfterDispatch) {
+        finish(signal?.reason ?? new Error('Serve-sim action aborted.'));
+      }
+    };
     const timer = setTimeout(
       () => finish(new SystemError(`serve-sim ${action} timed out.`)),
       timeoutMs
@@ -75,6 +82,9 @@ export async function runServeSimActionAsync({
       finish(new SystemError(`serve-sim ${action} connection closed before completion.`))
     );
     socket.on('message', data => {
+      if (settled) {
+        return;
+      }
       let reply;
       try {
         reply = JSON.parse(data.toString());
