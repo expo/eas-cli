@@ -1,4 +1,5 @@
 import { UserError } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import { type Server, createServer } from 'node:net';
 import os from 'node:os';
@@ -9,6 +10,7 @@ import { installIsolatedNpmPackageAsync } from '../../../utils/installIsolatedNp
 import {
   type EmulatorCapture,
   type EmulatorCaptureLaunch,
+  clearEmulatorCaptureHandoffAsync,
   findAvailableConsolePortAsync,
   finishEmulatorCaptureAsync,
   installEmulatorCaptureAsync,
@@ -16,6 +18,11 @@ import {
   prepareEmulatorCaptureLaunchAsync,
   readEmulatorCaptureHubEnvAsync,
 } from '../emulatorCapture';
+
+jest.mock('@expo/turtle-spawn', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 jest.mock('../../../utils/installIsolatedNpmPackageAsync', () => ({
   installIsolatedNpmPackageAsync: jest.fn(),
@@ -30,7 +37,9 @@ const CAPTURE: EmulatorCapture = {
   library: LIBRARY,
   temporaryDirectory: TEMPORARY_DIRECTORY,
 };
+const HUB = 'expo-device-hub@0.22.0-canary-20261106-c8cd772';
 const mockedInstall = jest.mocked(installIsolatedNpmPackageAsync);
+const mockedSpawn = jest.mocked(spawn);
 const { platform, arch } = process;
 
 function setHost(hostPlatform: NodeJS.Platform, hostArch: string): void {
@@ -52,7 +61,7 @@ function answerAsSockets(...socketPaths: string[]): void {
 function createLaunch(serialId = 'emulator-5554'): EmulatorCaptureLaunch {
   return {
     serialId,
-    args: ['-port', serialId.replace('emulator-', ''), '-gpu', 'lavapipe'],
+    args: ['-port', serialId.replace('emulator-', '')],
     env: {},
     socketPath: path.join(SOCKET_DIRECTORY, `${serialId}.sock`),
     logPath: path.join(SOCKET_DIRECTORY, `${serialId}.log`),
@@ -64,6 +73,7 @@ beforeEach(() => {
   fs.mkdirSync(path.dirname(LIBRARY), { recursive: true });
   fs.writeFileSync(LIBRARY, '');
   mockedInstall.mockReset();
+  mockedSpawn.mockReset();
 });
 
 afterEach(() => {
@@ -90,17 +100,27 @@ describe(parseExperimentalEmulatorCaptureVersionInput, () => {
 
 describe(installEmulatorCaptureAsync, () => {
   const env = { PATH: '/usr/bin', EAS_BUILD_NPM_CACHE_URL: 'https://npm-cache.example' };
+  const AGENT = 'node_modules/expo-emulator-capture/dist/linux-x64/libexpo_emulator_capture.so';
 
-  it('installs the package in its own directory and prepares the socket directory', async () => {
-    setHost('linux', 'x64');
+  /** The install puts the agent where the package's `paths` export says it is. */
+  function mockInstalledAgent(): void {
     mockedInstall.mockImplementation(async ({ directory }) => {
-      const agent = path.join(
-        directory,
-        'node_modules/expo-emulator-capture/dist/linux-x64/libexpo_emulator_capture.so'
-      );
-      fs.mkdirSync(path.dirname(agent), { recursive: true });
-      fs.writeFileSync(agent, '');
+      fs.mkdirSync(path.dirname(path.join(directory, AGENT)), { recursive: true });
+      fs.writeFileSync(path.join(directory, AGENT), '');
     });
+    mockedSpawn.mockImplementation((async (
+      _command: string,
+      _args: string[],
+      options?: { cwd?: string }
+    ) => ({
+      stdout: path.join(options?.cwd ?? '', AGENT),
+      stderr: '',
+    })) as unknown as typeof spawn);
+  }
+
+  it('installs the package in its own directory and asks it for its agent library', async () => {
+    setHost('linux', 'x64');
+    mockInstalledAgent();
     const logger = createMockLogger();
 
     const capture = await installEmulatorCaptureAsync({ version: '0.1.0', env, logger });
@@ -111,14 +131,21 @@ describe(installEmulatorCaptureAsync, () => {
       npmCacheUrl: 'https://npm-cache.example',
       pathEnv: '/usr/bin',
       logger,
+      signal: expect.any(AbortSignal),
     });
     const { directory } = mockedInstall.mock.calls[0][0];
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        expect.stringContaining(`import { agentLibraryPath } from 'expo-emulator-capture/paths'`),
+      ],
+      { cwd: directory, env: { PATH: '/usr/bin' } }
+    );
     expect(capture).toEqual({
       version: '0.1.0',
-      library: path.join(
-        directory,
-        'node_modules/expo-emulator-capture/dist/linux-x64/libexpo_emulator_capture.so'
-      ),
+      library: path.join(directory, AGENT),
       temporaryDirectory: TEMPORARY_DIRECTORY,
     });
     expect(fs.statSync(SOCKET_DIRECTORY).mode & 0o777).toBe(0o700);
@@ -138,15 +165,31 @@ describe(installEmulatorCaptureAsync, () => {
     );
   });
 
-  it('returns null when the package has no Linux agent', async () => {
+  it('returns null when the package has no paths export', async () => {
     setHost('linux', 'x64');
     mockedInstall.mockResolvedValue(undefined);
+    mockedSpawn.mockRejectedValue(new Error('ERR_PACKAGE_PATH_NOT_EXPORTED'));
+    const logger = createMockLogger();
+
+    await expect(installEmulatorCaptureAsync({ version: 'latest', env, logger })).resolves.toBe(
+      null
+    );
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('returns null when the agent library that the package names is missing', async () => {
+    setHost('linux', 'x64');
+    mockedInstall.mockResolvedValue(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '/tmp/eas-test/missing.so', stderr: '' } as never);
     const logger = createMockLogger();
 
     await expect(installEmulatorCaptureAsync({ version: '0.1.0', env, logger })).resolves.toBe(
       null
     );
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      expect.stringContaining('Could not install')
+    );
   });
 
   it('returns null on a host that is not Linux x86-64', async () => {
@@ -174,7 +217,7 @@ describe(prepareEmulatorCaptureLaunchAsync, () => {
     expect(port).toBeLessThanOrEqual(5584);
     expect(launch).toEqual({
       serialId: `emulator-${port}`,
-      args: ['-port', String(port), '-gpu', 'lavapipe'],
+      args: ['-port', String(port)],
       env: {
         LD_PRELOAD: `${LIBRARY}:/opt/other.so`,
         EXPO_EMULATOR_CAPTURE_SOCKET: path.join(SOCKET_DIRECTORY, `emulator-${port}.sock`),
@@ -290,54 +333,104 @@ describe(finishEmulatorCaptureAsync, () => {
   });
 });
 
+describe(clearEmulatorCaptureHandoffAsync, () => {
+  it('removes the record of an earlier emulator start', async () => {
+    fs.mkdirSync(path.dirname(HANDOFF_PATH), { recursive: true });
+    fs.writeFileSync(HANDOFF_PATH, '{}');
+
+    await clearEmulatorCaptureHandoffAsync({
+      logger: createMockLogger(),
+      handoffPath: HANDOFF_PATH,
+    });
+
+    expect(fs.existsSync(HANDOFF_PATH)).toBe(false);
+  });
+
+  it('does nothing when there is no record', async () => {
+    const logger = createMockLogger();
+
+    await clearEmulatorCaptureHandoffAsync({ logger, handoffPath: HANDOFF_PATH });
+
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
 describe(readEmulatorCaptureHubEnvAsync, () => {
   const socketPath = path.join(SOCKET_DIRECTORY, 'emulator-5554.sock');
+  const OFF = { EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '0' };
 
   function writeHandoff(handoff: unknown): void {
     fs.mkdirSync(path.dirname(HANDOFF_PATH), { recursive: true });
     fs.writeFileSync(HANDOFF_PATH, JSON.stringify(handoff));
   }
 
-  it('returns the expo-device-hub environment for an answering agent', async () => {
+  async function readAsync(env: Record<string, string> = {}): Promise<{
+    result: Record<string, string>;
+    logger: ReturnType<typeof createMockLogger>;
+  }> {
+    const logger = createMockLogger();
+    const result = await readEmulatorCaptureHubEnvAsync({
+      env,
+      logger,
+      hubPackageSpec: HUB,
+      handoffPath: HANDOFF_PATH,
+    });
+    return { result, logger };
+  }
+
+  it('turns the capture on for an agent whose socket is there', async () => {
     writeHandoff({ ...CAPTURE, serialId: 'emulator-5554' });
     answerAsSockets(socketPath);
-    const logger = createMockLogger();
 
-    await expect(
-      readEmulatorCaptureHubEnvAsync({ logger, handoffPath: HANDOFF_PATH })
-    ).resolves.toEqual({
+    const { result, logger } = await readAsync();
+
+    expect(result).toEqual({
       EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
       EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: LIBRARY,
       TMPDIR: TEMPORARY_DIRECTORY,
     });
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(HUB));
   });
 
-  it('returns null without a handoff', async () => {
-    const logger = createMockLogger();
+  it('turns the capture off without a handoff, so the Hub does not try to attach', async () => {
+    const { result, logger } = await readAsync();
 
-    await expect(
-      readEmulatorCaptureHubEnvAsync({ logger, handoffPath: HANDOFF_PATH })
-    ).resolves.toBeNull();
+    expect(result).toEqual(OFF);
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
-  it('returns null when the agent no longer answers', async () => {
-    writeHandoff({ ...CAPTURE, serialId: 'emulator-5554' });
-    const logger = createMockLogger();
+  it('keeps a capture value from the job env when there is no handoff', async () => {
+    const { result } = await readAsync({ EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1' });
 
-    await expect(
-      readEmulatorCaptureHubEnvAsync({ logger, handoffPath: HANDOFF_PATH })
-    ).resolves.toBeNull();
+    expect(result).toEqual({});
+  });
+
+  it('turns the capture off when the socket is gone', async () => {
+    writeHandoff({ ...CAPTURE, serialId: 'emulator-5554' });
+
+    const { result, logger } = await readAsync();
+
+    expect(result).toEqual(OFF);
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining(socketPath));
   });
 
-  it('returns null for a malformed handoff', async () => {
-    writeHandoff({ version: '0.1.0' });
-    const logger = createMockLogger();
+  it('turns the capture off when the agent library is gone', async () => {
+    writeHandoff({ ...CAPTURE, serialId: 'emulator-5554' });
+    answerAsSockets(socketPath);
+    fs.rmSync(LIBRARY);
 
-    await expect(
-      readEmulatorCaptureHubEnvAsync({ logger, handoffPath: HANDOFF_PATH })
-    ).resolves.toBeNull();
+    const { result, logger } = await readAsync();
+
+    expect(result).toEqual(OFF);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining(LIBRARY));
+  });
+
+  it('turns the capture off for a malformed handoff', async () => {
+    writeHandoff({ version: '0.1.0' });
+
+    const { result, logger } = await readAsync();
+
+    expect(result).toEqual(OFF);
     expect(logger.warn).toHaveBeenCalled();
   });
 });

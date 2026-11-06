@@ -23,7 +23,9 @@ import {
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
 import {
+  EMULATOR_CAPTURE_RENDERER_ARGS,
   type EmulatorCaptureLaunch,
+  clearEmulatorCaptureHandoffAsync,
   createExperimentalEmulatorCaptureVersionInputProvider,
   finishEmulatorCaptureAsync,
   installEmulatorCaptureAsync,
@@ -270,6 +272,8 @@ export async function startAndroidEmulatorAsync({
   }
 
   const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
+  // A record from an earlier start would name an emulator that this start replaces.
+  await clearEmulatorCaptureHandoffAsync({ logger });
   const emulatorCapture = experimentalEmulatorCaptureVersion
     ? await installEmulatorCaptureAsync({
         version: experimentalEmulatorCaptureVersion,
@@ -277,6 +281,14 @@ export async function startAndroidEmulatorAsync({
         logger,
       })
     : null;
+  const captureRendererArgs = experimentalEmulatorCaptureVersion
+    ? EMULATOR_CAPTURE_RENDERER_ARGS
+    : [];
+  if (experimentalEmulatorCaptureVersion) {
+    logger.info(
+      `The emulator uses ${captureRendererArgs.join(' ')} for the experimental emulator capture.`
+    );
+  }
 
   logger.info('Making sure system image is installed');
   await retryAsync(
@@ -321,16 +333,24 @@ export async function startAndroidEmulatorAsync({
         });
 
         logger.info(`Starting emulator device${attemptSuffix}.`);
-        // A new port for each attempt: a failed attempt can leave its port in use.
+        // A new port for each attempt: a failed attempt can leave its port in use. A launch that
+        // cannot be prepared starts the emulator without the agent instead of failing the start.
         captureLaunch = emulatorCapture
-          ? await prepareEmulatorCaptureLaunchAsync({ capture: emulatorCapture, env })
+          ? await prepareEmulatorCaptureLaunchAsync({ capture: emulatorCapture, env }).catch(
+              (err: unknown) => {
+                logger.warn({ err }, 'The emulator starts without the capture agent.');
+                return null;
+              }
+            )
           : null;
+        const extraArgs = [...(captureLaunch?.args ?? []), ...captureRendererArgs];
         const startResult = await AndroidEmulatorUtils.startAsync({
           deviceName,
           env,
           logcatDirectory,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
-          ...(captureLaunch ? { extraArgs: captureLaunch.args, extraEnv: captureLaunch.env } : {}),
+          ...(extraArgs.length ? { extraArgs } : {}),
+          ...(captureLaunch ? { extraEnv: captureLaunch.env } : {}),
         });
         attemptSerialId = startResult.serialId;
         await AndroidEmulatorUtils.waitForReadyAsync({

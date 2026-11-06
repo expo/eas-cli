@@ -60,7 +60,7 @@ jest.mock('../localEgress', () => ({
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('../emulatorCapture', () => ({
-  readEmulatorCaptureHubEnvAsync: jest.fn().mockResolvedValue(null),
+  readEmulatorCaptureHubEnvAsync: jest.fn().mockResolvedValue({}),
 }));
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
@@ -168,7 +168,7 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
-  jest.mocked(readEmulatorCaptureHubEnvAsync).mockReset().mockResolvedValue(null);
+  jest.mocked(readEmulatorCaptureHubEnvAsync).mockReset().mockResolvedValue({});
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1126,7 +1126,15 @@ it('turns on the emulator capture in expo-device-hub when the emulator has the a
     EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/capture/libexpo_emulator_capture.so',
     TMPDIR: '/tmp/capture-tmp',
   });
-  const host = await startHostAsync();
+  // The Hub must look for the agent socket in the directory that the emulator start used.
+  const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env: { ...env, TMPDIR: '/tmp/job-tmp' },
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+  });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.env).toMatchObject({
     EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
@@ -1139,11 +1147,18 @@ it('turns on the emulator capture in expo-device-hub when the emulator has the a
   await host.finishAsync();
 });
 
-it('starts expo-device-hub without the emulator capture when no emulator has the agent', async () => {
+it('turns off the emulator capture in expo-device-hub when no emulator has the agent', async () => {
+  jest.mocked(readEmulatorCaptureHubEnvAsync).mockResolvedValue({
+    EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '0',
+  });
   const host = await startHostAsync();
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
-  expect(readEmulatorCaptureHubEnvAsync).toHaveBeenCalledTimes(1);
-  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
+  expect(readEmulatorCaptureHubEnvAsync).toHaveBeenCalledWith({
+    env: expect.any(Object),
+    logger: expect.anything(),
+    hubPackageSpec: 'expo-device-hub@latest',
+  });
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBe('0');
   expect(options.env.EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY).toBeUndefined();
   await host.finishAsync();
 });

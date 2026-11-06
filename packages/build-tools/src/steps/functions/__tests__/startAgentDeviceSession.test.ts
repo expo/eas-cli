@@ -490,7 +490,9 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   it('rejects an expo-emulator-capture version that is not an npm version or tag', async () => {
     await expect(
       runStep(BuildRuntimePlatform.LINUX, { experimental_emulator_capture_version: '../0.1.0' })
-    ).rejects.toThrow('experimental_emulator_capture_version must be an npm version or dist-tag');
+    ).rejects.toThrow(
+      'experimental_emulator_capture_version must be an exact npm version or a dist-tag'
+    );
     expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
   });
 

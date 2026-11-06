@@ -560,8 +560,6 @@ async function startDeviceSessionHostInternalAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
-  // Present when the emulator start preloaded the expo-emulator-capture agent (experimental).
-  const emulatorCaptureEnv = isAndroid ? await readEmulatorCaptureHubEnvAsync({ logger }) : null;
   const deviceIdPattern = isAndroid ? ANDROID_DEVICE_SERIAL : IOS_SIMULATOR_UDID;
   const validPreviewDevice =
     previewDeviceId && deviceIdPattern.test(previewDeviceId) ? previewDeviceId : undefined;
@@ -591,6 +589,10 @@ async function startDeviceSessionHostInternalAsync(
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
+  // On when the emulator start preloaded the expo-emulator-capture agent (experimental), else off.
+  const emulatorCaptureEnv = isAndroid
+    ? await readEmulatorCaptureHubEnvAsync({ env, logger, hubPackageSpec: packageSpec })
+    : null;
   const turnArgsResult = asyncResult(server.turnArgs);
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
