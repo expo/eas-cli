@@ -25,13 +25,14 @@ export function printJsonOnlyOutput(value: object): void {
 
 export interface JsonErrorOutput {
   message: string;
+  code?: string;
   requestId?: string;
 }
 
 let jsonErrorPrinted = false;
 
 /**
- * Print `{ "error": { message, requestId? } }` on stdout for a command that failed with --json.
+ * Print `{ "error": { message, code?, requestId? } }` on stdout for a command that failed with --json.
  *
  * Once per process: `update:rollback` runs other commands in-process, and the innermost error is the one
  * that says what went wrong.
