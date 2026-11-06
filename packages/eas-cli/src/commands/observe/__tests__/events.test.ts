@@ -12,6 +12,7 @@ import {
   buildObserveCustomEventsEmptyWithSuggestionsJson,
   buildObserveCustomEventsEmptyWithSuggestionsTable,
   buildObserveCustomEventsJson,
+  buildObserveCustomEventsTable,
 } from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveEvents from '../events';
@@ -42,6 +43,7 @@ jest.mock('../../../utils/json');
 
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
 const mockBuildObserveCustomEventsJson = jest.mocked(buildObserveCustomEventsJson);
+const mockBuildObserveCustomEventsTable = jest.mocked(buildObserveCustomEventsTable);
 const mockBuildObserveCustomEventNamesJson = jest.mocked(buildObserveCustomEventNamesJson);
 const mockBuildObserveCustomEventsEmptyWithSuggestionsTable = jest.mocked(
   buildObserveCustomEventsEmptyWithSuggestionsTable
@@ -394,6 +396,58 @@ describe(ObserveEvents, () => {
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
     expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
   });
+
+  it('does not suggest event names when an event name and --session-id return 0 events', async () => {
+    const command = createCommand(['my_event', '--session-id', 'session-xyz']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsTable).toHaveBeenCalledWith(
+      [],
+      expect.anything(),
+      expect.objectContaining({ eventName: 'my_event' })
+    );
+  });
+
+  it('emits empty events JSON without suggestions when an event name and --session-id return 0 events and --json is set', async () => {
+    const pageInfo = { hasNextPage: false, hasPreviousPage: false };
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({ events: [], pageInfo });
+
+    const command = createCommand([
+      'my_event',
+      '--session-id',
+      'session-xyz',
+      '--json',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsJson).toHaveBeenCalledWith([], pageInfo);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--app-version', '2.1.0'],
+    ['--build-number', '42'],
+    ['--update-id', 'update-xyz'],
+  ])(
+    'does not suggest event names when an event name and %s return 0 events',
+    async (flag, value) => {
+      const command = createCommand(['my_event', flag, value]);
+      await command.runAsync();
+
+      expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsTable).toHaveBeenCalledWith(
+        [],
+        expect.anything(),
+        expect.objectContaining({ eventName: 'my_event' })
+      );
+    }
+  );
 
   it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
