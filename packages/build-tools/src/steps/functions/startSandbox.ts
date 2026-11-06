@@ -1,6 +1,7 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
+import { stripRepositoryCredentialsAsync } from '../../common/git';
 import { CustomBuildContext } from '../../customBuildContext';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
@@ -45,6 +46,15 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
           `Invalid sandbox maximum duration: ${String(maxDurationSeconds)}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
       }
+      if (ctx.job.projectArchive.type === ArchiveSourceType.GIT) {
+        // The agent must not be able to read the repository access token.
+        await stripRepositoryCredentialsAsync({
+          repositoryDirectory: stepCtx.global.wasCheckedOut()
+            ? ctx.projectTargetDirectory
+            : ctx.projectSourceDirectory,
+        });
+      }
+
       const daemon = await startSandboxDaemonAsync({
         credential: workerApi.token,
         serverUrl: mcpServerUrl,
