@@ -6622,6 +6622,8 @@ export type CreateAndConfigureRepositoryInput = {
 export type CreateAndroidDeviceRunSessionInput = {
   /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /** Experimental. npm version or dist-tag of expo-emulator-capture that the Android emulator preloads (e.g. "0.1.0" or "canary"). */
+  experimentalEmulatorCaptureVersion?: InputMaybe<Scalars['String']['input']>;
   /**
    * Android SDK system image package to use for the emulator (e.g.
    * "system-images;android-35;google_apis;x86_64").
