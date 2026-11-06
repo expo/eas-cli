@@ -42,8 +42,10 @@ import {
 import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
 import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
+import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../serveSimCrashesRecorder');
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
@@ -146,6 +148,7 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockReset().mockResolvedValue(undefined);
   jest
     .mocked(startNgrokTunnelAsync)
     .mockReset()
@@ -2076,6 +2079,22 @@ it('cancels an in-flight install while Simulator setup is pending', async () => 
   expect(installSignal?.aborted).toBe(true);
   expect(installSignal?.reason).toBe(failure);
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('finishes in-flight crash collection before stopping the host', async () => {
+  const host = await startHostAsync();
+  const collecting = deferred<void>();
+  const entered = deferred<void>();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockImplementationOnce(async () => {
+    entered.resolve();
+    await collecting.promise;
+  });
+  const finishing = host.finishAsync();
+  await entered.promise;
+  expect(stopServer).not.toHaveBeenCalled();
+  collecting.resolve();
+  await finishing;
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
