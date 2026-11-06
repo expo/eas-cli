@@ -152,7 +152,7 @@ With local egress, actions wait for the connection and require interactive mode.
     }),
     'experimental-emulator-capture-version': Flags.string({
       description:
-        'Experimental. Version of expo-emulator-capture that the Android emulator preloads (e.g. "0.1.0" or "canary"). expo-device-hub then streams the emulator screen from it, if the expo-device-hub version supports the capture. Only supported with --platform android.',
+        'Experimental. Version of expo-emulator-capture that the Android emulator preloads: an exact version such as "0.1.0-canary-20261106-c8cd772", or a dist-tag such as "canary". Use the version released together with the session\'s expo-device-hub version. expo-device-hub then streams the emulator screen from it, if that version supports the capture. Only supported with --platform android.',
       hidden: true,
     }),
     'build-id': Flags.string({
@@ -327,7 +327,7 @@ With local egress, actions wait for the connection and require interactive mode.
       !EMULATOR_CAPTURE_VERSION_PATTERN.test(experimentalEmulatorCaptureVersion)
     ) {
       throw new EasCommandError(
-        '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0 or canary.'
+        '--experimental-emulator-capture-version must be an exact npm version or a dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
       );
     }
     if (

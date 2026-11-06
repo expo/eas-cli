@@ -2037,6 +2037,32 @@ describe(Simulator, () => {
     );
   });
 
+  it('sends --experimental-emulator-capture-version with --device and --system-image in one android object', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+      '--system-image',
+      'system-images;android-36;google_apis;x86_64',
+      '--experimental-emulator-capture-version',
+      'canary',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          deviceIdentifier: 'pixel_9',
+          systemImagePackage: 'system-images;android-36;google_apis;x86_64',
+          experimentalEmulatorCaptureVersion: 'canary',
+        },
+      })
+    );
+  });
+
   it('omits a blank --experimental-emulator-capture-version', async () => {
     const { command } = createCommand([
       '--platform',
@@ -2073,7 +2099,7 @@ describe(Simulator, () => {
       '^0.1.0',
     ]);
     await expect(command.runAsync()).rejects.toThrow(
-      '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0 or canary.'
+      '--experimental-emulator-capture-version must be an exact npm version or a dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
     );
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
