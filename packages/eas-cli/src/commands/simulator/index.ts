@@ -327,7 +327,7 @@ With local egress, actions wait for the connection and require interactive mode.
       !EMULATOR_CAPTURE_VERSION_PATTERN.test(experimentalEmulatorCaptureVersion)
     ) {
       throw new EasCommandError(
-        '--experimental-emulator-capture-version must be an exact npm version or a dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
+        '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
       );
     }
     if (

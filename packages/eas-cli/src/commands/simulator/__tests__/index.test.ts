@@ -2099,7 +2099,7 @@ describe(Simulator, () => {
       '^0.1.0',
     ]);
     await expect(command.runAsync()).rejects.toThrow(
-      '--experimental-emulator-capture-version must be an exact npm version or a dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
+      '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
     );
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
