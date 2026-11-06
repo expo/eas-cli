@@ -59,6 +59,7 @@ import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createColdIosSessionAsync } from './coldIosSession';
 import { createStartupTasks } from './startupTasks';
+import { readEmulatorCaptureHubEnvAsync } from './emulatorCapture';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
 const IOS_SIMULATOR_UDID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -559,6 +560,8 @@ async function startDeviceSessionHostInternalAsync(
   if (isAndroid) {
     await ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
   }
+  // Present when the emulator start preloaded the expo-emulator-capture agent (experimental).
+  const emulatorCaptureEnv = isAndroid ? await readEmulatorCaptureHubEnvAsync({ logger }) : null;
   const deviceIdPattern = isAndroid ? ANDROID_DEVICE_SERIAL : IOS_SIMULATOR_UDID;
   const validPreviewDevice =
     previewDeviceId && deviceIdPattern.test(previewDeviceId) ? previewDeviceId : undefined;
@@ -763,6 +766,7 @@ async function startDeviceSessionHostInternalAsync(
       env: {
         ...env,
         ...bootEnv,
+        ...(emulatorCaptureEnv ?? {}),
         ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),

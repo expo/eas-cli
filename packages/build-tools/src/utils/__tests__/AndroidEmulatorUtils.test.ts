@@ -317,6 +317,41 @@ describe('AndroidEmulatorUtils', () => {
       ).toEqual([]);
     });
 
+    it('adds the extra arguments before $ANDROID_EMULATOR_EXTRA_ARGS and the extra environment', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      mockSuccessfulStart(deviceName);
+      const env = { ANDROID_EMULATOR_EXTRA_ARGS: '-gpu swiftshader_indirect' };
+
+      await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env,
+        logcatDirectory: outputDir,
+        extraArgs: ['-port', '5556', '-gpu', 'lavapipe'],
+        extraEnv: { LD_PRELOAD: '/tmp/libexpo_emulator_capture.so' },
+      });
+
+      const [, args, options] = mockedSpawn.mock.calls.find(([command]) =>
+        command.endsWith('/emulator/emulator')
+      )!;
+      expect(args.slice(-8)).toEqual([
+        '-accel',
+        'on',
+        '-port',
+        '5556',
+        '-gpu',
+        'lavapipe',
+        '-gpu',
+        'swiftshader_indirect',
+      ]);
+      expect(options?.env).toEqual({
+        ...env,
+        LD_PRELOAD: '/tmp/libexpo_emulator_capture.so',
+        ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+      });
+    });
+
     it('starts the emulator behind the launch gate and releases it once admitted', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);

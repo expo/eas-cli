@@ -119,6 +119,7 @@ function runStep(
       'lcd_width',
       'lcd_height',
       'lcd_density',
+      'experimental_emulator_capture_version',
       'install_app_path',
       'build_id',
       'application_archive_url',
@@ -464,10 +465,33 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
         lcdDensity: 300,
       })
     );
+    expect(jest.mocked(startAndroidEmulatorAsync).mock.calls[0][0]).not.toHaveProperty(
+      'experimentalEmulatorCaptureVersion'
+    );
 
     expect(launchApplicationAsync).toHaveBeenCalledWith(
       expect.objectContaining({ applicationIdentifier: 'dev.example.app', activityName: '.Main' })
     );
+  });
+
+  it('preloads the requested expo-emulator-capture version into the Android Emulator', async () => {
+    await runStep(BuildRuntimePlatform.LINUX, {
+      experimental_emulator_capture_version: '0.1.0-canary-20261106-2b670aa',
+      install_app_path: '/tmp/App.apk',
+    });
+
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        experimentalEmulatorCaptureVersion: '0.1.0-canary-20261106-2b670aa',
+      })
+    );
+  });
+
+  it('rejects an expo-emulator-capture version that is not an npm version or tag', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, { experimental_emulator_capture_version: '../0.1.0' })
+    ).rejects.toThrow('experimental_emulator_capture_version must be an npm version or dist-tag');
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
   });
 
   it('does not start work for an already cancelled step', async () => {
@@ -622,6 +646,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       'lcd_width',
       'lcd_height',
       'lcd_density',
+      'experimental_emulator_capture_version',
       'install_app_path',
       'build_id',
       'application_archive_url',

@@ -327,11 +327,17 @@ export namespace AndroidEmulatorUtils {
     env,
     logcatDirectory,
     launchGate,
+    extraArgs = [],
+    extraEnv = {},
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
     launchGate?: AndroidEmulatorLaunchGate;
+    /** Emulator arguments before $ANDROID_EMULATOR_EXTRA_ARGS, which can still override them. */
+    extraArgs?: string[];
+    /** Environment variables for the emulator process only. */
+    extraEnv?: Record<string, string>;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
@@ -372,12 +378,14 @@ export namespace AndroidEmulatorUtils {
       deviceName,
       '-accel',
       'on',
+      ...extraArgs,
       ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
         ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
         : []),
     ];
     const emulatorEnv = {
       ...env,
+      ...extraEnv,
       // We don't need to wait for emulator to exit gracefully.
       ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
     };

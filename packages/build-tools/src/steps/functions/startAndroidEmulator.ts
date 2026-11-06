@@ -22,6 +22,14 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
+import {
+  type EmulatorCaptureLaunch,
+  createExperimentalEmulatorCaptureVersionInputProvider,
+  finishEmulatorCaptureAsync,
+  installEmulatorCaptureAsync,
+  parseExperimentalEmulatorCaptureVersionInput,
+  prepareEmulatorCaptureLaunchAsync,
+} from '../utils/emulatorCapture';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -71,6 +79,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         defaultValue: 1,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      createExperimentalEmulatorCaptureVersionInputProvider(),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -79,6 +88,17 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger }, { inputs, outputs, env }) => {
+      const count = Number(inputs.count.value ?? 1);
+      const experimentalEmulatorCaptureVersion = parseExperimentalEmulatorCaptureVersionInput(
+        inputs.experimental_emulator_capture_version.value
+      );
+      if (experimentalEmulatorCaptureVersion && count > 1) {
+        throw new UserError(
+          'EAS_EMULATOR_CAPTURE_INVALID_INPUT',
+          'experimental_emulator_capture_version supports one emulator. Remove it, or set count to 1.'
+        );
+      }
+
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );
@@ -97,9 +117,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           logcatDirectory,
           env,
           logger,
+          ...(experimentalEmulatorCaptureVersion ? { experimentalEmulatorCaptureVersion } : {}),
         });
 
-      const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
         logger.info(`Requested ${count} emulators, shutting down ${deviceName} for cloning.`);
         await spawn('adb', ['-s', serialId, 'shell', 'reboot', '-p'], {
@@ -204,6 +224,7 @@ export async function startAndroidEmulatorAsync({
   logcatDirectory,
   env,
   logger,
+  experimentalEmulatorCaptureVersion,
 }: {
   deviceName: AndroidVirtualDeviceName;
   systemImagePackage: string;
@@ -214,6 +235,8 @@ export async function startAndroidEmulatorAsync({
   logcatDirectory: string;
   env: BuildStepEnv;
   logger: bunyan;
+  /** The expo-emulator-capture version that the emulator preloads (experimental). */
+  experimentalEmulatorCaptureVersion?: string;
 }): Promise<{
   serialId: AndroidDeviceSerialId;
   emulatorPromise: Promise<unknown>;
@@ -247,6 +270,13 @@ export async function startAndroidEmulatorAsync({
   }
 
   const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
+  const emulatorCapture = experimentalEmulatorCaptureVersion
+    ? await installEmulatorCaptureAsync({
+        version: experimentalEmulatorCaptureVersion,
+        env,
+        logger,
+      })
+    : null;
 
   logger.info('Making sure system image is installed');
   await retryAsync(
@@ -267,6 +297,8 @@ export async function startAndroidEmulatorAsync({
 
   let emulatorPromise = null;
   let serialId = null;
+  // Set by each attempt; the cast keeps the type wide after the retry callback assigns it.
+  let captureLaunch = null as EmulatorCaptureLaunch | null;
   await retryAsync(
     async attemptCount => {
       const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
@@ -289,11 +321,16 @@ export async function startAndroidEmulatorAsync({
         });
 
         logger.info(`Starting emulator device${attemptSuffix}.`);
+        // A new port for each attempt: a failed attempt can leave its port in use.
+        captureLaunch = emulatorCapture
+          ? await prepareEmulatorCaptureLaunchAsync({ capture: emulatorCapture, env })
+          : null;
         const startResult = await AndroidEmulatorUtils.startAsync({
           deviceName,
           env,
           logcatDirectory,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
+          ...(captureLaunch ? { extraArgs: captureLaunch.args, extraEnv: captureLaunch.env } : {}),
         });
         attemptSerialId = startResult.serialId;
         await AndroidEmulatorUtils.waitForReadyAsync({
@@ -347,6 +384,14 @@ export async function startAndroidEmulatorAsync({
 
   if (!serialId || !emulatorPromise) {
     throw new Error(`Failed to start emulator ${deviceName}.`);
+  }
+  if (emulatorCapture && captureLaunch) {
+    await finishEmulatorCaptureAsync({
+      capture: emulatorCapture,
+      launch: captureLaunch,
+      serialId,
+      logger,
+    });
   }
   return { serialId, emulatorPromise, shouldAdjustAnimationScale };
 }

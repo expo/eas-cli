@@ -31,6 +31,7 @@ import {
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
 } from '../deviceSessionHost';
+import { readEmulatorCaptureHubEnvAsync } from '../emulatorCapture';
 import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import {
@@ -57,6 +58,9 @@ jest.mock('../serveSimActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('../emulatorCapture', () => ({
+  readEmulatorCaptureHubEnvAsync: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
@@ -164,6 +168,7 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
+  jest.mocked(readEmulatorCaptureHubEnvAsync).mockReset().mockResolvedValue(null);
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1115,6 +1120,34 @@ it.each([
   await host.finishAsync();
 });
 
+it('turns on the emulator capture in expo-device-hub when the emulator has the agent', async () => {
+  jest.mocked(readEmulatorCaptureHubEnvAsync).mockResolvedValue({
+    EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+    EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/capture/libexpo_emulator_capture.so',
+    TMPDIR: '/tmp/capture-tmp',
+  });
+  const host = await startHostAsync();
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env).toMatchObject({
+    EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+    EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/capture/libexpo_emulator_capture.so',
+    TMPDIR: '/tmp/capture-tmp',
+    EXPO_DEVICE_HUB_STATE_DIR,
+  });
+  // The env turns the capture on, because an expo-device-hub without it rejects unknown flags.
+  expect(options.args).not.toContain('--experimental-emulator-capture');
+  await host.finishAsync();
+});
+
+it('starts expo-device-hub without the emulator capture when no emulator has the agent', async () => {
+  const host = await startHostAsync();
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(readEmulatorCaptureHubEnvAsync).toHaveBeenCalledTimes(1);
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
+  expect(options.env.EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY).toBeUndefined();
+  await host.finishAsync();
+});
+
 it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     preview: { baseDomain, authtoken },
@@ -1162,6 +1195,7 @@ it('leaves iOS recording to its existing build steps', async () => {
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.args).not.toContain('--android-recording-directory');
   expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
+  expect(readEmulatorCaptureHubEnvAsync).not.toHaveBeenCalled();
   await host.finishAsync();
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();

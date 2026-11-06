@@ -40,6 +40,10 @@ import {
   parseNetworkCaptureInputs,
 } from '../utils/networkCaptureFields';
 import { createStartupTasks } from '../utils/startupTasks';
+import {
+  createExperimentalEmulatorCaptureVersionInputProvider,
+  parseExperimentalEmulatorCaptureVersionInput,
+} from '../utils/emulatorCapture';
 
 import { downloadBuildAsync } from './downloadBuild';
 import { installBuildAsync } from './installBuild';
@@ -98,6 +102,8 @@ export function createStartAgentDeviceSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      // Android only: the emulator preloads this expo-emulator-capture version (experimental).
+      createExperimentalEmulatorCaptureVersionInputProvider(),
       // Application. Pass at most one of install_app_path, build_id and application_archive_url.
       BuildStepInput.createProvider({
         id: 'install_app_path',
@@ -189,6 +195,9 @@ export function createStartAgentDeviceSessionBuildFunction(
         validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
+      const experimentalEmulatorCaptureVersion = parseExperimentalEmulatorCaptureVersionInput(
+        inputs.experimental_emulator_capture_version.value
+      );
       const capture = parseNetworkCaptureInputs(
         {
           networkCapture: inputs.network_capture.value,
@@ -255,6 +264,9 @@ export function createStartAgentDeviceSessionBuildFunction(
                   logcatDirectory,
                   env,
                   logger: taskLogger,
+                  ...(experimentalEmulatorCaptureVersion
+                    ? { experimentalEmulatorCaptureVersion }
+                    : {}),
                 });
               });
 
