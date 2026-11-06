@@ -127,8 +127,7 @@ export default class WorkflowRun extends EasCommand {
     }),
     ssh: Flags.boolean({
       default: false,
-      description:
-        'Open an SSH session on each job that runs on a worker for live debugging with `eas workflow:ssh`.',
+      description: 'Open an SSH session on each VM job for live debugging with `eas workflow:ssh`.',
       summary: '[EXPERIMENTAL] Enable SSH on the run',
     }),
     'ssh-idle-timeout': Flags.integer({
@@ -397,9 +396,7 @@ export default class WorkflowRun extends EasCommand {
     Log.log(`See logs: ${link(getWorkflowRunUrl(account.name, projectName, workflowRunId))}`);
 
     if (sshInput) {
-      Log.log(
-        'SSH enabled. Each job that runs on a worker logs the `eas workflow:ssh` command to connect.'
-      );
+      Log.log('SSH enabled. Each VM job logs the `eas workflow:ssh` command to connect.');
     }
 
     if (!flags.wait) {

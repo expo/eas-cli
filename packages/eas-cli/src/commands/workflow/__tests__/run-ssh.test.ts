@@ -132,7 +132,7 @@ describe('WorkflowRun --ssh', () => {
       })
     );
     expect(Log.log).toHaveBeenCalledWith(
-      'SSH enabled. Each job that runs on a worker logs the `eas workflow:ssh` command to connect.'
+      'SSH enabled. Each VM job logs the `eas workflow:ssh` command to connect.'
     );
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
@@ -149,7 +149,7 @@ describe('WorkflowRun --ssh', () => {
       })
     );
     expect(Log.log).not.toHaveBeenCalledWith(
-      'SSH enabled. Each job that runs on a worker logs the `eas workflow:ssh` command to connect.'
+      'SSH enabled. Each VM job logs the `eas workflow:ssh` command to connect.'
     );
   });
 
@@ -165,7 +165,7 @@ describe('WorkflowRun --ssh', () => {
       })
     );
     expect(Log.log).toHaveBeenCalledWith(
-      'SSH enabled. Each job that runs on a worker logs the `eas workflow:ssh` command to connect.'
+      'SSH enabled. Each VM job logs the `eas workflow:ssh` command to connect.'
     );
   });
 });
