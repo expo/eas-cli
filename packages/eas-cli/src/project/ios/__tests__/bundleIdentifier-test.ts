@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
 import path from 'path';
+import resolveFrom from 'resolve-from';
 import { instance, mock } from 'ts-mockito';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -18,6 +19,11 @@ import {
 jest.mock('fs');
 jest.mock('../../../prompts');
 jest.mock('../../../graphql/queries/AppQuery');
+jest.mock(
+  '/app/node_modules/expo/config-plugins.js',
+  () => ({ IOSConfig: { XcodeUtils: { sanitizedName: () => 'FottoFotografos' } } }),
+  { virtual: true }
+);
 
 const vcsClient = resolveVcsClient();
 
@@ -89,6 +95,20 @@ describe(getBundleIdentifierAsync, () => {
       await expect(
         getBundleIdentifierAsync('/app', { ios: { bundleIdentifier: '' } } as any, vcsClient)
       ).rejects.toThrowError(/Specify "ios.bundleIdentifier"/);
+    });
+
+    it("accepts the target name from the project's config-plugins", async () => {
+      jest
+        .spyOn(resolveFrom, 'silent')
+        .mockReturnValueOnce('/app/node_modules/expo/config-plugins.js');
+
+      const bundleIdentifier = await getBundleIdentifierAsync(
+        '/app',
+        { name: 'Fotto Fotógrafos', ios: { bundleIdentifier: 'com.fotto.fotografos' } } as any,
+        vcsClient,
+        { targetName: 'FottoFotografos' }
+      );
+      expect(bundleIdentifier).toBe('com.fotto.fotografos');
     });
   });
 });
