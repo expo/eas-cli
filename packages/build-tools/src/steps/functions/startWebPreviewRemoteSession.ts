@@ -112,6 +112,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+          warm: warmSession !== undefined,
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
           deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,

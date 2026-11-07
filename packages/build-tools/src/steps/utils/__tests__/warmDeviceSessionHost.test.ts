@@ -9,11 +9,16 @@ import {
   createWarmDeviceSessionServer,
   runOnWarmIosSimulatorAsync,
 } from '../warmDeviceSessionHost';
+import {
+  configureSimulatorProxyEnvironmentAsync,
+  readLocalEgressHandoffAsync,
+} from '../localEgress';
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('../IosSimulatorRecordingUtils');
 jest.mock('../warmIosSession');
+jest.mock('../localEgress');
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
   fetchWebPreviewTurnArgsAsync: jest.fn(),
@@ -62,6 +67,23 @@ beforeEach(() => {
   };
 });
 
+it('sets proxy environment on the exact adopted Simulator before preparing tools', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+  const server = createWarmDeviceSessionServer(ctx, logger, warm);
+  await server.startAsync(launch());
+  expect(configureSimulatorProxyEnvironmentAsync).toHaveBeenCalledWith({
+    udid: 'UDID',
+    env: {},
+    logger,
+  });
+  expect(jest.mocked(spawn).mock.invocationCallOrder[0]).toBeLessThan(
+    jest.mocked(configureSimulatorProxyEnvironmentAsync).mock.invocationCallOrder[0]!
+  );
+  expect(
+    jest.mocked(configureSimulatorProxyEnvironmentAsync).mock.invocationCallOrder[0]
+  ).toBeLessThan(jest.mocked(warm.prepareToolsAsync).mock.invocationCallOrder[0]!);
+});
+
 it('adopts the warm device on the warm port with its recording, then prepares tools', async () => {
   const server = createWarmDeviceSessionServer(ctx, logger, warm);
   expect(server).toMatchObject({
@@ -79,6 +101,8 @@ it('adopts the warm device on the warm port with its recording, then prepares to
       '--single-device',
       'UDID',
       '--adopt',
+      '--disable',
+      'egressGuard',
       '--recording-output',
       '/recordings/id',
       '--recording-id',
@@ -222,4 +246,31 @@ describe(runOnWarmIosSimulatorAsync, () => {
     ).rejects.toBe(cancellation);
     expect(run).toHaveBeenCalledTimes(1);
   });
+});
+
+it('enables the resident guard for a local egress adoption and retains the proxy argument', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+  const options = launch();
+  options.args.push('--network-capture-proxy', 'http://127.0.0.1:8899');
+  await createWarmDeviceSessionServer(ctx, logger, warm).startAsync(options);
+  expect(spawn).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining([
+      '--network-capture-proxy',
+      'http://127.0.0.1:8899',
+      '--adopt',
+      '--enable',
+      'egressGuard',
+    ]),
+    expect.anything()
+  );
+});
+
+it('does not prepare tools after resident policy admission rejects', async () => {
+  jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+  jest.mocked(spawn).mockRejectedValue(new Error('Resident egress enforcement is unavailable'));
+  await expect(
+    createWarmDeviceSessionServer(ctx, logger, warm).startAsync(launch())
+  ).rejects.toBeInstanceOf(WarmSessionAdoptionError);
+  expect(warm.prepareToolsAsync).not.toHaveBeenCalled();
 });
