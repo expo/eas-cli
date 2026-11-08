@@ -56,6 +56,7 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
     commands.throwIfCommandCloseTimedOut();
     await rm(tmpdir, { recursive: true, force: true });
   }
+  signal?.throwIfAborted();
   return 0;
 }
 

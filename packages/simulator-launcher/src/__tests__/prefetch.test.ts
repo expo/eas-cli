@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { mainAsync } from '../main';
 import { commands } from '../utils/processes';
-import { until } from './helpers';
+import { deferred, until } from './helpers';
 
 jest.mock('../utils/processes');
 
@@ -163,6 +164,33 @@ test.each(['SIGINT', 'SIGTERM'] as const)(
     expect(process.listenerCount(event)).toBe(listeners);
   }
 );
+
+test('interruption during final cleanup cannot report success', async () => {
+  const entered = deferred();
+  const release = deferred();
+  const rm = fsPromises.rm.bind(fsPromises);
+  let tmpdir = '';
+  jest.spyOn(fsPromises, 'rm').mockImplementation(async (target, options) => {
+    if (String(target).includes('simulator-launcher-prefetch-')) {
+      tmpdir = String(target);
+      entered.resolve();
+      await release.promise;
+    }
+    await rm(target, options);
+  });
+  const result = mainAsync(['prefetch']).catch(error => error);
+  try {
+    await entered.promise;
+    expect(fs.existsSync(tmpdir)).toBe(true);
+    process.emit('SIGTERM', 'SIGTERM');
+    release.resolve();
+    expect(await result).toMatchObject({ message: 'Simulator prefetch was interrupted.' });
+    expect(fs.existsSync(tmpdir)).toBe(false);
+  } finally {
+    release.resolve();
+    await result;
+  }
+});
 
 test.each([false, true])('prefetch restores its environment after failure=%s', async fail => {
   process.env.TMPDIR = os.tmpdir();
