@@ -1,7 +1,14 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import {
+  downloadExpoGoAsync,
+  expoGoArchiveCacheDirectory,
+  expoGoArchiveCachePath,
+  extractCheckedExpoGoAsync,
+  selectExpoGoAsync,
+} from '../utils/expoGo';
 import {
   agentDevicePackageSpec,
   argentPackageSpec,
@@ -13,6 +20,7 @@ const PREFETCH_TIMEOUT_MS = 300_000;
 
 /**
  * Caches pinned tool packages using a temporary install directory.
+ * Stores and checks the Expo Go archive selected by start.
  */
 export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   signal?.throwIfAborted();
@@ -22,6 +30,9 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
     readPins('agent-device', ['AGENT_DEVICE_VERSION']) ? agentDevicePackageSpec() : undefined,
     readPins('Argent', ['ARGENT_VERSION']) ? argentPackageSpec() : undefined,
   ];
+  // selectExpoGoAsync reads the pin itself. This check fails a bad value before any command or
+  // download.
+  readPins('Expo Go', ['EXPO_GO_SDK_VERSION']);
   const tmpdir = await mkdtemp(path.join(os.tmpdir(), 'simulator-launcher-prefetch-'));
   const environment = {
     TMPDIR: process.env.TMPDIR,
@@ -45,6 +56,7 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
         );
       }
     }
+    await prefetchExpoGoAsync(tmpdir, signal);
   } finally {
     for (const [key, value] of Object.entries(environment)) {
       if (value === undefined) {
@@ -58,6 +70,40 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   }
   signal?.throwIfAborted();
   return 0;
+}
+
+async function prefetchExpoGoAsync(tmpdir: string, signal?: AbortSignal): Promise<void> {
+  // A skipped step leaves no older archive.
+  const directory = expoGoArchiveCacheDirectory();
+  await rm(directory, { recursive: true, force: true });
+  if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO === '0') {
+    process.stderr.write('Skipping Expo Go: EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0.\n');
+    return;
+  }
+  await prefetchStepAsync(
+    'Expo Go',
+    async signal => {
+      // The same selection as start, so start finds this file while the release is current.
+      const { sdk, url } = await selectExpoGoAsync(signal);
+      const file = expoGoArchiveCachePath(url);
+      try {
+        await mkdir(directory, { recursive: true });
+        await downloadExpoGoAsync(url, file, signal);
+        await extractCheckedExpoGoAsync(
+          file,
+          path.join(tmpdir, 'ExpoGo.app'),
+          signal,
+          (file, args) => commands.runOwnedAsync(file, args, signal)
+        );
+      } catch (error) {
+        commands.throwIfCommandCloseTimedOut();
+        await rm(directory, { recursive: true, force: true });
+        throw error;
+      }
+      return `SDK ${sdk} from ${url}`;
+    },
+    signal
+  );
 }
 
 /** Returns the exact (x.y.z) versions in these variables, or undefined when none is set. */

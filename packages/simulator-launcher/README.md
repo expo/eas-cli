@@ -21,7 +21,7 @@ exec bunx @expo/simulator-launcher@latest start
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
-- `prefetch`: cache pinned serve-sim, agent-device and Argent packages with Bun. Progress goes to stderr; the command stops at the first failure.
+- `prefetch`: cache pinned serve-sim, agent-device and Argent packages with Bun. Cache the selected Expo Go archive for reuse. Progress goes to stderr; the command stops at the first failure.
 
 Consumers use the launcher version recorded by `start` for session commands (`LAUNCHER_VERSION`
 below). Run these in another process:
@@ -59,9 +59,25 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
   `prefetch` fail. Use the same versions when preparing and starting tools. Later commands
   take these packages from Bun's cache. Bun can still revalidate dependency manifests with
   the registry.
+- `EXPO_GO_SDK_VERSION`: an SDK for which the Expo versions API lists an iOS Simulator archive,
+  `start` and `prefetch` then use the Expo Go of that SDK, even a beta, instead
+  of the latest stable one. Unset or empty keeps the latest stable one. Both still ask the versions
+  API for the archive URL. `prefetch` fails when the value is not `x.y.z`, or when the API lists no
+  https Simulator archive for it. In these cases, `start` warns and preinstalls no Expo Go. Use the
+  same value when preparing and starting tools.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`
   and `AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS` (milliseconds).
+
+## Prepared files
+
+`prefetch` writes the selected Expo Go archive under `~/Library/Caches/expo-simulator-startup/expo-go/`,
+and removes it when the step is skipped. `start` checks the archive before using it and otherwise
+downloads as before. Keep this directory when reusing the archive.
+
+- `expo-go/<sha256 of the archive URL>.tar.gz`: `start` still selects the URL from the Expo
+  versions API. It uses the file only for that exact URL and checks it with `gzip -t` before it
+  extracts it. A damaged archive gives a warning and a download.
 
 ## Boundaries
 
@@ -75,7 +91,9 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
 - Agent-device prestarts on the default device only. A secondary claim prepares its runner after
   adoption and old-runner cleanup finish. One device-independent Argent server is reused for the claimed device.
   Appium waits for unused tools to stop before starting its own WDA.
-- Warmup downloads/extracts the latest stable Expo Go once and reuses it for the second device.
+- Warmup gets the Expo Go of `EXPO_GO_SDK_VERSION`, or else the latest stable one, once, from the
+  prefetched archive (see
+  [Prepared files](#prepared-files)) or by download, and reuses it for the second device.
   Each initial device gets a preinstall attempt; ordinary failures warn. Claim prevents new
   preinstalls. `prepare-tools` waits for an install still running on the claimed device and
   reports its version, because the job installs its app next. Installs on other devices continue;

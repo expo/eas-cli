@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import os from 'node:os';
@@ -10,6 +11,8 @@ import { deferred, until } from './helpers';
 jest.mock('../utils/processes');
 
 const platform = process.platform;
+const expoGoUrl = 'https://example.test/Expo-Go-58.0.7.tar.gz';
+const olderExpoGoUrl = 'https://example.test/Expo-Go-57.0.9.tar.gz';
 let environment: NodeJS.ProcessEnv;
 let home: string;
 
@@ -42,6 +45,24 @@ afterEach(() => {
   Object.defineProperty(process, 'platform', { value: platform });
   fs.rmSync(home, { recursive: true, force: true });
 });
+
+const cacheDirectory = (name: string): string =>
+  path.join(home, 'Library', 'Caches', 'expo-simulator-startup', name);
+
+/** Serves the versions API and the archive bytes at `expoGoUrl`. */
+function serveExpoGo(archive: Response = new Response('expo go archive')): void {
+  jest.mocked(fetch).mockImplementation(async url =>
+    url === 'https://api.expo.dev/v2/versions'
+      ? Response.json({
+          sdkVersions: {
+            '20.0.0': { releaseNoteUrl: 'https://example.test/20' },
+            '57.0.0': { releaseNoteUrl: 'https://example.test/57', iosClientUrl: olderExpoGoUrl },
+            '58.0.0': { releaseNoteUrl: 'https://example.test/58', iosClientUrl: expoGoUrl },
+          },
+        })
+      : archive
+  );
+}
 
 test('prefetch runs each pinned tool spec once, in order, without boot or stdout work', async () => {
   const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
@@ -207,7 +228,132 @@ test.each([false, true])('prefetch restores its environment after failure=%s', a
   expect(process.env.npm_config_cache).toBeUndefined();
 });
 
+test('prefetch bounds archive validation and extraction with the step signal', async () => {
+  delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
+  serveExpoGo();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, _args, signal) => {
+    if (file === '/usr/bin/gzip') {
+      expect(signal).toBeInstanceOf(AbortSignal);
+      throw new Error('extractor cancelled');
+    }
+    return '';
+  });
+  await expect(mainAsync(['prefetch'])).rejects.toThrow('extractor cancelled');
+  expect(fs.existsSync(cacheDirectory('expo-go'))).toBe(false);
+});
+
 test('prefetch rejects extra arguments before any native work', async () => {
   await expect(mainAsync(['prefetch', 'x'])).rejects.toThrow(/Usage: .*\|prefetch>/);
   expect(commands.runOwnedAsync).not.toHaveBeenCalled();
+});
+
+test('prefetch skips disabled Expo Go and removes older files', async () => {
+  for (const name of ['expo-go']) {
+    fs.mkdirSync(cacheDirectory(name), { recursive: true });
+    fs.writeFileSync(path.join(cacheDirectory(name), 'old'), 'old');
+  }
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Skipping Expo Go: EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0.\n'
+  );
+  expect(fetch).not.toHaveBeenCalled();
+  expect(fs.readdirSync(path.dirname(cacheDirectory('expo-go')))).toEqual([]);
+});
+
+test('prefetch stores the selected Expo Go archive', async () => {
+  delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
+  serveExpoGo();
+  const expoGo = cacheDirectory('expo-go');
+  fs.mkdirSync(expoGo, { recursive: true });
+  fs.writeFileSync(path.join(expoGo, 'stale.tar.gz'), 'stale');
+  let tmpdir = '';
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    tmpdir = process.env.TMPDIR ?? '';
+    if (file === '/usr/bin/tar') {
+      fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+    }
+    return '1.0.0\n';
+  });
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  const file = path.join(expoGo, `${createHash('sha256').update(expoGoUrl).digest('hex')}.tar.gz`);
+  expect(fs.readdirSync(expoGo)).toEqual([path.basename(file)]);
+  expect(fs.readFileSync(file, 'utf8')).toBe('expo go archive');
+  expect(jest.mocked(commands.runOwnedAsync).mock.calls.slice(3)).toEqual([
+    ['/usr/bin/gzip', ['-t', file], expect.any(AbortSignal)],
+    [
+      '/usr/bin/tar',
+      ['-xzf', file, '-C', path.join(tmpdir, 'ExpoGo.app')],
+      expect.any(AbortSignal),
+    ],
+  ]);
+  expect(path.basename(tmpdir)).toMatch(/^simulator-launcher-prefetch-/);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    `Prefetched Expo Go (SDK 58.0.0 from ${expoGoUrl}).\n`
+  );
+  expect(output).not.toHaveBeenCalled();
+});
+
+test.each(['archive HTTP 500', 'gzip -t fails', 'no Info.plist'])(
+  'prefetch removes the Expo Go cache after %s',
+  async kind => {
+    delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
+    serveExpoGo(kind === 'archive HTTP 500' ? new Response('', { status: 500 }) : undefined);
+    jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+      if (file === '/usr/bin/gzip' && kind === 'gzip -t fails') {
+        throw Object.assign(new Error('/usr/bin/gzip exited with 1.'), { code: 1 });
+      }
+      if (file === '/usr/bin/tar' && kind !== 'no Info.plist') {
+        fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+      }
+      return '1.0.0\n';
+    });
+    await expect(mainAsync(['prefetch'])).rejects.toThrow(/Could not prefetch Expo Go: /);
+    expect(fs.existsSync(cacheDirectory('expo-go'))).toBe(false);
+  }
+);
+
+test('prefetch stores the Expo Go of EXPO_GO_SDK_VERSION, as start selects it', async () => {
+  delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
+  process.env.EXPO_GO_SDK_VERSION = '57.0.0';
+  serveExpoGo();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (file === '/usr/bin/tar') {
+      fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+    }
+    return '1.0.0\n';
+  });
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  const hash = createHash('sha256').update(olderExpoGoUrl).digest('hex');
+  expect(fs.readdirSync(cacheDirectory('expo-go'))).toEqual([`${hash}.tar.gz`]);
+  expect(fetch).toHaveBeenLastCalledWith(olderExpoGoUrl, expect.anything());
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    `Prefetched Expo Go (SDK 57.0.0 from ${olderExpoGoUrl}).\n`
+  );
+});
+
+test.each(['latest', '58', '^58.0.0', 'v58.0.0'])(
+  'prefetch rejects EXPO_GO_SDK_VERSION=%s before any command or download',
+  async pin => {
+    process.env.EXPO_GO_SDK_VERSION = pin;
+    await expect(mainAsync(['prefetch'])).rejects.toThrow(
+      'Could not prefetch Expo Go: set EXPO_GO_SDK_VERSION to an exact version (x.y.z), or leave it unset.'
+    );
+    expect(commands.runOwnedAsync).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  }
+);
+
+test.each([
+  ['does not list', '62.0.0'],
+  ['lists no Simulator archive for', '20.0.0'],
+])('prefetch fails when the versions API %s EXPO_GO_SDK_VERSION', async (_, pin) => {
+  delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
+  process.env.EXPO_GO_SDK_VERSION = pin;
+  serveExpoGo();
+  await expect(mainAsync(['prefetch'])).rejects.toThrow(
+    `Could not prefetch Expo Go: No Expo Go Simulator archive is available for SDK ${pin}.`
+  );
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fs.existsSync(cacheDirectory('expo-go'))).toBe(false);
 });
