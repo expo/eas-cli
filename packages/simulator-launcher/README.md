@@ -21,18 +21,22 @@ exec bunx @expo/simulator-launcher@latest start
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
+- `prefetch`: run once at image build, as the image user, with the launcher version and
+  environment of the startup script. It puts the pinned serve-sim, agent-device and Argent
+  packages in Bun's cache. It writes progress to stderr and stops at the first failure.
+  Give the outer `bunx` a throwaway TMPDIR, because bunx writes its install folder there.
 
 ```sh
 # Build-tools reads LAUNCHER_VERSION from the version recorded by start.
-bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
 # After private serve-sim adoption confirms the selected device and native ACK:
-bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" prepare-tools
-bun x --no-install "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" prepare-tools
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
 ```
 
 There is no copied launcher bundle. Build-tools uses the recorded package version for claim/stop;
-Warmup primes Bun’s exact-version cache before ready, with two attempts of up to 30 seconds. Its claim/stop calls use `--no-install`, retrying
-once with the registry only when Bun cannot find that cached binary. Priming failures warn.
+warmup primes Bun's exact-version cache before ready, with two attempts of up to 30 seconds.
+Priming failures warn. Bun can still revalidate package manifests with the registry.
 Before start has run,
 stop uses the normal package-manager path and still disables later warmup for this boot.
 
@@ -50,7 +54,12 @@ serializes updates; an abandoned lock fails closed. This private format requires
   trimmed and must each identify one available device. The first is the default. Unset keeps
   the shortest available iPhone name, as does an empty or blank value. Empty list entries, missing,
   ambiguous or duplicate devices fail clearly.
-- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION`: each defaults to `latest`.
+- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION`: each defaults to `latest`, which
+  resolves again at boot. `prefetch` caches each package whose version is set to an exact version
+  (`x.y.z`), and skips each unset package. Any other value, such as an explicit `latest`, makes
+  `prefetch` fail. Use the same versions in the startup script. Boot
+  then takes these packages from Bun's cache. Bun can still revalidate dependency manifests with
+  the registry.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`
   and `AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS` (milliseconds).
