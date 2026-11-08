@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { mainAsync } from '../main';
 import { commands } from '../utils/processes';
+import { until } from './helpers';
 
 jest.mock('../utils/processes');
 
@@ -13,7 +14,7 @@ let home: string;
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.mocked(commands.runAsync).mockResolvedValue('1.0.0\n');
+  jest.mocked(commands.runOwnedAsync).mockResolvedValue('1.0.0\n');
   jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   Object.defineProperty(process, 'platform', { value: 'darwin' });
   environment = { ...process.env };
@@ -44,19 +45,19 @@ afterEach(() => {
 test('prefetch runs each pinned tool spec once, in order, without boot or stdout work', async () => {
   const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
   expect(await mainAsync(['prefetch'])).toBe(0);
-  expect(jest.mocked(commands.runAsync).mock.calls).toEqual([
+  expect(jest.mocked(commands.runOwnedAsync).mock.calls).toEqual([
     ['bunx', ['@expo/serve-sim@0.13.3', '--version'], expect.any(AbortSignal)],
     ['bunx', ['agent-device@0.21.36', '--version'], expect.any(AbortSignal)],
     ['bunx', ['@swmansion/argent@0.32.0', '--version'], expect.any(AbortSignal)],
   ]);
-  expect(commands.runAsync).not.toHaveBeenCalledWith('/usr/sbin/sysctl', expect.anything());
+  expect(commands.runOwnedAsync).not.toHaveBeenCalledWith('/usr/sbin/sysctl', expect.anything());
   expect(output).not.toHaveBeenCalled();
 });
 
 test('prefetch runs bunx in a throwaway TMPDIR and removes it', async () => {
   const tmpdirs: string[] = [];
   const existed: boolean[] = [];
-  jest.mocked(commands.runAsync).mockImplementation(async () => {
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async () => {
     tmpdirs.push(process.env.TMPDIR ?? '');
     existed.push(fs.existsSync(process.env.TMPDIR ?? ''));
     return '1.0.0\n';
@@ -74,7 +75,7 @@ test('prefetch caches no Bun tools when no versions are set', async () => {
   process.env.AGENT_DEVICE_VERSION = '';
   delete process.env.ARGENT_VERSION;
   expect(await mainAsync(['prefetch'])).toBe(0);
-  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(commands.runOwnedAsync).not.toHaveBeenCalled();
   expect(process.stderr.write).toHaveBeenCalledWith(
     'Skipping serve-sim, agent-device and Argent: SERVE_SIM_VERSION, AGENT_DEVICE_VERSION and ARGENT_VERSION are not set.\n'
   );
@@ -91,7 +92,7 @@ test.each([
     }
   }
   expect(await mainAsync(['prefetch'])).toBe(0);
-  expect(jest.mocked(commands.runAsync).mock.calls).toEqual([
+  expect(jest.mocked(commands.runOwnedAsync).mock.calls).toEqual([
     ['bunx', [spec, '--version'], expect.any(AbortSignal)],
   ]);
 });
@@ -107,13 +108,13 @@ test.each([
   await expect(mainAsync(['prefetch'])).rejects.toThrow(
     `set ${variable} to an exact version (x.y.z), or leave it unset.`
   );
-  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(commands.runOwnedAsync).not.toHaveBeenCalled();
 });
 
 test('prefetch stops at the first failed spec and removes its TMPDIR', async () => {
   let tmpdir = '';
   jest
-    .mocked(commands.runAsync)
+    .mocked(commands.runOwnedAsync)
     .mockImplementationOnce(async () => {
       tmpdir = process.env.TMPDIR ?? '';
       return '0.13.3\n';
@@ -122,7 +123,7 @@ test('prefetch stops at the first failed spec and removes its TMPDIR', async () 
   await expect(mainAsync(['prefetch'])).rejects.toThrow(
     /Could not prefetch agent-device@0\.21\.36: bunx exited with 1\./
   );
-  expect(commands.runAsync).toHaveBeenCalledTimes(2);
+  expect(commands.runOwnedAsync).toHaveBeenCalledTimes(2);
   expect(tmpdir).toMatch(/simulator-launcher-prefetch-/);
   expect(fs.existsSync(tmpdir)).toBe(false);
 });
@@ -130,17 +131,55 @@ test('prefetch stops at the first failed spec and removes its TMPDIR', async () 
 test('prefetch reports a timed-out spec', async () => {
   jest.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort());
   jest
-    .mocked(commands.runAsync)
+    .mocked(commands.runOwnedAsync)
     .mockRejectedValueOnce(
       Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
     );
   await expect(mainAsync(['prefetch'])).rejects.toThrow(
     /Could not prefetch @expo\/serve-sim@0\.13\.3 within 300 seconds\./
   );
-  expect(commands.runAsync).toHaveBeenCalledTimes(1);
+  expect(commands.runOwnedAsync).toHaveBeenCalledTimes(1);
+});
+
+test.each(['SIGINT', 'SIGTERM'] as const)(
+  'standalone prefetch drains before failing on %s',
+  async event => {
+    let tmpdir = '';
+    const listeners = process.listenerCount(event);
+    jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, _args, signal) => {
+      tmpdir = process.env.TMPDIR!;
+      return await new Promise((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      );
+    });
+    const result = mainAsync(['prefetch']).catch(error => error);
+    await until(() => !!tmpdir);
+    expect(fs.existsSync(tmpdir)).toBe(true);
+    process.emit(event, event);
+    expect(await result).toMatchObject({
+      message: 'Could not prefetch @expo/serve-sim@0.13.3: Simulator prefetch was interrupted.',
+    });
+    expect(fs.existsSync(tmpdir)).toBe(false);
+    expect(process.listenerCount(event)).toBe(listeners);
+  }
+);
+
+test.each([false, true])('prefetch restores its environment after failure=%s', async fail => {
+  process.env.TMPDIR = os.tmpdir();
+  process.env.APPIUM_HOME = '/previous/appium';
+  delete process.env.npm_config_cache;
+  if (fail) {
+    jest.mocked(commands.runOwnedAsync).mockRejectedValueOnce(new Error('failed'));
+    await expect(mainAsync(['prefetch'])).rejects.toThrow('failed');
+  } else {
+    await mainAsync(['prefetch']);
+  }
+  expect(process.env.TMPDIR).toBe(os.tmpdir());
+  expect(process.env.APPIUM_HOME).toBe('/previous/appium');
+  expect(process.env.npm_config_cache).toBeUndefined();
 });
 
 test('prefetch rejects extra arguments before any native work', async () => {
   await expect(mainAsync(['prefetch', 'x'])).rejects.toThrow(/Usage: .*\|prefetch>/);
-  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(commands.runOwnedAsync).not.toHaveBeenCalled();
 });

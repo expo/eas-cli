@@ -15,7 +15,16 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
     return 0;
   }
   if (args.length === 1 && args[0] === 'prefetch') {
-    return await prefetchAsync();
+    const shutdown = new AbortController();
+    const stop = (): void => shutdown.abort(new Error('Simulator prefetch was interrupted.'));
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    try {
+      return await prefetchAsync(shutdown.signal);
+    } finally {
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+    }
   }
   const [command, engine, requestedDevice] = args;
   if (
