@@ -23,11 +23,9 @@ import {
 import { type AndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogCapture';
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
-import {
-  ALL_ANDROID_EMULATOR_LOG_SOURCES,
-  AndroidEmulatorLogSourcesSchema,
-} from '../../utils/androidEmulatorLogSources';
+import { ALL_ANDROID_EMULATOR_LOG_SOURCES } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
+import { parseLogSourcesInput } from '../utils/logSourcesInput';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
@@ -40,7 +38,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
     __metricsId: 'eas/start_android_emulator',
     inputProviders: [
       BuildStepInput.createProvider({
-        id: 'android_log_sources',
+        id: 'log_sources',
         required: false,
         defaultValue: [...ALL_ANDROID_EMULATOR_LOG_SOURCES],
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
@@ -91,7 +89,10 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger, global }, { inputs, outputs, env }) => {
-      const logSources = AndroidEmulatorLogSourcesSchema.parse(inputs.android_log_sources.value);
+      const logSources = parseLogSourcesInput(inputs.log_sources.value, {
+        runtimePlatform: global.runtimePlatform,
+        fallback: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      });
       const logcatDirectory = await fs.promises.mkdtemp(
         path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
       );

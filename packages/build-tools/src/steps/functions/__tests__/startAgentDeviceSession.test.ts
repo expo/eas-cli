@@ -457,14 +457,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     const capture = new AndroidEmulatorLogRing({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     const env = { DEVICE_RUN_SESSION_ID: 'session' };
-    await runStep(
-      BuildRuntimePlatform.LINUX,
-      { android_log_sources: [] },
-      undefined,
-      ctx,
-      false,
-      env
-    );
+    await runStep(BuildRuntimePlatform.LINUX, { log_sources: [] }, undefined, ctx, false, env);
     expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env, []);
     expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
       expect.objectContaining({ logCapture: capture })
@@ -474,12 +467,30 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   it('rejects invalid Android log sources before boot or downloading', async () => {
     await expect(
       runStep(BuildRuntimePlatform.LINUX, {
-        android_log_sources: ['unknown'],
+        log_sources: ['unknown'],
         build_id: 'build-id',
       })
     ).rejects.toThrow();
     expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
     expect(downloadBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects Android log sources on an iOS session before boot or downloading', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.DARWIN, {
+        log_sources: ['device-logcat'],
+        build_id: 'build-id',
+      })
+    ).rejects.toThrow('Input "log_sources" selects Android emulator logs');
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(IosSimulatorUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('boots an iOS session with an explicit empty source list', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, { log_sources: [] });
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalled();
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -671,7 +682,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
     ).toEqual([
-      'android_log_sources',
+      'log_sources',
       'device_identifier',
       'system_image_package',
       'lcd_width',

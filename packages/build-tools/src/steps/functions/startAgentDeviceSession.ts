@@ -16,8 +16,8 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
-import { AndroidEmulatorLogSourcesSchema } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
+import { parseLogSourcesInput } from '../utils/logSourcesInput';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
@@ -73,10 +73,10 @@ export function createStartAgentDeviceSessionBuildFunction(
     name: 'Start agent-device session',
     __metricsId: warm ? 'eas/start_warm_agent_device_session' : 'eas/start_agent_device_session',
     inputProviders: [
+      // No default: an omitted input must stay distinguishable from an explicit selection.
       BuildStepInput.createProvider({
-        id: 'android_log_sources',
+        id: 'log_sources',
         required: false,
-        defaultValue: ['emulator-output'],
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.
@@ -196,9 +196,10 @@ export function createStartAgentDeviceSessionBuildFunction(
       } else {
         validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
-      const logSources = isIos
-        ? []
-        : AndroidEmulatorLogSourcesSchema.parse(inputs.android_log_sources.value);
+      const logSources = parseLogSourcesInput(inputs.log_sources.value, {
+        runtimePlatform,
+        fallback: isIos ? [] : ['emulator-output'],
+      });
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
         {

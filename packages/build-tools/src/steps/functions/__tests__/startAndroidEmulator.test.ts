@@ -104,7 +104,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     const capture = new AndroidEmulatorLogRing({ sources: [] });
     jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
     await createStep(
-      { android_log_sources: [], count: 2 },
+      { log_sources: [], count: 2 },
       { DEVICE_RUN_SESSION_ID: 'session' }
     ).executeAsync();
     expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
@@ -119,7 +119,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
   });
 
   it('rejects invalid sources before starting the emulator', async () => {
-    await expect(createStep({ android_log_sources: ['unknown'] }).executeAsync()).rejects.toThrow();
+    await expect(createStep({ log_sources: ['unknown'] }).executeAsync()).rejects.toThrow();
     expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
   });
 
