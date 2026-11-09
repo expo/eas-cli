@@ -10,6 +10,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { CredentialsContext } from '../credentials/context';
 import { AppStoreConnectApiKeyQuery as AccountAppStoreConnectApiKeyQuery } from '../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery';
 import { getRequestContext } from '../credentials/ios/appstore/authenticate';
+import { ASC_API_KEY_TOKEN_DURATION_SECONDS } from '../credentials/ios/appstore/constants';
 import { AppStoreConnectApiKeyQuery } from '../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../log';
 import { getAppStoreAuthAsync } from '../metadata/auth';
@@ -17,9 +18,6 @@ import { getBundleIdentifierAsync } from '../project/ios/bundleIdentifier';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
-
-/** How long the ASC JWTs we mint stay valid, matching the credentials service default. */
-const ASC_TOKEN_DURATION_SECONDS = 1200;
 
 /**
  * TestFlight data lives in App Store Connect, so we resolve the bundle identifier and the ASC API
@@ -77,7 +75,7 @@ async function findAppWithAccountAscApiKeysAsync({
           key: keyP8,
           keyId: keyIdentifier,
           issuerId: issuerIdentifier,
-          duration: ASC_TOKEN_DURATION_SECONDS,
+          duration: ASC_API_KEY_TOKEN_DURATION_SECONDS,
         }),
       };
       const app = await App.findAsync(context, { bundleId });

@@ -49,6 +49,17 @@ describe(authenticateAsync, () => {
       expect.objectContaining({ keyId: 'key-id', issuerId: undefined })
     );
   });
+
+  // Apple rejects a token that lives 20 minutes or more from its own clock, so a token signed at
+  // exactly 20 minutes fails whenever the local clock runs ahead of Apple's.
+  it('signs API key tokens that expire before Apple’s 20 minute limit', async () => {
+    await authenticateAsync({
+      ...apiKeyAuthOptions,
+      ascApiKey: { keyP8: 'p8-content', keyId: 'key-id', issuerId: 'issuer-id' },
+    });
+
+    expect(jest.mocked(Token).mock.calls[0][0].duration).toBeLessThan(1200);
+  });
 });
 
 const individualKeyAuthCtx = {
