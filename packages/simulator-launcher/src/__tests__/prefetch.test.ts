@@ -78,6 +78,60 @@ function pinAppium(): { appiumHome: string; appium: string; wda: string } {
   };
 }
 
+function writeWdaBundle(wda: string): string {
+  const runner = path.join(wda, 'WebDriverAgentRunner-Runner.app');
+  fs.mkdirSync(runner, { recursive: true });
+  fs.writeFileSync(
+    path.join(runner, 'Info.plist'),
+    '<plist><dict><key>CFBundleExecutable</key><string>Runner</string></dict></plist>'
+  );
+  fs.writeFileSync(path.join(runner, 'Runner'), 'executable', { mode: 0o755 });
+  return runner;
+}
+
+test.each([
+  'empty runner',
+  'missing metadata',
+  'invalid metadata',
+  'missing executable',
+  'empty executable',
+  'non-executable',
+  'directory executable',
+  'outside executable',
+])('prefetch rejects WDA with %s and publishes no manifest', async kind => {
+  const { wda, appiumHome } = pinAppium();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (args.includes('download-wda')) {
+      const runner = writeWdaBundle(wda);
+      if (kind === 'empty runner') {
+        fs.rmSync(runner, { recursive: true });
+        fs.mkdirSync(runner);
+      } else if (kind === 'missing metadata') {
+        fs.rmSync(path.join(runner, 'Info.plist'));
+      } else if (kind === 'missing executable') {
+        fs.rmSync(path.join(runner, 'Runner'));
+      } else if (kind === 'empty executable') {
+        fs.writeFileSync(path.join(runner, 'Runner'), '');
+      } else if (kind === 'non-executable') {
+        fs.chmodSync(path.join(runner, 'Runner'), 0o644);
+      } else if (kind === 'directory executable') {
+        fs.rmSync(path.join(runner, 'Runner'));
+        fs.mkdirSync(path.join(runner, 'Runner'));
+      }
+    }
+    if (file === '/usr/bin/plutil') {
+      if (kind === 'invalid metadata') {
+        throw new Error('Invalid property list');
+      }
+      return kind === 'outside executable' ? '../outside' : 'Runner\n';
+    }
+    return '';
+  });
+  await expect(mainAsync(['prefetch'])).rejects.toThrow('Could not prefetch WebDriverAgent');
+  expect(fs.existsSync(cacheDirectory('prepared.json'))).toBe(false);
+  expect(fs.existsSync(appiumHome)).toBe(false);
+});
+
 test('prefetch does not inspect, install or record runtime CLI packages', async () => {
   process.env.SERVE_SIM_VERSION = 'latest';
   process.env.AGENT_DEVICE_VERSION = '^0.21';
@@ -139,16 +193,16 @@ test('prefetch prepares Appium in a throwaway TMPDIR and removes it', async () =
   const { wda } = pinAppium();
   const tmpdirs: string[] = [];
   const existed: boolean[] = [];
-  jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, args) => {
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
     if (args.includes('download-wda')) {
-      fs.mkdirSync(path.join(wda, 'WebDriverAgentRunner-Runner.app'), { recursive: true });
+      writeWdaBundle(wda);
     }
     tmpdirs.push(process.env.TMPDIR ?? '');
     existed.push(fs.existsSync(process.env.TMPDIR ?? ''));
-    return '1.0.0\n';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
   });
   expect(await mainAsync(['prefetch'])).toBe(0);
-  expect(existed).toEqual([true, true, true]);
+  expect(existed).toEqual([true, true, true, true]);
   expect(new Set(tmpdirs).size).toBe(1);
   expect(path.dirname(tmpdirs[0])).toBe(os.tmpdir());
   expect(path.basename(tmpdirs[0])).toMatch(/^simulator-launcher-prefetch-/);
@@ -240,11 +294,11 @@ test('interruption during final cleanup cannot report success', async () => {
 
 test.each([false, true])('prefetch restores its environment after failure=%s', async fail => {
   const { wda } = pinAppium();
-  jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, args) => {
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
     if (args.includes('download-wda')) {
-      fs.mkdirSync(path.join(wda, 'WebDriverAgentRunner-Runner.app'), { recursive: true });
+      writeWdaBundle(wda);
     }
-    return '';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '';
   });
   process.env.TMPDIR = os.tmpdir();
   process.env.APPIUM_HOME = '/previous/appium';
@@ -365,9 +419,9 @@ test('prefetch prepares the pinned Appium home and writes the shared manifest la
       fs.writeFileSync(appium, '');
     }
     if (args.includes('download-wda')) {
-      fs.mkdirSync(path.join(wda, 'WebDriverAgentRunner-Runner.app'), { recursive: true });
+      writeWdaBundle(wda);
     }
-    return '1.0.0\n';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
   });
   expect(await mainAsync(['prefetch'])).toBe(0);
   expect(jest.mocked(commands.runOwnedAsync).mock.calls).toEqual([
@@ -394,10 +448,24 @@ test('prefetch prepares the pinned Appium home and writes the shared manifest la
       ],
       expect.any(AbortSignal),
     ],
+    [
+      '/usr/bin/plutil',
+      [
+        '-extract',
+        'CFBundleExecutable',
+        'raw',
+        '-expect',
+        'string',
+        '-o',
+        '-',
+        path.join(wda, 'WebDriverAgentRunner-Runner.app', 'Info.plist'),
+      ],
+      expect.any(AbortSignal),
+    ],
   ]);
   const npmCache = path.join(tmpdir, 'npm-cache');
   expect(seen).toEqual([
-    ...Array(3).fill({ APPIUM_HOME: appiumHome, npm_config_cache: npmCache, prepared: false }),
+    ...Array(4).fill({ APPIUM_HOME: appiumHome, npm_config_cache: npmCache, prepared: false }),
   ]);
   expect(readPreparedManifest().tools.appium).toEqual({
     version: '3.9.0',
@@ -468,9 +536,9 @@ test('prefetch stores Expo Go and prepares Appium without Bun tool pins', async 
       fs.writeFileSync(appium, '');
     }
     if (args.includes('download-wda')) {
-      fs.mkdirSync(path.join(wda, 'WebDriverAgentRunner-Runner.app'), { recursive: true });
+      writeWdaBundle(wda);
     }
-    return '1.0.0\n';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
   });
   expect(await mainAsync(['prefetch'])).toBe(0);
   expect(jest.mocked(commands.runOwnedAsync).mock.calls.map(([file]) => file)).not.toContain(

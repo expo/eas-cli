@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -188,8 +189,32 @@ async function prefetchAppiumAsync(
           ],
           signal
         );
-        if (!(await stat(path.join(wda, 'WebDriverAgentRunner-Runner.app'))).isDirectory()) {
+        const runner = path.join(wda, 'WebDriverAgentRunner-Runner.app');
+        if (!(await stat(runner)).isDirectory()) {
           throw new Error('WebDriverAgentRunner-Runner.app is not a directory.');
+        }
+        const metadata = path.join(runner, 'Info.plist');
+        await access(metadata, constants.R_OK);
+        const executable = (
+          await commands.runOwnedAsync(
+            '/usr/bin/plutil',
+            ['-extract', 'CFBundleExecutable', 'raw', '-expect', 'string', '-o', '-', metadata],
+            signal
+          )
+        ).trim();
+        if (
+          !executable ||
+          path.basename(executable) !== executable ||
+          executable === '.' ||
+          executable === '..'
+        ) {
+          throw new Error('WebDriverAgent has an invalid bundle executable.');
+        }
+        const binary = path.join(runner, executable);
+        await access(binary, constants.R_OK | constants.X_OK);
+        const binaryStat = await stat(binary);
+        if (!binaryStat.isFile() || binaryStat.size === 0) {
+          throw new Error('WebDriverAgent has an invalid bundle executable.');
         }
       },
       signal
