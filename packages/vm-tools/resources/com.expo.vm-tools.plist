@@ -6,6 +6,7 @@
     <key>LimitLoadToSessionType</key><string>Aqua</string>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><false/>
+    <key>ProcessType</key><string>Interactive</string>
     <key>ExitTimeOut</key><integer>150</integer>
     <key>WorkingDirectory</key><string>__HOME__</string>
     <key>StandardOutPath</key><string>__HOME__/Library/Logs/vm-tools.log</string>
