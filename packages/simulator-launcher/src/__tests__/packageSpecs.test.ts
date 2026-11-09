@@ -41,7 +41,7 @@ it('uses and reports exact supplied versions, including prereleases and build me
   expect(argentPackageSpec()).toBe('@swmansion/argent@0.32.0');
 });
 
-it.each(['latest', 'next', '^0.13', 'v0.13.4', '01.2.3', '1.2.3-01'])(
+it.each(['latest', 'next', '^0.13', 'v0.13.4', ' 1.2.3 ', '1.2.3+build.2 ', '01.2.3', '1.2.3-01'])(
   'passes %s through without claiming an exact version',
   requested => {
     process.env.SERVE_SIM_VERSION = requested;
