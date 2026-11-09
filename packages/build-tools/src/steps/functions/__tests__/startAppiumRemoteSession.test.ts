@@ -2,6 +2,7 @@ import { type WarmIosSession } from '../../utils/warmIosSession';
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
+import plist from 'plist';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -124,6 +125,11 @@ function writePreparedHome(): void {
   writeInstalledVersion('appium', '3.9.0');
   writeInstalledVersion('appium-xcuitest-driver', '12.22.8');
   fs.mkdirSync(preparedRunner, { recursive: true });
+  fs.writeFileSync(
+    path.join(preparedRunner, 'Info.plist'),
+    plist.build({ CFBundleExecutable: 'Runner' })
+  );
+  fs.writeFileSync(path.join(preparedRunner, 'Runner'), 'executable', { mode: 0o755 });
   writePreparedManifest({ version: '3.9.0', xcuitest: '12.22.8', home: preparedHome });
 }
 
@@ -288,6 +294,24 @@ describe(installAppiumAsync, () => {
     expect(jest.mocked(spawn).mock.calls.map(([, args]) => args)).toEqual([driverList, driverList]);
   });
 
+  it('reuses WDA with binary bundle metadata', async () => {
+    writePreparedHome();
+    fs.writeFileSync(
+      path.join(preparedRunner, 'Info.plist'),
+      Buffer.from(
+        'YnBsaXN0MDDRAQJfEBJDRkJ1bmRsZUV4ZWN1dGFibGVWUnVubmVyCAsgAAAAAAAAAQEAAAAAAAAAAwAAAAAAAAAAAAAAAAAAACc=',
+        'base64'
+      )
+    );
+    const result = await installAppiumAsync({
+      versionSpec: '^3',
+      driverName: 'xcuitest',
+      env: {},
+      logger,
+    });
+    expect(result.prepared).toBe(true);
+  });
+
   it.each([
     ['a version spec it does not satisfy', { versionSpec: '3.5.0' }, () => {}],
     ['the uiautomator2 driver', { driverName: 'uiautomator2' as const }, () => {}],
@@ -334,6 +358,36 @@ describe(installAppiumAsync, () => {
         }),
     ],
     ['no runner', {}, () => fs.rmSync(preparedRunner, { recursive: true })],
+    ['no runner metadata', {}, () => fs.rmSync(path.join(preparedRunner, 'Info.plist'))],
+    [
+      'invalid runner metadata',
+      {},
+      () => fs.writeFileSync(path.join(preparedRunner, 'Info.plist'), 'invalid'),
+    ],
+    ['no runner executable', {}, () => fs.rmSync(path.join(preparedRunner, 'Runner'))],
+    [
+      'a non-executable runner binary',
+      {},
+      () => fs.chmodSync(path.join(preparedRunner, 'Runner'), 0o644),
+    ],
+    ['an empty runner binary', {}, () => fs.writeFileSync(path.join(preparedRunner, 'Runner'), '')],
+    [
+      'a directory as runner binary',
+      {},
+      () => {
+        fs.rmSync(path.join(preparedRunner, 'Runner'));
+        fs.mkdirSync(path.join(preparedRunner, 'Runner'));
+      },
+    ],
+    [
+      'an executable outside the bundle',
+      {},
+      () =>
+        fs.writeFileSync(
+          path.join(preparedRunner, 'Info.plist'),
+          plist.build({ CFBundleExecutable: '../outside' })
+        ),
+    ],
     ['an unreadable runner', {}, () => fs.chmodSync(preparedRunner, 0o000)],
     [
       'a runner that is a file',
@@ -349,8 +403,12 @@ describe(installAppiumAsync, () => {
     breakHome();
     const before = vol.toJSON(preparedHome);
     const versionSpec = 'versionSpec' in options ? options.versionSpec : '^3';
+    const resolveRequestedVersionAsync = jest.fn(async () => {
+      throw new Error('registry unavailable');
+    });
     const result = await installAppiumAsync({
       versionSpec,
+      resolveRequestedVersionAsync,
       driverName: 'driverName' in options ? options.driverName : 'xcuitest',
       env: {},
       logger,
@@ -364,6 +422,7 @@ describe(installAppiumAsync, () => {
       );
       expect(path.basename(result.appiumHome)).toMatch(/^eas-appium-home-/);
       expect(result.prepared).toBe(false);
+      expect(resolveRequestedVersionAsync).not.toHaveBeenCalled();
       expect(vol.toJSON(preparedHome)).toEqual(before);
     } finally {
       await fs.promises.rm(result.appiumHome, { recursive: true, force: true });
@@ -536,22 +595,29 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
     });
   });
 
-  it.each(['3.9.0', '3.10.0'])(
-    'checks current latest before using the prepared Appium version (%s)',
-    async latest => {
-      writePreparedHome();
-      const before = vol.toJSON(preparedHome);
-      jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => ({
-        stdout:
-          args[0] === 'view'
-            ? JSON.stringify(latest)
-            : args.includes('--json')
-              ? driverListStdout(command)
-              : '',
-      })) as never);
+  it.each(
+    [BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX].flatMap(platform =>
+      ['^3', '3.x'].map(version => [platform, version] as const)
+    )
+  )(
+    'starts cold Appium on %s with cached installer range %s and no registry lookup',
+    async (runtimePlatform, packageVersion) => {
+      // Android must ignore prepared XCUITest files too.
+      if (runtimePlatform === BuildRuntimePlatform.LINUX) {
+        writePreparedHome();
+      }
+      jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => {
+        if (args[0] === 'view') {
+          throw new Error('registry unavailable');
+        }
+        return { stdout: '{}' };
+      }) as never);
       jest
         .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
         .mockResolvedValue([{ udid: 'simulator' }] as never);
+      jest
+        .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+        .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as never);
       const launched = new Error('launch captured');
       jest.mocked(spawnDetached).mockImplementation(() => {
         throw launched;
@@ -559,13 +625,10 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
       const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
       await expect(
         buildFunction.fn!(
-          {
-            logger,
-            global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
-          } as unknown as BuildStepContext,
+          { logger, global: { runtimePlatform } } as unknown as BuildStepContext,
           {
             inputs: {
-              package_version: { value: 'latest' },
+              package_version: { value: packageVersion },
               max_idle_time_minutes: { value: undefined },
             },
             outputs: {},
@@ -573,21 +636,73 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
               DEVICE_RUN_SESSION_ID: 'session',
               EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
               NGROK_AUTHTOKEN: 'token',
+              EAS_OVERRIDE_PACKAGE_MANAGER: 'bun',
             },
           } as never
         )
       ).rejects.toBe(launched);
-      const installs = jest.mocked(spawn).mock.calls.filter(([, args]) => args[0] === 'install');
-      if (latest === '3.9.0') {
-        expect(installs).toHaveLength(0);
-        expect(jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME).toBe(preparedHome);
-      } else {
-        expect(installs).toHaveLength(1);
-        expect(installs[0][1]).toContain('appium@3.10.0');
-      }
-      expect(vol.toJSON(preparedHome)).toEqual(before);
+      expect(jest.mocked(spawn).mock.calls.some(([, args]) => args[0] === 'view')).toBe(false);
+      expect(spawn).toHaveBeenCalledWith(
+        'bun',
+        ['add', `appium@${packageVersion}`],
+        expect.anything()
+      );
     }
   );
+
+  it.each(
+    ['latest', '^3', '3.x'].flatMap(requested =>
+      ['3.9.0', '3.10.0'].map(latest => [requested, latest])
+    )
+  )('checks %s before using the prepared Appium version (%s)', async (requested, latest) => {
+    writePreparedHome();
+    const before = vol.toJSON(preparedHome);
+    jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => ({
+      stdout:
+        args[0] === 'view'
+          ? JSON.stringify(latest)
+          : args.includes('--json')
+            ? driverListStdout(command)
+            : '',
+    })) as never);
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ udid: 'simulator' }] as never);
+    const launched = new Error('launch captured');
+    jest.mocked(spawnDetached).mockImplementation(() => {
+      throw launched;
+    });
+    const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: requested },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {
+            DEVICE_RUN_SESSION_ID: 'session',
+            EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+            NGROK_AUTHTOKEN: 'token',
+          },
+        } as never
+      )
+    ).rejects.toBe(launched);
+    const installs = jest.mocked(spawn).mock.calls.filter(([, args]) => args[0] === 'install');
+    if (latest === '3.9.0') {
+      expect(installs).toHaveLength(0);
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME).toBe(preparedHome);
+    } else {
+      expect(installs).toHaveLength(1);
+      expect(installs[0][1]).toContain('appium@3.10.0');
+    }
+    expect(vol.toJSON(preparedHome)).toEqual(before);
+  });
 
   it('claims the warm Simulator for Appium without its package version', async () => {
     jest.mocked(runOnWarmIosSimulatorAsync).mockResolvedValue(undefined);

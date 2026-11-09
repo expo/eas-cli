@@ -14,6 +14,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import semver from 'semver';
+import bplistParser from 'bplist-parser';
+import plist from 'plist';
 import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
@@ -158,14 +160,20 @@ export function createStartAppiumRemoteSessionBuildFunction(
           },
           { runtimePlatform }
         );
-        const versionSpec = resolveAppium3VersionSpec(
+        const resolveRequestedVersionAsync =
           packageVersion === undefined
             ? undefined
-            : await (requestedVersion ??= resolveSimulatorPackageVersionAsync(
-                'appium',
-                packageVersion,
-                { env, signal: startupSignal }
-              ))
+            : async (): Promise<string> =>
+                await (requestedVersion ??= resolveSimulatorPackageVersionAsync(
+                  'appium',
+                  packageVersion,
+                  { env, signal: startupSignal }
+                ));
+        // Keep cold ranges on the configured installer's path. Tags need resolution to enforce Appium 3.
+        const versionSpec = resolveAppium3VersionSpec(
+          packageVersion !== undefined && !semver.validRange(packageVersion)
+            ? await resolveRequestedVersionAsync!()
+            : packageVersion
         );
 
         logger.info(
@@ -228,6 +236,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             asyncResult(
               installAppiumAsync({
                 versionSpec,
+                resolveRequestedVersionAsync,
                 driverName: device.driverName,
                 env,
                 logger,
@@ -523,6 +532,7 @@ export async function resolveAppiumDeviceAsync({
 
 export async function installAppiumAsync({
   versionSpec,
+  resolveRequestedVersionAsync,
   driverName,
   env,
   logger,
@@ -530,6 +540,7 @@ export async function installAppiumAsync({
   onError,
 }: {
   versionSpec: string;
+  resolveRequestedVersionAsync?: () => Promise<string>;
   driverName: AppiumDevice['driverName'];
   env: BuildStepEnv;
   logger: bunyan;
@@ -551,6 +562,12 @@ export async function installAppiumAsync({
     !(await isPreparedAppiumCompatibleAsync(prepared, { versionSpec, env, signal }))
   ) {
     prepared = undefined;
+  }
+  if (prepared && resolveRequestedVersionAsync) {
+    versionSpec = resolveAppium3VersionSpec(await resolveRequestedVersionAsync());
+    if (!semver.satisfies(prepared.version, versionSpec)) {
+      prepared = undefined;
+    }
   }
   if (prepared) {
     try {
@@ -659,6 +676,23 @@ async function isPreparedAppiumCompatibleAsync(
     const runner = path.join(home, 'preinstalled-wda', 'WebDriverAgentRunner-Runner.app');
     await fs.promises.access(runner, fs.constants.R_OK | fs.constants.X_OK);
     if (!(await fs.promises.stat(runner)).isDirectory()) {
+      return false;
+    }
+    const metadata = await fs.promises.readFile(path.join(runner, 'Info.plist'));
+    const info =
+      metadata.subarray(0, 8).toString('ascii') === 'bplist00'
+        ? bplistParser.parseBuffer(metadata)[0]
+        : plist.parse(metadata.toString('utf8'));
+    const executable = z
+      .object({ CFBundleExecutable: z.string().min(1) })
+      .parse(info).CFBundleExecutable;
+    if (path.basename(executable) !== executable || executable === '.' || executable === '..') {
+      return false;
+    }
+    const executablePath = path.join(runner, executable);
+    await fs.promises.access(executablePath, fs.constants.R_OK | fs.constants.X_OK);
+    const executableStat = await fs.promises.stat(executablePath);
+    if (!executableStat.isFile() || executableStat.size === 0) {
       return false;
     }
     // Today's driver list shows that the Appium CLI runs from this home. It does not load the driver.
