@@ -79,7 +79,7 @@ export const commands = {
   async runAsync(file: string, args: string[], signal?: AbortSignal): Promise<string> {
     return await commands.start(file, args, { signal, captureStdout: true }).resultPromise;
   },
-  /** Finite image preparation: cancellation stops the whole owned group before returning. */
+  /** Finite tool preparation: cancellation stops the whole owned group before returning. */
   async runOwnedAsync(file: string, args: string[], signal: AbortSignal): Promise<string> {
     signal.throwIfAborted();
     const handle = commands.start(file, args, { detached: true, captureStdout: true });
@@ -100,12 +100,9 @@ export const commands = {
       if (handle.child.pid) {
         stop();
         await stopping?.catch(error => {
-          commandCloseDrainError ||= new Error(
-            'Image preparation cleanup could not be confirmed.',
-            {
-              cause: error,
-            }
-          );
+          commandCloseDrainError ||= new Error('Tool preparation cleanup could not be confirmed.', {
+            cause: error,
+          });
           throw error;
         });
       }

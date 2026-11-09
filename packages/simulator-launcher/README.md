@@ -1,14 +1,6 @@
 # @expo/simulator-launcher
 
-Warm iOS Simulators before an EAS job arrives. Requires macOS.
-The image installs vm-tools and writes its startup script at
-`/usr/local/share/vm-tools/startup.sh`:
-
-```sh
-export EXPO_SIMULATOR_STARTUP=1
-export EXPO_SIMULATOR_DEVICE="iPhone Duo,iPhone 18"
-exec bunx @expo/simulator-launcher@latest start
-```
+Prepare iOS Simulators and native tools, cache packages, and claim prepared sessions. Requires macOS.
 
 ## Commands
 
@@ -21,30 +13,17 @@ exec bunx @expo/simulator-launcher@latest start
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
-- `prefetch`: run once at image build, as the image user, with the launcher version and
-  environment of the startup script. It puts the pinned serve-sim, agent-device and Argent
-  packages in Bun's cache. It writes progress to stderr and stops at the first failure.
-  Give the outer `bunx` a throwaway TMPDIR, because bunx writes its install folder there.
+- `prefetch`: cache pinned serve-sim, agent-device and Argent packages with Bun. Progress goes to stderr; the command stops at the first failure.
 
 ```sh
-# Build-tools reads LAUNCHER_VERSION from the version recorded by start.
-bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
-# After private serve-sim adoption confirms the selected device and native ACK:
-bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" prepare-tools
-bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
+simulator-launcher prefetch
 ```
 
-There is no copied launcher bundle. Build-tools uses the recorded package version for claim/stop;
-warmup primes Bun's exact-version cache before ready, with two attempts of up to 30 seconds.
-Priming failures warn. Bun can still revalidate package manifests with the registry.
-Before start has run,
-stop uses the normal package-manager path and still disables later warmup for this boot.
-
-This flow requires the serve-sim release supporting port-based device adoption.
+Session adoption requires the serve-sim release supporting port-based device adoption.
 
 One durable state file, `/tmp/expo-simulator-startup.json`, holds the lifecycle, launcher version,
 selected device, server credentials, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
-serializes updates; an abandoned lock fails closed. This private format requires a fresh VM.
+serializes updates; an abandoned lock fails closed. State is scoped to the current boot.
 
 ## Environment
 
@@ -57,8 +36,8 @@ serializes updates; an abandoned lock fails closed. This private format requires
 - `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION`: each defaults to `latest`, which
   resolves again at boot. `prefetch` caches each package whose version is set to an exact version
   (`x.y.z`), and skips each unset package. Any other value, such as an explicit `latest`, makes
-  `prefetch` fail. Use the same versions in the startup script. Boot
-  then takes these packages from Bun's cache. Bun can still revalidate dependency manifests with
+  `prefetch` fail. Use the same versions when preparing and starting tools. Later commands
+  take these packages from Bun's cache. Bun can still revalidate dependency manifests with
   the registry.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`
@@ -82,7 +61,7 @@ serializes updates; an abandoned lock fails closed. This private format requires
   reports its version, because the job installs its app next. Installs on other devices continue;
   adoption may shut such a device down, and its install then fails with a warning. Terminal stop
   drains them and the download cleanup. Job app installs remain
-  authoritative. Replacements do not preinstall again. The VM image provides ffmpeg.
+  authoritative. Replacements do not preinstall again. `ffmpeg` must be available on PATH.
 - One start attempt and one accepted claim per boot. Failed cleanup never permits another session.
   Stop's caller timeout is not a global cleanup deadline or proof that teardown completed.
   A build-tools claim timeout uses normal startup only after confirmed terminal cleanup.

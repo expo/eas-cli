@@ -46,9 +46,7 @@ export async function startAsync(bootUuid: string): Promise<number> {
       return state;
     }
     if (state) {
-      throw new Error(
-        'Simulator preparation has already been started or disabled for this VM boot.'
-      );
+      throw new Error('Simulator preparation has already been started or disabled for this boot.');
     }
     return {
       bootUuid,

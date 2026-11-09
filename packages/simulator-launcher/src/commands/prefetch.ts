@@ -12,11 +12,11 @@ import { commands } from '../utils/processes';
 const PREFETCH_TIMEOUT_MS = 300_000;
 
 /**
- * Caches pinned tool packages at image build using a temporary install directory.
+ * Caches pinned tool packages using a temporary install directory.
  */
 export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   signal?.throwIfAborted();
-  // The image keeps only pinned packages. Unpinned tools resolve at boot, as before.
+  // Cache only pinned packages. Unpinned tools resolve when started, as before.
   const toolSpecs = [
     readPins('serve-sim', ['SERVE_SIM_VERSION']) ? serveSimPackageSpec() : undefined,
     readPins('agent-device', ['AGENT_DEVICE_VERSION']) ? agentDevicePackageSpec() : undefined,
