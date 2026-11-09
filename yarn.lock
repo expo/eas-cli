@@ -10856,7 +10856,7 @@ __metadata:
     form-data: "npm:^4.0.4"
     fs-extra: "npm:11.2.0"
     getenv: "npm:1.0.0"
-    gradle-to-js: "npm:2.0.1"
+    gradle-to-js: "npm:3.0.2"
     graphql: "npm:16.8.1"
     graphql-tag: "npm:2.12.6"
     https-proxy-agent: "npm:7.0.6"
@@ -12352,14 +12352,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"gradle-to-js@npm:2.0.1":
-  version: 2.0.1
-  resolution: "gradle-to-js@npm:2.0.1"
-  dependencies:
-    lodash.merge: "npm:^4.6.2"
+"gradle-to-js@npm:3.0.2":
+  version: 3.0.2
+  resolution: "gradle-to-js@npm:3.0.2"
   bin:
     gradle-to-js: cli.js
-  checksum: 10c0/06d1751261a33877a17a04dce00d7ae19712c910de45d59dc5b044f7e9fc9a71e44d3da2523138218ccc35e793fbdf66189c889e75c6facb7a37692646b1dba1
+  checksum: 10c0/3a475d4187b0006880132eb864ddb4e82c74c4c683341f1fdf598eb90220c86bcc6c7cf46d5c258900a0e96a7c0afa1608518417c47f85092ab7aef19533d63d
   languageName: node
   linkType: hard
 
@@ -14726,13 +14724,6 @@ __metadata:
   version: 4.1.2
   resolution: "lodash.memoize@npm:4.1.2"
   checksum: 10c0/c8713e51eccc650422716a14cece1809cfe34bc5ab5e242b7f8b4e2241c2483697b971a604252807689b9dd69bfe3a98852e19a5b89d506b000b4187a1285df8
-  languageName: node
-  linkType: hard
-
-"lodash.merge@npm:^4.6.2":
-  version: 4.6.2
-  resolution: "lodash.merge@npm:4.6.2"
-  checksum: 10c0/402fa16a1edd7538de5b5903a90228aa48eb5533986ba7fa26606a49db2572bf414ff73a2c9f5d5fd36b31c46a5d5c7e1527749c07cbcf965ccff5fbdf32c506
   languageName: node
   linkType: hard
 
