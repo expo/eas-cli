@@ -47,7 +47,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
         );
       }
       if (ctx.job.projectArchive.type === ArchiveSourceType.GIT) {
-        // The agent must not be able to read the repository access token.
+        // Scripts and commands inside the sandbox could read the token from .git/config.
         await stripRepositoryCredentialsAsync({
           repositoryDirectory: stepCtx.global.wasCheckedOut()
             ? ctx.projectTargetDirectory
