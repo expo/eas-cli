@@ -1,12 +1,37 @@
-import { UserError } from '@expo/eas-build-job';
+import { ArchiveSourceType, UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 
-import { fetchAndCheckoutRefAsync } from '../git';
+import { createMockLogger } from '../../__tests__/utils/logger';
+import { fetchAndCheckoutRefAsync, shallowCloneRepositoryAsync } from '../git';
 
 jest.mock('@expo/turtle-spawn');
 
 const repositoryDirectory = '/repo';
+
+describe(shallowCloneRepositoryAsync, () => {
+  it('fetches the commit without a credential helper', async () => {
+    const gitCommitHash = '0123456789abcdef0123456789abcdef01234567';
+
+    await shallowCloneRepositoryAsync({
+      logger: createMockLogger(),
+      archiveSource: {
+        type: ArchiveSourceType.GIT,
+        repositoryUrl: 'https://x-access-token:ghs_secret123@github.com/expo/app.git',
+        gitRef: null,
+        gitCommitHash,
+      },
+      destinationDirectory: repositoryDirectory,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      3,
+      'git',
+      ['-c', 'credential.helper=', 'fetch', 'origin', '--depth', '1', '--no-tags', gitCommitHash],
+      { cwd: repositoryDirectory }
+    );
+  });
+});
 
 describe(fetchAndCheckoutRefAsync, () => {
   beforeEach(async () => {
@@ -22,7 +47,16 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'refs/heads/feature/add-icon'],
+      [
+        '-c',
+        'credential.helper=',
+        'fetch',
+        'origin',
+        '--depth',
+        '1',
+        '--no-tags',
+        'refs/heads/feature/add-icon',
+      ],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(
@@ -43,7 +77,16 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'feature/add-icon'],
+      [
+        '-c',
+        'credential.helper=',
+        'fetch',
+        'origin',
+        '--depth',
+        '1',
+        '--no-tags',
+        'feature/add-icon',
+      ],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(
@@ -63,7 +106,16 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'docs/heads/update'],
+      [
+        '-c',
+        'credential.helper=',
+        'fetch',
+        'origin',
+        '--depth',
+        '1',
+        '--no-tags',
+        'docs/heads/update',
+      ],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(
@@ -83,7 +135,16 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'refs/tags/v1.2.3'],
+      [
+        '-c',
+        'credential.helper=',
+        'fetch',
+        'origin',
+        '--depth',
+        '1',
+        '--no-tags',
+        'refs/tags/v1.2.3',
+      ],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(2, 'git', ['checkout', 'FETCH_HEAD'], {
@@ -106,7 +167,7 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', sha],
+      ['-c', 'credential.helper=', 'fetch', 'origin', '--depth', '1', '--no-tags', sha],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(2, 'git', ['checkout', 'FETCH_HEAD'], {
