@@ -1,6 +1,6 @@
 # @expo/simulator-launcher
 
-Prepare iOS Simulators and native tools, cache Expo Go archives, and claim prepared sessions. Requires macOS.
+Prepare iOS Simulators and native tools, cache Expo Go and Appium files, and claim prepared sessions. Requires macOS.
 
 Start the launcher with the devices you want to prepare:
 
@@ -21,7 +21,7 @@ exec bunx @expo/simulator-launcher@latest start
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
-- `prefetch`: cache the selected Expo Go archive for reuse. It does not fetch serve-sim, agent-device or Argent. Progress goes to stderr; the command stops at the first failure.
+- `prefetch`: cache the selected Expo Go archive for reuse. With `APPIUM_VERSION` and `XCUITEST_VERSION`, prepare Appium, XCUITest and WebDriverAgent files. It does not fetch serve-sim, agent-device or Argent. Progress goes to stderr; the command stops at the first failure.
 
 Consumers use the launcher version recorded by `start` for session commands (`LAUNCHER_VERSION`
 below). Run these in another process:
@@ -59,19 +59,24 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
   a beta. `start` reuses recorded SDK/archive metadata when it matches the supplied SDK, or when
   no SDK is supplied. Without matching metadata, startup selects from the API using this variable
   or the latest stable SDK. Ignored when `EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0`.
+- `APPIUM_VERSION`, `XCUITEST_VERSION` (`prefetch` only): exact versions (`x.y.z`), both or
+  neither. Any other value makes `prefetch` fail.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`
   and `AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS` (milliseconds).
 
 ## Prepared files
 
-`prefetch` writes `expo-go/` under `~/Library/Caches/expo-simulator-startup/`, and
-removes it when its step is skipped. Each reader checks the files before it uses them and
+`prefetch` writes `expo-go/` and `appium/` under `~/Library/Caches/expo-simulator-startup/`, and
+removes each one when its step is skipped. Each reader checks the files before it uses them and
 otherwise runs its normal download or install. Keep these directories when reusing prepared files.
 
 - `expo-go/<sha256 of the archive URL>.tar.gz`: `start` uses the recorded URL when its SDK matches
   the supplied selection, or when no SDK is supplied. It checks the file with `gzip -t` before
   extraction. A missing or damaged archive is downloaded again from that URL.
+- `appium/`: an Appium home with the pinned xcuitest driver and WebDriverAgent runner.
+  Consumers must check the recorded versions and files before reuse. Metadata does not prove that
+  the driver loads or WDA starts; validate the prepared files with a real Appium session.
 
 ### Prepared tool manifest
 
@@ -79,7 +84,10 @@ otherwise runs its normal download or install. Keep these directories when reusi
 steps and temporary-file cleanup succeed. Before refreshing caches, it removes the previous
 manifest. Skipped tools are absent from the new manifest; a failed preparation publishes no new one.
 
-The JSON has a `tools` map.
+The JSON has a `tools` map:
+
+- `appium.version`, `appium.xcuitest`, `appium.home`: the prepared Appium and XCUITest versions
+  and the absolute Appium home path. This entry is written only after WDA preparation succeeds.
 
 When Expo Go is enabled, `expo-go.sdk` and `expo-go.url` in `tools` record its selected SDK and archive URL.
 The SDK identifies the selected Expo release, not the app's binary version. With every step
@@ -89,7 +97,10 @@ disabled or unset, the manifest is `{"tools":{}}`.
 metadata, or metadata for a different supplied SDK, uses normal SDK/archive selection. Legacy
 serve-sim, agent-device and Argent entries are ignored, including malformed entries.
 
-Keep the Expo Go archive along with the manifest. Rerun `prefetch` to change its selected SDK/archive.
+Keep the Expo Go archive and the whole Appium home, not only the manifest. Appium's home
+must stay at the recorded path under the same user. Rerun `prefetch` to regenerate the manifest
+when changing versions. Metadata does not prove that a driver loads or WDA launches; validate
+Appium reuse with a real session.
 
 ## Boundaries
 
