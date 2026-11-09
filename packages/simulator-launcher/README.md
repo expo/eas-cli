@@ -82,10 +82,12 @@ otherwise runs its normal download or install. Keep these directories when reusi
   the supplied selection, or when no SDK is supplied. It checks the file with `gzip -t` before
   extraction. A missing or damaged archive is downloaded again from that URL.
 - `appium/`: an Appium home with the pinned xcuitest driver and WebDriverAgent runner.
-  Build-tools uses
-  the home for iOS sessions only when the pinned Appium satisfies the requested version range and
-  the files match the shared manifest. Build-tools does not write or remove it. These checks do not
-  load the driver; validate the prepared files with a real Appium session.
+  Prefetch checks the runner's bundle metadata and executable before recording it.
+  Build-tools reuses it when the files match the manifest and Appium matches the current
+  resolution of an explicit version request, including ranges and `latest`. Without an override,
+  the prepared version must satisfy the default Appium 3 range. Build-tools does not write or
+  remove this home. These checks do not load the driver or launch WDA; validate reuse with a
+  real Appium session.
 
 ### Prepared tool manifest
 
