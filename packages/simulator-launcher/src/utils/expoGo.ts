@@ -30,12 +30,16 @@ const VersionsSchema = z.object({
  */
 export function startExpoGoPreinstall(
   signal: AbortSignal,
-  prepared?: PreparedExpoGo
+  prepared?: PreparedExpoGo,
+  warmup = false
 ): {
   claimAsync(selectedUdid: string): Promise<PreinstalledApp | undefined>;
   preinstallOnDeviceAsync(udid: string, boot: Promise<unknown>, signal: AbortSignal): Promise<void>;
   stopAsync(selectedUdid: string): Promise<void>;
 } {
+  // Tool preparation is finite and cancellable; runtime claims still drain native installs.
+  const runAsync = async (file: string, args: string[]): Promise<string> =>
+    warmup ? await commands.runOwnedAsync(file, args, signal) : await commands.runAsync(file, args);
   const downloadController = new AbortController();
   const downloadSignal = AbortSignal.any([
     signal,
@@ -63,7 +67,7 @@ export function startExpoGoPreinstall(
       process.stderr.write(`Using the prefetched Expo Go archive for SDK ${sdk}.\n`);
       const appPath = path.join(directoryPath, 'cached', 'ExpoGo.app');
       try {
-        await extractCheckedExpoGoAsync(cachedArchivePath, appPath, downloadSignal);
+        await extractCheckedExpoGoAsync(cachedArchivePath, appPath, downloadSignal, runAsync);
         return { appPath, sdk };
       } catch (error) {
         commands.throwIfCommandCloseTimedOut();
@@ -76,7 +80,7 @@ export function startExpoGoPreinstall(
     // Wait for the owned extractor to close, including on bad archives and claim/stop.
     const appPath = path.join(directoryPath, 'ExpoGo.app');
     await fs.mkdir(appPath);
-    await commands.runAsync('/usr/bin/tar', ['-xzf', archivePath, '-C', appPath]);
+    await runAsync('/usr/bin/tar', ['-xzf', archivePath, '-C', appPath]);
     downloadSignal.throwIfAborted();
     await fs.access(path.join(appPath, 'Info.plist'));
 
@@ -98,10 +102,10 @@ export function startExpoGoPreinstall(
       installSignal.throwIfAborted();
       // No await between checking the claim latch and registering the native install.
       process.stderr.write(`Preinstalling Expo Go for SDK ${sdk} on Simulator ${target}.\n`);
-      installation = commands.runAsync('xcrun', ['simctl', 'install', target, appPath]).then(
+      installation = runAsync('xcrun', ['simctl', 'install', target, appPath]).then(
         async () => {
           process.stderr.write('Expo Go preinstall finished.\n');
-          const info = await readPreinstalledAppAsync(target, appPath).catch(error => {
+          const info = await readPreinstalledAppAsync(target, appPath, runAsync).catch(error => {
             process.stderr.write(`Could not read the preinstalled Expo Go version: ${error}\n`);
             return undefined;
           });
@@ -232,7 +236,8 @@ export function expoGoArchiveCachePath(url: string): string {
 
 /**
  * Extracts a stored archive. gzip -t runs first because tar accepts some changed bytes.
- * Both commands are owned and get no signal, so callers wait for them to close.
+ * Runtime callers drain both commands without a signal. Tool preparation supplies a runner
+ * that stops the owned process group on cancellation before returning.
  */
 export async function extractCheckedExpoGoAsync(
   archivePath: string,
@@ -249,11 +254,15 @@ export async function extractCheckedExpoGoAsync(
   await fs.access(path.join(appPath, 'Info.plist'));
 }
 
-async function readPreinstalledAppAsync(udid: string, appPath: string): Promise<PreinstalledApp> {
+async function readPreinstalledAppAsync(
+  udid: string,
+  appPath: string,
+  runAsync = commands.runAsync
+): Promise<PreinstalledApp> {
   const infoPlistPath = path.join(appPath, 'Info.plist');
   const [bundleIdentifier, shortVersion, version] = await Promise.all(
     ['CFBundleIdentifier', 'CFBundleShortVersionString', 'CFBundleVersion'].map(async key =>
-      (await commands.runAsync('plutil', ['-extract', key, 'raw', '-o', '-', infoPlistPath])).trim()
+      (await runAsync('plutil', ['-extract', key, 'raw', '-o', '-', infoPlistPath])).trim()
     )
   );
   return { udid, bundleIdentifier, shortVersion, version };

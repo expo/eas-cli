@@ -126,6 +126,70 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+it('warmup waits for both devices, both installs and tools after default readiness', async () => {
+  const secondaryBoot = deferred();
+  const install = deferred();
+  const tool = deferred();
+  jest.mocked(waitForSimulatorBootAsync).mockReturnValue(secondaryBoot.promise);
+  const preinstall = mockDefaultExpoGoInstall(install.promise);
+  preinstall.claimAsync.mockImplementation(async () => ({ udid: 'DUO' }) as never);
+  jest.mocked(createArgentTool).mockReturnValue({
+    name: 'argent',
+    startAsync: () => tool.promise,
+    stopAsync: async () => {},
+  });
+  const session = createSession();
+  await session.prepareAsync();
+  let done = false;
+  const finishing = session.waitForWarmupAsync().then(() => {
+    done = true;
+  });
+  try {
+    install.resolve();
+    tool.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+    expect(done).toBe(false);
+    secondaryBoot.resolve();
+    await finishing;
+    expect(preinstall.preinstallOnDeviceAsync.mock.calls.map(([udid]) => udid)).toEqual([
+      'DUO',
+      'PHONE18',
+    ]);
+    expect(preinstall.claimAsync).toHaveBeenCalledWith('DUO');
+    expect(preinstall.claimAsync).toHaveBeenCalledWith('PHONE18');
+  } finally {
+    install.resolve();
+    secondaryBoot.resolve();
+    tool.resolve();
+    await session.stopAsync();
+  }
+});
+
+it('warmup completion rejects an Expo Go install that runtime preparation only warns about', async () => {
+  const session = createSession();
+  await session.prepareAsync();
+  try {
+    await expect(session.waitForWarmupAsync()).rejects.toThrow(
+      'Expo Go preparation did not finish'
+    );
+  } finally {
+    await session.stopAsync();
+  }
+});
+
+it('warmup completion fails when the secondary Simulator cannot boot', async () => {
+  jest.mocked(waitForSimulatorBootAsync).mockRejectedValue(new Error('secondary boot failed'));
+  const session = createSession();
+  await session.prepareAsync();
+  try {
+    await expect(session.waitForWarmupAsync()).rejects.toThrow('secondary boot failed');
+  } finally {
+    await session.stopAsync();
+  }
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE18');
+});
+
 it('creates a stoppable owner before any native work and does not start after stop', async () => {
   const session = createSession();
   expect(commands.runAsync).not.toHaveBeenCalled();
