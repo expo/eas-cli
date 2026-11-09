@@ -3,6 +3,8 @@ import { promptAsync } from '../../prompts';
 import {
   assertValidDevDomainName,
   assignDevDomainNameAsync,
+  assignWorkerDeploymentAliasAsync,
+  assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
 } from '../deployment';
 import { DeploymentsMutation } from '../mutations';
@@ -246,5 +248,107 @@ describe(getSignedDeploymentUrlAsync, () => {
     ).rejects.toThrow(/preview URL was not assigned as part of this deployment/);
 
     expect(DeploymentsMutation.assignDevDomainNameAsync).not.toHaveBeenCalled();
+  });
+});
+
+function createAliasResult({
+  aliasName,
+  deploymentIdentifier,
+}: {
+  aliasName: string | null;
+  deploymentIdentifier: string;
+}): any {
+  return {
+    id: 'alias-id',
+    aliasName,
+    url: 'https://warp-nexus.expo.app',
+    workerDeployment: {
+      id: 'worker-deployment-id',
+      url: `https://warp-nexus--${deploymentIdentifier}.expo.app`,
+      deploymentIdentifier,
+      deploymentDomain: 'warp-nexus',
+      createdAt: '2026-09-11T00:00:00.000Z',
+    },
+  };
+}
+
+describe(assignWorkerDeploymentProductionAsync, () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('returns the alias when production was moved to the requested deployment', async () => {
+    const graphqlClient = {} as ExpoGraphqlClient;
+    const alias = createAliasResult({ aliasName: null, deploymentIdentifier: 'y3iw49p3qz' });
+    jest.mocked(DeploymentsMutation.assignAliasAsync).mockResolvedValueOnce(alias);
+
+    await expect(
+      assignWorkerDeploymentProductionAsync({
+        graphqlClient,
+        appId: 'test-app-id',
+        deploymentId: 'y3iw49p3qz',
+      })
+    ).resolves.toBe(alias);
+  });
+
+  it('throws when production still points at the previous deployment', async () => {
+    // Repros expo/eas-cli#4388: the mutation resolves, so the command printed
+    // "Promoted deployment to production" and exited 0 while production kept
+    // serving the previous bundle.
+    const graphqlClient = {} as ExpoGraphqlClient;
+    jest
+      .mocked(DeploymentsMutation.assignAliasAsync)
+      .mockResolvedValueOnce(
+        createAliasResult({ aliasName: null, deploymentIdentifier: 'c0547b2ed2' })
+      );
+
+    await expect(
+      assignWorkerDeploymentProductionAsync({
+        graphqlClient,
+        appId: 'test-app-id',
+        deploymentId: 'y3iw49p3qz',
+      })
+    ).rejects.toThrow(
+      'Production was not moved to deployment "y3iw49p3qz" and still points to "c0547b2ed2".'
+    );
+  });
+});
+
+describe(assignWorkerDeploymentAliasAsync, () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('returns the alias when it was moved to the requested deployment', async () => {
+    const graphqlClient = {} as ExpoGraphqlClient;
+    const alias = createAliasResult({ aliasName: 'staging', deploymentIdentifier: 'y3iw49p3qz' });
+    jest.mocked(DeploymentsMutation.assignAliasAsync).mockResolvedValueOnce(alias);
+
+    await expect(
+      assignWorkerDeploymentAliasAsync({
+        graphqlClient,
+        appId: 'test-app-id',
+        deploymentId: 'y3iw49p3qz',
+        aliasName: 'staging',
+      })
+    ).resolves.toBe(alias);
+  });
+
+  it('names the alias when it still points at the previous deployment', async () => {
+    const graphqlClient = {} as ExpoGraphqlClient;
+    jest
+      .mocked(DeploymentsMutation.assignAliasAsync)
+      .mockResolvedValueOnce(
+        createAliasResult({ aliasName: 'staging', deploymentIdentifier: 'c0547b2ed2' })
+      );
+
+    await expect(
+      assignWorkerDeploymentAliasAsync({
+        graphqlClient,
+        appId: 'test-app-id',
+        deploymentId: 'y3iw49p3qz',
+        aliasName: 'staging',
+      })
+    ).rejects.toThrow('Alias "staging" was not moved to deployment "y3iw49p3qz"');
   });
 });
