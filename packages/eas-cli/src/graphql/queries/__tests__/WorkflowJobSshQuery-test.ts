@@ -1,4 +1,5 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { resolveSshConnectStatus, terminalSshStatusMessage } from '../../../commands/workflow/ssh';
 import { GraphqlError } from '../../client';
 import { BuildStatus, JobRunStatus, WorkflowJobStatus } from '../../generated';
 import { WorkflowJobSshQuery } from '../WorkflowJobSshQuery';
@@ -224,6 +225,19 @@ describe(WorkflowJobSshQuery.connectInfoForBuildAsync.name, () => {
       expect(
         await WorkflowJobSshQuery.connectInfoForBuildAsync(graphqlClient, 'build-1')
       ).toMatchObject({ jobCompleted: true });
+    }
+  );
+
+  it.each([BuildStatus.Errored, BuildStatus.Finished, BuildStatus.Canceled])(
+    'reports the ssh session as ended for a %s build without an sshSession',
+    async status => {
+      const { graphqlClient } = makeClient({ id: 'build-1', status, sshSession: null });
+
+      const sshStatus = resolveSshConnectStatus(
+        await WorkflowJobSshQuery.connectInfoForBuildAsync(graphqlClient, 'build-1')
+      );
+      expect(sshStatus).toBe('ended');
+      expect(terminalSshStatusMessage(sshStatus, 'build-1')).toBe('This ssh session has ended.');
     }
   );
 
