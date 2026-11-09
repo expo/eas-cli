@@ -2,6 +2,14 @@
 
 Prepare iOS Simulators and native tools, cache packages, and claim prepared sessions. Requires macOS.
 
+Start the launcher with the devices you want to prepare:
+
+```sh
+export EXPO_SIMULATOR_STARTUP=1
+export EXPO_SIMULATOR_DEVICE="iPhone Duo,iPhone 18"
+exec bunx @expo/simulator-launcher@latest start
+```
+
 ## Commands
 
 - `start`: run one orphan serve-sim for the configured devices. Its default device becomes ready
@@ -14,6 +22,18 @@ Prepare iOS Simulators and native tools, cache packages, and claim prepared sess
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
 - `prefetch`: cache pinned serve-sim, agent-device and Argent packages with Bun. Progress goes to stderr; the command stops at the first failure.
+
+Consumers use the launcher version recorded by `start` for session commands (`LAUNCHER_VERSION`
+below). Run these in another process:
+
+```sh
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" claim serve-sim
+# After adoption confirms the selected device and native ACK:
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" prepare-tools
+bun x "@expo/simulator-launcher@$LAUNCHER_VERSION" stop
+```
+
+To populate caches separately:
 
 ```sh
 simulator-launcher prefetch
