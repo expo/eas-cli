@@ -677,7 +677,7 @@ test('start uses supplied runtime versions, ignores legacy pins and claims one b
     expect.arrayContaining(['agent-device@0.21.36']),
     expect.anything()
   );
-  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), expoGo);
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), expoGo, false);
   await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: '0.13.4' } } }));
   const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
   await claimAsync(boot, 'serve-sim');
@@ -706,7 +706,7 @@ test('start honors a supplied Expo Go SDK over an older prepared selection', asy
   const starting = startAsync(boot);
   active.push(starting);
   await status('ready');
-  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal));
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), undefined, false);
   expect(process.env.EXPO_GO_SDK_VERSION).toBe('59.0.0');
   await stopAsync(boot);
   await starting;

@@ -400,11 +400,7 @@ export function createWarmSimulatorSession({
     const ready = waitForServeSimReadyAsync(first.udid, server, signal);
     void ready.catch(() => {});
     if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
-      expoGo = warmup
-        ? startExpoGoPreinstall(signal, preparedExpoGo, true)
-        : preparedExpoGo
-          ? startExpoGoPreinstall(signal, preparedExpoGo)
-          : startExpoGoPreinstall(signal);
+      expoGo = startExpoGoPreinstall(signal, preparedExpoGo, warmup);
     }
     for (const tool of warmTools) {
       startedTools.set(tool, startTool(tool, first.udid, ready, signal, onPreparationFailure));
