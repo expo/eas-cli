@@ -15,6 +15,13 @@ export class CheckBuildProfileFlagAgainstEasJson<T extends Platform> {
   }
 
   async runAsync(): Promise<BuildProfile<T>> {
+    return (await this.runWithProfileNameAsync()).buildProfile;
+  }
+
+  async runWithProfileNameAsync(): Promise<{
+    buildProfile: BuildProfile<T>;
+    buildProfileName: string;
+  }> {
     const profileName = await this.getProfileNameFromEasConfigAsync();
     const easConfig = await EasJsonUtils.getBuildProfileAsync<T>(
       this.easJsonAccessor,
@@ -22,7 +29,7 @@ export class CheckBuildProfileFlagAgainstEasJson<T extends Platform> {
       profileName
     );
     Log.succeed(`Using build profile: ${profileName}`);
-    return easConfig;
+    return { buildProfile: easConfig, buildProfileName: profileName };
   }
 
   async getProfileNameFromEasConfigAsync(): Promise<string> {

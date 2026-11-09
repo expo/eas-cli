@@ -3,6 +3,7 @@ import { BuildProfile, EasJsonUtils } from '@expo/eas-json';
 
 import { Analytics } from '../../../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import { learnMore } from '../../../log';
 import { getProjectConfigDescription } from '../../../project/projectUtils';
 import { pressAnyKeyToContinueAsync } from '../../../prompts';
@@ -22,6 +23,7 @@ jest.mock('../../../prompts', () => {
   };
 });
 jest.mock('../../../project/projectUtils');
+jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 
 describe('runAsync', () => {
   describe('"android.package" missing in app.json', () => {
@@ -40,6 +42,7 @@ describe('runAsync', () => {
       ''
     );
     it('does not repeat the error indefinitely and prints useful error', async () => {
+      jest.mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).mockResolvedValue([]);
       jest.spyOn(EasJsonUtils, 'getBuildProfileNamesAsync').mockResolvedValue(['testProfile']);
       jest
         .spyOn(EasJsonUtils, 'getBuildProfileAsync')
