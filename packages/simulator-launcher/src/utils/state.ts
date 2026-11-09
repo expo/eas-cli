@@ -6,6 +6,12 @@ import { z } from 'zod';
 export const LAUNCHER_STATE_FILE = '/tmp/expo-simulator-startup.json';
 
 const NonBlankStringSchema = z.string().regex(/\S/, 'Must not be blank.');
+export const PackageVersionSchema = z
+  .string()
+  .regex(
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
+  );
+
 export const SimulatorDeviceSchema = z.object({
   udid: NonBlankStringSchema,
   name: NonBlankStringSchema,
@@ -31,6 +37,9 @@ export const PreinstalledAppSchema = z.object({
   version: z.string(),
 });
 export const WarmSessionInfoSchema = z.object({
+  serveSimVersion: PackageVersionSchema.optional(),
+  agentDeviceVersion: PackageVersionSchema.optional(),
+  argentVersion: PackageVersionSchema.optional(),
   // The default before claim, then the device selected for the job.
   device: SimulatorDeviceSchema,
   server: WarmServerSchema,

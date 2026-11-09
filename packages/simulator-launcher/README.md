@@ -44,6 +44,10 @@ Session adoption requires the serve-sim release supporting port-based device ado
 One durable state file, `/tmp/expo-simulator-startup.json`, holds the lifecycle, launcher version,
 selected device, server credentials, claim and native identity. It is independent of HOME/TMPDIR. A short boot-scoped lock
 serializes updates; an abandoned lock fails closed. State is scoped to the current boot.
+`start` uses the supplied runtime package versions and records exact version inputs as
+`serveSimVersion`, `agentDeviceVersion` and `argentVersion` in this state and the claim. Consumers
+compare explicit package requests with these versions before reuse. Tags, ranges and unset inputs
+do not report an exact version.
 
 ## Environment
 
@@ -53,7 +57,10 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
   trimmed and must each identify one available device. The first is the default. Unset keeps
   the shortest available iPhone name, as does an empty or blank value. Empty list entries, missing,
   ambiguous or duplicate devices fail clearly.
-- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION`: package versions, each defaulting to `latest`. `prefetch` ignores these settings.
+- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION` (`start` only): runtime
+  package selections, each defaulting to `latest`. The launcher passes them to Bun without a separate
+  version lookup. Callers that select exact versions can identify them in state and claims.
+  `prefetch` ignores these settings and never records them in `prepared.json`.
 - `EXPO_GO_SDK_VERSION`: select an SDK for `prefetch` and `start` with an https iOS Simulator archive
   in the Expo versions API. Unset selects the latest stable SDK; a pin must be `x.y.z` and may select
   a beta. `start` reuses recorded SDK/archive metadata when it matches the supplied SDK, or when
@@ -95,7 +102,8 @@ disabled or unset, the manifest is `{"tools":{}}`.
 
 `start` reads only the optional Expo Go selection from this manifest. Missing or invalid Expo Go
 metadata, or metadata for a different supplied SDK, uses normal SDK/archive selection. Legacy
-serve-sim, agent-device and Argent entries are ignored, including malformed entries.
+serve-sim, agent-device and Argent entries are ignored, including malformed entries. Exact CLI
+version inputs are recorded only in the current boot's state and claim.
 
 Keep the Expo Go archive and the whole Appium home, not only the manifest. Appium's home
 must stay at the recorded path under the same user. Rerun `prefetch` to regenerate the manifest
@@ -103,6 +111,11 @@ when changing versions. Metadata does not prove that a driver loads or WDA launc
 Appium reuse with a real session.
 
 ## Boundaries
+
+Native warmup still runs serve-sim, agent-device and Argent. Bun may cache their packages as a side
+effect; these incidental caches are retained. The caller supplies the requested package selections
+for each boot, and Bun reuses matching files or fetches the requested versions. Native build-cache
+reuse depends on the selected version and device.
 
 - Ready means the default device booted and serve-sim answers. The apsd step and the Expo Go
   preinstall run in the background on every listed device. A claim does not wait for them; stop

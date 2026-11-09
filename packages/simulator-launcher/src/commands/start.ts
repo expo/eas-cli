@@ -5,6 +5,7 @@ import { createAgentDeviceTool } from '../utils/agentDevice';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
+import { getConfiguredToolVersions } from '../utils/packageSpecs';
 import {
   type ChildProcessHandle,
   commands,
@@ -343,6 +344,7 @@ export function createWarmSimulatorSession({
 
   async function prepareDefaultAsync(): Promise<WarmSessionInfo> {
     signal.throwIfAborted();
+    const versions = getConfiguredToolVersions();
     const preparedExpoGo = await readPreparedExpoGoAsync();
     signal.throwIfAborted();
     availableDevices = await listAvailableSimulatorsAsync(signal);
@@ -392,6 +394,7 @@ export function createWarmSimulatorSession({
       throw new Error('The warm Simulator tool paths are not configured.');
     }
     info = {
+      ...versions,
       device: first,
       server: serverInfo,
       controllerPid: process.pid,
