@@ -821,6 +821,17 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(2);
   });
 
+  it('passes the resolved version to agent-device after a warm version mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '999.1.0'));
+    await runStep(BuildRuntimePlatform.DARWIN, { package_version: 'latest' }, undefined, ctx, true);
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ packageVersion: '999.1.0' })
+    );
+  });
+
   it('accepts only one application source', async () => {
     await expect(
       runStep(BuildRuntimePlatform.DARWIN, { install_app_path: '/tmp/App.app', build_id: 'id' })

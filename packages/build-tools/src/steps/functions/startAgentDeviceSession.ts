@@ -205,7 +205,10 @@ export function createStartAgentDeviceSessionBuildFunction(
         logger,
         startup: { signal: startupSignal, abort: reason => startup.abort(reason) },
       });
-      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+      const startSessionAsync = async (
+        warmSession?: WarmIosSession,
+        resolvedPackageVersion = inputs.package_version.value as string | undefined
+      ): Promise<void> => {
         const tasks = createStartupTasks(logger, startupSignal);
         let booted: Promise<void> | undefined;
         let sessionOwnsTeardown = false;
@@ -338,7 +341,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             signal,
             runtimePlatform,
             sessionEnv,
-            packageVersion: inputs.package_version.value as string | undefined,
+            packageVersion: resolvedPackageVersion,
             // A missing or non-positive value disables the idle timeout (opt-in feature).
             maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
             maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,

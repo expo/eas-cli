@@ -432,6 +432,8 @@ export type DeviceSessionServerLaunch = {
  */
 export type DeviceSessionServer = {
   port: number;
+  /** The exact serve-sim version prepared by the warm launcher. */
+  serveSimVersion?: string;
   turnArgs: Promise<string[]>;
   /** Cold iOS setup runs after control readiness, alongside app installation and before launch. */
   setupSimulatorAsync?(options: { signal: AbortSignal; logger: bunyan }): Promise<void>;
@@ -584,6 +586,7 @@ async function startDeviceSessionHostInternalAsync(
       ? await createAndroidDeviceSessionServerAsync(ctx, { logger })
       : await createColdIosSessionAsync(ctx, { env, logger, iosSimulatorUdid }));
   const port = server.port;
+  packageVersion = server.serveSimVersion ?? packageVersion;
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)

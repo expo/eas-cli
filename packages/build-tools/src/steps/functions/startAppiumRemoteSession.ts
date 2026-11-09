@@ -43,6 +43,8 @@ import {
 import { killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+import { resolveSimulatorPackageVersionAsync } from '../../utils/simulatorPackageVersion';
+import { readPreparedSimulatorToolAsync } from '../../utils/warmSimulator';
 import { startAppiumEventCollectionAsync } from '../utils/appiumEvents';
 import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
@@ -79,6 +81,12 @@ const AppiumInstalledDriversSchema = z.record(
   z.string(),
   z.object({ installed: z.boolean().optional() }).passthrough()
 );
+const PreparedAppiumSchema = z.object({
+  version: z.string(),
+  xcuitest: z.string(),
+  home: z.string(),
+});
+const PackageVersionSchema = z.object({ version: z.string() });
 
 export function createStartAppiumRemoteSessionBuildFunction(
   ctx: CustomBuildContext,
@@ -127,6 +135,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
       });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
+      let requestedVersion: Promise<string> | undefined;
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
@@ -149,7 +158,15 @@ export function createStartAppiumRemoteSessionBuildFunction(
           },
           { runtimePlatform }
         );
-        const versionSpec = resolveAppium3VersionSpec(packageVersion);
+        const versionSpec = resolveAppium3VersionSpec(
+          packageVersion === undefined
+            ? undefined
+            : await (requestedVersion ??= resolveSimulatorPackageVersionAsync(
+                'appium',
+                packageVersion,
+                { env, signal: startupSignal }
+              ))
+        );
 
         logger.info(
           `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
@@ -231,7 +248,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
             ),
           ]);
           const installation = appiumInstall.enforceValue();
-          appiumHome = installation.appiumHome;
+          // A prepared home is shared across sessions; remove only a job-owned home after a session.
+          appiumHome = installation.prepared ? undefined : installation.appiumHome;
           startupSignal?.throwIfAborted();
           const { appiumBinPath, appiumEnv } = installation;
           const wdaCapabilities = await preparePreinstalledWdaAsync({
@@ -243,7 +261,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
                   })
                 )?.runtime
               : device.runtimeIdentifier,
-            appiumHome,
+            appiumHome: installation.appiumHome,
+            prepared: installation.prepared,
             appiumBinPath,
             appiumEnv,
             logger,
@@ -418,7 +437,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
         watchSignal.throwIfAborted();
         if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
           await runOnWarmIosSimulatorAsync(
-            // package_version is the Appium version, which the job installs either way.
+            // package_version is the Appium version. The job installs it or uses the prepared
+            // home; the warm claim does not depend on it.
             {
               engine: 'appium',
               requestedDevice: deviceIdentifier,
@@ -515,8 +535,41 @@ export async function installAppiumAsync({
   logger: bunyan;
   signal?: AbortSignal;
   onError?: (error: unknown) => void;
-}): Promise<{ appiumHome: string; appiumBinPath: string; appiumEnv: BuildStepEnv }> {
+}): Promise<{
+  appiumHome: string;
+  appiumBinPath: string;
+  appiumEnv: BuildStepEnv;
+  prepared: boolean;
+}> {
   signal?.throwIfAborted();
+  let prepared =
+    driverName === 'xcuitest'
+      ? await readPreparedSimulatorToolAsync('appium', PreparedAppiumSchema)
+      : undefined;
+  if (
+    prepared &&
+    !(await isPreparedAppiumCompatibleAsync(prepared, { versionSpec, env, signal }))
+  ) {
+    prepared = undefined;
+  }
+  if (prepared) {
+    try {
+      // An invalid package manager override fails as it does without a prepared home.
+      resolveConfiguredPackageManager(env, PackageManager.NPM);
+    } catch (error) {
+      onError?.(error);
+      throw error;
+    }
+    logger.info(
+      `Using the prefetched Appium home (appium ${prepared.version}, xcuitest ${prepared.xcuitest}).`
+    );
+    return {
+      appiumHome: prepared.home,
+      appiumBinPath: path.join(prepared.home, 'node_modules', '.bin', 'appium'),
+      appiumEnv: { ...env, APPIUM_HOME: prepared.home },
+      prepared: true,
+    };
+  }
   const appiumHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-appium-home-'));
   try {
     signal?.throwIfAborted();
@@ -569,7 +622,7 @@ export async function installAppiumAsync({
         signal
       );
     }
-    return { appiumHome, appiumBinPath, appiumEnv };
+    return { appiumHome, appiumBinPath, appiumEnv, prepared: false };
   } catch (error) {
     onError?.(error);
     if (signal) {
@@ -577,6 +630,50 @@ export async function installAppiumAsync({
       signal.throwIfAborted();
     }
     throw error;
+  }
+}
+
+/** A metadata hit still needs Appium-specific version, driver and runner checks before reuse. */
+async function isPreparedAppiumCompatibleAsync(
+  prepared: z.infer<typeof PreparedAppiumSchema>,
+  { versionSpec, env, signal }: { versionSpec: string; env: BuildStepEnv; signal?: AbortSignal }
+): Promise<boolean> {
+  const { home } = prepared;
+  if (home !== path.join(os.homedir(), 'Library', 'Caches', 'expo-simulator-startup', 'appium')) {
+    return false;
+  }
+  try {
+    const installedVersionAsync = async (name: string): Promise<string> =>
+      PackageVersionSchema.parse(
+        JSON.parse(
+          await fs.promises.readFile(path.join(home, 'node_modules', name, 'package.json'), 'utf8')
+        )
+      ).version;
+    if (
+      !semver.satisfies(prepared.version, versionSpec) ||
+      (await installedVersionAsync('appium')) !== prepared.version ||
+      (await installedVersionAsync('appium-xcuitest-driver')) !== prepared.xcuitest
+    ) {
+      return false;
+    }
+    const runner = path.join(home, 'preinstalled-wda', 'WebDriverAgentRunner-Runner.app');
+    await fs.promises.access(runner, fs.constants.R_OK | fs.constants.X_OK);
+    if (!(await fs.promises.stat(runner)).isDirectory()) {
+      return false;
+    }
+    // Today's driver list shows that the Appium CLI runs from this home. It does not load the driver.
+    const { stdout } = await runAppiumSetupCommandAsync(
+      path.join(home, 'node_modules', '.bin', 'appium'),
+      ['driver', 'list', '--installed', '--json'],
+      { env: { ...env, APPIUM_HOME: home }, stdio: 'pipe' },
+      signal
+    );
+    if (!AppiumInstalledDriversSchema.parse(JSON.parse(stdout)).xcuitest?.installed) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
   }
 }
 
