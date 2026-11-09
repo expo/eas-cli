@@ -1027,6 +1027,73 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     return stopWarm;
   }
 
+  it.each(['cancelled lookup', 'AbortError lookup', 'resolved lookup'])(
+    'recovers from failed warm adoption with a %s',
+    async stage => {
+      writePreparedHome();
+      const stopWarm = mockWarmSession();
+      stopAppium.mockResolvedValue(undefined);
+      const adoptionError = new WarmSessionAdoptionError();
+      let failHost!: (error: Error) => void;
+      jest.mocked(startDeviceSessionHostAsync).mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          failHost = reject;
+        })
+      );
+      let lookups = 0;
+      jest.mocked(spawn).mockImplementation((async (command, args, options) => {
+        if (args[0] !== 'view') {
+          return { stdout: args.includes('--json') ? driverListStdout(command) : '' };
+        }
+        lookups++;
+        if (lookups === 1 && stage !== 'resolved lookup') {
+          return await new Promise((_resolve, reject) => {
+            options!.signal!.addEventListener(
+              'abort',
+              () => {
+                reject(
+                  stage === 'AbortError lookup'
+                    ? new DOMException('Aborted', 'AbortError')
+                    : options!.signal!.reason
+                );
+              },
+              { once: true }
+            );
+            failHost(adoptionError);
+          });
+        }
+        return { stdout: JSON.stringify('3.9.0') };
+      }) as typeof spawn);
+      if (stage === 'resolved lookup') {
+        const process = jest.mocked(spawnDetached).getMockImplementation()!;
+        jest.mocked(spawnDetached).mockImplementationOnce(options => {
+          failHost(adoptionError);
+          return process(options);
+        });
+      }
+
+      await expect(
+        runSessionAsync(
+          logger,
+          undefined,
+          BuildRuntimePlatform.DARWIN,
+          {
+            boot_simulator: { value: true },
+            device_identifier: { value: 'iPhone 17' },
+            package_version: { value: '^3' },
+          },
+          true
+        )
+      ).resolves.toBeUndefined();
+
+      expect(lookups).toBe(stage === 'resolved lookup' ? 1 : 2);
+      expect(stopWarm).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(2);
+      expect(spawnDetached).toHaveBeenCalledTimes(stage === 'resolved lookup' ? 2 : 1);
+      expect(fs.existsSync(preparedRunner)).toBe(true);
+    }
+  );
+
   it.each(['event collection', 'Appium process'])(
     'waits for warm %s teardown before finishing the session host',
     async stage => {

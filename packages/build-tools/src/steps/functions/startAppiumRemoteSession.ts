@@ -137,7 +137,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
       });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
-      let requestedVersion: Promise<string> | undefined;
+      let requestedVersion: string | undefined;
       const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
@@ -164,7 +164,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           packageVersion === undefined
             ? undefined
             : async (): Promise<string> =>
-                await (requestedVersion ??= resolveSimulatorPackageVersionAsync(
+                (requestedVersion ??= await resolveSimulatorPackageVersionAsync(
                   'appium',
                   packageVersion,
                   { env, signal: startupSignal }
