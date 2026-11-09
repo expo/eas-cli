@@ -1115,6 +1115,26 @@ it.each([
   await host.finishAsync();
 });
 
+it.each([
+  ['the turtle-v2 copy by default', undefined, 'https://storage.googleapis.com/turtle-v2/scrcpy'],
+  ['the step env value when it is set', 'https://mirror.test/scrcpy', 'https://mirror.test/scrcpy'],
+])(
+  'points expo-device-hub at %s for the scrcpy server',
+  async (_description, override, expected) => {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: override ? { ...env, SERVE_EMU_SCRCPY_BASE_URL: override } : env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    });
+    const options = jest.mocked(spawnDetached).mock.calls[0][0];
+    expect(options.env.SERVE_EMU_SCRCPY_BASE_URL).toBe(expected);
+    await host.finishAsync();
+  }
+);
+
 it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     preview: { baseDomain, authtoken },
