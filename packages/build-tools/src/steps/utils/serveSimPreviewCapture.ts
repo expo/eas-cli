@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import { runServeSimActionAsync } from './serveSimActions';
+import { runServeSimActionAsync, runServeSimActionWithResultAsync } from './serveSimActions';
 
 export function createServeSimPreviewCapture({
   port,
@@ -17,6 +17,20 @@ export function createServeSimPreviewCapture({
 }) {
   const ownedFiles = new Set<string>();
   return {
+    async isSupportedAsync(signal: AbortSignal): Promise<boolean> {
+      const result = await runServeSimActionWithResultAsync({
+        port,
+        token,
+        action: 'actions.describe',
+        params: {},
+        timeoutMs: 30_000,
+        signal,
+      });
+      const catalog: {
+        'screenshot.capture'?: { properties?: { automation?: { type?: unknown } } };
+      } | null = JSON.parse(result);
+      return catalog?.['screenshot.capture']?.properties?.automation?.type === 'boolean';
+    },
     async captureAsync(destination: string, signal: AbortSignal): Promise<void> {
       signal.throwIfAborted();
       const fileName = `serve-sim-screenshot-preview-${randomUUID()}.png`;

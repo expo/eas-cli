@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { runServeSimActionAsync } from '../serveSimActions';
+import { runServeSimActionAsync, runServeSimActionWithResultAsync } from '../serveSimActions';
 import { createServeSimPreviewCapture } from '../serveSimPreviewCapture';
 
 jest.mock('../serveSimActions');
@@ -124,3 +124,30 @@ it('does not send a capture when already aborted', async () => {
   ).rejects.toThrow('stopped');
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
 });
+
+it.each([
+  [
+    { 'screenshot.capture': { properties: { automation: { type: 'boolean', default: false } } } },
+    true,
+  ],
+  [{ 'screenshot.capture': { properties: {} } }, false],
+  [{ 'screenshot.capture': { properties: { automation: { type: 'string' } } } }, false],
+  [{}, false],
+  [null, false],
+])(
+  'checks the catalog automation field before enabling captures (%j)',
+  async (catalog, supported) => {
+    jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce(JSON.stringify(catalog));
+    const capture = createServeSimPreviewCapture(options);
+    await expect(capture.isSupportedAsync(signal)).resolves.toBe(supported);
+    expect(runServeSimActionWithResultAsync).toHaveBeenCalledWith({
+      port: options.port,
+      token: options.token,
+      action: 'actions.describe',
+      params: {},
+      timeoutMs: 30_000,
+      signal,
+    });
+    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+  }
+);

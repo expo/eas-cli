@@ -40,7 +40,11 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import {
+  runServeSimActionAsync,
+  runServeSimActionWithResultAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
 import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import * as previewCapture from '../serveSimPreviewCapture';
@@ -166,6 +170,12 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
+  jest
+    .mocked(runServeSimActionWithResultAsync)
+    .mockReset()
+    .mockResolvedValue(
+      JSON.stringify({ 'screenshot.capture': { properties: { automation: { type: 'boolean' } } } })
+    );
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1480,6 +1490,61 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
+it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
+  'skips automated thumbnails with %s without stopping the iOS session',
+  async failure => {
+    if (failure === 'unavailable catalog') {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockRejectedValueOnce(new Error('unknown action'));
+    } else {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockResolvedValueOnce(
+          failure === 'invalid catalog'
+            ? 'invalid JSON'
+            : JSON.stringify({ 'screenshot.capture': { properties: {} } })
+        );
+    }
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(runServeSimActionWithResultAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+    expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+    expect(stopServer).not.toHaveBeenCalled();
+    await host.finishAsync();
+  }
+);
+
+it('cancels catalog inspection during shutdown without sending a thumbnail capture', async () => {
+  let inspectionSignal: AbortSignal | undefined;
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementationOnce(async ({ signal }) => {
+    inspectionSignal = signal;
+    return await new Promise<string>((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  expect(inspectionSignal?.aborted).toBe(false);
+  await host.finishAsync();
+  expect(inspectionSignal?.aborted).toBe(true);
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+  expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
 it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
   const finishScreenshots = jest.fn().mockResolvedValue(undefined);
   const collector = jest
@@ -1490,6 +1555,7 @@ it('finishes manual screenshots even when thumbnail cleanup fails', async () => 
     });
   const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
   const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
+    isSupportedAsync: jest.fn().mockResolvedValue(true),
     captureAsync: jest.fn(),
     cleanupAfterHostStoppedAsync: cleanup,
   });

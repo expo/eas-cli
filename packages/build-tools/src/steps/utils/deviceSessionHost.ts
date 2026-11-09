@@ -1001,6 +1001,12 @@ async function startDeviceSessionHostInternalAsync(
           device,
           tmpdir: serveSimTmpdir,
         });
+        if (!(await iosPreviewCapture.isSupportedAsync(previewSetupController.signal))) {
+          logger.warn(
+            'This serve-sim version does not support automated screenshots; skipping session previews.'
+          );
+          return;
+        }
         await ensureMacosPreviewEncoderInstalledAsync({
           env,
           logger,

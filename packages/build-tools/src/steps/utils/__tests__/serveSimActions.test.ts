@@ -16,7 +16,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import {
+  runServeSimActionAsync,
+  runServeSimActionWithResultAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
 
 jest.unmock('fs');
 jest.unmock('node:fs');
@@ -65,6 +69,18 @@ it('authenticates the upgrade, waits for ready, and sends the action once', asyn
   await runServeSimActionAsync(request());
   expect(upgrades).toEqual([{ url: '/exec-ws', protocol: `serve-sim.token.${token}` }]);
   expect(actions).toEqual([{ id: 1, action: 'app.install', params: request().params }]);
+});
+
+it('returns stdout from an authenticated action for catalog inspection', async () => {
+  server.on('connection', socket => {
+    socket.on('message', () =>
+      socket.send(JSON.stringify({ id: 1, stdout: '{"actions":[]}', exitCode: 0 }))
+    );
+    socket.send(JSON.stringify({ ready: true }));
+  });
+  await expect(
+    runServeSimActionWithResultAsync({ ...request(), action: 'actions.describe', params: {} })
+  ).resolves.toBe('{"actions":[]}');
 });
 
 it.each([
