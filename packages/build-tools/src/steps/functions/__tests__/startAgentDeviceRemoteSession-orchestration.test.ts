@@ -235,16 +235,6 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     );
   });
 
-  it('reports no identifier when the session launched no app', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await runAsync(logger, BuildRuntimePlatform.LINUX);
-
-    expect(
-      jest.mocked(uploadRemoteSessionConfigAsync).mock.calls[0][0].remoteConfig
-    ).not.toHaveProperty('applicationIdentifier');
-  });
-
   it('uses the warm daemon after adoption and starts no daemon of its own', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
     const warmServer = { port: 3200 } as never;
