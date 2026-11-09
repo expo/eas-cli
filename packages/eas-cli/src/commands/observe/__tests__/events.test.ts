@@ -12,6 +12,7 @@ import {
   buildObserveCustomEventsEmptyWithSuggestionsJson,
   buildObserveCustomEventsEmptyWithSuggestionsTable,
   buildObserveCustomEventsJson,
+  buildObserveCustomEventsTable,
 } from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveEvents from '../events';
@@ -42,6 +43,7 @@ jest.mock('../../../utils/json');
 
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
 const mockBuildObserveCustomEventsJson = jest.mocked(buildObserveCustomEventsJson);
+const mockBuildObserveCustomEventsTable = jest.mocked(buildObserveCustomEventsTable);
 const mockBuildObserveCustomEventNamesJson = jest.mocked(buildObserveCustomEventNamesJson);
 const mockBuildObserveCustomEventsEmptyWithSuggestionsTable = jest.mocked(
   buildObserveCustomEventsEmptyWithSuggestionsTable
@@ -299,6 +301,103 @@ describe(ObserveEvents, () => {
     expect(options.sessionId).toBe('session-xyz');
   });
 
+  it('passes repeated --property flags as property filters', async () => {
+    const command = createCommand([
+      'expo.feedback',
+      '--property',
+      'expo.feedback.id=fb-1',
+      '--property',
+      'note=a=b',
+    ]);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.propertyFilters).toEqual([
+      { key: 'expo.feedback.id', value: 'fb-1' },
+      { key: 'note', value: 'a=b' },
+    ]);
+  });
+
+  it('lists events instead of the event-name summary when --property is set with no positional arg', async () => {
+    const command = createCommand(['--property', 'expo.feedback.id=fb-1']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.propertyFilters).toEqual([{ key: 'expo.feedback.id', value: 'fb-1' }]);
+  });
+
+  it('rejects --property without "="', async () => {
+    const command = createCommand(['my_event', '--property', 'expo.feedback.id']);
+    await expect(command.runAsync()).rejects.toThrow(/Expected key=value/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --property with an empty key', async () => {
+    const command = createCommand(['my_event', '--property', '=fb-1']);
+    await expect(command.runAsync()).rejects.toThrow(/Expected key=value/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --property with an empty value', async () => {
+    const command = createCommand(['my_event', '--property', 'note=']);
+    await expect(command.runAsync()).rejects.toThrow(/value cannot be empty/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects more than 5 --property flags', async () => {
+    const command = createCommand([
+      'my_event',
+      '--property',
+      'a=1',
+      '--property',
+      'b=2',
+      '--property',
+      'c=3',
+      '--property',
+      'd=4',
+      '--property',
+      'e=5',
+      '--property',
+      'f=6',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(/--property can be used up to 5 times/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('accepts exactly 5 --property flags', async () => {
+    const command = createCommand([
+      'my_event',
+      '--property',
+      'a=1',
+      '--property',
+      'b=2',
+      '--property',
+      'c=3',
+      '--property',
+      'd=4',
+      '--property',
+      'e=5',
+    ]);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.propertyFilters).toEqual([
+      { key: 'a', value: '1' },
+      { key: 'b', value: '2' },
+      { key: 'c', value: '3' },
+      { key: 'd', value: '4' },
+      { key: 'e', value: '5' },
+    ]);
+  });
+
+  it('rejects a repeated --property key', async () => {
+    const command = createCommand(['my_event', '--property', 'a=1', '--property', 'a=2']);
+    await expect(command.runAsync()).rejects.toThrow(/key "a" is used more than once/);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
   it('does not pass platforms, appVersion, updateId, or sessionId when flags are not provided', async () => {
     const command = createCommand(['my_event']);
     await command.runAsync();
@@ -308,6 +407,7 @@ describe(ObserveEvents, () => {
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
     expect(options.sessionId).toBeUndefined();
+    expect(options.propertyFilters).toBeUndefined();
   });
 
   it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided with an event name', async () => {
@@ -394,6 +494,64 @@ describe(ObserveEvents, () => {
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
     expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['--session-id', 'session-xyz'],
+    ['--property', 'expo.feedback.id=fb-1'],
+  ])(
+    'does not suggest event names when an event name and %s return 0 events',
+    async (flag, value) => {
+      const command = createCommand(['my_event', flag, value]);
+      await command.runAsync();
+
+      expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsTable).toHaveBeenCalledWith(
+        [],
+        expect.anything(),
+        expect.objectContaining({ eventName: 'my_event' })
+      );
+    }
+  );
+
+  it('emits empty events JSON without suggestions when an event name and --session-id return 0 events and --json is set', async () => {
+    const pageInfo = { hasNextPage: false, hasPreviousPage: false };
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({ events: [], pageInfo });
+
+    const command = createCommand([
+      'my_event',
+      '--session-id',
+      'session-xyz',
+      '--json',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsJson).toHaveBeenCalledWith([], pageInfo);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--app-version', '2.1.0'],
+    ['--build-number', '42'],
+    ['--update-id', 'update-xyz'],
+  ])(
+    'does not suggest event names when an event name and %s return 0 events',
+    async (flag, value) => {
+      const command = createCommand(['my_event', flag, value]);
+      await command.runAsync();
+
+      expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+      expect(mockBuildObserveCustomEventsTable).toHaveBeenCalledWith(
+        [],
+        expect.anything(),
+        expect.objectContaining({ eventName: 'my_event' })
+      );
+    }
+  );
 
   it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({

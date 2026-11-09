@@ -99,6 +99,18 @@ describe('fetchObserveCustomEventsAsync', () => {
     expect(filter).not.toHaveProperty('appUpdateId');
   });
 
+  it('forwards propertyFilters when provided', async () => {
+    await fetchObserveCustomEventsAsync(mockGraphqlClient, 'project-123', {
+      limit: 10,
+      propertyFilters: [{ key: 'expo.feedback.id', value: 'fb-1' }],
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+
+    const filter = mockCustomEventListAsync.mock.calls[0][1].filter;
+    expect(filter?.propertyFilters).toEqual([{ key: 'expo.feedback.id', value: 'fb-1' }]);
+  });
+
   it('does not send optional filters when their inputs are undefined', async () => {
     await fetchObserveCustomEventsAsync(mockGraphqlClient, 'project-123', {
       limit: 10,
@@ -112,6 +124,7 @@ describe('fetchObserveCustomEventsAsync', () => {
     expect(filter).not.toHaveProperty('appVersion');
     expect(filter).not.toHaveProperty('appUpdateId');
     expect(filter).not.toHaveProperty('sessionId');
+    expect(filter).not.toHaveProperty('propertyFilters');
   });
 
   it('forwards after cursor when provided', async () => {
