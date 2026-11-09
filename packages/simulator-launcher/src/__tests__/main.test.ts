@@ -473,3 +473,56 @@ test.each([
     await expect(result).rejects.toBe(failure);
   }
 });
+
+test('start reads the prepared Expo Go selection without using legacy CLI pins', async () => {
+  for (const name of [
+    'SERVE_SIM_VERSION',
+    'AGENT_DEVICE_VERSION',
+    'ARGENT_VERSION',
+    'EXPO_GO_SDK_VERSION',
+  ]) {
+    delete process.env[name];
+  }
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const expoGo = { sdk: '58.0.0', url: 'https://example.test/prepared-expo-go.tar.gz' };
+  await fs.writeFile(
+    file,
+    JSON.stringify({
+      tools: {
+        'serve-sim': { version: '0.1.0' },
+        'agent-device': { version: 'invalid legacy pin' },
+        argent: { version: '0.32.0' },
+        'expo-go': expoGo,
+      },
+    })
+  );
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['@expo/serve-sim@latest']),
+    expect.anything()
+  );
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['agent-device@latest']),
+    expect.anything()
+  );
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), expoGo);
+  await stopAsync(boot);
+  await starting;
+});
+
+test('invalid legacy CLI metadata does not prevent runtime startup', async () => {
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: 'latest' } } }));
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(commands.start).toHaveBeenCalled();
+  await stopAsync(boot);
+  await starting;
+});

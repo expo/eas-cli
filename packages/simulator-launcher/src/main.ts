@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { claimAsync, prepareToolsAsync } from './commands/claim';
+import { prefetchAsync } from './commands/prefetch';
 import { startAsync } from './commands/start';
 import { stopAsync } from './commands/stop';
 import { commands } from './utils/processes';
@@ -13,6 +14,18 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
     process.stdout.write(`${require('../package.json').version}\n`);
     return 0;
   }
+  if (args.length === 1 && args[0] === 'prefetch') {
+    const shutdown = new AbortController();
+    const stop = (): void => shutdown.abort(new Error('Simulator prefetch was interrupted.'));
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    try {
+      return await prefetchAsync(shutdown.signal);
+    } finally {
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+    }
+  }
   const [command, engine, requestedDevice] = args;
   if (
     command !== 'start' &&
@@ -20,7 +33,9 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
     command !== 'claim' &&
     command !== 'prepare-tools'
   ) {
-    throw new Error('Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]|prepare-tools>');
+    throw new Error(
+      'Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]|prepare-tools|prefetch>'
+    );
   }
   const bootUuid = (
     await commands.runAsync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'])

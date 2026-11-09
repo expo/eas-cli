@@ -79,6 +79,36 @@ export const commands = {
   async runAsync(file: string, args: string[], signal?: AbortSignal): Promise<string> {
     return await commands.start(file, args, { signal, captureStdout: true }).resultPromise;
   },
+  /** Finite tool preparation: cancellation stops the whole owned group before returning. */
+  async runOwnedAsync(file: string, args: string[], signal: AbortSignal): Promise<string> {
+    signal.throwIfAborted();
+    const handle = commands.start(file, args, { detached: true, captureStdout: true });
+    let stopping: Promise<void> | undefined;
+    const stop = (): void => {
+      stopping ??= terminateProcessGroupAsync(handle);
+      void stopping.catch(() => {}); // Joined below, including when the child fails first.
+    };
+    signal.addEventListener('abort', stop, { once: true });
+    if (signal.aborted) {
+      stop();
+    }
+    try {
+      return await handle.resultPromise;
+    } finally {
+      signal.removeEventListener('abort', stop);
+      // Also drain descendants after a successful or failed wrapper exit.
+      if (handle.child.pid) {
+        stop();
+        await stopping?.catch(error => {
+          commandCloseDrainError ||= new Error('Tool preparation cleanup could not be confirmed.', {
+            cause: error,
+          });
+          throw error;
+        });
+      }
+      signal.throwIfAborted();
+    }
+  },
   throwIfCommandCloseTimedOut(): void {
     if (commandCloseDrainError) {
       throw commandCloseDrainError;

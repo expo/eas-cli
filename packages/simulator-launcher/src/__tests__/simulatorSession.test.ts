@@ -3,6 +3,7 @@ import { type ChildProcess } from 'node:child_process';
 import { createWarmSimulatorSession } from '../commands/start';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
+import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
 import {
   type ChildProcessHandle,
   commands,
@@ -17,6 +18,7 @@ import {
 import { deferred, until } from './helpers';
 
 jest.mock('../utils/expoGo');
+jest.mock('../utils/preparedExpoGo');
 jest.mock('../utils/argent');
 jest.mock('../utils/processes');
 jest.mock('../utils/serveSim');
@@ -70,6 +72,7 @@ function mockDefaultExpoGoInstall(install: Promise<void>) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(readPreparedExpoGoAsync).mockResolvedValue(undefined);
   env = { ...process.env };
   process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo,iPhone 18';
   process.env.AGENT_DEVICE_STATE_DIR = '/fixture/agent';
@@ -131,6 +134,9 @@ it('stop joins pending device selection without starting a late server', async (
   const session = createSession();
   const preparing = session.prepareAsync();
   void preparing.catch(() => {});
+  await until(() =>
+    jest.mocked(commands.runAsync).mock.calls.some(([, args]) => args.includes('devices'))
+  );
   let stopped = false;
   const stopping = session.stopAsync().then(() => {
     stopped = true;
@@ -589,4 +595,24 @@ it('warns on ordinary adopted-device apsd failure without failing the claimed se
   expect(warning.mock.calls.map(([text]) => text).join('')).toContain(
     'Could not disable apsd on OTHER; continuing'
   );
+});
+
+it('stop joins a pending manifest read and never starts a late native process', async () => {
+  const metadata = deferred<undefined>();
+  jest.mocked(readPreparedExpoGoAsync).mockReturnValue(metadata.promise);
+  const session = createSession();
+  const preparing = session.prepareAsync();
+  void preparing.catch(() => {});
+  await until(() => jest.mocked(readPreparedExpoGoAsync).mock.calls.length > 0);
+  let stopped = false;
+  const stopping = session.stopAsync().then(() => {
+    stopped = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(stopped).toBe(false);
+  metadata.resolve(undefined);
+  await stopping;
+  await expect(preparing).rejects.toThrow();
+  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(startServeSim).not.toHaveBeenCalled();
 });
