@@ -201,39 +201,35 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('reports the identifier of the iOS app the session host launched', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await runAsync(logger, BuildRuntimePlatform.DARWIN, {
-      device: {
+  it.each([
+    [
+      BuildRuntimePlatform.DARWIN,
+      {
         iosSimulatorUdid: 'selected-udid',
         application: Promise.resolve({
           installAppPath: '/tmp/App.app',
           launchAppIdentifier: 'com.example.archive',
         }),
       },
-    });
+    ],
+    [
+      BuildRuntimePlatform.LINUX,
+      { booted: Promise.resolve(), ready: Promise.resolve('com.example.archive') },
+    ],
+  ])(
+    'reports the identifier of the app the %s device launched',
+    async (runtimePlatform, device) => {
+      const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
 
-    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        remoteConfig: expect.objectContaining({ applicationIdentifier: 'com.example.archive' }),
-      })
-    );
-  });
+      await runAsync(logger, runtimePlatform, { device });
 
-  it('reports the identifier of the Android app the device installed', async () => {
-    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
-
-    await runAsync(logger, BuildRuntimePlatform.LINUX, {
-      device: { booted: Promise.resolve(), ready: Promise.resolve('com.example.archive') },
-    });
-
-    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        remoteConfig: expect.objectContaining({ applicationIdentifier: 'com.example.archive' }),
-      })
-    );
-  });
+      expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteConfig: expect.objectContaining({ applicationIdentifier: 'com.example.archive' }),
+        })
+      );
+    }
+  );
 
   it('uses the warm daemon after adoption and starts no daemon of its own', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
