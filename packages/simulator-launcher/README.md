@@ -64,7 +64,7 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
   of the latest stable one. Unset or empty keeps the latest stable one. Both still ask the versions
   API for the archive URL. `prefetch` fails when the value is not `x.y.z`, or when the API lists no
   https Simulator archive for it. In these cases, `start` warns and preinstalls no Expo Go. Use the
-  same value when preparing and starting tools.
+  same value when preparing and starting tools. Ignored when `EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0`.
 - `AGENT_DEVICE_STATE_DIR`, `ARGENT_EVENT_LOG`: tool state/output locations.
 - Agent-device idle timers default to off. Override with `AGENT_DEVICE_DAEMON_IDLE_TIMEOUT_MS`
   and `AGENT_DEVICE_IOS_RUNNER_IDLE_STOP_MS` (milliseconds).

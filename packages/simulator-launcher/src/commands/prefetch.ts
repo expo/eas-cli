@@ -32,7 +32,9 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   ];
   // selectExpoGoAsync reads the pin itself. This check fails a bad value before any command or
   // download.
-  readPins('Expo Go', ['EXPO_GO_SDK_VERSION']);
+  if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
+    readPins('Expo Go', ['EXPO_GO_SDK_VERSION']);
+  }
   const tmpdir = await mkdtemp(path.join(os.tmpdir(), 'simulator-launcher-prefetch-'));
   const environment = {
     TMPDIR: process.env.TMPDIR,

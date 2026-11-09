@@ -333,8 +333,23 @@ test('prefetch stores the Expo Go of EXPO_GO_SDK_VERSION, as start selects it', 
 });
 
 test.each(['latest', '58', '^58.0.0', 'v58.0.0'])(
+  'prefetch ignores EXPO_GO_SDK_VERSION=%s when Expo Go is disabled',
+  async pin => {
+    process.env.EXPO_GO_SDK_VERSION = pin;
+    expect(await mainAsync(['prefetch'])).toBe(0);
+    expect(jest.mocked(commands.runOwnedAsync).mock.calls).toEqual([
+      ['bunx', ['@expo/serve-sim@0.13.3', '--version'], expect.any(AbortSignal)],
+      ['bunx', ['agent-device@0.21.36', '--version'], expect.any(AbortSignal)],
+      ['bunx', ['@swmansion/argent@0.32.0', '--version'], expect.any(AbortSignal)],
+    ]);
+    expect(fetch).not.toHaveBeenCalled();
+  }
+);
+
+test.each(['latest', '58', '^58.0.0', 'v58.0.0'])(
   'prefetch rejects EXPO_GO_SDK_VERSION=%s before any command or download',
   async pin => {
+    delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
     process.env.EXPO_GO_SDK_VERSION = pin;
     await expect(mainAsync(['prefetch'])).rejects.toThrow(
       'Could not prefetch Expo Go: set EXPO_GO_SDK_VERSION to an exact version (x.y.z), or leave it unset.'
