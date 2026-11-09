@@ -1,4 +1,3 @@
-import { SystemError } from '@expo/eas-build-job';
 import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
 import { spawnSync } from 'node:child_process';
@@ -22,15 +21,50 @@ jest.mock('../retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('node:fs/promises', () => ({
   __esModule: true,
   default: {
-    access: jest.fn(),
-    mkdir: jest.fn(),
     chmod: jest.fn(),
     mkdtemp: jest.fn(),
     writeFile: jest.fn(),
     rm: jest.fn(),
-    readdir: jest.fn(),
   },
 }));
+
+const SESSION_ID = 'pJbIEKJ3dhB4qIUMoNku';
+
+const DETACH_JSON = JSON.stringify(
+  {
+    name: 'eas-1a2b3c4',
+    launchId: '71c3af039c2557ea',
+    status: 'ready',
+    sessionId: SESSION_ID,
+    adminSocket: '/tmp/eas-ssh-1/upterm/sessions/eas-1a2b3c4/admin.sock',
+    attachSocket: '/tmp/eas-ssh-1/upterm/sessions/eas-1a2b3c4/attach.sock',
+    pid: 73366,
+    command: 'bash -lc sleep 21600',
+    forceCommand: '/tmp/eas-ssh-1/join.sh',
+    sshCommand: `ssh ${SESSION_ID}@relay.expo.dev -p 2222`,
+    joinCommand: `upterm join ssh://${SESSION_ID}@relay.expo.dev:2222`,
+    sshConfig: `Host eas-1a2b3c4\n  HostName relay.expo.dev\n  User ${SESSION_ID}\n  Port 2222`,
+    host: 'ssh://relay.expo.dev:2222',
+    clientCount: 0,
+    guestCount: 0,
+    reconnect: 'supported',
+  },
+  null,
+  2
+);
+
+const CONNECT_BANNER = `Session: ${SESSION_ID}
+
+Name:             bash-64e8
+Relay:            wss://relay-new:8081
+Access:           open: anyone with the session ID can join
+
+➤ Join:
+    upterm join wss://${SESSION_ID}@relay-new:8081
+➤ SSH:
+    ssh -o ProxyCommand='upterm proxy '\\''wss://${SESSION_ID}@relay-new:8081'\\''' ${SESSION_ID}@relay-new:8081
+upterm: warning: anyone with the session ID can join; restrict who can with --authorized-user or --authorized-keys
+`;
 
 describe(resolveUptermGcsObjectName, () => {
   it('maps worker platforms to GCS object names', () => {
@@ -69,6 +103,22 @@ describe(redactConnectionSecrets, () => {
     expect(redacted).toBe(
       "ssh -o ProxyCommand='upterm proxy ws://<redacted>@relay.local' <redacted>@relay.local"
     );
+  });
+
+  it('strips every session id occurrence from the connect banner, including the quoted proxy URL', () => {
+    const redacted = redactConnectionSecrets(CONNECT_BANNER);
+    expect(redacted).not.toContain(SESSION_ID);
+    expect(redacted).toContain('Session: <redacted>');
+    expect(redacted).toContain(
+      "ProxyCommand='upterm proxy '\\''wss://<redacted>@relay-new:8081'\\''' <redacted>@relay-new:8081"
+    );
+  });
+
+  it('strips the session id from every field of the --detach JSON output', () => {
+    const redacted = redactConnectionSecrets(DETACH_JSON);
+    expect(redacted).not.toContain(SESSION_ID);
+    expect(redacted).toContain('"sshCommand": "ssh <redacted>@relay.expo.dev -p 2222"');
+    expect(redacted).toContain('User <redacted>');
   });
 
   it('leaves output without userinfo untouched', () => {
@@ -124,47 +174,22 @@ describe(redactSpawnErrorForLog, () => {
 
 describe(startUptermHostAsync, () => {
   const mockedSpawn = jest.mocked(spawn);
-  const mockedSleep = jest.mocked(sleepAsync);
   const mockedFs = jest.mocked(fs);
   const mockedDownloadFile = jest.mocked(downloadFile);
 
-  let hostProcess: {
-    child: {
-      stdout: { on: (event: string, cb: (chunk: Buffer) => void) => void };
-      stderr: { on: jest.Mock };
-      pid: number;
-      kill: jest.Mock;
-      unref: jest.Mock;
-      exitCode: number | null;
-      signalCode: NodeJS.Signals | null;
-      killed: boolean;
-    };
-    catch: (cb: (err: unknown) => void) => Promise<void>;
-  };
-  let sessionStdout: string;
-  let uptermOnPath = true;
+  type SpawnCall = { cmd: string; args: string[]; options: any };
+  let calls: SpawnCall[];
+  let hostResult: () => Promise<{ stdout: string; stderr: string }>;
+  let currentResult: () => Promise<{ stdout: string; stderr: string }>;
+  let stopResult: () => Promise<{ stdout: string; stderr: string }>;
+  let daemonRunning: boolean;
 
-  function makeHostProcess(): typeof hostProcess {
-    return {
-      child: {
-        stdout: {
-          on: jest.fn((_event: string, cb: (chunk: Buffer) => void) => {
-            cb(Buffer.from('host output'));
-          }),
-        },
-        stderr: { on: jest.fn() },
-        pid: 4242,
-        kill: jest.fn(),
-        unref: jest.fn(),
-        exitCode: null,
-        signalCode: null,
-        killed: false,
-      },
-      catch: cb => {
-        cb(new Error('exited'));
-        return Promise.resolve();
-      },
-    };
+  function ok(stdout: string): () => Promise<{ stdout: string; stderr: string }> {
+    return async () => ({ stdout, stderr: '' });
+  }
+
+  function current(fields: Record<string, unknown>): string {
+    return JSON.stringify({ sessionId: SESSION_ID, host: 'ssh://relay.expo.dev:2222', ...fields });
   }
 
   function makeCtx(
@@ -178,60 +203,97 @@ describe(startUptermHostAsync, () => {
     } as unknown as BuildContext;
   }
 
+  function callsOf(...prefix: string[]): SpawnCall[] {
+    return calls.filter(c => prefix.every((arg, i) => c.args[i] === arg));
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(process, 'kill').mockReturnValue(true);
-    hostProcess = makeHostProcess();
-    uptermOnPath = true;
-    sessionStdout = JSON.stringify({
-      sessionId: 'TOKENx',
-      host: 'ssh://relay.expo.dev:22',
-      clientCount: 0,
+    calls = [];
+    daemonRunning = true;
+    hostResult = ok(DETACH_JSON);
+    currentResult = ok(current({ status: 'ready', clientCount: 0 }));
+    stopResult = ok('session eas-1a2b3c4 stopped\n');
+    jest.spyOn(process, 'kill').mockImplementation(() => {
+      if (daemonRunning) {
+        return true;
+      }
+      throw Object.assign(new Error('No such process'), { code: 'ESRCH' });
     });
-    mockedSleep.mockResolvedValue(undefined);
-    mockedFs.mkdir.mockResolvedValue(undefined as never);
+    jest.mocked(sleepAsync).mockResolvedValue(undefined);
     mockedFs.chmod.mockResolvedValue(undefined as never);
     mockedFs.mkdtemp.mockImplementation((async (prefix: string) =>
       String(prefix).includes('eas-upterm') ? '/tmp/eas-upterm-1' : '/tmp/eas-ssh-1') as never);
     mockedFs.writeFile.mockResolvedValue(undefined as never);
     mockedFs.rm.mockResolvedValue(undefined as never);
-    mockedFs.readdir.mockResolvedValue(['default.sock'] as never);
     mockedDownloadFile.mockResolvedValue(undefined as never);
-    mockedSpawn.mockImplementation(((cmd: string, args: string[]) => {
-      if (cmd === 'upterm' && Array.isArray(args) && args[0] === 'version') {
-        if (!uptermOnPath) {
-          return Promise.reject(new Error('not found')) as never;
-        }
-        return Promise.resolve({ stdout: 'upterm version 0.24.0\n', stderr: '' }) as never;
+    mockedSpawn.mockImplementation(((cmd: string, args: string[], options: unknown) => {
+      calls.push({ cmd, args, options });
+      if (args[0] === 'host') {
+        return hostResult();
       }
-      if (Array.isArray(args) && args[0] === 'host') {
-        return hostProcess as never;
+      if (args[0] === 'session' && args[1] === 'current') {
+        return currentResult();
       }
-      if (Array.isArray(args) && args[0] === 'session') {
-        return Promise.resolve({ stdout: sessionStdout, stderr: '' }) as never;
+      if (args[0] === 'session' && args[1] === 'stop') {
+        return stopResult();
       }
-      return Promise.resolve({ stdout: '', stderr: '' }) as never;
+      return Promise.resolve({ stdout: '', stderr: '' });
     }) as never);
   });
 
-  it('uses upterm on PATH, dials, and returns a handle with the parsed config', async () => {
-    const env = { PATH: '/job/bin', CUSTOM: '1' };
-    const host = await startUptermHostAsync(makeCtx(env), {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('starts a detached session under a short unique name and takes the session id from its JSON', async () => {
+    const host = await startUptermHostAsync(makeCtx({ CUSTOM: '1' }), {
+      relayServerUrl: 'wss://relay.expo.dev',
+    });
+    await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
+
+    expect(host.connectionConfig).toEqual({ type: 'upterm-v1', secret: SESSION_ID });
+    const [first, second] = callsOf('host');
+    const nameOf = (call: SpawnCall): string => call.args[call.args.indexOf('--name') + 1];
+    expect(nameOf(first).length).toBeLessThanOrEqual(11);
+    expect(nameOf(first)).not.toBe(nameOf(second));
+    expect(first.args).toEqual(
+      expect.arrayContaining(['--accept', '--detach', '--output', 'json'])
+    );
+    expect(first.args.slice(first.args.indexOf('--'))).toEqual([
+      '--',
+      'bash',
+      '-lc',
+      'sleep 21600',
+    ]);
+    expect(first.options).toMatchObject({
+      env: { CUSTOM: '1', XDG_RUNTIME_DIR: '/tmp/eas-ssh-1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  });
+
+  it('reports whether the session was already reconnecting when it started', async () => {
+    hostResult = ok(DETACH_JSON.replace('"status": "ready"', '"status": "reconnecting"'));
+    const reconnecting = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    hostResult = ok(DETACH_JSON);
+    const ready = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+
+    expect(reconnecting.startedReconnecting).toBe(true);
+    expect(ready.startedReconnecting).toBe(false);
+  });
+
+  it('downloads upterm from GCS instead of using one on PATH', async () => {
+    await startUptermHostAsync(makeCtx({ PATH: '/usr/local/bin' }), {
       relayServerUrl: 'wss://relay.expo.dev',
     });
 
-    expect(host.connectionConfig).toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
-    expect(host.isAlive()).toBe(true);
-    expect(mockedDownloadFile).not.toHaveBeenCalled();
-    expect(mockedSpawn).toHaveBeenCalledWith('upterm', ['version'], {
-      stdio: 'pipe',
-      env,
-    });
-    expect(mockedSpawn).toHaveBeenCalledWith(
-      'upterm',
-      expect.arrayContaining(['host']),
-      expect.objectContaining({ env: expect.objectContaining({ CUSTOM: '1', PATH: '/job/bin' }) })
+    expect(calls.some(c => c.cmd === 'upterm')).toBe(false);
+    expect(mockedDownloadFile).toHaveBeenCalledWith(
+      'https://storage.googleapis.com/turtle-v2/upterm/' + resolveUptermGcsObjectName(),
+      expect.stringContaining('/tmp/eas-upterm-1'),
+      expect.objectContaining({ retry: 3 })
     );
+    expect(callsOf('host')[0].cmd).toContain('/tmp/eas-upterm-1');
   });
 
   it('starts each client shell in the build directory', async () => {
@@ -261,32 +323,10 @@ describe(startUptermHostAsync, () => {
     }
   });
 
-  it('downloads from GCS into a fresh temp dir when upterm is not on PATH', async () => {
-    uptermOnPath = false;
-
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
-
-    expect(host.connectionConfig.secret).toBe('TOKENx');
-    expect(mockedDownloadFile).toHaveBeenCalledWith(
-      expect.stringMatching(/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/),
-      expect.stringContaining('/tmp/eas-upterm-1'),
-      expect.objectContaining({ retry: 3 })
-    );
-    expect(mockedSpawn).toHaveBeenCalledWith(
-      expect.stringContaining('/tmp/eas-upterm-1'),
-      expect.arrayContaining(['host']),
-      expect.anything()
-    );
-  });
-
   it('downloads through the cache proxy when one is configured', async () => {
-    uptermOnPath = false;
-
     await startUptermHostAsync(
       makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
-      {
-        relayServerUrl: 'wss://relay.expo.dev',
-      }
+      { relayServerUrl: 'wss://relay.expo.dev' }
     );
 
     expect(mockedDownloadFile).toHaveBeenCalledTimes(1);
@@ -300,53 +340,33 @@ describe(startUptermHostAsync, () => {
   });
 
   it('falls back to the direct URL when the proxied download fails', async () => {
-    uptermOnPath = false;
     mockedDownloadFile.mockRejectedValueOnce(new Error('502 Bad Gateway') as never);
 
-    const host = await startUptermHostAsync(
+    await startUptermHostAsync(
       makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
       { relayServerUrl: 'wss://relay.expo.dev' }
     );
 
-    expect(host.connectionConfig.secret).toBe('TOKENx');
     expect(mockedDownloadFile).toHaveBeenCalledTimes(2);
     expect(mockedDownloadFile).toHaveBeenLastCalledWith(
       expect.stringMatching(/^https:\/\/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/),
       expect.stringContaining('/tmp/eas-upterm-1'),
       expect.objectContaining({ retry: 3 })
     );
-    expect(mockedSpawn).toHaveBeenCalledWith(
-      expect.stringContaining('/tmp/eas-upterm-1'),
-      expect.arrayContaining(['host']),
-      expect.anything()
-    );
   });
 
   it('names the direct URL when both the proxied and the direct download fail', async () => {
-    uptermOnPath = false;
     mockedDownloadFile.mockRejectedValue(new Error('403 Forbidden') as never);
 
     await expect(
       startUptermHostAsync(
         makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
-        {
-          relayServerUrl: 'wss://r',
-        }
+        { relayServerUrl: 'wss://r' }
       )
     ).rejects.toThrow(/could not be downloaded from https:\/\/storage\.googleapis\.com/);
   });
 
-  it('throws when upterm is missing from PATH and the GCS download fails', async () => {
-    uptermOnPath = false;
-    mockedDownloadFile.mockRejectedValue(new Error('403 Forbidden') as never);
-
-    await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
-      /could not be downloaded/
-    );
-  });
-
   it('still throws when download fails with a non-Error and temp cleanup also fails', async () => {
-    uptermOnPath = false;
     mockedDownloadFile.mockRejectedValue('network down' as never);
     mockedFs.rm.mockRejectedValue(new Error('EPERM') as never);
 
@@ -355,162 +375,172 @@ describe(startUptermHostAsync, () => {
     );
   });
 
-  it('keeps polling until upterm reports a session id', async () => {
-    sessionStdout = JSON.stringify({ host: 'ssh://relay.expo.dev:22', clientCount: 0 });
-    mockedSleep.mockImplementationOnce(async () => {
-      sessionStdout = JSON.stringify({
-        sessionId: 'TOKENy',
-        host: 'ssh://relay.expo.dev:22',
-        clientCount: 0,
-      });
-    });
-
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-
-    expect(host.connectionConfig).toEqual({ type: 'upterm-v1', secret: 'TOKENy' });
-  });
-
-  it('tears down and rethrows when the host never registers with the relay', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(0);
-    try {
-      mockedFs.readdir.mockResolvedValue([] as never);
-      mockedSleep.mockImplementation(async () => {
-        jest.setSystemTime(Date.now() + 61_000);
-      });
-
-      await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
-        /did not register/
+  it('throws the redacted host output, stops the session and removes the state dir when the start fails', async () => {
+    hostResult = () =>
+      Promise.reject(
+        Object.assign(new Error('upterm exited with non-zero code: 1'), {
+          status: 1,
+          signal: null,
+          stdout: '',
+          stderr: `upterm: session eas-1a2b3c4 could not start: ssh dial error via wss://${SESSION_ID}@relay.expo.dev`,
+        })
       );
-      expect(process.kill).toHaveBeenCalledWith(-4242, 'SIGTERM');
-      expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
-    } finally {
-      jest.useRealTimers();
-    }
-  });
 
-  it('stopAsync kills the process and removes the state dir', async () => {
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    await host.stopAsync();
+    const error = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' }).catch(
+      e => e
+    );
 
-    expect(process.kill).toHaveBeenCalledWith(-4242, 'SIGTERM');
+    expect(error.message).toMatch(/could not register with the relay/);
+    expect(error.message).toContain('could not start: ssh dial error');
+    expect(error.message).not.toContain(SESSION_ID);
+    expect(callsOf('session', 'stop')).toHaveLength(1);
     expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
   });
 
-  it('falls back to child.kill when process.kill on the process group fails', async () => {
-    jest.spyOn(process, 'kill').mockImplementation(() => {
-      throw new Error('ESRCH');
-    });
+  it('reports a start that ran into its timeout as not registered in time', async () => {
+    hostResult = () =>
+      Promise.reject(
+        Object.assign(new Error('upterm exited with signal: SIGTERM'), {
+          status: null,
+          signal: 'SIGTERM',
+          stdout: '',
+          stderr: '',
+        })
+      );
 
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
+      /did not register with the relay within 60s/
+    );
+    expect(callsOf('host')[0].options).toMatchObject({ timeout: 60_000 });
+  });
+
+  it('stops a session whose start JSON says guests cannot reach it', async () => {
+    hostResult = ok(DETACH_JSON.replace('"status": "ready"', '"status": "disconnected"'));
+
+    const error = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' }).catch(
+      e => e
+    );
+
+    expect(error.message).toMatch(/did not report a usable session/);
+    expect(error.message).not.toContain(SESSION_ID);
+    expect(callsOf('session', 'stop')).toHaveLength(1);
+  });
+
+  it('stopAsync stops the session by name with the start environment and removes the state and download dirs', async () => {
+    const host = await startUptermHostAsync(makeCtx({ CUSTOM: '1' }), {
+      relayServerUrl: 'wss://r',
+    });
     await host.stopAsync();
 
-    expect(hostProcess.child.kill).toHaveBeenCalled();
+    const name = callsOf('host')[0].args[callsOf('host')[0].args.indexOf('--name') + 1];
+    const [stop] = callsOf('session', 'stop');
+    expect(stop.args).toEqual(['session', 'stop', name]);
+    expect(stop.options.env).toMatchObject({ CUSTOM: '1', XDG_RUNTIME_DIR: '/tmp/eas-ssh-1' });
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-upterm-1', expect.anything());
   });
 
-  it('skips process.kill when the host process has no pid', async () => {
+  it('stopAsync throws the stop output but still removes the state and download dirs when the stop fails', async () => {
     const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    hostProcess.child.pid = undefined as unknown as number;
-    await host.stopAsync();
+    stopResult = () =>
+      Promise.reject(
+        Object.assign(new Error('exited with non-zero code: 1'), {
+          stdout: '',
+          stderr: "upterm: session eas-1a2b3c4 isn't answering on its admin socket (pid 73366)",
+        })
+      );
 
-    expect(process.kill).not.toHaveBeenCalled();
-    expect(hostProcess.child.kill).not.toHaveBeenCalled();
+    await expect(host.stopAsync()).rejects.toThrow(/isn't answering on its admin socket/);
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-upterm-1', expect.anything());
   });
 
-  it('redialAsync re-establishes the connection', async () => {
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    const config = await host.redialAsync();
+  describe('readStatusAsync', () => {
+    it('reads the status and client count from the admin socket the start JSON named', async () => {
+      const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+      currentResult = ok(current({ status: 'reconnecting', clientCount: 2 }));
 
-    expect(config).toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
-    expect(host.connectionConfig).toEqual(config);
-  });
-
-  it('redialAsync waits for the old process to exit before clearing its socket dir', async () => {
-    const order: string[] = [];
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-
-    // Keep the give-up timer pending so only the process exit can unblock the redial.
-    mockedSleep.mockImplementation(() => new Promise<void>(() => {}));
-    let resolveExit: (() => void) | undefined;
-    hostProcess.catch = () =>
-      new Promise<void>(resolve => {
-        resolveExit = () => {
-          order.push('exited');
-          resolve();
-        };
+      expect(await host.readStatusAsync()).toEqual({
+        state: 'reconnecting',
+        connectedClientCount: 2,
       });
-    mockedFs.rm.mockImplementation((() => {
-      order.push('rm');
-      return Promise.resolve(undefined);
-    }) as never);
-    jest.spyOn(process, 'kill').mockImplementation(() => {
-      order.push('kill');
-      // A real SIGTERM is asynchronous, so the exit lands after the kill returns.
-      setImmediate(() => resolveExit?.());
-      return true;
+      expect(callsOf('session', 'current')[0].args).toEqual([
+        'session',
+        'current',
+        '--admin-socket',
+        '/tmp/eas-ssh-1/upterm/sessions/eas-1a2b3c4/admin.sock',
+        '--output',
+        'json',
+      ]);
     });
 
-    await host.redialAsync();
-
-    expect(order).toEqual(['kill', 'exited', 'rm']);
-  });
-
-  it('redialAsync gives up waiting when the old process does not exit', async () => {
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    hostProcess.catch = () => new Promise<void>(() => {});
-
-    await expect(host.redialAsync()).resolves.toEqual({ type: 'upterm-v1', secret: 'TOKENx' });
-    expect(mockedSleep).toHaveBeenCalledWith(5_000);
-  });
-
-  it('continues when the previous socket dir cannot be cleared', async () => {
-    mockedFs.rm.mockImplementation(((dir: string) =>
-      dir === '/tmp/eas-ssh-1/upterm'
-        ? Promise.reject(new Error('busy'))
-        : Promise.resolve(undefined)) as never);
-
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-
-    expect(host.connectionConfig.secret).toBe('TOKENx');
-  });
-
-  describe('getConnectedClientCountAsync', () => {
-    it('throws when no admin socket exists yet (after retries)', async () => {
+    it.each([
+      [
+        { status: 'disconnected', tunnelReason: 'reconnect_unsupported' },
+        'disconnected (reconnect_unsupported)',
+      ],
+      [{ status: 'ending' }, 'ending'],
+    ])('treats %j as gone for good', async (fields, reason) => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      mockedFs.readdir.mockResolvedValue([] as never);
-      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
+      currentResult = ok(current({ clientCount: 0, ...fields }));
+
+      expect(await host.readStatusAsync()).toEqual({ state: 'gone', reason });
     });
 
-    it('returns the client count reported by the admin socket', async () => {
+    it.each([
+      'relay_key_changed',
+      'auth_refused',
+      'proof_refused',
+      'agent_refused',
+      'relay_unsupported',
+    ])('treats a reconnect blocked by %s as gone for good', async tunnelReason => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      sessionStdout = JSON.stringify({
-        sessionId: 'TOKENx',
-        host: 'relay.expo.dev',
-        clientCount: 4,
+      currentResult = ok(current({ status: 'reconnecting', tunnelReason, clientCount: 0 }));
+
+      expect(await host.readStatusAsync()).toEqual({
+        state: 'gone',
+        reason: `reconnecting (${tunnelReason})`,
       });
-      expect(await host.getConnectedClientCountAsync()).toBe(4);
     });
 
-    it('throws when the count query fails (after retries)', async () => {
-      const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      mockedSpawn.mockImplementation((() => Promise.reject(new Error('socket gone'))) as never);
-      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
-    });
+    it.each(['network', 'relay_error', 'agent_unavailable'])(
+      'keeps a session reconnecting after %s',
+      async tunnelReason => {
+        const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+        currentResult = ok(current({ status: 'reconnecting', tunnelReason, clientCount: 0 }));
 
-    it('throws when the reported count is not a number (after retries)', async () => {
+        expect(await host.readStatusAsync()).toEqual({
+          state: 'reconnecting',
+          connectedClientCount: 0,
+        });
+      }
+    );
+
+    it('reports the session as gone when the read fails and the session process has exited', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      sessionStdout = JSON.stringify({
-        sessionId: 'TOKENx',
-        host: 'relay.expo.dev',
-        clientCount: 'nope',
+      currentResult = () => Promise.reject(new Error('exited with non-zero code: 4'));
+      daemonRunning = false;
+
+      expect(await host.readStatusAsync()).toEqual({
+        state: 'gone',
+        reason: 'the upterm session process exited',
       });
-      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
+      expect(process.kill).toHaveBeenCalledWith(73366, 0);
     });
 
-    it('throws when the socket dir cannot be read (after retries)', async () => {
+    it('retries a failed read while the session process runs, then throws', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      mockedFs.readdir.mockRejectedValue(new Error('no dir') as never);
-      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
+      currentResult = () => Promise.reject(new Error('deadline exceeded'));
+
+      await expect(host.readStatusAsync()).rejects.toThrow(/client count/i);
+      expect(callsOf('session', 'current')).toHaveLength(4);
+    });
+
+    it('does not guess at a status it does not know', async () => {
+      const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+      currentResult = ok(current({ status: 'starting', clientCount: 0 }));
+
+      await expect(host.readStatusAsync()).rejects.toThrow(/client count/i);
     });
   });
 });
