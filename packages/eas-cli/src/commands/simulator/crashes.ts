@@ -10,6 +10,10 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log from '../../log';
 import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
 import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
+import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
@@ -44,7 +48,8 @@ interface SimulatorCrashDetail {
 }
 
 export default class SimulatorCrashes extends EasCommand {
-  static override aliases = ['sim:crashes'];
+  static override aliases = getSimulatorCommandAliases('crashes');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('crashes');
   static override description =
     '[EXPERIMENTAL] show crash reports from a remote iOS simulator session\n\n' +
     'For logs during a crash reproduction, run `eas simulator:logs --follow --scope all` first.';
