@@ -272,7 +272,7 @@ it('uploads the tail of a truncated log with the retained size and omission meta
   expect(call).toEqual(
     expect.objectContaining({
       size: MAX_ANDROID_LOG_BYTES_PER_SOURCE,
-      name: expect.stringContaining('truncated, last 20 MiB retained'),
+      name: expect.stringContaining('truncated, last 20.0 MB retained'),
       metadata: expect.objectContaining({ omittedBytes: omitted, truncated: true }),
     })
   );

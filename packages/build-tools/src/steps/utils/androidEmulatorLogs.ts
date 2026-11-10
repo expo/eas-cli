@@ -10,6 +10,7 @@ import {
 } from '../../utils/androidEmulatorLogCapture';
 import { AndroidEmulatorLogFiles } from '../../utils/androidEmulatorLogFiles';
 import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
+import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 const UPLOAD_TIMEOUT_MS = 30_000;
@@ -117,9 +118,8 @@ async function uploadLogAsync(
   return await uploadDeviceRunSessionFileAsync(ctx, {
     filePath,
     describe: size => {
-      const retainedSize =
-        size >= 1024 * 1024 ? `${Number((size / (1024 * 1024)).toFixed(2))} MiB` : `${size} bytes`;
-      const truncationNote = size < bytesSeen ? `; truncated, last ${retainedSize} retained` : '';
+      const truncationNote =
+        size < bytesSeen ? `; truncated, last ${formatBytes(size)} retained` : '';
       return {
         deviceRunSessionId,
         artifactId: filename,
