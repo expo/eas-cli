@@ -201,7 +201,10 @@ describe(uploadArgentArtifactAsync, () => {
     );
   });
 
-  it('sends the size of a screenshot read from its header', async () => {
+  it.each([
+    { kind: undefined, expectedKind: 'screenshot' },
+    { kind: 'screenshot-diff', expectedKind: 'screenshot-diff' },
+  ])('sends the size of a $expectedKind read from its header', async ({ kind, expectedKind }) => {
     const png = Buffer.alloc(33);
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
     png.writeUInt32BE(13, 8);
@@ -209,14 +212,14 @@ describe(uploadArgentArtifactAsync, () => {
     png.writeUInt32BE(1179, 16);
     png.writeUInt32BE(2556, 20);
     const ctx = await uploadAsync(
-      { id: 'artifact-id', filename: 'screen.png', mimeType: 'image/png' },
+      { id: 'artifact-id', kind, filename: 'screen.png', mimeType: 'image/png' },
       png
     );
 
     expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
-        kind: 'screenshot',
+        kind: expectedKind,
         metadata: { source: 'argent', width: 1179, height: 2556 },
       })
     );

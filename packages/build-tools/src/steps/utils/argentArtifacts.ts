@@ -211,7 +211,7 @@ export async function uploadArgentArtifactAsync(
     const { size } = await stat(temporaryArtifactPath);
     const kind = getArgentArtifactKind(artifact);
     const metadata =
-      kind === 'screenshot' && !artifact.isDirectory
+      (kind === 'screenshot' || kind === 'screenshot-diff') && !artifact.isDirectory
         ? await createScreenshotMetadataAsync(temporaryArtifactPath, { source: 'argent', logger })
         : undefined;
     logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
