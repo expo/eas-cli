@@ -267,6 +267,32 @@ describe('session preview upload session from the worker API', () => {
       { metadata: { source: 'preview', width: 148, height: 320 } },
       { metadata: { source: 'preview', width: 320, height: 148 } },
     ]);
+    expect(jest.mocked(turtleFetch).mock.invocationCallOrder[1]).toBeGreaterThan(
+      jest.mocked(fetch).mock.invocationCallOrder[2]
+    );
+  });
+
+  it('keeps the stored size when the upload of a resized preview fails', async () => {
+    const captureAsync = jest
+      .fn<Promise<Buffer>, [AbortSignal]>()
+      .mockResolvedValueOnce(webpPreview(148, 320))
+      .mockResolvedValue(webpPreview(320, 148));
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response('', { status: 200 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }));
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(60_000);
+    await preview.stopAsync();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', width: 148, height: 320 } },
+    ]);
   });
 
   it('sends the size again after a failed size refresh', async () => {
@@ -291,7 +317,7 @@ describe('session preview upload session from the worker API', () => {
       { metadata: { source: 'preview', width: 320, height: 148 } },
       { metadata: { source: 'preview', width: 148, height: 320 } },
     ]);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it('logs a failure and uploads nothing when the job has no device run session token', async () => {

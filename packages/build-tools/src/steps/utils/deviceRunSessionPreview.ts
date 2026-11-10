@@ -36,7 +36,7 @@ export function startDeviceRunSessionPreview({
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
   let uploadSession: { url: string; headers: Record<string, string> } | undefined;
-  let uploadSessionSize: ImageSize | undefined;
+  let storedSize: ImageSize | undefined;
   let pending: Promise<void>;
 
   const uploadAsync = async (): Promise<void> => {
@@ -50,15 +50,9 @@ export function startDeviceRunSessionPreview({
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
       const size = readImageSize(image);
-      if (
-        !uploadSession ||
-        (size &&
-          (size.width !== uploadSessionSize?.width || size.height !== uploadSessionSize.height))
-      ) {
-        uploadSession = undefined;
-        uploadSessionSize = undefined;
+      if (!uploadSession) {
         uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
-        uploadSessionSize = size;
+        storedSize = size;
       }
       if (controller.signal.aborted) {
         return;
@@ -67,6 +61,16 @@ export function startDeviceRunSessionPreview({
         { signedUrl: uploadSession, content: image },
         { signal, retries: 0, stallTimeoutMs: 30_000 }
       );
+      if (
+        controller.signal.aborted ||
+        !size ||
+        (size.width === storedSize?.width && size.height === storedSize.height)
+      ) {
+        return;
+      }
+      storedSize = undefined;
+      uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
+      storedSize = size;
     } catch (err) {
       if (!controller.signal.aborted) {
         logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');
