@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { claimAsync, prepareToolsAsync } from '../commands/claim';
+import * as prefetch from '../commands/prefetch';
 import { runWarmSimulatorSessionAsync, startAsync } from '../commands/start';
 import { stopAsync } from '../commands/stop';
 import { mainAsync } from '../main';
@@ -159,7 +160,133 @@ afterEach(async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
+test('warmup is finite, never claimable, and joins cleanup before returning', async () => {
+  const prefetching = deferred<number>();
+  jest.spyOn(prefetch, 'prefetchAsync').mockReturnValue(prefetching.promise);
+  process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO = '0';
+  const drain = deferred();
+  jest.spyOn(processes, 'stopProcessAndDescendantsAsync').mockReturnValue(drain.promise);
+  let done = false;
+  const completion = mainAsync(['warmup']).then(value => {
+    done = true;
+    return value;
+  });
+  active.push(completion);
+  try {
+    await status('starting');
+    expect(commands.start).not.toHaveBeenCalled();
+    prefetching.resolve(0);
+    await status('stopping');
+    expect(done).toBe(false);
+    expect(await readLauncherStateAsync(boot)).not.toHaveProperty('server');
+    drain.resolve();
+    expect(await completion).toBe(0);
+    expect(await readLauncherStateAsync(boot)).toMatchObject({ status: 'disabled' });
+    await expect(mainAsync(['warmup'])).rejects.toThrow('fresh boot');
+  } finally {
+    prefetching.resolve(0);
+    drain.resolve();
+  }
+});
+
+test('interrupted prefetch fails after cleanup instead of reporting success', async () => {
+  jest.spyOn(prefetch, 'prefetchAsync').mockImplementation(
+    signal =>
+      new Promise((_resolve, reject) => {
+        signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+      })
+  );
+  const completion = mainAsync(['warmup']).catch(error => error);
+  active.push(completion);
+  await status('starting');
+  process.emit('SIGTERM', 'SIGTERM');
+  expect(await completion).toBeInstanceOf(Error);
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    status: 'disabled',
+    error: expect.any(String),
+  });
+  expect(commands.start).not.toHaveBeenCalled();
+});
+
+test('prefetch failure propagates without starting native preparation', async () => {
+  jest.spyOn(prefetch, 'prefetchAsync').mockRejectedValue(new Error('download failed'));
+  await expect(mainAsync(['warmup'])).rejects.toThrow('download failed');
+  expect(commands.start).not.toHaveBeenCalled();
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    status: 'disabled',
+    error: 'download failed',
+  });
+});
+
+test('warmup rejects an active startup before prefetch can replace caches', async () => {
+  const fetching = jest.spyOn(prefetch, 'prefetchAsync').mockResolvedValue(0);
+  await updateLauncherStateAsync(boot, () => ({
+    bootUuid: boot,
+    status: 'starting',
+    controllerPid: 123,
+  }));
+  await expect(mainAsync(['warmup'])).rejects.toThrow('already been started');
+  expect(fetching).not.toHaveBeenCalled();
+});
+
+test('warmup cleanup failure remains visible and cannot report completion', async () => {
+  jest.spyOn(prefetch, 'prefetchAsync').mockResolvedValue(0);
+  process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO = '0';
+  jest
+    .spyOn(processes, 'stopProcessAndDescendantsAsync')
+    .mockRejectedValue(new Error('still running'));
+  await expect(mainAsync(['warmup'])).rejects.toThrow('cleanup could not be confirmed');
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    status: 'stopping',
+    error: expect.any(String),
+  });
+});
+
+test('warmup requires startup enabled before replacing cached files', async () => {
+  delete process.env.EXPO_SIMULATOR_STARTUP;
+  const fetching = jest.spyOn(prefetch, 'prefetchAsync').mockResolvedValue(0);
+  await expect(mainAsync(['warmup'])).rejects.toThrow('requires EXPO_SIMULATOR_STARTUP=1');
+  expect(fetching).not.toHaveBeenCalled();
+});
+
+test('warmup rejects extra arguments before native work', async () => {
+  await expect(mainAsync(['warmup', 'extra'])).rejects.toThrow('Usage: simulator-launcher warmup');
+  expect(commands.runAsync).not.toHaveBeenCalled();
+});
+
+test('tool preparation deadline fails the command and still joins cleanup', async () => {
+  const deadline = new AbortController();
+  const timeout = AbortSignal.timeout;
+  jest
+    .spyOn(AbortSignal, 'timeout')
+    .mockImplementation(ms => (ms === 600_000 ? deadline.signal : timeout(ms)));
+  jest.spyOn(prefetch, 'prefetchAsync').mockResolvedValue(0);
+  process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO = '0';
+  const entered = deferred();
+  jest
+    .mocked(serveSim.waitForServeSimReadyAsync)
+    .mockImplementation(async (_udid, _server, signal) => {
+      entered.resolve();
+      return await new Promise((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      );
+    });
+  const completion = mainAsync(['warmup']).catch(error => error);
+  active.push(completion);
+  await entered.promise;
+  deadline.abort(new Error('preparation deadline elapsed'));
+  expect(await completion).toMatchObject({ message: 'preparation deadline elapsed' });
+  expect(processes.stopProcessAndDescendantsAsync).toHaveBeenCalled();
+  expect(await readLauncherStateAsync(boot)).toMatchObject({
+    status: 'disabled',
+    error: 'preparation deadline elapsed',
+  });
+});
+
 test('concurrent starts acquire one session and record the exact package version', async () => {
+  process.env.SERVE_SIM_VERSION = '0.13.3';
+  process.env.AGENT_DEVICE_VERSION = '0.16.0';
+  process.env.ARGENT_VERSION = '1.0.0';
   const results: unknown[] = [];
   const starts = [0, 1].map(() =>
     startAsync(boot).then(
@@ -174,11 +301,47 @@ test('concurrent starts acquire one session and record the exact package version
   expect((await readLauncherStateAsync(boot))?.launcherVersion).toBe(
     require('../../package.json').version
   );
+  expect((await readLauncherStateAsync(boot))?.serveSimVersion).toBe('0.13.3');
   expect(jest.mocked(serveSim.waitForServeSimReadyAsync).mock.calls).toHaveLength(1);
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'serve-sim');
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    status: 'claimed',
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.16.0',
+    argentVersion: '1.0.0',
+  });
   await stopAsync(boot);
   await Promise.all(starts);
   expect((await readLauncherStateAsync(boot))?.status).toBe('disabled');
 });
+
+test.each([undefined, 'latest', '^0.13'])(
+  'start does not claim a resolved version for selector %s',
+  async version => {
+    if (version === undefined) {
+      delete process.env.SERVE_SIM_VERSION;
+    } else {
+      process.env.SERVE_SIM_VERSION = version;
+    }
+    if (version === undefined) {
+      delete process.env.AGENT_DEVICE_VERSION;
+      delete process.env.ARGENT_VERSION;
+    } else {
+      process.env.AGENT_DEVICE_VERSION = version;
+      process.env.ARGENT_VERSION = version;
+    }
+    const starting = startAsync(boot);
+    active.push(starting);
+    await status('ready');
+    const state = await readLauncherStateAsync(boot);
+    expect(state?.serveSimVersion).toBeUndefined();
+    expect(state?.agentDeviceVersion).toBeUndefined();
+    expect(state?.argentVersion).toBeUndefined();
+    await stopAsync(boot);
+    await starting;
+  }
+);
 
 test('stop before start makes late startup a resource-free disabled no-op', async () => {
   expect(await stopAsync(boot)).toBe(0);
@@ -472,4 +635,134 @@ test.each([
   } else {
     await expect(result).rejects.toBe(failure);
   }
+});
+
+test('start uses supplied runtime versions, ignores legacy pins and claims one boot snapshot', async () => {
+  for (const name of [
+    'SERVE_SIM_VERSION',
+    'AGENT_DEVICE_VERSION',
+    'ARGENT_VERSION',
+    'EXPO_GO_SDK_VERSION',
+  ]) {
+    delete process.env[name];
+  }
+  process.env.SERVE_SIM_VERSION = '0.13.3';
+  process.env.AGENT_DEVICE_VERSION = '0.21.36';
+  process.env.ARGENT_VERSION = '0.32.0';
+  const queries = jest.spyOn(commands, 'runOwnedAsync');
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const expoGo = { sdk: '58.0.0', url: 'https://example.test/prepared-expo-go.tar.gz' };
+  await fs.writeFile(
+    file,
+    JSON.stringify({
+      tools: {
+        'serve-sim': { version: '0.1.0' },
+        'agent-device': { version: 'invalid legacy pin' },
+        argent: { version: '0.32.0' },
+        'expo-go': expoGo,
+      },
+    })
+  );
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['@expo/serve-sim@0.13.3']),
+    expect.anything()
+  );
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['agent-device@0.21.36']),
+    expect.anything()
+  );
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), expoGo, false);
+  await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: '0.13.4' } } }));
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'serve-sim');
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.21.36',
+    argentVersion: '0.32.0',
+  });
+  expect(queries).not.toHaveBeenCalled();
+  await stopAsync(boot);
+  await starting;
+});
+
+test('start honors a supplied Expo Go SDK over an older prepared selection', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '59.0.0';
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(
+    file,
+    JSON.stringify({
+      tools: {
+        'expo-go': { sdk: '58.0.0', url: 'https://example.test/older-expo-go.tar.gz' },
+      },
+    })
+  );
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), undefined, false);
+  expect(process.env.EXPO_GO_SDK_VERSION).toBe('59.0.0');
+  await stopAsync(boot);
+  await starting;
+});
+
+test('invalid legacy CLI metadata does not prevent runtime startup', async () => {
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: 'latest' } } }));
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(commands.start).toHaveBeenCalled();
+  await stopAsync(boot);
+  await starting;
+});
+
+test('warmup refreshes archive metadata while runtime overrides ignore legacy CLI pins', async () => {
+  jest.mocked(startExpoGoPreinstall).mockReturnValue({
+    preinstallOnDeviceAsync: jest.fn(async () => {}),
+    claimAsync: jest.fn(async udid => ({
+      udid,
+      bundleIdentifier: 'host.exp.Exponent',
+      shortVersion: '58.0.7',
+      version: '1',
+    })),
+    stopAsync: jest.fn(async () => {}),
+  });
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: '0.13.3' } } }));
+  process.env.SERVE_SIM_VERSION = '0.13.4';
+  const fetching = jest.spyOn(prefetch, 'prefetchAsync').mockImplementation(async () => {
+    expect(process.env.SERVE_SIM_VERSION).toBe('0.13.4');
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        tools: {
+          'serve-sim': { version: '0.1.0' },
+          'expo-go': { sdk: '58.0.0', url: 'https://example.test/prepared-expo-go.tar.gz' },
+        },
+      })
+    );
+    return 0;
+  });
+  expect(await mainAsync(['warmup'])).toBe(0);
+  expect(fetching).toHaveBeenCalledTimes(1);
+  expect(commands.start).toHaveBeenCalledWith(
+    'bunx',
+    expect.arrayContaining(['@expo/serve-sim@0.13.4']),
+    expect.anything()
+  );
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(
+    expect.any(AbortSignal),
+    { sdk: '58.0.0', url: 'https://example.test/prepared-expo-go.tar.gz' },
+    true
+  );
+  expect((await readLauncherStateAsync(boot))?.status).toBe('disabled');
 });

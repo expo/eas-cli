@@ -1,23 +1,30 @@
 import { Sentry } from './sentry';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from './steps/utils/deviceRunSessionWorkerApi';
+import { SANDBOX_WORKER_TOKEN_HEADER } from './steps/utils/sandboxWorkerApi';
 import { turtleFetch } from './utils/turtleFetch';
 
 type MetricsTarget =
   | { kind: 'build'; turtleBuildId: string }
   | { kind: 'jobRun'; turtleJobRunId: string }
   // A device run session job with a session token. The token names the session and its job run.
-  | { kind: 'deviceRunSession' };
+  | { kind: 'deviceRunSession' }
+  | { kind: 'sandbox' };
 
 type DatadogSetupOptions =
   | {
       expoApiV2BaseUrl: string;
       robotAccessToken: string;
-      target: Exclude<MetricsTarget, { kind: 'deviceRunSession' }>;
+      target: Exclude<MetricsTarget, { kind: 'deviceRunSession' | 'sandbox' }>;
     }
   | {
       expoApiV2BaseUrl: string;
       deviceRunSessionToken: string;
       target: Extract<MetricsTarget, { kind: 'deviceRunSession' }>;
+    }
+  | {
+      expoApiV2BaseUrl: string;
+      sandboxWorkerToken: string;
+      target: Extract<MetricsTarget, { kind: 'sandbox' }>;
     };
 
 let setupOptions: DatadogSetupOptions | null = null;
@@ -39,6 +46,12 @@ function getMetricsRequest(options: DatadogSetupOptions): {
     return {
       path: 'device-run-session-worker/metrics',
       headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: options.deviceRunSessionToken },
+    };
+  }
+  if ('sandboxWorkerToken' in options) {
+    return {
+      path: 'sandbox-worker/metrics',
+      headers: { [SANDBOX_WORKER_TOKEN_HEADER]: options.sandboxWorkerToken },
     };
   }
   const { target, robotAccessToken } = options;

@@ -9,6 +9,8 @@ import {
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
+import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
+import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -23,6 +25,8 @@ jest.mock('../../../utils/retry', () => ({
 jest.mock('../../utils/androidLocalEgress', () => ({
   resolveAndroidEmulatorLocalEgressAsync: jest.fn(),
 }));
+
+jest.mock('../../utils/androidEmulatorLogs');
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
@@ -62,6 +66,11 @@ function createStartResult(serialId: string) {
 
 describe(createStartAndroidEmulatorBuildFunction, () => {
   beforeEach(() => {
+    jest
+      .mocked(getAndroidEmulatorLogCapture)
+      .mockImplementation(
+        jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
+      );
     mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
@@ -90,6 +99,30 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedMkdtemp.mockRestore();
   });
 
+  it('preserves an explicit empty source list and one capture through boot retries and clones', async () => {
+    mockedAndroidUtils.waitForReadyAsync.mockRejectedValueOnce(new Error('retry boot'));
+    const capture = new AndroidEmulatorLogRing({ sources: [] });
+    jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
+    await createStep(
+      { log_sources: [], count: 2 },
+      { DEVICE_RUN_SESSION_ID: 'session' }
+    ).executeAsync();
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ DEVICE_RUN_SESSION_ID: 'session' }),
+      []
+    );
+    expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(4);
+    for (const [options] of mockedAndroidUtils.startAsync.mock.calls) {
+      expect(options.logCapture).toBe(capture);
+    }
+  });
+
+  it('rejects invalid sources before starting the emulator', async () => {
+    await expect(createStep({ log_sources: ['unknown'] }).executeAsync()).rejects.toThrow();
+    expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
+  });
+
   describe('local egress', () => {
     function createLocalEgress() {
       return {
@@ -111,6 +144,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         deviceName: 'EasAndroidDevice01',
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
+        logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),

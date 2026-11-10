@@ -1,4 +1,4 @@
-import { ArchiveSource, ArchiveSourceType, UserError } from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -97,6 +97,45 @@ export async function fetchAndCheckoutRefAsync({
       { cause: err }
     );
   }
+}
+
+export async function stripRepositoryCredentialsAsync({
+  repositoryDirectory,
+}: {
+  repositoryDirectory: string;
+}): Promise<void> {
+  let remoteUrl: URL;
+  try {
+    const { stdout } = await spawn('git', ['remote', 'get-url', 'origin'], {
+      cwd: repositoryDirectory,
+    });
+    remoteUrl = new URL(stdout.trim());
+  } catch (err) {
+    throw new SystemError('Failed to read the origin remote URL of the project repository.', {
+      cause: err,
+    });
+  }
+
+  if (!remoteUrl.username && !remoteUrl.password) {
+    return;
+  }
+
+  try {
+    await spawn('git', ['remote', 'set-url', 'origin', stripCredentialsFromGitUrl(remoteUrl)], {
+      cwd: repositoryDirectory,
+    });
+  } catch (err) {
+    throw new SystemError('Failed to strip credentials from the origin remote URL.', {
+      cause: err,
+    });
+  }
+}
+
+function stripCredentialsFromGitUrl(url: URL): string {
+  const strippedUrl = new URL(url.toString());
+  strippedUrl.username = '';
+  strippedUrl.password = '';
+  return strippedUrl.toString();
 }
 
 function getSanitizedGitUrl(maybeGitUrl: string): string | null {

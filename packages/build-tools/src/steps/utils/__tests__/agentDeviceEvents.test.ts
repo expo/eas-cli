@@ -9,10 +9,8 @@ import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAgentDeviceEventCollectionAsync } from '../agentDeviceEvents';
-import {
-  DEVICE_RUN_SESSION_TOKEN_HEADER,
-  DeviceRunSessionWorkerApiError,
-} from '../deviceRunSessionWorkerApi';
+import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
+import { WorkerApiError } from '../workerApi';
 
 const mockEventLogStream = {
   init: jest.fn(async () => undefined),
@@ -577,7 +575,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
             'Failed to create device run session event log upload session: ' +
             'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
             'WWW unavailable',
-          cause: expect.any(DeviceRunSessionWorkerApiError),
+          cause: expect.any(WorkerApiError),
         }),
       },
       'Could not persist device run session events to the artifact.'
@@ -589,7 +587,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
           'Failed to create device run session event log upload session: ' +
           'POST /v2/device-run-session-worker/event-log-upload-session failed with status 503: ' +
           'WWW unavailable',
-        cause: expect.any(DeviceRunSessionWorkerApiError),
+        cause: expect.any(WorkerApiError),
       }),
       {
         level: 'warning',

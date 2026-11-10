@@ -63,6 +63,7 @@ import { createStartServeSimMetricsBuildFunction } from './functions/startServeS
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
 import { createStartServeSimNetworkCaptureBuildFunction } from './functions/startServeSimNetworkCapture';
+import { createCollectAndroidEmulatorLogsBuildFunction } from './functions/collectAndroidEmulatorLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createCollectServeSimNetworkCaptureBuildFunction } from './functions/collectServeSimNetworkCapture';
@@ -131,6 +132,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),
+    createCollectAndroidEmulatorLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),

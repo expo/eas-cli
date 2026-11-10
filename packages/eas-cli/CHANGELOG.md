@@ -1,5 +1,54 @@
 # eas-cli
 
+## 27.7.2
+
+### Patch Changes
+
+- Add `--log-source` to `eas simulator` to select which Android logs a session records. ([#4823](https://github.com/expo/eas-cli/pull/4823) by [@vonovak](https://github.com/vonovak))
+- Show that the ssh session has ended, instead of saying SSH was not enabled, when `eas workflow:ssh` is given the ID of a finished build. ([#4842](https://github.com/expo/eas-cli/pull/4842) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Show the ID argument and examples in `eas workflow:ssh --help`. ([#4829](https://github.com/expo/eas-cli/pull/4829) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+
+## 27.7.0
+
+### Minor Changes
+
+- Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### Patch Changes
+
+- Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
+## 27.6.0
+
+### Minor Changes
+
+- Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+
+### Patch Changes
+
+- Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+
+## 27.5.0
+
+### Minor Changes
+
+- Import ordered action configurations with `eas simulator:control --import` and show progress for each action. ([#4686](https://github.com/expo/eas-cli/pull/4686) by [@gwdp](https://github.com/gwdp))
+- Reuse simulator control connections with `--keep-alive` or `simulator:control:connection open`. Set an idle timeout, inspect the connection, or close it without stopping the simulator session. Keep-alive currently supports macOS and Linux. ([#4791](https://github.com/expo/eas-cli/pull/4791) by [@gwdp](https://github.com/gwdp))
+- Start simulator sessions from saved settings and apply control actions after readiness. ([#4687](https://github.com/expo/eas-cli/pull/4687) by [@gwdp](https://github.com/gwdp))
+- Run `eas simulator` commands also as `eas simulators`, `eas emulator` and `eas emulators`, for example `eas emulators:start` or `eas simulators:list`. These aliases are hidden from help. ([#4794](https://github.com/expo/eas-cli/pull/4794) by [@szdziedzic](https://github.com/szdziedzic))
+- List `eas workflow:ssh` in `eas --help`. ([#4793](https://github.com/expo/eas-cli/pull/4793) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### Patch Changes
+
+- Find the personal account by its owner instead of assuming that its name equals the username. ([#3922](https://github.com/expo/eas-cli/pull/3922) by [@byronkarlen](https://github.com/byronkarlen))
+- Show the Expo Simulators hint after a successful build from November 12 instead of November 10. ([#4817](https://github.com/expo/eas-cli/pull/4817) by [@williamgrosset](https://github.com/williamgrosset))
+
 ## 27.4.1
 
 No changes in this release.
