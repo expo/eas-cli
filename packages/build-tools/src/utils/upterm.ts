@@ -76,20 +76,13 @@ const UptermCurrentSessionJsonZ = z.object({
 
 /**
  * Strip upterm session secrets out of text before it reaches a log or an error message. The
- * session id is the secret: each of `knownSessionIds`, and any id in a `sessionId` field of
- * upterm's JSON output, is removed everywhere. Control characters are dropped first so they cannot
- * split a token mid-match. The final replace blanks userinfo in any URL as a catch-all.
+ * session id is the secret: any id in a `sessionId` field of upterm's JSON output is removed
+ * everywhere. Control characters are dropped first so they cannot split a token mid-match. The
+ * final replace blanks userinfo in any URL as a catch-all.
  */
-export function redactConnectionSecrets(
-  text: string,
-  knownSessionIds: readonly string[] = []
-): string {
+export function redactConnectionSecrets(text: string): string {
   let redacted = text.replace(CONTROL_CHARACTERS, '');
-  const sessionIds = [
-    ...knownSessionIds,
-    ...Array.from(redacted.matchAll(SESSION_ID_JSON_FIELD), ([, id]) => id),
-  ];
-  for (const id of sessionIds) {
+  for (const [, id] of redacted.matchAll(SESSION_ID_JSON_FIELD)) {
     redacted = redacted.split(id).join('<redacted>');
   }
   return redacted.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/gi, '$1<redacted>@');
@@ -144,9 +137,9 @@ function parseJson(text: string): unknown {
   }
 }
 
-function spawnOutput(err: unknown, knownSessionIds: readonly string[] = []): string {
+function spawnOutput(err: unknown): string {
   const { stdout, stderr } = err as Partial<SpawnResult>;
-  return redactConnectionSecrets(`${stderr ?? ''}${stdout ?? ''}`, knownSessionIds);
+  return redactConnectionSecrets(`${stderr ?? ''}${stdout ?? ''}`);
 }
 
 async function readCurrentSessionStatusAsync(
@@ -207,14 +200,11 @@ export async function startUptermHostAsync(
     { mode: 0o755 }
   );
 
-  let knownSessionIds: string[] = [];
   const stopAsync = async (): Promise<void> => {
     try {
       await spawn(uptermPath, ['session', 'stop', sessionName], { stdio: 'pipe', env });
     } catch (err) {
-      throw new SystemError(
-        `Failed to stop the upterm session. Output:\n${spawnOutput(err, knownSessionIds)}`
-      );
+      throw new SystemError(`Failed to stop the upterm session. Output:\n${spawnOutput(err)}`);
     } finally {
       await Promise.all(
         [stateDir, path.dirname(uptermPath)].map(dir =>
@@ -270,7 +260,6 @@ export async function startUptermHostAsync(
       );
     }
     started = parsed.data;
-    knownSessionIds = [started.sessionId];
   } catch (err) {
     await stopAsync().catch(() => {});
     throw err;

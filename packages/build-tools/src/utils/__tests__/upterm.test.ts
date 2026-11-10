@@ -375,22 +375,6 @@ describe(startUptermHostAsync, () => {
     expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-upterm-1', expect.anything());
   });
 
-  it('stopAsync removes the started session id from the stop output wherever it appears', async () => {
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    stopResult = () =>
-      Promise.reject(
-        Object.assign(new Error('exited with non-zero code: 1'), {
-          stdout: '',
-          stderr: `upterm: could not stop session ${SESSION_ID}`,
-        })
-      );
-
-    const error = await host.stopAsync().catch(e => e);
-
-    expect(error.message).toContain('could not stop session <redacted>');
-    expect(error.message).not.toContain(SESSION_ID);
-  });
-
   describe('readStatusAsync', () => {
     it('reads the status and client count from the admin socket the start JSON named', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
