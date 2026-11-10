@@ -4,6 +4,7 @@ import { createWarmSimulatorSession } from '../commands/start';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
+import { getConfiguredToolVersions } from '../utils/packageSpecs';
 import {
   type ChildProcessHandle,
   commands,
@@ -19,6 +20,7 @@ import { deferred, until } from './helpers';
 
 jest.mock('../utils/expoGo');
 jest.mock('../utils/preparedExpoGo');
+jest.mock('../utils/packageSpecs');
 jest.mock('../utils/argent');
 jest.mock('../utils/processes');
 jest.mock('../utils/serveSim');
@@ -73,6 +75,11 @@ function mockDefaultExpoGoInstall(install: Promise<void>) {
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(readPreparedExpoGoAsync).mockResolvedValue(undefined);
+  jest.mocked(getConfiguredToolVersions).mockReturnValue({
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.21.36',
+    argentVersion: '0.32.0',
+  });
   env = { ...process.env };
   process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo,iPhone 18';
   process.env.AGENT_DEVICE_STATE_DIR = '/fixture/agent';

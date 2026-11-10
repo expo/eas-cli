@@ -160,6 +160,9 @@ afterEach(async () => {
 });
 
 test('concurrent starts acquire one session and record the exact package version', async () => {
+  process.env.SERVE_SIM_VERSION = '0.13.3';
+  process.env.AGENT_DEVICE_VERSION = '0.16.0';
+  process.env.ARGENT_VERSION = '1.0.0';
   const results: unknown[] = [];
   const starts = [0, 1].map(() =>
     startAsync(boot).then(
@@ -174,11 +177,47 @@ test('concurrent starts acquire one session and record the exact package version
   expect((await readLauncherStateAsync(boot))?.launcherVersion).toBe(
     require('../../package.json').version
   );
+  expect((await readLauncherStateAsync(boot))?.serveSimVersion).toBe('0.13.3');
   expect(jest.mocked(serveSim.waitForServeSimReadyAsync).mock.calls).toHaveLength(1);
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'serve-sim');
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    status: 'claimed',
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.16.0',
+    argentVersion: '1.0.0',
+  });
   await stopAsync(boot);
   await Promise.all(starts);
   expect((await readLauncherStateAsync(boot))?.status).toBe('disabled');
 });
+
+test.each([undefined, 'latest', '^0.13'])(
+  'start does not claim a resolved version for selector %s',
+  async version => {
+    if (version === undefined) {
+      delete process.env.SERVE_SIM_VERSION;
+    } else {
+      process.env.SERVE_SIM_VERSION = version;
+    }
+    if (version === undefined) {
+      delete process.env.AGENT_DEVICE_VERSION;
+      delete process.env.ARGENT_VERSION;
+    } else {
+      process.env.AGENT_DEVICE_VERSION = version;
+      process.env.ARGENT_VERSION = version;
+    }
+    const starting = startAsync(boot);
+    active.push(starting);
+    await status('ready');
+    const state = await readLauncherStateAsync(boot);
+    expect(state?.serveSimVersion).toBeUndefined();
+    expect(state?.agentDeviceVersion).toBeUndefined();
+    expect(state?.argentVersion).toBeUndefined();
+    await stopAsync(boot);
+    await starting;
+  }
+);
 
 test('stop before start makes late startup a resource-free disabled no-op', async () => {
   expect(await stopAsync(boot)).toBe(0);
@@ -474,7 +513,7 @@ test.each([
   }
 });
 
-test('start reads the prepared Expo Go selection without using legacy CLI pins', async () => {
+test('start uses supplied runtime versions, ignores legacy pins and claims one boot snapshot', async () => {
   for (const name of [
     'SERVE_SIM_VERSION',
     'AGENT_DEVICE_VERSION',
@@ -483,6 +522,10 @@ test('start reads the prepared Expo Go selection without using legacy CLI pins',
   ]) {
     delete process.env[name];
   }
+  process.env.SERVE_SIM_VERSION = '0.13.3';
+  process.env.AGENT_DEVICE_VERSION = '0.21.36';
+  process.env.ARGENT_VERSION = '0.32.0';
+  const queries = jest.spyOn(commands, 'runOwnedAsync');
   const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
   await fs.mkdir(path.dirname(file), { recursive: true });
   const expoGo = { sdk: '58.0.0', url: 'https://example.test/prepared-expo-go.tar.gz' };
@@ -502,15 +545,45 @@ test('start reads the prepared Expo Go selection without using legacy CLI pins',
   await status('ready');
   expect(commands.start).toHaveBeenCalledWith(
     'bunx',
-    expect.arrayContaining(['@expo/serve-sim@latest']),
+    expect.arrayContaining(['@expo/serve-sim@0.13.3']),
     expect.anything()
   );
   expect(commands.start).toHaveBeenCalledWith(
     'bunx',
-    expect.arrayContaining(['agent-device@latest']),
+    expect.arrayContaining(['agent-device@0.21.36']),
     expect.anything()
   );
   expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal), expoGo);
+  await fs.writeFile(file, JSON.stringify({ tools: { 'serve-sim': { version: '0.13.4' } } }));
+  const output = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
+  await claimAsync(boot, 'serve-sim');
+  expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toMatchObject({
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.21.36',
+    argentVersion: '0.32.0',
+  });
+  expect(queries).not.toHaveBeenCalled();
+  await stopAsync(boot);
+  await starting;
+});
+
+test('start honors a supplied Expo Go SDK over an older prepared selection', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '59.0.0';
+  const file = path.join(root, 'Library/Caches/expo-simulator-startup/prepared.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(
+    file,
+    JSON.stringify({
+      tools: {
+        'expo-go': { sdk: '58.0.0', url: 'https://example.test/older-expo-go.tar.gz' },
+      },
+    })
+  );
+  const starting = startAsync(boot);
+  active.push(starting);
+  await status('ready');
+  expect(startExpoGoPreinstall).toHaveBeenCalledWith(expect.any(AbortSignal));
+  expect(process.env.EXPO_GO_SDK_VERSION).toBe('59.0.0');
   await stopAsync(boot);
   await starting;
 });
