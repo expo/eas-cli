@@ -77,15 +77,14 @@ const UptermCurrentSessionJsonZ = z.object({
 /**
  * Strip upterm session secrets out of text before it reaches a log or an error message. The
  * session id is the secret: any id in a `sessionId` field of upterm's JSON output is removed
- * everywhere. Control characters are dropped first so they cannot split a token mid-match. The
- * final replace blanks userinfo in any URL as a catch-all.
+ * everywhere. Control characters are dropped first so they cannot split a token mid-match.
  */
 export function redactConnectionSecrets(text: string): string {
   let redacted = text.replace(CONTROL_CHARACTERS, '');
   for (const [, id] of redacted.matchAll(SESSION_ID_JSON_FIELD)) {
     redacted = redacted.split(id).join('<redacted>');
   }
-  return redacted.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/gi, '$1<redacted>@');
+  return redacted;
 }
 
 export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<string> {

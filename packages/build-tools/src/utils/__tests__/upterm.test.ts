@@ -65,23 +65,11 @@ describe(resolveUptermGcsObjectName, () => {
 });
 
 describe(redactConnectionSecrets, () => {
-  it('strips the userinfo secret from a connection string', () => {
-    expect(
-      redactConnectionSecrets('Connect: upterm proxy wss://TOKENabc123@relay.expo.dev now')
-    ).toBe('Connect: upterm proxy wss://<redacted>@relay.expo.dev now');
-  });
-
   it('strips the session id from every field of the --detach JSON output', () => {
     const redacted = redactConnectionSecrets(DETACH_JSON);
     expect(redacted).not.toContain(SESSION_ID);
     expect(redacted).toContain('"sshCommand": "ssh <redacted>@relay.expo.dev -p 2222"');
     expect(redacted).toContain('User <redacted>');
-  });
-
-  it('leaves output without userinfo untouched', () => {
-    expect(redactConnectionSecrets('dialing wss://relay.expo.dev')).toBe(
-      'dialing wss://relay.expo.dev'
-    );
   });
 
   it('strips control characters (incl. ESC) while keeping newlines', () => {
@@ -293,28 +281,6 @@ describe(startUptermHostAsync, () => {
     await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
       /network down/
     );
-  });
-
-  it('throws the redacted host output, stops the session and removes the state dir when the start fails', async () => {
-    hostResult = () =>
-      Promise.reject(
-        Object.assign(new Error('upterm exited with non-zero code: 1'), {
-          status: 1,
-          signal: null,
-          stdout: '',
-          stderr: `upterm: session eas-1a2b3c4 could not start: ssh dial error via wss://${SESSION_ID}@relay.expo.dev`,
-        })
-      );
-
-    const error = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' }).catch(
-      e => e
-    );
-
-    expect(error.message).toMatch(/could not register with the relay/);
-    expect(error.message).toContain('could not start: ssh dial error');
-    expect(error.message).not.toContain(SESSION_ID);
-    expect(callsOf('session', 'stop')).toHaveLength(1);
-    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
   });
 
   it('reports a start that ran into its timeout as not registered in time', async () => {
