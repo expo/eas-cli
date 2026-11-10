@@ -69,7 +69,7 @@ const UptermStartedJsonZ = z.object({
 });
 
 const UptermCurrentSessionJsonZ = z.object({
-  clientCount: z.number(),
+  guestCount: z.number(),
   status: z.string(),
   tunnelReason: z.string().optional(),
 });
@@ -168,15 +168,15 @@ async function readCurrentSessionStatusAsync(
   if (!parsed.success) {
     return null;
   }
-  const { status, clientCount, tunnelReason } = parsed.data;
+  const { status, guestCount, tunnelReason } = parsed.data;
   switch (status) {
     case 'reconnecting':
       if (tunnelReason && BLOCKED_TUNNEL_REASONS.has(tunnelReason)) {
         return { state: 'gone', reason: `${status} (${tunnelReason})` };
       }
-      return { state: status, connectedClientCount: clientCount };
+      return { state: status, connectedClientCount: guestCount };
     case 'ready':
-      return { state: status, connectedClientCount: clientCount };
+      return { state: status, connectedClientCount: guestCount };
     case 'disconnected':
     case 'ending':
       return { state: 'gone', reason: tunnelReason ? `${status} (${tunnelReason})` : status };

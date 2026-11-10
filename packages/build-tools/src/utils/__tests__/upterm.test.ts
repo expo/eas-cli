@@ -122,7 +122,7 @@ describe(startUptermHostAsync, () => {
     daemonRunning = true;
     uptermOnPath = false;
     hostResult = ok(DETACH_JSON);
-    currentResult = ok(current({ status: 'ready', clientCount: 0 }));
+    currentResult = ok(current({ status: 'ready', guestCount: 0 }));
     stopResult = ok('session eas-1a2b3c4 stopped\n');
     jest.spyOn(process, 'kill').mockImplementation(() => {
       if (daemonRunning) {
@@ -382,7 +382,7 @@ describe(startUptermHostAsync, () => {
   describe('readStatusAsync', () => {
     it('reads the status and client count from the admin socket the start JSON named', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      currentResult = ok(current({ status: 'reconnecting', clientCount: 2 }));
+      currentResult = ok(current({ status: 'reconnecting', guestCount: 2 }));
 
       expect(await host.readStatusAsync()).toEqual({
         state: 'reconnecting',
@@ -398,6 +398,13 @@ describe(startUptermHostAsync, () => {
       ]);
     });
 
+    it("counts guests only, not the session's own terminals", async () => {
+      const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+      currentResult = ok(current({ status: 'ready', clientCount: 1, guestCount: 0 }));
+
+      expect(await host.readStatusAsync()).toEqual({ state: 'ready', connectedClientCount: 0 });
+    });
+
     it.each([
       [
         { status: 'disconnected', tunnelReason: 'reconnect_unsupported' },
@@ -406,7 +413,7 @@ describe(startUptermHostAsync, () => {
       [{ status: 'ending' }, 'ending'],
     ])('treats %j as gone for good', async (fields, reason) => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      currentResult = ok(current({ clientCount: 0, ...fields }));
+      currentResult = ok(current({ guestCount: 0, ...fields }));
 
       expect(await host.readStatusAsync()).toEqual({ state: 'gone', reason });
     });
@@ -419,7 +426,7 @@ describe(startUptermHostAsync, () => {
       'relay_unsupported',
     ])('treats a reconnect blocked by %s as gone for good', async tunnelReason => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      currentResult = ok(current({ status: 'reconnecting', tunnelReason, clientCount: 0 }));
+      currentResult = ok(current({ status: 'reconnecting', tunnelReason, guestCount: 0 }));
 
       expect(await host.readStatusAsync()).toEqual({
         state: 'gone',
@@ -431,7 +438,7 @@ describe(startUptermHostAsync, () => {
       'keeps a session reconnecting after %s',
       async tunnelReason => {
         const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-        currentResult = ok(current({ status: 'reconnecting', tunnelReason, clientCount: 0 }));
+        currentResult = ok(current({ status: 'reconnecting', tunnelReason, guestCount: 0 }));
 
         expect(await host.readStatusAsync()).toEqual({
           state: 'reconnecting',
@@ -462,7 +469,7 @@ describe(startUptermHostAsync, () => {
 
     it('does not guess at a status it does not know', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-      currentResult = ok(current({ status: 'starting', clientCount: 0 }));
+      currentResult = ok(current({ status: 'starting', guestCount: 0 }));
 
       await expect(host.readStatusAsync()).rejects.toThrow(/client count/i);
     });
