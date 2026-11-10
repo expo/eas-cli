@@ -66,6 +66,7 @@ export function getSshRelayServerUrl(job: Pick<Job, 'ssh'>): string {
 
 export type SshSessionHandle = {
   readStatusAsync: () => Promise<UptermSessionStatus>;
+  reportReconnectingAsync: (reconnecting: boolean) => Promise<void>;
   stopAsync: () => Promise<void>;
 };
 
@@ -130,40 +131,27 @@ export async function startSshSessionAsync(
     throw err;
   }
 
-  let isReconnecting = host.startedReconnecting;
   let reportedReconnecting = host.startedReconnecting;
-  const readStatusAsync = async (): Promise<UptermSessionStatus> => {
-    const status = await host.readStatusAsync();
-    if (status.state === 'gone') {
-      return status;
+  const reportReconnectingAsync = async (reconnecting: boolean): Promise<void> => {
+    if (reconnecting === reportedReconnecting) {
+      return;
     }
-    const reconnecting = status.state === 'reconnecting';
-    if (reconnecting !== isReconnecting) {
-      isReconnecting = reconnecting;
-      if (reconnecting) {
-        logger.warn('The SSH relay connection dropped. Reconnecting...');
-      } else {
-        logger.info('The SSH relay connection was restored.');
-      }
+    try {
+      await createOrUpdateSessionAsync(ctx, {
+        target,
+        connectionConfig: { ...host.connectionConfig, reconnecting },
+        idleTimeoutSeconds: requestedIdleTimeoutSeconds,
+      });
+      reportedReconnecting = reconnecting;
+    } catch (err) {
+      logger.debug({ err }, 'Failed to report the SSH relay connection state.');
     }
-    if (reconnecting !== reportedReconnecting) {
-      try {
-        await createOrUpdateSessionAsync(ctx, {
-          target,
-          connectionConfig: { ...host.connectionConfig, reconnecting },
-          idleTimeoutSeconds: requestedIdleTimeoutSeconds,
-        });
-        reportedReconnecting = reconnecting;
-      } catch (err) {
-        logger.debug({ err }, 'Failed to report the SSH relay connection state.');
-      }
-    }
-    return status;
   };
 
   return {
     handle: {
-      readStatusAsync,
+      readStatusAsync: () => host.readStatusAsync(),
+      reportReconnectingAsync,
       stopAsync: () => host.stopAsync(),
     },
     idleTimeoutSeconds,
@@ -184,6 +172,7 @@ export async function superviseSshSessionAsync({
   const idleTimeoutMs = idleTimeoutSeconds * 1_000;
   let idleSince: number | null = null;
   let previousClientCount = 0;
+  let previousReconnecting = false;
 
   for (;;) {
     let status: UptermSessionStatus;
@@ -209,6 +198,17 @@ export async function superviseSshSessionAsync({
       });
       return;
     }
+
+    const reconnecting = status.state === 'reconnecting';
+    if (reconnecting !== previousReconnecting) {
+      if (reconnecting) {
+        logger.warn('The SSH relay connection dropped. Reconnecting...');
+      } else {
+        logger.info('The SSH relay connection was restored.');
+      }
+      previousReconnecting = reconnecting;
+    }
+    await handle.reportReconnectingAsync(reconnecting);
 
     const { connectedClientCount } = status;
     if (connectedClientCount !== previousClientCount) {
