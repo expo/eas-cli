@@ -1,16 +1,15 @@
 import { type bunyan } from '@expo/logger';
-import { createReadStream } from 'node:fs';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { type CollectedCrash } from './serveSimCrashesRecorder';
+import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 export async function uploadServeSimCrashesFileAsync(
   ctx: CustomBuildContext,
   {
     deviceRunSessionId,
-    crash: { udid, filePath, size, number, processName },
+    crash: { udid, filePath, number, processName },
     logger,
     signal,
   }: {
@@ -22,18 +21,19 @@ export async function uploadServeSimCrashesFileAsync(
 ): Promise<void> {
   const device = udid.slice(0, 8);
   try {
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
-      deviceRunSessionId,
-      artifactId: `simulator-crash-${udid}-${number}`,
-      name: processName
-        ? `Crash report ${number}: ${processName} (${device})`
-        : `Crash report ${number} (${device})`,
-      // Process names are not paths; keep separators out of the download name.
-      filename: `${(processName ?? 'crash').replace(/[/\\:\x00-\x1f]/g, '-')}-${number}.ips`,
-      kind: 'simulator-crash',
-      metadata: { __eas_type: 'simulator-crash', udid, source: 'serve-sim/crashes' },
-      size,
-      openStream: () => createReadStream(filePath),
+    await uploadDeviceRunSessionFileAsync(ctx, {
+      filePath,
+      describe: () => ({
+        deviceRunSessionId,
+        artifactId: `simulator-crash-${udid}-${number}`,
+        name: processName
+          ? `Crash report ${number}: ${processName} (${device})`
+          : `Crash report ${number} (${device})`,
+        // Process names are not paths; keep separators out of the download name.
+        filename: `${(processName ?? 'crash').replace(/[/\\:\x00-\x1f]/g, '-')}-${number}.ips`,
+        kind: 'simulator-crash',
+        metadata: { __eas_type: 'simulator-crash', udid, source: 'serve-sim/crashes' },
+      }),
       attempts: 3,
       signal,
     });
