@@ -1,5 +1,16 @@
 # @expo/build-tools
 
+## 27.6.0
+
+### Minor Changes
+
+- Reuse compatible prefetched Appium and XCUITest files without removing them during cleanup. Resolve explicit package versions, including `latest`, and reuse prepared tools only when they match. Use the launcher's runtime serve-sim version for warm adoption and recordings, including prereleases. ([#4837](https://github.com/expo/eas-cli/pull/4837) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Stop waiting for `com.apple.datamigrator` to exit before an iOS Simulator on iOS 27.2 or later counts as ready; there it stays resident, so the wait never finished. Earlier runtimes keep the wait. Take the readiness screenshot from the first integrated screen when the device lists several, so the iPhone Duo on iOS 27.2 passes the check. ([#4816](https://github.com/expo/eas-cli/pull/4816) by [@hSATAC](https://github.com/hSATAC))
+- Require the sandbox worker token for sandbox jobs and remove the sandbox GraphQL fallback. ([#4808](https://github.com/expo/eas-cli/pull/4808) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.5.0
 
 ### Patch Changes

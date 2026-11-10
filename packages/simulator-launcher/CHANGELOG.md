@@ -1,5 +1,14 @@
 # @expo/simulator-launcher
 
+## 27.6.0
+
+### Minor Changes
+
+- Prepare pinned Appium, XCUITest and WebDriverAgent files with `prefetch`. ([#4836](https://github.com/expo/eas-cli/pull/4836) by [@gwdp](https://github.com/gwdp))
+- Add `simulator-launcher prefetch` to cache Expo Go downloads. ([#4834](https://github.com/expo/eas-cli/pull/4834) by [@gwdp](https://github.com/gwdp))
+- Use caller-supplied serve-sim, agent-device and Argent versions and include exact version inputs in claims. ([#4845](https://github.com/expo/eas-cli/pull/4845) by [@gwdp](https://github.com/gwdp))
+- Add `simulator-launcher warmup` so consumers can warm up Simulators, install Expo Go and prepare native tool caches. The command stops its tools and shuts down the selected Simulators before returning. ([#4838](https://github.com/expo/eas-cli/pull/4838) by [@gwdp](https://github.com/gwdp))
+
 ## 27.5.0
 
 No changes in this release.

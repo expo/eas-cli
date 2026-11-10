@@ -1,5 +1,15 @@
 # eas-cli
 
+## 27.6.0
+
+### Minor Changes
+
+- Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+
+### Patch Changes
+
+- Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+
 ## 27.5.0
 
 ### Minor Changes
