@@ -21,11 +21,7 @@ const BLOCKED_TUNNEL_REASONS = new Set([
   'relay_key_changed',
   'relay_unsupported',
 ]);
-const SESSION_ID_PATTERNS = [
-  /^\s*Session:\s+(\S+)\s*$/gm,
-  /"sessionId"\s*:\s*"([^"]+)"/g,
-  /upterm (?:proxy|join)\s+['\\]*(?:ssh|wss?):\/\/([^@\s'"\\]+)@/g,
-];
+const SESSION_ID_JSON_FIELD = /"sessionId"\s*:\s*"([^"]+)"/g;
 
 export function resolveUptermGcsObjectName(
   platform: NodeJS.Platform = process.platform,
@@ -80,39 +76,23 @@ const UptermCurrentSessionJsonZ = z.object({
 
 /**
  * Strip upterm session secrets out of text before it reaches a log or an error message. The
- * session id is the secret. upterm prints it on a `Session: <id>` line, as the userinfo of the
- * `upterm proxy` and `upterm join` URLs it advertises (the proxy URL may be shell-quoted), as the
- * bare ssh destination, and in the `sessionId` field of its JSON output, whose other fields repeat
- * it. Control characters are dropped first so they cannot split a token mid-match. Each id found
- * is removed everywhere; the final replace blanks userinfo in any other URL as a catch-all.
+ * session id is the secret: each of `knownSessionIds`, and any id in a `sessionId` field of
+ * upterm's JSON output, is removed everywhere. Control characters are dropped first so they cannot
+ * split a token mid-match. The final replace blanks userinfo in any URL as a catch-all.
  */
-export function redactConnectionSecrets(text: string): string {
+export function redactConnectionSecrets(
+  text: string,
+  knownSessionIds: readonly string[] = []
+): string {
   let redacted = text.replace(CONTROL_CHARACTERS, '');
-  for (const pattern of SESSION_ID_PATTERNS) {
-    for (const [, token] of redacted.matchAll(pattern)) {
-      redacted = redacted.split(token).join('<redacted>');
-    }
+  const sessionIds = [
+    ...knownSessionIds,
+    ...Array.from(redacted.matchAll(SESSION_ID_JSON_FIELD), ([, id]) => id),
+  ];
+  for (const id of sessionIds) {
+    redacted = redacted.split(id).join('<redacted>');
   }
   return redacted.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/gi, '$1<redacted>@');
-}
-
-export function redactSpawnErrorForLog(err: unknown): unknown {
-  if (!err || typeof err !== 'object') {
-    return err;
-  }
-  const spawnErr = err as { message?: unknown; stdout?: unknown; stderr?: unknown };
-  return {
-    ...spawnErr,
-    ...(typeof spawnErr.message === 'string'
-      ? { message: redactConnectionSecrets(spawnErr.message) }
-      : {}),
-    ...(typeof spawnErr.stdout === 'string'
-      ? { stdout: redactConnectionSecrets(spawnErr.stdout) }
-      : {}),
-    ...(typeof spawnErr.stderr === 'string'
-      ? { stderr: redactConnectionSecrets(spawnErr.stderr) }
-      : {}),
-  };
 }
 
 export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<string> {
@@ -164,9 +144,9 @@ function parseJson(text: string): unknown {
   }
 }
 
-function spawnOutput(err: unknown): string {
+function spawnOutput(err: unknown, knownSessionIds: readonly string[] = []): string {
   const { stdout, stderr } = err as Partial<SpawnResult>;
-  return redactConnectionSecrets(`${stderr ?? ''}${stdout ?? ''}`);
+  return redactConnectionSecrets(`${stderr ?? ''}${stdout ?? ''}`, knownSessionIds);
 }
 
 async function readCurrentSessionStatusAsync(
@@ -227,11 +207,14 @@ export async function startUptermHostAsync(
     { mode: 0o755 }
   );
 
+  let knownSessionIds: string[] = [];
   const stopAsync = async (): Promise<void> => {
     try {
       await spawn(uptermPath, ['session', 'stop', sessionName], { stdio: 'pipe', env });
     } catch (err) {
-      throw new SystemError(`Failed to stop the upterm session. Output:\n${spawnOutput(err)}`);
+      throw new SystemError(
+        `Failed to stop the upterm session. Output:\n${spawnOutput(err, knownSessionIds)}`
+      );
     } finally {
       await Promise.all(
         [stateDir, path.dirname(uptermPath)].map(dir =>
@@ -287,6 +270,7 @@ export async function startUptermHostAsync(
       );
     }
     started = parsed.data;
+    knownSessionIds = [started.sessionId];
   } catch (err) {
     await stopAsync().catch(() => {});
     throw err;

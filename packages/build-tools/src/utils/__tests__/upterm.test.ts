@@ -10,7 +10,6 @@ import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
   redactConnectionSecrets,
-  redactSpawnErrorForLog,
   resolveUptermGcsObjectName,
   startUptermHostAsync,
 } from '../upterm';
@@ -53,19 +52,6 @@ const DETACH_JSON = JSON.stringify(
   2
 );
 
-const CONNECT_BANNER = `Session: ${SESSION_ID}
-
-Name:             bash-64e8
-Relay:            wss://relay-new:8081
-Access:           open: anyone with the session ID can join
-
-➤ Join:
-    upterm join wss://${SESSION_ID}@relay-new:8081
-➤ SSH:
-    ssh -o ProxyCommand='upterm proxy '\\''wss://${SESSION_ID}@relay-new:8081'\\''' ${SESSION_ID}@relay-new:8081
-upterm: warning: anyone with the session ID can join; restrict who can with --authorized-user or --authorized-keys
-`;
-
 describe(resolveUptermGcsObjectName, () => {
   it('maps worker platforms to GCS object names', () => {
     expect(resolveUptermGcsObjectName('darwin', 'arm64')).toBe('upterm-darwin-arm64');
@@ -83,35 +69,6 @@ describe(redactConnectionSecrets, () => {
     expect(
       redactConnectionSecrets('Connect: upterm proxy wss://TOKENabc123@relay.expo.dev now')
     ).toBe('Connect: upterm proxy wss://<redacted>@relay.expo.dev now');
-  });
-
-  it('strips the bare token that trails the ssh ProxyCommand line', () => {
-    const line =
-      "ssh -o ProxyCommand='upterm proxy wss://TOKENabc123@uptermd.upterm.dev' TOKENabc123@uptermd.upterm.dev";
-    const redacted = redactConnectionSecrets(line);
-    expect(redacted).not.toContain('TOKENabc123');
-    expect(redacted).toBe(
-      "ssh -o ProxyCommand='upterm proxy wss://<redacted>@uptermd.upterm.dev' <redacted>@uptermd.upterm.dev"
-    );
-  });
-
-  it('strips the bare token for ws:// relay URLs too', () => {
-    const line =
-      "ssh -o ProxyCommand='upterm proxy ws://TOKENabc123@relay.local' TOKENabc123@relay.local";
-    const redacted = redactConnectionSecrets(line);
-    expect(redacted).not.toContain('TOKENabc123');
-    expect(redacted).toBe(
-      "ssh -o ProxyCommand='upterm proxy ws://<redacted>@relay.local' <redacted>@relay.local"
-    );
-  });
-
-  it('strips every session id occurrence from the connect banner, including the quoted proxy URL', () => {
-    const redacted = redactConnectionSecrets(CONNECT_BANNER);
-    expect(redacted).not.toContain(SESSION_ID);
-    expect(redacted).toContain('Session: <redacted>');
-    expect(redacted).toContain(
-      "ProxyCommand='upterm proxy '\\''wss://<redacted>@relay-new:8081'\\''' <redacted>@relay-new:8081"
-    );
   });
 
   it('strips the session id from every field of the --detach JSON output', () => {
@@ -132,43 +89,6 @@ describe(redactConnectionSecrets, () => {
     expect(redactConnectionSecrets('ok\n\u001b[31mfail\u001b[0m\r\nbad\u0007')).toBe(
       'ok\n[31mfail[0m\nbad'
     );
-  });
-});
-
-describe(redactSpawnErrorForLog, () => {
-  it('redacts secrets in message, stdout, and stderr', () => {
-    expect(
-      redactSpawnErrorForLog({
-        message: 'failed wss://TOKENabc@relay.expo.dev',
-        stdout: 'upterm proxy wss://TOKENabc@relay.expo.dev',
-        stderr: 'ssh dial error: wss://TOKENabc@relay.expo.dev',
-        code: 1,
-      })
-    ).toEqual({
-      message: 'failed wss://<redacted>@relay.expo.dev',
-      stdout: 'upterm proxy wss://<redacted>@relay.expo.dev',
-      stderr: 'ssh dial error: wss://<redacted>@relay.expo.dev',
-      code: 1,
-    });
-  });
-
-  it('passes through non-objects', () => {
-    expect(redactSpawnErrorForLog('boom')).toBe('boom');
-    expect(redactSpawnErrorForLog(null)).toBeNull();
-  });
-
-  it('leaves non-string message/stdout/stderr fields alone', () => {
-    expect(
-      redactSpawnErrorForLog({
-        message: 42,
-        stdout: Buffer.from('x'),
-        code: 1,
-      })
-    ).toEqual({
-      message: 42,
-      stdout: Buffer.from('x'),
-      code: 1,
-    });
   });
 });
 
@@ -453,6 +373,22 @@ describe(startUptermHostAsync, () => {
     await expect(host.stopAsync()).rejects.toThrow(/isn't answering on its admin socket/);
     expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
     expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-upterm-1', expect.anything());
+  });
+
+  it('stopAsync removes the started session id from the stop output wherever it appears', async () => {
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    stopResult = () =>
+      Promise.reject(
+        Object.assign(new Error('exited with non-zero code: 1'), {
+          stdout: '',
+          stderr: `upterm: could not stop session ${SESSION_ID}`,
+        })
+      );
+
+    const error = await host.stopAsync().catch(e => e);
+
+    expect(error.message).toContain('could not stop session <redacted>');
+    expect(error.message).not.toContain(SESSION_ID);
   });
 
   describe('readStatusAsync', () => {
