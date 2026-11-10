@@ -21,6 +21,14 @@ exec bunx @expo/simulator-launcher@latest start
 - `prepare-tools`: continue the consumed claim after adoption. Keep global Argent, reuse the default
   agent-device runner or prepare a runner for the selected device. Appium waits for old XCTest cleanup.
 - `stop`: permanently end warmup for this boot and wait for all owned resources to be cleaned up.
+- `warmup`: populate Simulator and native tool caches. With `EXPO_SIMULATOR_STARTUP=1`,
+  calls `prefetch`, boots the selected Simulators, installs Expo Go unless disabled, and waits
+  for Argent and agent-device on the default device. It then drains owned processes and shuts
+  down the selected Simulators. Prepared files and native build caches remain available.
+  Incomplete preparation or cleanup fails. The preparation deadline is ten minutes; cleanup
+  can take longer. Requires a fresh macOS boot before `start` has run. A repeat, or `start`
+  after `warmup`, requires another boot. It does not start an Appium session or prepare an
+  agent-device runner on secondary devices.
 - `prefetch`: cache the selected Expo Go archive for reuse. With `APPIUM_VERSION` and `XCUITEST_VERSION`, prepare Appium, XCUITest and WebDriverAgent files. It does not fetch serve-sim, agent-device or Argent. Progress goes to stderr; the command stops at the first failure.
 
 Consumers use the launcher version recorded by `start` for session commands (`LAUNCHER_VERSION`
@@ -37,6 +45,12 @@ To cache files without booting devices:
 
 ```sh
 simulator-launcher prefetch
+```
+
+To also prepare Simulators and native tools (`warmup` already calls `prefetch`):
+
+```sh
+EXPO_SIMULATOR_STARTUP=1 simulator-launcher warmup
 ```
 
 Session adoption requires the serve-sim release supporting port-based device adoption.
@@ -57,7 +71,7 @@ do not report an exact version. Build-tools also uses `serveSimVersion` for warm
   trimmed and must each identify one available device. The first is the default. Unset keeps
   the shortest available iPhone name, as does an empty or blank value. Empty list entries, missing,
   ambiguous or duplicate devices fail clearly.
-- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION` (`start` only): runtime
+- `SERVE_SIM_VERSION`, `AGENT_DEVICE_VERSION`, `ARGENT_VERSION` (`start`/`warmup` only): runtime
   package selections, each defaulting to `latest`. The launcher passes them to Bun without a separate
   version lookup. Callers that select exact versions can identify them in state and claims.
   `prefetch` ignores these settings and never records them in `prepared.json`.

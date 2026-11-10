@@ -29,13 +29,17 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
   const [command, engine, requestedDevice] = args;
   if (
     command !== 'start' &&
+    command !== 'warmup' &&
     command !== 'stop' &&
     command !== 'claim' &&
     command !== 'prepare-tools'
   ) {
     throw new Error(
-      'Usage: simulator-launcher <start|stop|claim ENGINE [DEVICE]|prepare-tools|prefetch>'
+      'Usage: simulator-launcher <warmup|start|stop|claim ENGINE [DEVICE]|prepare-tools|prefetch>'
     );
+  }
+  if (command === 'warmup' && args.length !== 1) {
+    throw new Error('Usage: simulator-launcher warmup');
   }
   const bootUuid = (
     await commands.runAsync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'])
@@ -46,6 +50,8 @@ export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
     );
   }
   switch (command) {
+    case 'warmup':
+      return await startAsync(bootUuid, true);
     case 'start':
       return await startAsync(bootUuid);
     case 'stop':

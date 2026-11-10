@@ -1,6 +1,7 @@
 import { once } from 'node:events';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
+import { prefetchAsync } from './prefetch';
 import { createAgentDeviceTool } from '../utils/agentDevice';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
@@ -37,14 +38,18 @@ const LAUNCHER_VERSION: string = require('../../package.json').version;
 
 type WarmSimulatorSession = {
   prepareAsync(): Promise<WarmSessionInfo>;
+  waitForWarmupAsync(): Promise<void>;
   claimAsync(request: ClaimInput): Promise<{ device: SimulatorDevice }>;
   prepareToolsAsync(): Promise<{ preinstalledExpoGo?: PreinstalledApp; tools?: ToolServer }>;
   stopAsync(): Promise<void>;
 };
 
-export async function startAsync(bootUuid: string): Promise<number> {
+export async function startAsync(bootUuid: string, warmup = false): Promise<number> {
   const initial = await updateLauncherStateAsync(bootUuid, state => {
     if (state?.status === 'disabled') {
+      if (warmup) {
+        throw new Error('Warmup requires a fresh boot; preparation is already disabled.');
+      }
       return state;
     }
     if (state) {
@@ -60,13 +65,19 @@ export async function startAsync(bootUuid: string): Promise<number> {
   if (initial.status === 'disabled') {
     return 0;
   }
-  await runWarmSimulatorSessionAsync(bootUuid);
+  await runWarmSimulatorSessionAsync(bootUuid, warmup);
   return 0;
 }
 
-export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<void> {
+export async function runWarmSimulatorSessionAsync(
+  bootUuid: string,
+  warmup = false
+): Promise<void> {
   const shutdown = new AbortController();
-  const signal = shutdown.signal;
+  // This deadline bounds tool preparation; it is not a settling delay. Cleanup is always joined.
+  const signal = warmup
+    ? AbortSignal.any([shutdown.signal, AbortSignal.timeout(600_000)])
+    : shutdown.signal;
   const interruption = new Error(
     'Simulator preparation was interrupted; cleanup may still be running.'
   );
@@ -100,6 +111,7 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   }
   const session = createWarmSimulatorSession({
     signal,
+    warmup,
     throwIfStoppingAsync,
     onPreparationFailure(error) {
       if (!signal.aborted) {
@@ -199,33 +211,44 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
   try {
     try {
       if (process.env.EXPO_SIMULATOR_STARTUP !== '1') {
+        if (warmup) {
+          throw new Error('Warmup requires EXPO_SIMULATOR_STARTUP=1.');
+        }
         process.stderr.write('EXPO_SIMULATOR_STARTUP is not 1; Simulator warmup is disabled.\n');
         requestShutdown();
       }
-      await prepareDefaultDeviceAsync();
-      await handleOneClaimAsync();
-      while (!signal.aborted) {
-        const state = requireOwnedState(await readLauncherStateAsync(bootUuid), 'claimed');
-        if (state.prepareToolsRequested && !state.toolsReady) {
-          const prepared = await session.prepareToolsAsync();
-          await updateLauncherStateAsync(
-            bootUuid,
-            current => ({
-              ...requireOwnedState(current, 'claimed'),
-              ...prepared,
-              toolsReady: true,
-            }),
-            signal
-          );
-          break;
+      if (warmup) {
+        await prefetchAsync(signal);
+        // Keep the state starting: tool preparation is never available for a job claim.
+        warm = await session.prepareAsync();
+        await session.waitForWarmupAsync();
+        await throwIfStoppingAsync();
+      } else {
+        await prepareDefaultDeviceAsync();
+        await handleOneClaimAsync();
+        while (!signal.aborted) {
+          const state = requireOwnedState(await readLauncherStateAsync(bootUuid), 'claimed');
+          if (state.prepareToolsRequested && !state.toolsReady) {
+            const prepared = await session.prepareToolsAsync();
+            await updateLauncherStateAsync(
+              bootUuid,
+              current => ({
+                ...requireOwnedState(current, 'claimed'),
+                ...prepared,
+                toolsReady: true,
+              }),
+              signal
+            );
+            break;
+          }
+          await sleepAsync(100, undefined, { signal });
         }
-        await sleepAsync(100, undefined, { signal });
-      }
-      if (!signal.aborted) {
-        await once(signal, 'abort');
+        if (!signal.aborted) {
+          await once(signal, 'abort');
+        }
       }
     } catch (error) {
-      if (!signal.aborted) {
+      if (warmup || !signal.aborted) {
         sessionError ??= error;
       }
     }
@@ -242,10 +265,12 @@ export async function runWarmSimulatorSessionAsync(bootUuid: string): Promise<vo
 /** Own one orphan process and its tool/preinstall work before any preparation awaits. */
 export function createWarmSimulatorSession({
   signal: parentSignal,
+  warmup = false,
   throwIfStoppingAsync,
   onPreparationFailure,
 }: {
   signal: AbortSignal;
+  warmup?: boolean;
   throwIfStoppingAsync(): Promise<void>;
   onPreparationFailure(error: unknown): void;
 }): WarmSimulatorSession {
@@ -266,6 +291,7 @@ export function createWarmSimulatorSession({
   let expoGo: ReturnType<typeof startExpoGoPreinstall> | undefined;
   let selectedPreinstall: Promise<PreinstalledApp | undefined> = Promise.resolve(undefined);
   let launcherCachePriming: Promise<void> = Promise.resolve();
+  let simulatorPreparation: Promise<void> = Promise.resolve();
   let toolRetirement: Promise<PromiseSettledResult<void>[]> = Promise.resolve([]);
 
   /**
@@ -289,6 +315,9 @@ export function createWarmSimulatorSession({
         const apsd = booted.then(() =>
           disableApsdAsync(udid, signal).catch(error => {
             signal.throwIfAborted();
+            if (warmup) {
+              throw error;
+            }
             process.stderr.write(`Could not disable apsd on ${udid}; continuing: ${error}\n`);
           })
         );
@@ -371,18 +400,17 @@ export function createWarmSimulatorSession({
     const ready = waitForServeSimReadyAsync(first.udid, server, signal);
     void ready.catch(() => {});
     if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
-      expoGo = preparedExpoGo
-        ? startExpoGoPreinstall(signal, preparedExpoGo)
-        : startExpoGoPreinstall(signal);
+      expoGo = startExpoGoPreinstall(signal, preparedExpoGo, warmup);
     }
     for (const tool of warmTools) {
       startedTools.set(tool, startTool(tool, first.udid, ready, signal, onPreparationFailure));
     }
-    startSimulatorsSetupAsync(
+    simulatorPreparation = startSimulatorsSetupAsync(
       warmDevices.map(device => device.udid),
       ready
-    ).catch(error => {
-      if (!signal.aborted) {
+    );
+    void simulatorPreparation.catch(error => {
+      if (!warmup && !signal.aborted) {
         process.stderr.write(`Could not finish Simulator warmup; continuing: ${error}\n`);
       }
     });
@@ -408,6 +436,22 @@ export function createWarmSimulatorSession({
   return {
     async prepareAsync() {
       return await (preparation ??= prepareDefaultAsync());
+    },
+    async waitForWarmupAsync() {
+      await preparation;
+      await Promise.all([
+        simulatorPreparation,
+        ...[...startedTools.values()].map(tool => tool.ready),
+      ]);
+      if (expoGo) {
+        // Every install has settled. Reuse claim's existing result checks and archive drain.
+        for (const device of warmDevices) {
+          if (!(await expoGo.claimAsync(device.udid))) {
+            throw new Error(`Expo Go preparation did not finish on Simulator ${device.udid}.`);
+          }
+        }
+      }
+      signal.throwIfAborted();
     },
     async claimAsync(input) {
       if (request || stopping) {
