@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -13,11 +14,15 @@ import { commands } from '../utils/processes';
 
 const PREFETCH_TIMEOUT_MS = 300_000;
 
-type PreparedTool = { sdk: string; url: string };
+type PreparedTool =
+  | { version: string; home: string; xcuitest: string }
+  | { sdk: string; url: string };
 
-/** Store the selected Expo Go archive without booting devices. */
+/** Store the selected Expo Go archive and pinned Appium/XCUITest/WDA files without booting devices. */
 export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   signal?.throwIfAborted();
+  const [appiumVersion = '', xcuitestVersion = ''] =
+    readPins('Appium', ['APPIUM_VERSION', 'XCUITEST_VERSION']) ?? [];
   // selectExpoGoAsync reads the pin itself. This check fails a bad value before any command or
   // download.
   if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
@@ -38,12 +43,18 @@ export async function prefetchAsync(signal?: AbortSignal): Promise<number> {
   const tmpdir = await mkdtemp(path.join(os.tmpdir(), 'simulator-launcher-prefetch-'));
   const environment = {
     TMPDIR: process.env.TMPDIR,
+    APPIUM_HOME: process.env.APPIUM_HOME,
+    npm_config_cache: process.env.npm_config_cache,
   };
   try {
     process.env.TMPDIR = tmpdir;
     const expoGo = await prefetchExpoGoAsync(tmpdir, signal);
     if (expoGo) {
       manifest.tools['expo-go'] = expoGo;
+    }
+    const appium = await prefetchAppiumAsync(tmpdir, appiumVersion, xcuitestVersion, signal);
+    if (appium) {
+      manifest.tools.appium = appium;
     }
   } finally {
     for (const [key, value] of Object.entries(environment)) {
@@ -107,6 +118,113 @@ async function prefetchExpoGoAsync(
     signal
   );
   return prepared;
+}
+
+async function prefetchAppiumAsync(
+  tmpdir: string,
+  appiumVersion: string,
+  xcuitestVersion: string,
+  signal?: AbortSignal
+): Promise<{ version: string; xcuitest: string; home: string } | undefined> {
+  // Build-tools reads this home (startAppiumRemoteSession.ts). README: "Prepared files".
+  const home = path.join(os.homedir(), 'Library', 'Caches', 'expo-simulator-startup', 'appium');
+  const appium = path.join(home, 'node_modules', '.bin', 'appium');
+  const wda = path.join(home, 'preinstalled-wda');
+  // A skipped step leaves no older home, so build-tools then installs as before.
+  await rm(home, { recursive: true, force: true });
+  if (!appiumVersion) {
+    process.stderr.write('Skipping Appium: APPIUM_VERSION and XCUITEST_VERSION are not set.\n');
+    return;
+  }
+  try {
+    await mkdir(home, { recursive: true });
+    // The same package.json as the job-time home in build-tools.
+    await writeFile(
+      path.join(home, 'package.json'),
+      `${JSON.stringify({ name: 'eas-appium-home', private: true })}\n`
+    );
+    Object.assign(process.env, {
+      APPIUM_HOME: home,
+      npm_config_cache: path.join(tmpdir, 'npm-cache'),
+    });
+    await prefetchStepAsync(
+      `appium@${appiumVersion}`,
+      async signal => {
+        await commands.runOwnedAsync(
+          'npm',
+          ['install', '--no-audit', '--save-exact', '--prefix', home, `appium@${appiumVersion}`],
+          signal
+        );
+      },
+      signal
+    );
+    await prefetchStepAsync(
+      `xcuitest@${xcuitestVersion}`,
+      async signal => {
+        await commands.runOwnedAsync(
+          appium,
+          ['driver', 'install', `xcuitest@${xcuitestVersion}`],
+          signal
+        );
+      },
+      signal
+    );
+    await prefetchStepAsync(
+      'WebDriverAgent',
+      async signal => {
+        await commands.runOwnedAsync(
+          appium,
+          [
+            'driver',
+            'run',
+            'xcuitest',
+            'download-wda',
+            '--',
+            '--outdir',
+            wda,
+            '--platform',
+            'iOS',
+            '--kind',
+            'sim',
+          ],
+          signal
+        );
+        const runner = path.join(wda, 'WebDriverAgentRunner-Runner.app');
+        if (!(await stat(runner)).isDirectory()) {
+          throw new Error('WebDriverAgentRunner-Runner.app is not a directory.');
+        }
+        const metadata = path.join(runner, 'Info.plist');
+        await access(metadata, constants.R_OK);
+        const executable = (
+          await commands.runOwnedAsync(
+            '/usr/bin/plutil',
+            ['-extract', 'CFBundleExecutable', 'raw', '-expect', 'string', '-o', '-', metadata],
+            signal
+          )
+        ).trim();
+        if (
+          !executable ||
+          path.basename(executable) !== executable ||
+          executable === '.' ||
+          executable === '..'
+        ) {
+          throw new Error('WebDriverAgent has an invalid bundle executable.');
+        }
+        const binary = path.join(runner, executable);
+        await access(binary, constants.R_OK | constants.X_OK);
+        const binaryStat = await stat(binary);
+        if (!binaryStat.isFile() || binaryStat.size === 0) {
+          throw new Error('WebDriverAgent has an invalid bundle executable.');
+        }
+      },
+      signal
+    );
+    return { version: appiumVersion, xcuitest: xcuitestVersion, home };
+  } catch (error) {
+    commands.throwIfCommandCloseTimedOut();
+    await rm(home, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 /** Returns the exact (x.y.z) versions in these variables, or undefined when none is set. */

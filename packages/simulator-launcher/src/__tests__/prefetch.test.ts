@@ -67,10 +67,70 @@ function serveExpoGo(archive: Response = new Response('expo go archive')): void 
   );
 }
 
-function enableExpoGo(): void {
-  delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
-  serveExpoGo();
+function pinAppium(): { appiumHome: string; appium: string; wda: string } {
+  process.env.APPIUM_VERSION = '3.9.0';
+  process.env.XCUITEST_VERSION = '12.22.8';
+  const appiumHome = cacheDirectory('appium');
+  return {
+    appiumHome,
+    appium: path.join(appiumHome, 'node_modules', '.bin', 'appium'),
+    wda: path.join(appiumHome, 'preinstalled-wda'),
+  };
 }
+
+function writeWdaBundle(wda: string): string {
+  const runner = path.join(wda, 'WebDriverAgentRunner-Runner.app');
+  fs.mkdirSync(runner, { recursive: true });
+  fs.writeFileSync(
+    path.join(runner, 'Info.plist'),
+    '<plist><dict><key>CFBundleExecutable</key><string>Runner</string></dict></plist>'
+  );
+  fs.writeFileSync(path.join(runner, 'Runner'), 'executable', { mode: 0o755 });
+  return runner;
+}
+
+test.each([
+  'empty runner',
+  'missing metadata',
+  'invalid metadata',
+  'missing executable',
+  'empty executable',
+  'non-executable',
+  'directory executable',
+  'outside executable',
+])('prefetch rejects WDA with %s and publishes no manifest', async kind => {
+  const { wda, appiumHome } = pinAppium();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (args.includes('download-wda')) {
+      const runner = writeWdaBundle(wda);
+      if (kind === 'empty runner') {
+        fs.rmSync(runner, { recursive: true });
+        fs.mkdirSync(runner);
+      } else if (kind === 'missing metadata') {
+        fs.rmSync(path.join(runner, 'Info.plist'));
+      } else if (kind === 'missing executable') {
+        fs.rmSync(path.join(runner, 'Runner'));
+      } else if (kind === 'empty executable') {
+        fs.writeFileSync(path.join(runner, 'Runner'), '');
+      } else if (kind === 'non-executable') {
+        fs.chmodSync(path.join(runner, 'Runner'), 0o644);
+      } else if (kind === 'directory executable') {
+        fs.rmSync(path.join(runner, 'Runner'));
+        fs.mkdirSync(path.join(runner, 'Runner'));
+      }
+    }
+    if (file === '/usr/bin/plutil') {
+      if (kind === 'invalid metadata') {
+        throw new Error('Invalid property list');
+      }
+      return kind === 'outside executable' ? '../outside' : 'Runner\n';
+    }
+    return '';
+  });
+  await expect(mainAsync(['prefetch'])).rejects.toThrow('Could not prefetch WebDriverAgent');
+  expect(fs.existsSync(cacheDirectory('prepared.json'))).toBe(false);
+  expect(fs.existsSync(appiumHome)).toBe(false);
+});
 
 test('prefetch does not inspect, install or record runtime CLI packages', async () => {
   process.env.SERVE_SIM_VERSION = 'latest';
@@ -100,7 +160,7 @@ test('replaces old CLI metadata on rerun without removing incidental Bun caches'
 
 test('invalidates an older manifest before work and publishes nothing after failure', async () => {
   await mainAsync(['prefetch']);
-  enableExpoGo();
+  pinAppium();
   jest.mocked(commands.runOwnedAsync).mockImplementation(async () => {
     expect(fs.existsSync(cacheDirectory('prepared.json'))).toBe(false);
     throw new Error('package setup failed');
@@ -129,28 +189,28 @@ test('removes the manifest when interrupted during its final write', async () =>
   expect(fs.existsSync(cacheDirectory('prepared.json'))).toBe(false);
 });
 
-test('prefetch extracts Expo Go in a throwaway TMPDIR and removes it', async () => {
-  enableExpoGo();
+test('prefetch prepares Appium in a throwaway TMPDIR and removes it', async () => {
+  const { wda } = pinAppium();
   const tmpdirs: string[] = [];
   const existed: boolean[] = [];
-  jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, args) => {
-    if (args[0] === '-xzf') {
-      fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (args.includes('download-wda')) {
+      writeWdaBundle(wda);
     }
     tmpdirs.push(process.env.TMPDIR ?? '');
     existed.push(fs.existsSync(process.env.TMPDIR ?? ''));
-    return '1.0.0\n';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
   });
   expect(await mainAsync(['prefetch'])).toBe(0);
-  expect(existed).toEqual([true, true]);
+  expect(existed).toEqual([true, true, true, true]);
   expect(new Set(tmpdirs).size).toBe(1);
   expect(path.dirname(tmpdirs[0])).toBe(os.tmpdir());
   expect(path.basename(tmpdirs[0])).toMatch(/^simulator-launcher-prefetch-/);
   expect(fs.existsSync(tmpdirs[0])).toBe(false);
 });
 
-test('prefetch stops after failed Expo Go extraction and removes its TMPDIR', async () => {
-  enableExpoGo();
+test('prefetch stops after the first failed Appium step and removes its TMPDIR', async () => {
+  pinAppium();
   let tmpdir = '';
   jest
     .mocked(commands.runOwnedAsync)
@@ -160,26 +220,31 @@ test('prefetch stops after failed Expo Go extraction and removes its TMPDIR', as
     })
     .mockRejectedValueOnce(Object.assign(new Error('bunx exited with 1.'), { code: 1 }));
   await expect(mainAsync(['prefetch'])).rejects.toThrow(
-    /Could not prefetch Expo Go: bunx exited with 1\./
+    /Could not prefetch xcuitest@12\.22\.8: bunx exited with 1\./
   );
   expect(commands.runOwnedAsync).toHaveBeenCalledTimes(2);
   expect(tmpdir).toMatch(/simulator-launcher-prefetch-/);
   expect(fs.existsSync(tmpdir)).toBe(false);
 });
 
-test('prefetch reports a timed-out Expo Go step', async () => {
-  enableExpoGo();
+test('prefetch reports a timed-out Appium step', async () => {
+  pinAppium();
   jest.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort());
+  jest
+    .mocked(commands.runOwnedAsync)
+    .mockRejectedValueOnce(
+      Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
+    );
   await expect(mainAsync(['prefetch'])).rejects.toThrow(
-    /Could not prefetch Expo Go within 300 seconds\./
+    /Could not prefetch appium@3\.9\.0 within 300 seconds\./
   );
-  expect(commands.runOwnedAsync).not.toHaveBeenCalled();
+  expect(commands.runOwnedAsync).toHaveBeenCalledTimes(1);
 });
 
 test.each(['SIGINT', 'SIGTERM'] as const)(
   'standalone prefetch drains before failing on %s',
   async event => {
-    enableExpoGo();
+    pinAppium();
     let tmpdir = '';
     const listeners = process.listenerCount(event);
     jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, _args, signal) => {
@@ -193,7 +258,7 @@ test.each(['SIGINT', 'SIGTERM'] as const)(
     expect(fs.existsSync(tmpdir)).toBe(true);
     process.emit(event, event);
     expect(await result).toMatchObject({
-      message: 'Could not prefetch Expo Go: Simulator prefetch was interrupted.',
+      message: 'Could not prefetch appium@3.9.0: Simulator prefetch was interrupted.',
     });
     expect(fs.existsSync(tmpdir)).toBe(false);
     expect(process.listenerCount(event)).toBe(listeners);
@@ -228,12 +293,12 @@ test('interruption during final cleanup cannot report success', async () => {
 });
 
 test.each([false, true])('prefetch restores its environment after failure=%s', async fail => {
-  enableExpoGo();
-  jest.mocked(commands.runOwnedAsync).mockImplementation(async (_file, args) => {
-    if (args[0] === '-xzf') {
-      fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+  const { wda } = pinAppium();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (args.includes('download-wda')) {
+      writeWdaBundle(wda);
     }
-    return '';
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '';
   });
   process.env.TMPDIR = os.tmpdir();
   process.env.APPIUM_HOME = '/previous/appium';
@@ -266,6 +331,22 @@ test('prefetch bounds archive validation and extraction with the step signal', a
 test('prefetch rejects extra arguments before any native work', async () => {
   await expect(mainAsync(['prefetch', 'x'])).rejects.toThrow(/Usage: .*\|prefetch>/);
   expect(commands.runOwnedAsync).not.toHaveBeenCalled();
+});
+
+test('prefetch skips Expo Go and Appium when they are turned off and removes older files', async () => {
+  for (const name of ['expo-go', 'appium']) {
+    fs.mkdirSync(cacheDirectory(name), { recursive: true });
+    fs.writeFileSync(path.join(cacheDirectory(name), 'old'), 'old');
+  }
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Skipping Expo Go: EXPO_SIMULATOR_PREINSTALL_EXPO_GO=0.\n'
+  );
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Skipping Appium: APPIUM_VERSION and XCUITEST_VERSION are not set.\n'
+  );
+  expect(fetch).not.toHaveBeenCalled();
+  expect(fs.readdirSync(path.dirname(cacheDirectory('appium')))).toEqual(['prepared.json']);
 });
 
 test('prefetch stores the selected Expo Go archive', async () => {
@@ -321,6 +402,156 @@ test.each(['archive HTTP 500', 'gzip -t fails', 'no Info.plist'])(
     expect(fs.existsSync(cacheDirectory('expo-go'))).toBe(false);
   }
 );
+
+test('prefetch prepares the pinned Appium home and writes the shared manifest last', async () => {
+  const { appiumHome, appium, wda } = pinAppium();
+  let tmpdir = '';
+  const seen: { APPIUM_HOME?: string; npm_config_cache?: string; prepared: boolean }[] = [];
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    tmpdir = process.env.TMPDIR ?? '';
+    seen.push({
+      APPIUM_HOME: process.env.APPIUM_HOME,
+      npm_config_cache: process.env.npm_config_cache,
+      prepared: fs.existsSync(cacheDirectory('prepared.json')),
+    });
+    if (file === 'npm') {
+      fs.mkdirSync(path.dirname(appium), { recursive: true });
+      fs.writeFileSync(appium, '');
+    }
+    if (args.includes('download-wda')) {
+      writeWdaBundle(wda);
+    }
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
+  });
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  expect(jest.mocked(commands.runOwnedAsync).mock.calls).toEqual([
+    [
+      'npm',
+      ['install', '--no-audit', '--save-exact', '--prefix', appiumHome, 'appium@3.9.0'],
+      expect.any(AbortSignal),
+    ],
+    [appium, ['driver', 'install', 'xcuitest@12.22.8'], expect.any(AbortSignal)],
+    [
+      appium,
+      [
+        'driver',
+        'run',
+        'xcuitest',
+        'download-wda',
+        '--',
+        '--outdir',
+        wda,
+        '--platform',
+        'iOS',
+        '--kind',
+        'sim',
+      ],
+      expect.any(AbortSignal),
+    ],
+    [
+      '/usr/bin/plutil',
+      [
+        '-extract',
+        'CFBundleExecutable',
+        'raw',
+        '-expect',
+        'string',
+        '-o',
+        '-',
+        path.join(wda, 'WebDriverAgentRunner-Runner.app', 'Info.plist'),
+      ],
+      expect.any(AbortSignal),
+    ],
+  ]);
+  const npmCache = path.join(tmpdir, 'npm-cache');
+  expect(seen).toEqual([
+    ...Array(4).fill({ APPIUM_HOME: appiumHome, npm_config_cache: npmCache, prepared: false }),
+  ]);
+  expect(readPreparedManifest().tools.appium).toEqual({
+    version: '3.9.0',
+    xcuitest: '12.22.8',
+    home: appiumHome,
+  });
+  expect(fs.existsSync(path.join(appiumHome, 'prepared.json'))).toBe(false);
+  expect(fs.readFileSync(path.join(appiumHome, 'package.json'), 'utf8')).toBe(
+    '{"name":"eas-appium-home","private":true}\n'
+  );
+});
+
+test.each([
+  ['only APPIUM_VERSION', { APPIUM_VERSION: '3.9.0' }],
+  ['only XCUITEST_VERSION', { XCUITEST_VERSION: '12.22.8' }],
+  ['APPIUM_VERSION=latest', { APPIUM_VERSION: 'latest', XCUITEST_VERSION: '12.22.8' }],
+  ['XCUITEST_VERSION=^12', { APPIUM_VERSION: '3.9.0', XCUITEST_VERSION: '^12' }],
+  ['APPIUM_VERSION=v3.9.0', { APPIUM_VERSION: 'v3.9.0', XCUITEST_VERSION: '12.22.8' }],
+  [
+    'XCUITEST_VERSION=12.22.8 || latest',
+    { APPIUM_VERSION: '3.9.0', XCUITEST_VERSION: '12.22.8 || latest' },
+  ],
+])('prefetch rejects %s before any command', async (_name, pins) => {
+  Object.assign(process.env, pins);
+  await expect(mainAsync(['prefetch'])).rejects.toThrow(
+    'Could not prefetch Appium: set all of APPIUM_VERSION, XCUITEST_VERSION to exact versions (x.y.z), or none of them.'
+  );
+  expect(commands.runOwnedAsync).not.toHaveBeenCalled();
+});
+
+test('prefetch removes the Appium home after a failed driver install', async () => {
+  const { appiumHome, appium } = pinAppium();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (file === appium && args[1] === 'install') {
+      throw Object.assign(new Error(`${appium} exited with 1.`), { code: 1 });
+    }
+    return '1.0.0\n';
+  });
+  await expect(mainAsync(['prefetch'])).rejects.toThrow(
+    /Could not prefetch xcuitest@12\.22\.8: .*appium exited with 1\./
+  );
+  expect(fs.existsSync(appiumHome)).toBe(false);
+});
+
+test('prefetch removes the Appium home when download-wda leaves no runner', async () => {
+  const { appiumHome } = pinAppium();
+  await expect(mainAsync(['prefetch'])).rejects.toThrow(/Could not prefetch WebDriverAgent: /);
+  expect(fs.existsSync(appiumHome)).toBe(false);
+});
+
+test('prefetch stores Expo Go and prepares Appium without Bun tool pins', async () => {
+  for (const name of [
+    'SERVE_SIM_VERSION',
+    'AGENT_DEVICE_VERSION',
+    'ARGENT_VERSION',
+    'EXPO_SIMULATOR_PREINSTALL_EXPO_GO',
+  ]) {
+    delete process.env[name];
+  }
+  serveExpoGo();
+  const { appiumHome, appium, wda } = pinAppium();
+  jest.mocked(commands.runOwnedAsync).mockImplementation(async (file, args) => {
+    if (file === '/usr/bin/tar') {
+      fs.writeFileSync(path.join(args[3], 'Info.plist'), '<plist/>');
+    }
+    if (file === 'npm') {
+      fs.mkdirSync(path.dirname(appium), { recursive: true });
+      fs.writeFileSync(appium, '');
+    }
+    if (args.includes('download-wda')) {
+      writeWdaBundle(wda);
+    }
+    return file === '/usr/bin/plutil' ? 'Runner\n' : '1.0.0\n';
+  });
+  expect(await mainAsync(['prefetch'])).toBe(0);
+  expect(jest.mocked(commands.runOwnedAsync).mock.calls.map(([file]) => file)).not.toContain(
+    'bunx'
+  );
+  expect(fs.readdirSync(cacheDirectory('expo-go'))).toHaveLength(1);
+  expect(readPreparedManifest()).toEqual({
+    tools: {
+      appium: { version: '3.9.0', xcuitest: '12.22.8', home: appiumHome },
+      'expo-go': { sdk: '58.0.0', url: expoGoUrl },
+    },
+  });
+});
 
 test('prefetch stores the Expo Go of EXPO_GO_SDK_VERSION, as start selects it', async () => {
   delete process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO;
