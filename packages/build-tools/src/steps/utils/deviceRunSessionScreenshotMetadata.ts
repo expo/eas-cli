@@ -4,7 +4,7 @@ import { open } from 'node:fs/promises';
 const IMAGE_HEADER_MAX_BYTES = 64 * 1024;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export type ScreenshotSource = 'manual' | 'agent-device' | 'argent';
+export type ScreenshotSource = 'manual' | 'agent-device' | 'argent' | 'preview';
 
 export type ScreenshotMetadata = {
   source: ScreenshotSource;
@@ -13,7 +13,7 @@ export type ScreenshotMetadata = {
   displayRotation?: string;
 };
 
-type ImageSize = { width: number; height: number };
+export type ImageSize = { width: number; height: number };
 
 export async function createScreenshotMetadataAsync(
   file: string,
