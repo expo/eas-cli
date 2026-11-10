@@ -20,9 +20,12 @@ export async function shallowCloneRepositoryAsync({
 
     const { gitRef, gitCommitHash } = archiveSource;
 
-    await spawn('git', ['fetch', 'origin', '--depth', '1', '--no-tags', gitCommitHash], {
-      cwd: destinationDirectory,
-    });
+    // An empty credential.helper keeps git from passing the access token embedded in the URL to a configured credential helper, which could persist it.
+    await spawn(
+      'git',
+      ['-c', 'credential.helper=', 'fetch', 'origin', '--depth', '1', '--no-tags', gitCommitHash],
+      { cwd: destinationDirectory }
+    );
 
     await spawn('git', ['checkout', gitCommitHash], { cwd: destinationDirectory });
 
@@ -76,9 +79,12 @@ export async function fetchAndCheckoutRefAsync({
   const refToFetch =
     type === 'branch' ? `refs/heads/${name}` : type === 'tag' ? `refs/tags/${name}` : name;
   try {
-    await spawn('git', ['fetch', 'origin', '--depth', '1', '--no-tags', refToFetch], {
-      cwd: repositoryDirectory,
-    });
+    // An empty credential.helper keeps git from passing the access token embedded in the URL to a configured credential helper, which could persist it.
+    await spawn(
+      'git',
+      ['-c', 'credential.helper=', 'fetch', 'origin', '--depth', '1', '--no-tags', refToFetch],
+      { cwd: repositoryDirectory }
+    );
     if (type === 'tag') {
       await spawn('git', ['checkout', 'FETCH_HEAD'], { cwd: repositoryDirectory });
       // --force because the initial clone may have already created this tag.
