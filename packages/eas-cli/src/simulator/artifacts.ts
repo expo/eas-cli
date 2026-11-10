@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import path from 'node:path';
 
 import { downloadSimulatorFileAsync } from './download';
@@ -6,7 +7,6 @@ import fetch from '../fetch';
 import { DeviceRunSessionByIdQuery, DeviceRunSessionStatus } from '../graphql/generated';
 import Log from '../log';
 import { ora } from '../ora';
-import { formatBytes } from '../utils/files';
 import { promptAsync, selectAsync } from '../prompts';
 import { printJsonOnlyOutput } from '../utils/json';
 

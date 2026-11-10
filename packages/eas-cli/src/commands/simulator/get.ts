@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 
 import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
@@ -29,7 +30,6 @@ import {
   formatRemoteSessionInstructions,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
-import { formatBytes } from '../../utils/files';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {

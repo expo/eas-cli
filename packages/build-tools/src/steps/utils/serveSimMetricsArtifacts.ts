@@ -1,10 +1,10 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const METRICS_ARTIFACT_FILENAME = 'metrics.ndjson';

@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
@@ -11,7 +11,6 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;

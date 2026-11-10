@@ -1,4 +1,4 @@
-import { BuildJob, Job, ManagedArtifactType } from '@expo/eas-build-job';
+import { BuildJob, Job, ManagedArtifactType, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fg from 'fast-glob';
 import fs from 'fs-extra';
@@ -174,35 +174,4 @@ async function getArtifactSize(artifact: string): Promise<number | undefined> {
   } catch {
     return undefined;
   }
-}
-
-// same as in
-// https://github.com/expo/eas-cli/blob/f0e3b648a1634266e7d723bd49a84866ab9b5801/packages/eas-cli/src/utils/files.ts#L33-L60
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) {
-    return `0`;
-  }
-  let multiplier = 1;
-  if (bytes < 1024 * multiplier) {
-    return `${Math.floor(bytes)} B`;
-  }
-  multiplier *= 1024;
-  if (bytes < 102.4 * multiplier) {
-    return `${(bytes / multiplier).toFixed(1)} KB`;
-  }
-  if (bytes < 1024 * multiplier) {
-    return `${Math.floor(bytes / 1024)} KB`;
-  }
-  multiplier *= 1024;
-  if (bytes < 102.4 * multiplier) {
-    return `${(bytes / multiplier).toFixed(1)} MB`;
-  }
-  if (bytes < 1024 * multiplier) {
-    return `${Math.floor(bytes / multiplier)} MB`;
-  }
-  multiplier *= 1024;
-  if (bytes < 102.4 * multiplier) {
-    return `${(bytes / multiplier).toFixed(1)} GB`;
-  }
-  return `${Math.floor(bytes / multiplier)} GB`;
 }
