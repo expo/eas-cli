@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
@@ -2189,6 +2190,58 @@ it.each([false, true])(
       stopped.resolve();
       await outcome;
       screenshots.mockRestore();
+    }
+  }
+);
+
+it.each([
+  ['0.13.3', '@expo/serve-sim@0.13.3'],
+  [undefined, '@expo/serve-sim@latest'],
+])(
+  'uses the warm serve-sim version %s for adoption and recordings',
+  async (serveSimVersion, spec) => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([
+        { udid: 'emulator-5554', token: 'preview-token', url: 'http://127.0.0.1:3200' },
+      ]);
+    const recording = jest.spyOn(IosSimulatorRecordingUtils, 'useServeSimPackage');
+    const startAsync = jest.fn(async () => ({
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    }));
+    const host = await startDeviceSessionHostAsync(
+      ctx,
+      {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' },
+        logger,
+        iosSimulatorUdid: 'emulator-5554',
+        timeoutMs: 1000,
+      },
+      {
+        port: 3200,
+        serveSimVersion,
+        turnArgs: Promise.resolve([]),
+        requiresPreviewRetirement: true,
+        startAsync,
+        stopAsync: stopServer,
+      }
+    );
+    try {
+      expect(startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: 'bun',
+          args: expect.arrayContaining(['x', spec]),
+        })
+      );
+      expect(recording).toHaveBeenCalledWith(spec);
+    } finally {
+      await host.finishAsync();
+      recording.mockRestore();
     }
   }
 );
