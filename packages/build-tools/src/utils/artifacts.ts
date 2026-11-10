@@ -204,5 +204,5 @@ export function formatBytes(bytes: number): string {
   if (bytes < 102.4 * multiplier) {
     return `${(bytes / multiplier).toFixed(1)} GB`;
   }
-  return `${Math.floor(bytes / 1024)} GB`;
+  return `${Math.floor(bytes / multiplier)} GB`;
 }

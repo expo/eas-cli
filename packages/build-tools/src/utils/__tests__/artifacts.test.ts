@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { findArtifacts } from '../artifacts';
+import { findArtifacts, formatBytes } from '../artifacts';
 
 jest.mock('fs');
 
@@ -155,5 +155,25 @@ describe(findArtifacts, () => {
     ).rejects.toThrow();
     expect(loggerMock.error).toHaveBeenCalledTimes(1);
     expect(errMsg).toEqual('There is no such file or directory "/dir1/dir2/dir3/dir4/file".');
+  });
+});
+
+describe(formatBytes, () => {
+  const KB = 1024;
+  const MB = 1024 * KB;
+  const GB = 1024 * MB;
+
+  it.each([
+    [0, '0'],
+    [512, '512 B'],
+    [1.5 * KB, '1.5 KB'],
+    [500 * KB, '500 KB'],
+    [20 * MB, '20.0 MB'],
+    [500 * MB, '500 MB'],
+    [1.5 * GB, '1.5 GB'],
+    [102.4 * GB, '102 GB'],
+    [200 * GB, '200 GB'],
+  ])('formats %d bytes as %s', (bytes, expected) => {
+    expect(formatBytes(bytes)).toBe(expected);
   });
 });
