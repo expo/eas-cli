@@ -1,5 +1,13 @@
 # eas-cli
 
+## 27.7.2
+
+### Patch Changes
+
+- Add `--log-source` to `eas simulator` to select which Android logs a session records. ([#4823](https://github.com/expo/eas-cli/pull/4823) by [@vonovak](https://github.com/vonovak))
+- Show that the ssh session has ended, instead of saying SSH was not enabled, when `eas workflow:ssh` is given the ID of a finished build. ([#4842](https://github.com/expo/eas-cli/pull/4842) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Show the ID argument and examples in `eas workflow:ssh --help`. ([#4829](https://github.com/expo/eas-cli/pull/4829) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.7.1
 
 ### Patch Changes

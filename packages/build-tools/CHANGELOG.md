@@ -1,5 +1,11 @@
 # @expo/build-tools
 
+## 27.7.2
+
+### Patch Changes
+
+- Start SSH session shells in the job's build directory instead of the worker's directory. ([#4843](https://github.com/expo/eas-cli/pull/4843) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.7.1
 
 ### Patch Changes

@@ -2,6 +2,15 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.7.2](https://github.com/expo/eas-cli/releases/tag/v27.7.2) - 2026-11-10
+
+### 🐛 Bug fixes
+
+- [eas-cli] Add `--log-source` to `eas simulator` to select which Android logs a session records. ([#4823](https://github.com/expo/eas-cli/pull/4823) by [@vonovak](https://github.com/vonovak))
+- [build-tools] Start SSH session shells in the job's build directory instead of the worker's directory. ([#4843](https://github.com/expo/eas-cli/pull/4843) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [eas-cli] Show that the ssh session has ended, instead of saying SSH was not enabled, when `eas workflow:ssh` is given the ID of a finished build. ([#4842](https://github.com/expo/eas-cli/pull/4842) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [eas-cli] Show the ID argument and examples in `eas workflow:ssh --help`. ([#4829](https://github.com/expo/eas-cli/pull/4829) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## [27.7.1](https://github.com/expo/eas-cli/releases/tag/v27.7.1) - 2026-11-10
 
 ### 🐛 Bug fixes
