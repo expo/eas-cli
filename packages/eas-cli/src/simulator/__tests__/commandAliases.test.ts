@@ -8,6 +8,7 @@ import SimulatorGet from '../../commands/simulator/get';
 import Simulator from '../../commands/simulator/index';
 import SimulatorList from '../../commands/simulator/list';
 import SimulatorLogs from '../../commands/simulator/logs';
+import SimulatorNetworkRequests from '../../commands/simulator/network-requests';
 import SimulatorStop from '../../commands/simulator/stop';
 import { isSimulatorCommandId } from '../commandAliases';
 
@@ -22,6 +23,7 @@ describe('simulator command aliases', () => {
     ['get', SimulatorGet],
     ['list', SimulatorList],
     ['logs', SimulatorLogs],
+    ['network-requests', SimulatorNetworkRequests],
     ['stop', SimulatorStop],
   ])('runs simulator:%s from every simulator topic alias', (name, command) => {
     expect(command.aliases).toEqual([`sim:${name}`]);
