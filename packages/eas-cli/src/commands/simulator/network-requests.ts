@@ -9,6 +9,10 @@ import {
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 import { ora } from '../../ora';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -26,7 +30,8 @@ import { stripTerminalControlCharacters } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorNetworkRequests extends EasCommand {
-  static override aliases = ['sim:network-requests'];
+  static override aliases = getSimulatorCommandAliases('network-requests');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('network-requests');
   static override description =
     '[EXPERIMENTAL] inspect completed network requests from a capture-enabled simulator session';
 
