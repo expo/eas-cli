@@ -87,7 +87,15 @@ export function redactConnectionSecrets(text: string): string {
   return redacted;
 }
 
-export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<string> {
+export async function resolveUptermAsync(
+  env: Env,
+  logger: bunyan
+): Promise<{ uptermPath: string; downloadDir: string | null }> {
+  try {
+    await spawn('upterm', ['version'], { stdio: 'pipe', env });
+    return { uptermPath: 'upterm', downloadDir: null };
+  } catch {}
+
   const objectName = resolveUptermGcsObjectName();
   const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-upterm-'));
   const uptermPath = path.join(downloadDir, objectName);
@@ -105,7 +113,7 @@ export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<
   if (proxiedUrl) {
     try {
       await downloadAsync(proxiedUrl);
-      return uptermPath;
+      return { uptermPath, downloadDir };
     } catch (err) {
       logger.debug(
         { err },
@@ -120,12 +128,12 @@ export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<
   } catch (err) {
     await fs.rm(downloadDir, { recursive: true, force: true }).catch(() => {});
     throw new SystemError(
-      `The upterm SSH client could not be downloaded from ${directUrl}. ${
+      `The upterm SSH client was not on PATH and could not be downloaded from ${directUrl}. ${
         err instanceof Error ? err.message : String(err)
       }`
     );
   }
-  return uptermPath;
+  return { uptermPath, downloadDir };
 }
 
 function parseJson(text: string): unknown {
@@ -181,7 +189,7 @@ export async function startUptermHostAsync(
   ctx: BuildContext,
   { relayServerUrl }: { relayServerUrl: string }
 ): Promise<UptermHost> {
-  const uptermPath = await resolveUptermPathAsync(ctx.env, ctx.logger);
+  const { uptermPath, downloadDir } = await resolveUptermAsync(ctx.env, ctx.logger);
 
   const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-ssh-'));
   const hostKeyPath = path.join(stateDir, 'id_host');
@@ -205,11 +213,10 @@ export async function startUptermHostAsync(
     } catch (err) {
       throw new SystemError(`Failed to stop the upterm session. Output:\n${spawnOutput(err)}`);
     } finally {
-      await Promise.all(
-        [stateDir, path.dirname(uptermPath)].map(dir =>
-          fs.rm(dir, { recursive: true, force: true })
-        )
-      );
+      await fs.rm(stateDir, { recursive: true, force: true });
+      if (downloadDir) {
+        await fs.rm(downloadDir, { recursive: true, force: true });
+      }
     }
   };
 

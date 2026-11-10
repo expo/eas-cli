@@ -91,6 +91,7 @@ describe(startUptermHostAsync, () => {
   let currentResult: () => Promise<{ stdout: string; stderr: string }>;
   let stopResult: () => Promise<{ stdout: string; stderr: string }>;
   let daemonRunning: boolean;
+  let uptermOnPath: boolean;
 
   function ok(stdout: string): () => Promise<{ stdout: string; stderr: string }> {
     return async () => ({ stdout, stderr: '' });
@@ -119,6 +120,7 @@ describe(startUptermHostAsync, () => {
     jest.clearAllMocks();
     calls = [];
     daemonRunning = true;
+    uptermOnPath = false;
     hostResult = ok(DETACH_JSON);
     currentResult = ok(current({ status: 'ready', clientCount: 0 }));
     stopResult = ok('session eas-1a2b3c4 stopped\n');
@@ -137,6 +139,11 @@ describe(startUptermHostAsync, () => {
     mockedDownloadFile.mockResolvedValue(undefined as never);
     mockedSpawn.mockImplementation(((cmd: string, args: string[], options: unknown) => {
       calls.push({ cmd, args, options });
+      if (cmd === 'upterm' && args[0] === 'version') {
+        return uptermOnPath
+          ? Promise.resolve({ stdout: 'Upterm version 0.0.0', stderr: '' })
+          : Promise.reject(new Error('spawn upterm ENOENT'));
+      }
       if (args[0] === 'host') {
         return hostResult();
       }
@@ -190,12 +197,20 @@ describe(startUptermHostAsync, () => {
     expect(ready.startedReconnecting).toBe(false);
   });
 
-  it('downloads upterm from GCS instead of using one on PATH', async () => {
-    await startUptermHostAsync(makeCtx({ PATH: '/usr/local/bin' }), {
-      relayServerUrl: 'wss://relay.expo.dev',
-    });
+  it('uses an upterm on PATH and keeps the working directory when the session stops', async () => {
+    uptermOnPath = true;
 
-    expect(calls.some(c => c.cmd === 'upterm')).toBe(false);
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    await host.stopAsync();
+
+    expect(callsOf('host')[0].cmd).toBe('upterm');
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(mockedFs.rm.mock.calls.map(([dir]) => dir)).toEqual(['/tmp/eas-ssh-1']);
+  });
+
+  it('downloads upterm from GCS when none is on PATH', async () => {
+    await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
+
     expect(mockedDownloadFile).toHaveBeenCalledWith(
       'https://storage.googleapis.com/turtle-v2/upterm/' + resolveUptermGcsObjectName(),
       expect.stringContaining('/tmp/eas-upterm-1'),
