@@ -7,8 +7,7 @@ jest.unmock('ora');
 
 const CLEAR_LINE = '\x1b[2K';
 
-// A stream with the parts of tty.WriteStream that ora uses. Like a TTY stream, it implements
-// _writev, so Node hands over everything written while corked in one call.
+// Implements _writev like a TTY stream, so corked writes arrive in one call.
 class FakeTTYStream extends Writable {
   isTTY = true;
   columns = 200;

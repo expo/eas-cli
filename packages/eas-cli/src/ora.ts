@@ -47,10 +47,7 @@ export function ora(options?: Options | string): Ora {
     spinner.text = spinner.text;
   };
 
-  // ora clears the previous frame and writes the next text as several writes: clear each line,
-  // move the cursor, then write the text. A terminal can paint between them and show a blank
-  // line, which flickers, most visibly when the text wraps. A TTY stream sends everything written
-  // while it is corked as one write.
+  // Cork so each frame is one write; separate clear and text writes flicker.
   const corkable = stream as Partial<Pick<Writable, 'cork' | 'uncork'>>;
   const corked = <T>(write: () => T): T => {
     if (!corkable.cork || !corkable.uncork) {
