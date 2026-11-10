@@ -28,7 +28,9 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'no changelog') ||
           github.event.pull_request.user.login == 'dependabot[bot]'
         }}
-      BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+      # The base branch, not `pull_request.base.sha`: that SHA can be older than the base that the
+      # checked-out merge commit contains, and the diff then includes other people's changes.
+      BASE_REF: origin/${{ github.base_ref || 'main' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
