@@ -322,6 +322,29 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
   });
 
+  it('uses the resolved Argent version after a warm mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '999.1.0'));
+    await createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext, { warm: true }).fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as never,
+      {
+        inputs: {
+          package_version: { value: 'latest' },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(spawnDetached).toHaveBeenCalledWith(
+      expect.objectContaining({ args: expect.arrayContaining(['@swmansion/argent@999.1.0']) })
+    );
+  });
+
   it('keeps watching startup when warm adoption retries cold', async () => {
     const ctx = {} as CustomBuildContext;
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };

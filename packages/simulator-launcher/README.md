@@ -47,7 +47,7 @@ serializes updates; an abandoned lock fails closed. State is scoped to the curre
 `start` uses the supplied runtime package versions and records exact version inputs as
 `serveSimVersion`, `agentDeviceVersion` and `argentVersion` in this state and the claim. Consumers
 compare explicit package requests with these versions before reuse. Tags, ranges and unset inputs
-do not report an exact version.
+do not report an exact version. Build-tools also uses `serveSimVersion` for warm adoption and recordings.
 
 ## Environment
 
@@ -82,8 +82,12 @@ otherwise runs its normal download or install. Keep these directories when reusi
   the supplied selection, or when no SDK is supplied. It checks the file with `gzip -t` before
   extraction. A missing or damaged archive is downloaded again from that URL.
 - `appium/`: an Appium home with the pinned xcuitest driver and WebDriverAgent runner.
-  Consumers must check the recorded versions and files before reuse. Metadata does not prove that
-  the driver loads or WDA starts; validate the prepared files with a real Appium session.
+  Prefetch checks the runner's bundle metadata and executable before recording it.
+  Build-tools reuses it when the files match the manifest and Appium matches the current
+  resolution of an explicit version request, including ranges and `latest`. Without an override,
+  the prepared version must satisfy the default Appium 3 range. Build-tools does not write or
+  remove this home. These checks do not load the driver or launch WDA; validate reuse with a
+  real Appium session.
 
 ### Prepared tool manifest
 
@@ -104,6 +108,10 @@ disabled or unset, the manifest is `{"tools":{}}`.
 metadata, or metadata for a different supplied SDK, uses normal SDK/archive selection. Legacy
 serve-sim, agent-device and Argent entries are ignored, including malformed entries. Exact CLI
 version inputs are recorded only in the current boot's state and claim.
+
+Build-tools' shared `readPreparedSimulatorToolAsync(tool, schema)` reader selects an entry from
+`tools` using the consumer's schema. Each consumer checks compatibility before reuse. Missing,
+invalid or older metadata is a cache miss and uses normal setup.
 
 Keep the Expo Go archive and the whole Appium home, not only the manifest. Appium's home
 must stay at the recorded path under the same user. Rerun `prefetch` to regenerate the manifest
