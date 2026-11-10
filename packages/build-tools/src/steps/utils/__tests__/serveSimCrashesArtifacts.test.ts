@@ -1,4 +1,7 @@
 import type { bunyan } from '@expo/logger';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
@@ -7,10 +10,20 @@ import { uploadServeSimCrashesFileAsync } from '../serveSimCrashesArtifacts';
 
 jest.mock('../../../sentry');
 jest.mock('../deviceRunSessionArtifacts');
+jest.unmock('fs');
+jest.unmock('node:fs');
+jest.unmock('fs/promises');
+jest.unmock('node:fs/promises');
 
 const ctx = {} as CustomBuildContext;
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
-const crash = { udid: 'ABCDEF123456', filePath: '/tmp/ABCDEF123456-2.ips', size: 20, number: 2 };
+let crash: { udid: string; filePath: string; size: number; number: number };
+
+beforeAll(async () => {
+  const filePath = path.join(await mkdtemp(path.join(os.tmpdir(), 'crash-test-')), 'A-2.ips');
+  await writeFile(filePath, '{"app_name":"Crash"}');
+  crash = { udid: 'ABCDEF123456', filePath, size: 20, number: 2 };
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -34,6 +47,7 @@ it.each([
     metadata: { __eas_type: 'simulator-crash', udid: 'ABCDEF123456', source: 'serve-sim/crashes' },
     size: 20,
     openStream: expect.any(Function),
+    signal: expect.any(AbortSignal),
     attempts: 3,
   });
 });

@@ -5,6 +5,7 @@ import {
   getActorDisplayName,
   getCannotCreateProjectsOnAccountNameReason,
   getCreatableAccountNames,
+  getPersonalAccount,
 } from '../User';
 
 const userStub: Actor = {
@@ -185,5 +186,86 @@ describe('getCreatableAccountNames', () => {
     };
 
     expect(getCreatableAccountNames(actor)).toEqual(['developer-org']);
+  });
+});
+
+describe('getPersonalAccount', () => {
+  const personalAccount = {
+    id: 'personal_account_id',
+    name: 'renamed-personal',
+    ownerUserActor: { id: 'userId', username: 'username' },
+    viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+  };
+
+  it('returns the account owned by the user, even when its name differs from the username', () => {
+    const actor: Actor = {
+      ...userStub,
+      accounts: [
+        {
+          id: 'org_account_id',
+          name: 'username',
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+        },
+        personalAccount,
+      ],
+    };
+
+    expect(getPersonalAccount(actor)).toBe(personalAccount);
+  });
+
+  it('returns the account owned by an SSO user', () => {
+    const actor: Actor = {
+      ...ssoUserStub,
+      accounts: [
+        {
+          ...personalAccount,
+          ownerUserActor: { id: 'ssoUserId', username: 'ssoUsername' },
+        },
+      ],
+    };
+
+    expect(getPersonalAccount(actor)?.id).toBe('personal_account_id');
+  });
+
+  it('does not return a team account owned by another user', () => {
+    const actor: Actor = {
+      ...userStub,
+      accounts: [
+        {
+          ...personalAccount,
+          ownerUserActor: { id: 'otherUserId', username: 'other-user' },
+        },
+      ],
+    };
+
+    expect(getPersonalAccount(actor)).toBeNull();
+  });
+
+  it('returns null when the personal account is not in the accounts list (e.g. scoped session)', () => {
+    expect(getPersonalAccount({ ...userStub, accounts: [] })).toBeNull();
+  });
+
+  it('returns the primary account of a partner actor', () => {
+    const partnerAccount = {
+      id: 'partner_account_id',
+      name: 'partner-account',
+      viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+    };
+    const actor: Actor = {
+      __typename: 'PartnerActor',
+      id: 'partnerActorId',
+      username: 'partner-user',
+      primaryAccount: { id: 'partner_account_id' },
+      accounts: [partnerAccount],
+      isExpoAdmin: false,
+      featureGates: {},
+    };
+
+    expect(getPersonalAccount(actor)).toBe(partnerAccount);
+  });
+
+  it('returns null for robots and missing actors', () => {
+    expect(getPersonalAccount(robotStub)).toBeNull();
+    expect(getPersonalAccount()).toBeNull();
   });
 });

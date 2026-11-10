@@ -43,5 +43,6 @@ export * from './generic';
 
 export { Datadog } from './datadog';
 export { getDeviceRunSessionTokenFromEnvironmentSecrets } from './steps/utils/deviceRunSessionWorkerApi';
+export { getSandboxWorkerTokenFromEnvironmentSecrets } from './steps/utils/sandboxWorkerApi';
 export { Sentry } from './sentry';
 export * from './runtimeSettings';

@@ -361,6 +361,67 @@ describe('Datadog singleton', () => {
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
+  it('POSTs distribution metrics to the sandbox worker API with the sandbox worker token', () => {
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      sandboxWorkerToken: 'sandbox-token',
+      target: { kind: 'sandbox' },
+    });
+
+    Datadog.distribution('eas.workflow.hook', 1, { hook: 'on_start' });
+
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/sandbox-worker/metrics',
+      'POST',
+      {
+        json: {
+          metrics: [
+            {
+              name: 'eas.workflow.hook',
+              type: 'distribution',
+              value: 1,
+              tags: { hook: 'on_start', target: 'job_run' },
+            },
+          ],
+        },
+        headers: { 'expo-sandbox-worker-token': 'sandbox-token' },
+        retries: 2,
+      }
+    );
+  });
+
+  it('labels metric upload failures for sandbox targets with the sandbox kind', async () => {
+    turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      sandboxWorkerToken: 'sandbox-token',
+      target: { kind: 'sandbox' },
+    });
+
+    Datadog.distribution('eas.workflow.hook', 1);
+    await flushPromises();
+
+    expect(sentryCaptureMock).toHaveBeenCalledWith(
+      'Failed to report turtle sandbox metric',
+      expect.any(Error),
+      expect.anything()
+    );
+  });
+
+  it('does not report logs for sandbox targets', () => {
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      sandboxWorkerToken: 'sandbox-token',
+      target: { kind: 'sandbox' },
+    });
+
+    Datadog.log('Custom build saw user-provided function');
+
+    expect(turtleFetchMock).not.toHaveBeenCalled();
+  });
+
   it('flushes pending metric uploads', async () => {
     let resolveUpload!: (response: Response) => void;
     turtleFetchMock.mockReturnValueOnce(

@@ -2,6 +2,7 @@ import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
@@ -45,6 +46,26 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   waitForFileAsync: jest.fn(),
 }));
 
+// Agent-device also polls for Stop while it starts up. That watch sets neither an idle timeout nor
+// a duration; keep it pending until startup retires it, and give each lifetime wait its own mock.
+const lifetimeWait = jest.fn<
+  ReturnType<typeof waitForDeviceRunSessionStoppedAsync>,
+  Parameters<typeof waitForDeviceRunSessionStoppedAsync>
+>();
+function routeStartupWatch(): void {
+  lifetimeWait.mockReset();
+  jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async args => {
+    if ('idleTimeout' in args || 'maxDurationSeconds' in args) {
+      return await lifetimeWait(args);
+    }
+    if (!args.signal?.aborted) {
+      await new Promise<void>(resolve =>
+        args.signal?.addEventListener('abort', () => resolve(), { once: true })
+      );
+    }
+  });
+}
+
 const finishHost = jest.fn();
 const closePreview = jest.fn();
 const stopTool = jest.fn();
@@ -56,6 +77,7 @@ const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnTh
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
+  routeStartupWatch();
   // The daemon package is external. No installation or daemon process runs in these tests.
   jest.spyOn(fs, 'existsSync').mockReturnValue(true);
   // Only the emulator logcat folder: the Appium step writes into its own temp folder.
@@ -101,7 +123,7 @@ beforeEach(() => {
   jest.mocked(startAgentDeviceEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(startAppiumEventCollectionAsync).mockResolvedValue(events);
   jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
-  jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
+  lifetimeWait.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -118,13 +140,20 @@ describe.each([
     corsOrigins?: string[]
   ) {
     const fn = createFunction({} as CustomBuildContext);
+    const global = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+    const defaults = new Map(
+      fn.inputProviders?.map(provider => {
+        const input = provider(global, 'Test session');
+        return [input.id, input.defaultValue];
+      })
+    );
     await fn.fn!(
       {
         logger,
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
-        // Inputs a step does not get default to undefined, like in a real step call.
+        // Match step execution: omitted inputs use their declared defaults.
         inputs: new Proxy(
           {
             public_preview: { value: publicPreview },
@@ -132,7 +161,7 @@ describe.each([
             cors_origins: { value: corsOrigins },
           } as Record<string, { value: unknown }>,
           {
-            get: (target, id: string) => target[id] ?? { value: undefined },
+            get: (target, id: string) => target[id] ?? { value: defaults.get(id) },
           }
         ),
         outputs: {},
@@ -163,7 +192,7 @@ describe.each([
     expect(finishHost).toHaveBeenCalledTimes(1);
     expect(closePreview).not.toHaveBeenCalled();
     expect(finishHost.mock.invocationCallOrder[0]).toBeGreaterThan(
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
+      lifetimeWait.mock.invocationCallOrder[0]
     );
     expect(stopTool).toHaveBeenCalledTimes(1);
     expect(stopEvents).toHaveBeenCalledTimes(1);
@@ -308,7 +337,7 @@ describe.each([
     } else if (phase === 'config') {
       jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValueOnce(error);
     } else {
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValueOnce(error);
+      lifetimeWait.mockRejectedValueOnce(error);
     }
     await expect(runAsync()).rejects.toBe(error);
     expect(finishHost).toHaveBeenCalledTimes(1);

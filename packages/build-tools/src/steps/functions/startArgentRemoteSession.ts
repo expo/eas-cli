@@ -41,7 +41,9 @@ import { isProcessDescendantOfAsync, killProcessGroup } from '../../utils/proces
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
+import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
+  DeviceRunSessionStoppedError,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -135,19 +137,31 @@ export function createStartArgentRemoteSessionBuildFunction(
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      validateControllerVersion({
-        packageName: ARGENT_PACKAGE_NAME,
-        minimumVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
-        packageVersion,
-        logger,
-      });
-      const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await selectXcodeDeveloperDirectoryAsync({ env, logger });
-      }
+      const startupStop = new AbortController();
+      const watchSignal = signal
+        ? AbortSignal.any([signal, startupStop.signal])
+        : startupStop.signal;
+      const startupWatch = watchDeviceRunSessionStartup({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
+      });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
-      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+      const startSessionAsync = async (
+        warmSession?: WarmIosSession,
+        resolvedPackageVersion = packageVersion
+      ): Promise<void> => {
+        const versionSpec = resolvedPackageVersion ?? 'latest';
+        validateControllerVersion({
+          packageName: ARGENT_PACKAGE_NAME,
+          minimumVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
+          packageVersion: resolvedPackageVersion,
+          logger,
+        });
+        const startupAbortController = new AbortController();
+        const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
@@ -158,7 +172,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           openUrl: inputs.open_url?.value,
           env,
           logger,
-          signal,
+          signal: startupSignal,
         });
         const { networkCapture, networkCaptureFields } = parseNetworkCaptureInputs(
           {
@@ -182,11 +196,6 @@ export function createStartArgentRemoteSessionBuildFunction(
         const argentExec = (args: string[]): { command: string; args: string[] } =>
           resolvePackageExec(packageManager, args);
 
-        const startupAbortController = new AbortController();
-        const startupSignal = signal
-          ? AbortSignal.any([signal, startupAbortController.signal])
-          : startupAbortController.signal;
-        const setupSignal = iosStartup ? startupSignal : undefined;
         const artifactPollAbortController = new AbortController();
         let artifactPollingPromise: Promise<void> | undefined;
         let eventCollection:
@@ -213,16 +222,14 @@ export function createStartArgentRemoteSessionBuildFunction(
               timeoutMs: STARTUP_TIMEOUT_MS,
               preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
               signal: startupSignal,
-              onStartupError: iosStartup ? error => startupAbortController.abort(error) : undefined,
+              onStartupError: error => startupAbortController.abort(error),
               ...launch,
               networkCapture,
               networkCaptureFields,
             },
             ...(warmSession ? [createWarmDeviceSessionServer(ctx, logger, warmSession)] : [])
           ).catch(error => {
-            if (iosStartup) {
-              startupAbortController.abort(error);
-            }
+            startupAbortController.abort(error);
             throw error;
           });
         try {
@@ -251,7 +258,7 @@ export function createStartArgentRemoteSessionBuildFunction(
               enableArtifacts.command,
               enableArtifacts.args,
               { env, logger },
-              setupSignal
+              startupSignal
             );
 
             logger.info('Enabling the Argent tool-server event log flag.');
@@ -264,7 +271,7 @@ export function createStartArgentRemoteSessionBuildFunction(
               enableEventLog.command,
               enableEventLog.args,
               { env, logger },
-              setupSignal
+              startupSignal
             );
 
             logger.info('Disabling the Argent video watermark flag.');
@@ -279,17 +286,17 @@ export function createStartArgentRemoteSessionBuildFunction(
                 disableVideoWatermark.command,
                 disableVideoWatermark.args,
                 { env, logger },
-                setupSignal
+                startupSignal
               );
             } catch (err) {
-              setupSignal?.throwIfAborted();
+              startupSignal?.throwIfAborted();
               logger.warn(
                 { err },
                 'Could not disable the Argent video watermark, so recorded videos may include it. Continuing the session.'
               );
             }
 
-            setupSignal?.throwIfAborted();
+            startupSignal?.throwIfAborted();
             const startServer = argentExec([
               `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
               'server',
@@ -330,7 +337,7 @@ export function createStartArgentRemoteSessionBuildFunction(
                 ancestorPid: argentServer.pid,
                 timeoutMs: STARTUP_TIMEOUT_MS,
                 getExitError: argentServer.getExitError,
-                signal: setupSignal,
+                signal: startupSignal,
               });
               toolServerPort = toolServerState.port;
               toolServerToken = toolServerState.token;
@@ -350,7 +357,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             if (hostStartup) {
               sessionHost = (await hostStartup).enforceValue();
             }
-            setupSignal?.throwIfAborted();
+            startupSignal?.throwIfAborted();
           }
           logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
           const artifactPollSignal = signal
@@ -388,6 +395,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             logger.info(launchDescription);
           }
           sessionHost ??= (await (hostStartup ??= asyncResult(startHost()))).enforceValue();
+          startupSignal.throwIfAborted();
           const webPreview = await sessionHost.openPreviewAsync();
           logger.info(
             webPreview.sharePageUrl
@@ -397,7 +405,7 @@ export function createStartArgentRemoteSessionBuildFunction(
 
           const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
             env,
-            signal,
+            signal: startupSignal,
             ctx,
             deviceRunSessionId,
             remoteConfig: {
@@ -413,6 +421,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             return;
           }
 
+          await startupWatch.completeAsync();
           await waitForDeviceRunSessionStoppedAsync({
             ctx,
             deviceRunSessionId,
@@ -429,8 +438,19 @@ export function createStartArgentRemoteSessionBuildFunction(
                 : undefined,
           });
         } catch (error) {
+          if (
+            startupSignal.reason instanceof DeviceRunSessionStoppedError &&
+            !(error instanceof AggregateError)
+          ) {
+            throw startupSignal.reason;
+          }
           sessionFailed = true;
-          throw setupSignal?.aborted ? setupSignal.reason : error;
+          throw error instanceof AggregateError
+            ? error
+            : startupSignal.aborted &&
+                !(startupSignal.reason instanceof DeviceRunSessionStoppedError)
+              ? startupSignal.reason
+              : error;
         } finally {
           startupAbortController.abort(new Error('Argent session ended.'));
           const toolTeardown = (async () => {
@@ -470,6 +490,9 @@ export function createStartArgentRemoteSessionBuildFunction(
                     // The warm host owns Argent too; leave it alive until the final downloads finish.
                     await Promise.allSettled([toolTeardown]);
                   }
+                  if (result.reason instanceof AggregateError) {
+                    throw result.reason;
+                  }
                   await result.value?.finishAsync();
                 }),
               ],
@@ -477,20 +500,32 @@ export function createStartArgentRemoteSessionBuildFunction(
           });
         }
       };
-      if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        await runOnWarmIosSimulatorAsync(
-          {
-            engine: 'argent',
-            requestedDevice: deviceIdentifier,
-            packageVersion,
-            env,
-            logger,
-            signal,
-          },
-          startSessionAsync
-        );
-      } else {
-        await startSessionAsync();
+      try {
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await selectXcodeDeveloperDirectoryAsync({ env, logger });
+        }
+        watchSignal.throwIfAborted();
+        if (warm && runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          await runOnWarmIosSimulatorAsync(
+            {
+              engine: 'argent',
+              requestedDevice: deviceIdentifier,
+              packageVersion,
+              env,
+              logger,
+              signal: watchSignal,
+            },
+            startSessionAsync
+          );
+        } else {
+          await startSessionAsync();
+        }
+      } catch (error) {
+        if (error !== startupWatch.stopped) {
+          throw error;
+        }
+      } finally {
+        await startupWatch.finishAsync();
       }
     }),
   });

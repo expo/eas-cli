@@ -4,13 +4,18 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
+import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
 import {
   resolveLocalEgressServeSimBootEnvironmentAsync,
   startLocalEgressGuardRelayAsync,
 } from '../../utils/localEgressGuard';
-import { selectXcodeDeveloperDirectoryAsync } from '../../utils/remoteDeviceRunSession';
+import {
+  selectXcodeDeveloperDirectoryAsync,
+  waitForDeviceRunSessionStoppedAsync,
+} from '../../utils/remoteDeviceRunSession';
 import { downloadBuildAsync } from '../downloadBuild';
 import { installBuildAsync } from '../installBuild';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
@@ -32,10 +37,12 @@ jest.mock('../../utils/localEgressGuard', () => ({
   startLocalEgressGuardRelayAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../utils/androidEmulatorLogs');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
   selectXcodeDeveloperDirectoryAsync: jest.fn(),
+  waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
 jest.mock('../startIosSimulator', () => ({
   ...jest.requireActual('../startIosSimulator'),
@@ -104,43 +111,28 @@ function runStep(
   inputValues: Record<string, unknown> = {},
   signal?: AbortSignal,
   stepCtx: CustomBuildContext = ctx,
-  warm = false
+  warm = false,
+  env: NodeJS.ProcessEnv = {}
 ): Promise<void> {
   const buildFunction = createStartAgentDeviceSessionBuildFunction(stepCtx, { warm });
   const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+  const global = createGlobalContextMock({
+    runtimePlatform,
+    staticContextContent: { job: { secrets: { robotAccessToken: 'robot-token' } } },
+  });
   const inputs = Object.fromEntries(
-    [
-      'device_identifier',
-      'system_image_package',
-      'lcd_width',
-      'lcd_height',
-      'lcd_density',
-      'install_app_path',
-      'build_id',
-      'application_archive_url',
-      'launch_app_identifier',
-      'launch_args',
-      'open_url',
-      'network_capture',
-      'network_capture_fields',
-      'public_preview',
-      'private_preview_url',
-      'frame_ancestors',
-      'cors_origins',
-      'package_version',
-      'max_idle_time_minutes',
-      'max_duration_seconds',
-    ].map(id => [id, { value: inputValues[id] }])
+    (buildFunction.inputProviders ?? []).map(provider => {
+      const input = provider(global, 'test');
+      input.set(inputValues[input.id]);
+      return [input.id, { value: input.rawValue }];
+    })
   );
   return buildFunction.fn!(
     {
       logger,
-      global: {
-        runtimePlatform,
-        staticContext: { job: { secrets: { robotAccessToken: 'robot-token' } } },
-      },
+      global,
     } as unknown as BuildStepContext,
-    { inputs, outputs: {}, env: {}, signal } as never
+    { inputs, outputs: {}, env, signal } as never
   ) as Promise<void>;
 }
 
@@ -149,7 +141,31 @@ function sessionDevice(): Device {
 }
 
 describe(createStartAgentDeviceSessionBuildFunction, () => {
+  function mockStalledDownload(): { aborted: () => boolean; settled: () => boolean } {
+    let aborted = false;
+    let settled = false;
+    jest.mocked(downloadBuildAsync).mockImplementation(
+      ({ signal }) =>
+        new Promise((_resolve, reject) => {
+          signal!.addEventListener('abort', () => {
+            aborted = true;
+            // Settles a bit later, like a request that winds down.
+            setImmediate(() => {
+              settled = true;
+              reject(new Error('The user aborted a request.'));
+            });
+          });
+        })
+    );
+    return { aborted: () => aborted, settled: () => settled };
+  }
+
   beforeEach(() => {
+    jest
+      .mocked(getAndroidEmulatorLogCapture)
+      .mockImplementation(
+        jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
+      );
     deviceLaunch = undefined;
     jest.clearAllMocks();
     jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
@@ -161,6 +177,13 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
       .mockResolvedValue([{ name: 'iPhone 17', udid: 'SELECTED-UDID' }] as never);
     jest.mocked(getAgentDeviceRemoteSessionEnvOrThrow).mockReturnValue(sessionEnv);
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async ({ signal }) => {
+      if (!signal?.aborted) {
+        await new Promise<void>(resolve =>
+          signal?.addEventListener('abort', () => resolve(), { once: true })
+        );
+      }
+    });
     jest
       .mocked(runAgentDeviceRemoteSessionAsync)
       .mockImplementation(async (_ctx, { device, tasks }) => {
@@ -183,6 +206,43 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     jest.mocked(readIosApplicationIdentifierAsync).mockResolvedValue('dev.example.app');
   });
 
+  it.each([false, true])(
+    'observes Stop during warm claim and preserves cleanup failure=%s',
+    async failCleanup => {
+      const stopped = deferred();
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+      let entered!: () => void;
+      const claiming = new Promise<void>(resolve => {
+        entered = resolve;
+      });
+      const cleanup = new Error('warm cleanup failed');
+      jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation(async claim => {
+        entered();
+        await new Promise<void>((_resolve, reject) => {
+          claim.signal!.addEventListener(
+            'abort',
+            () =>
+              reject(
+                failCleanup
+                  ? new AggregateError([claim.signal!.reason, cleanup])
+                  : claim.signal!.reason
+              ),
+            { once: true }
+          );
+        });
+      });
+      const running = runStep(BuildRuntimePlatform.DARWIN, {}, undefined, ctx, true);
+      running.catch(() => {});
+      await claiming;
+      stopped.resolve();
+      if (failCleanup) {
+        await expect(running).rejects.toMatchObject({ errors: expect.arrayContaining([cleanup]) });
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
+      expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    }
+  );
   it('hands guarded iOS boot to serve-sim and starts reporting before host startup', async () => {
     const bootEnv = {
       SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
@@ -260,6 +320,33 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     ).rejects.toThrow('shutdown failed');
 
     expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats Stop during guarded device shutdown as normal cancellation', async () => {
+    const stopped = deferred();
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
+      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
+    });
+    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
+    jest.mocked(spawn).mockImplementation(
+      (_command, _args, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener('abort', () => reject(new Error('shutdown aborted')), {
+            once: true,
+          });
+        }) as ReturnType<typeof spawn>
+    );
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' });
+    step.catch(() => {});
+    await flushAsync();
+    expect(spawn).toHaveBeenCalled();
+    stopped.resolve();
+    await expect(step).resolves.toBeUndefined();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
     expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -343,11 +430,67 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
 
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
+    expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
     expect(sessionDevice()).toEqual({
       iosSimulatorUdid: 'SELECTED-UDID',
       bootEnv: undefined,
       application: undefined,
     });
+  });
+
+  it('defaults an omitted session log input to emulator output through the step boundary', async () => {
+    const buildFunction = createStartAgentDeviceSessionBuildFunction(ctx);
+    const global = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+    const step = buildFunction.createBuildStepFromFunctionCall(global, {
+      callInputs: {},
+      env: { DEVICE_RUN_SESSION_ID: 'session' },
+    });
+    await step.executeAsync();
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logCapture: expect.objectContaining({ sources: ['emulator-output'] }),
+      })
+    );
+  });
+
+  it('passes an explicit empty source list and the workflow capture to Android boot', async () => {
+    const capture = new AndroidEmulatorLogRing({ sources: [] });
+    jest.mocked(getAndroidEmulatorLogCapture).mockReturnValue(capture);
+    const env = { DEVICE_RUN_SESSION_ID: 'session' };
+    await runStep(BuildRuntimePlatform.LINUX, { log_sources: [] }, undefined, ctx, false, env);
+    expect(getAndroidEmulatorLogCapture).toHaveBeenCalledWith(expect.anything(), env, []);
+    expect(startAndroidEmulatorAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logCapture: capture })
+    );
+  });
+
+  it('rejects invalid Android log sources before boot or downloading', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, {
+        log_sources: ['unknown'],
+        build_id: 'build-id',
+      })
+    ).rejects.toThrow();
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects Android log sources on an iOS session before boot or downloading', async () => {
+    await expect(
+      runStep(BuildRuntimePlatform.DARWIN, {
+        log_sources: ['device-logcat'],
+        build_id: 'build-id',
+      })
+    ).rejects.toThrow('Input "log_sources" selects Android emulator logs');
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+    expect(IosSimulatorUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+  });
+
+  it('boots an iOS session with an explicit empty source list', async () => {
+    await runStep(BuildRuntimePlatform.DARWIN, { log_sources: [] });
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalled();
+    expect(startAndroidEmulatorAsync).not.toHaveBeenCalled();
   });
 
   it('boots the Android Emulator with the device inputs', async () => {
@@ -376,6 +519,22 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     );
   });
 
+  it('stops the download and waits for it when Android boot fails', async () => {
+    const download = mockStalledDownload();
+    jest.mocked(startAndroidEmulatorAsync).mockRejectedValue(new Error('boot failed'));
+
+    await expect(
+      runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' }, undefined, ctx, false, {
+        DEVICE_RUN_SESSION_ID: 'session',
+      })
+    ).rejects.toThrow('boot failed');
+
+    expect(download.aborted()).toBe(true);
+    // The step returned only after the download stopped.
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
+  });
+
   it('does not start work for an already cancelled step', async () => {
     const controller = new AbortController();
     controller.abort(new Error('cancelled'));
@@ -386,6 +545,113 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(selectXcodeDeveloperDirectoryAsync).not.toHaveBeenCalled();
 
     expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'observes Stop during a held download on %s and drains startup normally',
+    async runtimePlatform => {
+      const download = mockStalledDownload();
+      const stopped = deferred();
+      const controller = new AbortController();
+      jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+      const step = runStep(runtimePlatform, { build_id: 'build-id' }, controller.signal);
+      step.catch(() => {});
+      try {
+        await flushAsync();
+        expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+          expect.objectContaining({
+            deviceRunSessionId: sessionEnv.deviceRunSessionId,
+            signal: expect.any(AbortSignal),
+          })
+        );
+        stopped.resolve();
+        await expect(step).resolves.toBeUndefined();
+        expect(download.aborted()).toBe(true);
+        expect(download.settled()).toBe(true);
+        expect(installBuildAsync).not.toHaveBeenCalled();
+        expect(launchApplicationAsync).not.toHaveBeenCalled();
+        expect(readIosApplicationIdentifierAsync).not.toHaveBeenCalled();
+      } finally {
+        controller.abort(new Error('test cleanup'));
+        stopped.resolve();
+        await step.catch(() => {});
+      }
+    }
+  );
+
+  it('waits for an in-flight Android boot after Stop without installing or launching', async () => {
+    const boot = deferred<Awaited<ReturnType<typeof startAndroidEmulatorAsync>>>();
+    const stopped = deferred();
+    jest.mocked(startAndroidEmulatorAsync).mockReturnValue(boot.promise);
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    let settled = false;
+    const step = runStep(BuildRuntimePlatform.LINUX, { build_id: 'build-id' });
+    void step
+      .finally(() => {
+        settled = true;
+      })
+      .catch(() => {});
+    try {
+      await flushAsync();
+      expect(startAndroidEmulatorAsync).toHaveBeenCalled();
+      stopped.resolve();
+      await flushAsync();
+      expect(settled).toBe(false);
+    } finally {
+      boot.resolve({} as Awaited<ReturnType<typeof startAndroidEmulatorAsync>>);
+      stopped.resolve();
+      await step;
+    }
+    expect(installBuildAsync).not.toHaveBeenCalled();
+    expect(launchApplicationAsync).not.toHaveBeenCalled();
+  });
+
+  it('retires the startup watch without treating its abort as user Stop', async () => {
+    jest
+      .mocked(runAgentDeviceRemoteSessionAsync)
+      .mockImplementation(async (_ctx, { onStarted, tasks }) => {
+        await onStarted!();
+        expect(tasks.signal.aborted).toBe(false);
+      });
+    await expect(runStep(BuildRuntimePlatform.DARWIN)).resolves.toBeUndefined();
+    const options = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+    expect(options.maxDurationSeconds).toBeUndefined();
+    expect(options.idleTimeout).toBeUndefined();
+    expect(options.signal!.aborted).toBe(true);
+  });
+
+  it('preserves a download failure that wins before Stop', async () => {
+    const failed = new Error('download failed first');
+    const stopped = deferred();
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
+    jest.mocked(downloadBuildAsync).mockRejectedValue(failed);
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' });
+    step.catch(() => {});
+    await flushAsync();
+    stopped.resolve();
+    await expect(step).rejects.toBe(failed);
+  });
+
+  it('fails when the startup status watch rejects', async () => {
+    const failed = new Error('session errored');
+    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValue(failed);
+    await expect(runStep(BuildRuntimePlatform.DARWIN)).rejects.toBe(failed);
+    expect(downloadBuildAsync).not.toHaveBeenCalled();
+    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('cancels and drains a pending download through the external signal', async () => {
+    const controller = new AbortController();
+    const download = mockStalledDownload();
+    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' }, controller.signal);
+    const failure = expect(step).rejects.toThrow('cancelled');
+    await flushAsync();
+    controller.abort(new Error('cancelled'));
+
+    await failure;
+    expect(download.aborted()).toBe(true);
+    expect(download.settled()).toBe(true);
+    expect(installBuildAsync).not.toHaveBeenCalled();
   });
 
   it('does not start device or app work after cancellation during Xcode selection', async () => {
@@ -416,6 +682,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(
       buildFunction.inputProviders?.map(provider => provider(globalCtx, 'Test step').id)
     ).toEqual([
+      'log_sources',
       'device_identifier',
       'system_image_package',
       'lcd_width',
@@ -618,6 +885,17 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     await runWarm({ build_id: 'build-id' });
     expect(runOnWarmIosSimulatorAsync).not.toHaveBeenCalled();
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes the resolved version to agent-device after a warm version mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '999.1.0'));
+    await runStep(BuildRuntimePlatform.DARWIN, { package_version: 'latest' }, undefined, ctx, true);
+    expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ packageVersion: '999.1.0' })
+    );
   });
 
   it('accepts only one application source', async () => {

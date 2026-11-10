@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
@@ -39,10 +40,15 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
+import {
+  runServeSimActionAsync,
+  runServeSimActionWithResultAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
 import { startServeSimActivityPolling } from '../serveSimActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
+import * as previewCapture from '../serveSimPreviewCapture';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../serveSimCrashesRecorder');
@@ -167,6 +173,12 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
+  jest
+    .mocked(runServeSimActionWithResultAsync)
+    .mockReset()
+    .mockResolvedValue(
+      JSON.stringify({ 'screenshot.capture': { properties: { automation: { type: 'boolean' } } } })
+    );
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1481,6 +1493,119 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
+it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
+  'skips automated thumbnails with %s without stopping the iOS session',
+  async failure => {
+    if (failure === 'unavailable catalog') {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockRejectedValueOnce(new Error('unknown action'));
+    } else {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockResolvedValueOnce(
+          failure === 'invalid catalog'
+            ? 'invalid JSON'
+            : JSON.stringify({ 'screenshot.capture': { properties: {} } })
+        );
+    }
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(runServeSimActionWithResultAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+    expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+    expect(stopServer).not.toHaveBeenCalled();
+    await host.finishAsync();
+  }
+);
+
+it('cancels catalog inspection during shutdown without sending a thumbnail capture', async () => {
+  let inspectionSignal: AbortSignal | undefined;
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementationOnce(async ({ signal }) => {
+    inspectionSignal = signal;
+    return await new Promise<string>((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  expect(inspectionSignal?.aborted).toBe(false);
+  await host.finishAsync();
+  expect(inspectionSignal?.aborted).toBe(true);
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+  expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
+  const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+  const collector = jest
+    .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+    .mockResolvedValueOnce({
+      directory: '/tmp/manual-screenshots',
+      finishAsync: finishScreenshots,
+    });
+  const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
+  const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
+    isSupportedAsync: jest.fn().mockResolvedValue(true),
+    captureAsync: jest.fn(),
+    cleanupAfterHostStoppedAsync: cleanup,
+  });
+  try {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    await host.finishAsync();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(finishScreenshots).toHaveBeenCalledWith(true);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Could not remove session preview capture files.'
+    );
+  } finally {
+    factory.mockRestore();
+    collector.mockRestore();
+  }
+});
+
+it('drains thumbnail capture before stopping the iOS host', async () => {
+  const stopped = deferred<void>();
+  stopSessionPreview.mockReturnValueOnce(stopped.promise);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const finishing = host.finishAsync();
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    expect(stopServer).not.toHaveBeenCalled();
+  } finally {
+    stopped.resolve();
+    await finishing;
+  }
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
 it.each(['success', 'failure'])(
   'keeps macOS readiness nonblocking and drains encoder setup %s before ending the phase',
   async result => {
@@ -2208,6 +2333,58 @@ it.each([false, true])(
       stopped.resolve();
       await outcome;
       screenshots.mockRestore();
+    }
+  }
+);
+
+it.each([
+  ['0.13.3', '@expo/serve-sim@0.13.3'],
+  [undefined, '@expo/serve-sim@latest'],
+])(
+  'uses the warm serve-sim version %s for adoption and recordings',
+  async (serveSimVersion, spec) => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([
+        { udid: 'emulator-5554', token: 'preview-token', url: 'http://127.0.0.1:3200' },
+      ]);
+    const recording = jest.spyOn(IosSimulatorRecordingUtils, 'useServeSimPackage');
+    const startAsync = jest.fn(async () => ({
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    }));
+    const host = await startDeviceSessionHostAsync(
+      ctx,
+      {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' },
+        logger,
+        iosSimulatorUdid: 'emulator-5554',
+        timeoutMs: 1000,
+      },
+      {
+        port: 3200,
+        serveSimVersion,
+        turnArgs: Promise.resolve([]),
+        requiresPreviewRetirement: true,
+        startAsync,
+        stopAsync: stopServer,
+      }
+    );
+    try {
+      expect(startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: 'bun',
+          args: expect.arrayContaining(['x', spec]),
+        })
+      );
+      expect(recording).toHaveBeenCalledWith(spec);
+    } finally {
+      await host.finishAsync();
+      recording.mockRestore();
     }
   }
 );

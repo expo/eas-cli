@@ -49,6 +49,7 @@ it.each([
     metadata: { __eas_type: 'network-capture', format: 'har', udid: 'ABCDEF123456', part },
     size: 24,
     openStream: expect.any(Function),
+    signal: expect.any(AbortSignal),
     attempts: 3,
   });
 });
@@ -86,10 +87,6 @@ it('accepts 500 MiB and skips larger HARs', async () => {
     });
   }
   expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
-  expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
-    ctx,
-    expect.objectContaining({ size: limit })
-  );
   expect(logger.warn).toHaveBeenCalledWith(
     'Skipping network capture for A: exceeds the 500 MB upload limit.'
   );

@@ -8,6 +8,7 @@ import {
 } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
+import { AppObserveUserEventPropertyFilter } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
@@ -33,6 +34,7 @@ import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
+const MAX_PROPERTY_FILTERS = 5;
 
 export default class ObserveEvents extends EasCommand {
   static override description =
@@ -61,6 +63,11 @@ export default class ObserveEvents extends EasCommand {
       description:
         'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
+    property: Flags.custom<AppObserveUserEventPropertyFilter>({
+      description: `Filter by event property (key=value, exact match). Repeat up to ${MAX_PROPERTY_FILTERS} times to require all (each key may be used once). Without an event name, lists matching events.`,
+      multiple: true,
+      parse: parsePropertyFilterAsync,
+    })(),
     'all-events': Flags.boolean({
       description:
         'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
@@ -85,6 +92,22 @@ export default class ObserveEvents extends EasCommand {
       );
     }
 
+    if (flags.property) {
+      if (flags.property.length > MAX_PROPERTY_FILTERS) {
+        throw new Error(
+          `--property can be used up to ${MAX_PROPERTY_FILTERS} times, but got ${flags.property.length}.`
+        );
+      }
+
+      const keys = flags.property.map(filter => filter.key);
+      const repeatedKey = keys.find((key, index) => keys.indexOf(key) !== index);
+      if (repeatedKey) {
+        throw new Error(
+          `--property key "${repeatedKey}" is used more than once. Each key can be filtered by only one value.`
+        );
+      }
+    }
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -101,10 +124,10 @@ export default class ObserveEvents extends EasCommand {
 
     const platforms = observePlatformsFromFlag(flags.platform);
 
-    // A session ID narrows to a single session, so show that session's events
+    // A session ID or property filter narrows the events, so show them
     // (like --all-events) instead of the account-wide name+count summary, which
-    // has no session filter.
-    if (!args.eventName && !flags['all-events'] && !flags['session-id']) {
+    // supports neither filter.
+    if (!args.eventName && !flags['all-events'] && !flags['session-id'] && !flags.property) {
       const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
         ObserveQuery.customEventNamesAsync(graphqlClient, {
           appId: projectId,
@@ -144,10 +167,22 @@ export default class ObserveEvents extends EasCommand {
         updateId: flags['update-id'],
         sessionId: flags['session-id'],
         environment: flags.environment,
+        propertyFilters: flags.property,
       })
     );
 
-    if (args.eventName && events.length === 0) {
+    // A session, app version, build number, update ID, or property may not
+    // contain the event even when the name is valid, so only suggest other names
+    // when the event name is the sole narrowing filter.
+    if (
+      args.eventName &&
+      events.length === 0 &&
+      !flags['session-id'] &&
+      !flags['app-version'] &&
+      !flags['build-number'] &&
+      !flags['update-id'] &&
+      !flags.property
+    ) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
         startTime,
@@ -188,4 +223,17 @@ export default class ObserveEvents extends EasCommand {
       );
     }
   }
+}
+
+// Split on the first "=" so values may contain "=".
+async function parsePropertyFilterAsync(input: string): Promise<AppObserveUserEventPropertyFilter> {
+  const separatorIndex = input.indexOf('=');
+  if (separatorIndex <= 0) {
+    throw new Error(`Invalid property filter "${input}". Expected key=value format.`);
+  }
+  const value = input.slice(separatorIndex + 1);
+  if (!value) {
+    throw new Error(`Invalid property filter "${input}". The value cannot be empty.`);
+  }
+  return { key: input.slice(0, separatorIndex), value };
 }

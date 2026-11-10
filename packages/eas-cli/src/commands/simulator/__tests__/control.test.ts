@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import * as fetchModule from '../../../fetch';
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -13,17 +14,31 @@ import {
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
-import { loadSimulatorEnvAsync } from '../../../simulator/env';
+import { ora } from '../../../ora';
+import {
+  BorrowedControlConnection,
+  borrowControlConnectionAsync,
+  createControlConnectionIdentityAsync,
+  openControlConnectionAsync,
+} from '../../../simulator/controlConnection';
+import { EAS_SIMULATOR_SESSION_ID, loadSimulatorEnvAsync } from '../../../simulator/env';
 import {
   HostActionCatalog,
   HostActionResult,
   connectHostActionsAsync,
+  fetchHostActionDeviceAsync,
 } from '../../../simulator/hostActions';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorControl from '../control';
 
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log');
+jest.mock('../../../simulator/controlConnection', () => ({
+  ...jest.requireActual('../../../simulator/controlConnection'),
+  borrowControlConnectionAsync: jest.fn(),
+  createControlConnectionIdentityAsync: jest.fn(),
+  openControlConnectionAsync: jest.fn(),
+}));
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
   loadSimulatorEnvAsync: jest.fn(),
@@ -31,6 +46,7 @@ jest.mock('../../../simulator/env', () => ({
 jest.mock('../../../simulator/hostActions', () => ({
   ...jest.requireActual('../../../simulator/hostActions'),
   connectHostActionsAsync: jest.fn(),
+  fetchHostActionDeviceAsync: jest.fn(),
 }));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
@@ -38,6 +54,7 @@ jest.mock('../../../ora', () => ({
       fail: jest.fn(),
       start: jest.fn(),
       succeed: jest.fn(),
+      stop: jest.fn(),
     };
     spinner.start.mockReturnValue(spinner);
     return spinner;
@@ -107,6 +124,7 @@ describe(SimulatorControl, () => {
   let actionResult: HostActionResult;
   let served: HostActionCatalog;
   let tmpDir: string;
+  let connectionController: AbortController;
   const requestAsync = jest.fn(
     async (action: string, params: Record<string, unknown> = {}): Promise<HostActionResult> => {
       switch (action) {
@@ -127,9 +145,25 @@ describe(SimulatorControl, () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jest.mocked(borrowControlConnectionAsync).mockResolvedValue(null);
+    jest.mocked(createControlConnectionIdentityAsync).mockResolvedValue({
+      root: '/private/ipc',
+      socketPath: '/private/ipc/socket',
+      scope: 'fixture',
+      credentialHash: '0'.repeat(64),
+    });
     jest.mocked(loadSimulatorEnvAsync).mockResolvedValue();
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
-    mockConnectHostActionsAsync.mockResolvedValue({ requestAsync, close });
+    jest
+      .mocked(fetchHostActionDeviceAsync)
+      .mockResolvedValue({ udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' });
+    connectionController = new AbortController();
+    mockConnectHostActionsAsync.mockResolvedValue({
+      requestAsync,
+      close,
+      udid: 'simulator-udid',
+      signal: connectionController.signal,
+    });
     actionResult = ok('off\n');
     served = catalog;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'simulator-control-'));
@@ -143,7 +177,10 @@ describe(SimulatorControl, () => {
     const command = new SimulatorControl(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     jest.spyOn(command, 'getContextAsync').mockResolvedValue({
-      loggedIn: { graphqlClient },
+      loggedIn: {
+        graphqlClient,
+        authenticationInfo: { accessToken: 'credential-fixture', sessionSecret: null },
+      },
       projectDir,
     });
     return command;
@@ -152,6 +189,312 @@ describe(SimulatorControl, () => {
   function actionRequests(): Parameters<typeof requestAsync>[] {
     return requestAsync.mock.calls.filter(([action]) => action !== 'actions.describe');
   }
+
+  function reuseConnection(): BorrowedControlConnection {
+    const borrowed: BorrowedControlConnection = {
+      connection: {
+        requestAsync,
+        close,
+        udid: 'simulator-udid',
+        signal: connectionController.signal,
+      },
+      catalog,
+      info: {
+        version: 3,
+        pid: 123,
+        idleTimeoutMs: 120_000,
+        idleDeadline: null,
+        busy: true,
+        session: {
+          id: 'session-123',
+          name: 'Fixture session',
+          project: '@testuser/testapp',
+          status: DeviceRunSessionStatus.InProgress,
+          device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+        },
+      },
+    };
+    jest.mocked(borrowControlConnectionAsync).mockResolvedValue(borrowed);
+    return borrowed;
+  }
+
+  it('reuses the available connection without fetching the session or opening another remote socket', async () => {
+    reuseConnection();
+    await createCommand([
+      'hardwareKeyboard.set',
+      'off',
+      '--id',
+      'session-123',
+      '--json',
+    ]).runAsync();
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
+    expect(actionRequests()).toEqual([['hardwareKeyboard.set', { value: 'off' }]]);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'session-123', action: 'hardwareKeyboard.set', output: 'off' })
+    );
+  });
+
+  it('keeps an action connection alive with a custom timeout', async () => {
+    const borrowed = reuseConnection();
+    jest.mocked(openControlConnectionAsync).mockImplementationOnce(async (_identity, load) => {
+      await load();
+      return borrowed.info;
+    });
+    await createCommand([
+      'hardwareKeyboard.set',
+      'off',
+      '--id',
+      'session-123',
+      '--keep-alive',
+      '--idle-timeout',
+      '300',
+    ]).runAsync();
+    expect(openControlConnectionAsync).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Function),
+      300_000
+    );
+    expect(actionRequests()).toEqual([['hardwareKeyboard.set', { value: 'off' }]]);
+  });
+
+  it('can prepare keep-alive without running or listing actions', async () => {
+    reuseConnection();
+    await createCommand(['--keep-alive', '--id', 'session-123', '--json']).runAsync();
+    expect(actionRequests()).toEqual([]);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ connected: true, id: 'session-123' })
+    );
+  });
+
+  it('prints readiness when preparing a connection without JSON', async () => {
+    reuseConnection();
+    await createCommand(['--keep-alive', '--id', 'session-123']).runAsync();
+    expect(Log.succeed).toHaveBeenCalledWith(expect.stringContaining('Control connection ready'));
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it('does not fall back to a cold connection if a newly opened helper disappears', async () => {
+    await expect(createCommand(['--keep-alive', '--id', 'session-123']).runAsync()).rejects.toThrow(
+      'helper closed before it could be used'
+    );
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+    expect(actionRequests()).toEqual([]);
+  });
+
+  it('rejects invalid timeout seconds before loading account or session state', async () => {
+    const command = createCommand(['--keep-alive', '--idle-timeout', '0']);
+    await expect(command.runAsync()).rejects.toThrow('--idle-timeout');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+    expect(openControlConnectionAsync).not.toHaveBeenCalled();
+  });
+
+  async function writeImportAsync(actions: unknown[]): Promise<string> {
+    const filePath = path.join(tmpDir, 'control.json');
+    await fs.writeJson(filePath, { version: 1, actions });
+    return filePath;
+  }
+
+  it('shows the local file being uploaded during an import', async () => {
+    const localFile = path.join(tmpDir, 'MyApp.ipa');
+    await fs.writeFile(localFile, 'app bytes');
+    const filePath = await writeImportAsync([
+      { action: 'app.install', params: {}, file: localFile },
+    ]);
+    actionResult = ok('');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(Log.gray).toHaveBeenCalledWith(`  Read: ${localFile}`);
+    expect(actionRequests().map(([action]) => action)).toEqual([
+      'upload.append',
+      'app.install',
+      'upload.remove',
+    ]);
+  });
+
+  it('imports an ordered config without prompts over the existing connection', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+    ]);
+    await createCommand([
+      '--import',
+      filePath,
+      '--id',
+      'session-123',
+      '--non-interactive',
+    ]).runAsync();
+    expect(actionRequests()).toEqual([
+      ['hardwareKeyboard.set', { value: 'off' }],
+      ['hardwareKeyboard.set', { value: 'on' }],
+    ]);
+    expect(mockConnectHostActionsAsync).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('iPhone 17 Pro · iOS 26.4'));
+    expect(Log.log).toHaveBeenCalledWith('  off');
+    const spinner = jest.mocked(ora).mock.results[1].value;
+    expect(spinner.start).toHaveBeenCalledWith('[1/2] hardwareKeyboard.set');
+    expect(spinner.start).toHaveBeenCalledWith('[2/2] hardwareKeyboard.set');
+    expect(Log.succeed).toHaveBeenCalledWith(
+      expect.stringContaining('Import complete · 2 actions')
+    );
+  });
+
+  it.each([false, true])(
+    'prints one JSON result for a successful imported batch (reused: %s)',
+    async reused => {
+      if (reused) {
+        reuseConnection();
+      }
+      const filePath = await writeImportAsync([
+        { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      ]);
+      actionResult = ok('{"enabled":false}\n');
+      await createCommand(['--import', filePath, '--id', 'session-123', '--json']).runAsync();
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledTimes(1);
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+        id: 'session-123',
+        session: expect.objectContaining({
+          id: 'session-123',
+          device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+        }),
+        config: filePath,
+        results: [{ action: 'hardwareKeyboard.set', output: { enabled: false }, file: null }],
+      });
+      expect(ora).toHaveBeenCalledTimes(1);
+      expect(Log.log).not.toHaveBeenCalled();
+      expect(Log.succeed).not.toHaveBeenCalled();
+    }
+  );
+
+  it('retains completed results and failure metadata in JSON and stops the imported batch', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    requestAsync
+      .mockImplementationOnce(async () => ok(JSON.stringify(served)))
+      .mockResolvedValueOnce(ok('first completed'))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'Permission denied', exitCode: 1 });
+    const previous = process.exitCode;
+    try {
+      await createCommand(['--import', filePath, '--id', 'session-123', '--json']).runAsync();
+      expect(process.exitCode).toBe(1);
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+        id: 'session-123',
+        session: expect.objectContaining({
+          id: 'session-123',
+          device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+        }),
+        config: filePath,
+        results: [{ action: 'hardwareKeyboard.set', output: 'first completed', file: null }],
+        error: {
+          step: 2,
+          action: 'hardwareKeyboard.set',
+          message: expect.stringContaining('Permission denied'),
+        },
+      });
+      expect(actionRequests()).toHaveLength(2);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      process.exitCode = previous;
+    }
+  });
+
+  it('preflights every imported step before running the first action', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'invalid' } },
+    ]);
+    await expect(
+      createCommand(['--import', filePath, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('Config step 2');
+    expect(actionRequests()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(ora).mock.results[1].value.fail).toHaveBeenCalledWith(
+      'Validation failed. No actions were run.'
+    );
+  });
+
+  it.each([
+    { args: ['hardwareKeyboard.set', 'off'] },
+    { args: ['--list'] },
+    { args: ['--output', './out.png'] },
+  ])('rejects conflicting import options before connecting: %j', async ({ args }) => {
+    await expect(
+      createCommand(['--import', './control.json', '--id', 'session-123', ...args]).runAsync()
+    ).rejects.toThrow('--import cannot be combined');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('refuses Android imports before connecting or reading the config file', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ platform: AppPlatform.Android }));
+    await expect(
+      createCommand(['--import', './missing.json', '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('not supported yet');
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('prints completed steps before a non-JSON import failure', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'on' } },
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    requestAsync
+      .mockImplementationOnce(async () => ok(JSON.stringify(served)))
+      .mockResolvedValueOnce(ok('first done'))
+      .mockResolvedValueOnce({ stdout: '', stderr: 'Native action failed', exitCode: 1 });
+    await expect(
+      createCommand(['--import', filePath, '--id', 'session-123']).runAsync()
+    ).rejects.toThrow('Config step 2');
+    expect(Log.log).toHaveBeenCalledWith('  first done');
+    expect(Log.log).toHaveBeenCalledWith('1 completed · 1 failed · 1 skipped');
+    expect(Log.gray).toHaveBeenCalledWith('  [3/3] hardwareKeyboard.set skipped');
+    expect(actionRequests()).toHaveLength(2);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('downloads config-relative outputs and reports each saved file', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'screenshot.capture', output: './shot.png' },
+    ]);
+    actionResult = ok('/remote/screenshot.png');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    const savedPath = path.join(tmpDir, 'shot.png');
+    expect(await fs.readFile(savedPath, 'utf8')).toBe('png bytes');
+    expect(Log.log).toHaveBeenCalledWith(`  Saved: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(`  Output: ${savedPath}`);
+    expect(Log.gray).toHaveBeenCalledWith(
+      'Explicit output files are overwritten; directory outputs use simulator filenames and fail if the file exists.'
+    );
+    expect(jest.mocked(Log.gray).mock.invocationCallOrder[0]).toBeLessThan(
+      requestAsync.mock.invocationCallOrder[1]
+    );
+  });
+
+  it('reports completion for actions with empty output', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    actionResult = ok('');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(jest.mocked(ora).mock.results[1].value.succeed).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[1\/1\] hardwareKeyboard\.set /)
+    );
+  });
+
+  it('formats structured results without opening a picker', async () => {
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    actionResult = ok('{"text":"Imported text"}');
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(Log.log).toHaveBeenCalledWith('  {\n    "text": "Imported text"\n  }');
+  });
 
   it.each([['--id='], ['--id', '']])('refuses an empty session ID in %j', async (...flags) => {
     const env = jest.replaceProperty(process, 'env', {
@@ -186,6 +529,7 @@ describe(SimulatorControl, () => {
   it('runs an action from the catalog with its values and prints the output', async () => {
     await createCommand(['hardwareKeyboard.set', 'off', '--id', 'session-123']).runAsync();
 
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
     expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
     expect(mockConnectHostActionsAsync).toHaveBeenCalledWith({
       apiUrl: 'https://sim.example.test',
@@ -196,8 +540,8 @@ describe(SimulatorControl, () => {
     expect(close).toHaveBeenCalled();
   });
 
-  it.each([false, true])('lists the actions of the session with --list=%s', async list => {
-    await createCommand([...(list ? ['--list'] : []), '--id', 'session-123']).runAsync();
+  it('lists the actions of the session', async () => {
+    await createCommand(['--list', '--id', 'session-123']).runAsync();
 
     const lines = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
     expect(lines.pop()).toBe('For action usage: eas simulator:control <action> --help');
@@ -205,6 +549,7 @@ describe(SimulatorControl, () => {
       Object.keys(catalog).sort()
     );
     expect(actionRequests()).toEqual([]);
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
   });
 
   it.each(['--help', '-h'])('shows action help with %s without running the action', async help => {
@@ -278,30 +623,68 @@ describe(SimulatorControl, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        device: expect.objectContaining({ udid: 'simulator-udid' }),
+      }),
       action: 'permissions.list',
       output: { voiceover: 'off' },
       file: null,
     });
   });
 
-  it('uploads a local file for an action that takes one and removes it after', async () => {
-    const localFile = path.join(tmpDir, 'MyApp.ipa');
-    await fs.writeFile(localFile, 'app bytes');
-    actionResult = ok('');
-
-    await createCommand(['app.install', localFile, '--id', 'session-123']).runAsync();
-
-    const requests = actionRequests();
-    const uploadId = requests[0][1]?.uploadId;
-    expect(requests).toEqual([
-      [
-        'upload.append',
-        { uploadId, data: Buffer.from('app bytes').toString('base64'), first: true },
-      ],
-      ['app.install', { path: `/tmp/serve-sim-uploads/${uploadId}` }],
-      ['upload.remove', { uploadId }],
-    ]);
+  it('prints plain text as a JSON string and lists a catalog as JSON', async () => {
+    await createCommand([
+      'hardwareKeyboard.set',
+      'off',
+      '--id',
+      'session-123',
+      '--json',
+    ]).runAsync();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      id: 'session-123',
+      session: expect.objectContaining({
+        id: 'session-123',
+        project: '@testuser/testapp',
+        device: { udid: 'simulator-udid', name: 'iPhone 17 Pro', runtime: 'iOS-26-4' },
+      }),
+      action: 'hardwareKeyboard.set',
+      output: 'off',
+      file: null,
+    });
+    mockPrintJsonOnlyOutput.mockClear();
+    jest.mocked(fetchHostActionDeviceAsync).mockClear();
+    await createCommand(['--list', '--id', 'session-123', '--json']).runAsync();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ 'hardwareKeyboard.set': catalog['hardwareKeyboard.set'] })
+    );
+    expect(fetchHostActionDeviceAsync).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    'uploads a local file for an action that takes one and removes it after (reused: %s)',
+    async reused => {
+      if (reused) {
+        reuseConnection();
+      }
+      const localFile = path.join(tmpDir, 'MyApp.ipa');
+      await fs.writeFile(localFile, 'app bytes');
+      actionResult = ok('');
+
+      await createCommand(['app.install', localFile, '--id', 'session-123']).runAsync();
+
+      const requests = actionRequests();
+      const uploadId = requests[0][1]?.uploadId;
+      expect(requests).toEqual([
+        [
+          'upload.append',
+          { uploadId, data: Buffer.from('app bytes').toString('base64'), first: true },
+        ],
+        ['app.install', { path: `/tmp/serve-sim-uploads/${uploadId}` }],
+        ['upload.remove', { uploadId }],
+      ]);
+    }
+  );
 
   it('sends the upload ID to an action that asks for it', async () => {
     const localFile = path.join(tmpDir, 'session.json');
@@ -504,7 +887,10 @@ describe(SimulatorControl, () => {
     }
   });
 
-  it('downloads the file an action returns', async () => {
+  it.each([false, true])('downloads the file an action returns (reused: %s)', async reused => {
+    if (reused) {
+      reuseConnection();
+    }
     const outputPath = path.join(tmpDir, 'shot.png');
     actionResult = ok('/tmp/serve-sim-screenshots/serve-sim-screenshot-1.png\n');
 
@@ -522,10 +908,40 @@ describe(SimulatorControl, () => {
 
   it('refuses an action that the session does not list', async () => {
     await expect(createCommand(['server.kill', '--id', 'session-123']).runAsync()).rejects.toThrow(
-      'Unknown simulator action "server.kill". Run `eas simulator:control` to see the actions.'
+      'Unknown simulator action "server.kill". Run `eas simulator:control --list` to see the actions.'
     );
     expect(actionRequests()).toEqual([]);
     expect(close).toHaveBeenCalled();
+  });
+
+  it.each([{ flags: [] }, { flags: ['--non-interactive'] }, { flags: ['--json'] }])(
+    'lists actions by default with flags %j',
+    async ({ flags }) => {
+      await createCommand(['--id', 'session-123', ...flags]).runAsync();
+      expect(actionRequests()).toEqual([]);
+      if (flags.includes('--json')) {
+        expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            'app.install': expect.objectContaining({
+              description: expect.stringContaining('host:/absolute/path'),
+            }),
+            'hardwareKeyboard.set': catalog['hardwareKeyboard.set'],
+          })
+        );
+      } else {
+        expect(Log.log).toHaveBeenCalledWith(
+          'For action usage: eas simulator:control <action> --help'
+        );
+      }
+      expect(close).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('rejects --output without an action before connecting', async () => {
+    await expect(
+      createCommand(['--id', 'session-123', '--output', './out.png']).runAsync()
+    ).rejects.toThrow('--output requires an action');
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
   });
 
   it('closes an established connection when catalog setup fails', async () => {
@@ -534,6 +950,28 @@ describe(SimulatorControl, () => {
       'did not return its list of actions'
     );
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows session and device details without terminal escape sequences', async () => {
+    mockByIdAsync.mockResolvedValueOnce(
+      makeDeviceRunSession({ name: '\x1b[31mCheckout QA\x1b[0m\nSpoofed\u202E' })
+    );
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    const text = jest
+      .mocked(Log.log)
+      .mock.calls.map(([value]) => String(value))
+      .join('\n');
+    expect(text).toContain('Checkout QA Spoofed');
+    expect(text).toContain('@testuser/testapp');
+    expect(text).toContain('iPhone 17 Pro · iOS 26.4');
+    expect(text).toContain('session-123');
+    expect(text).toContain('simulator-udid');
+    expect(text).not.toContain('\x1b[31m');
+    expect(text).not.toContain('\u202E');
+    expect(text).not.toContain('preview-token');
   });
 
   it('lists the actions as JSON when no action is provided', async () => {
@@ -548,6 +986,100 @@ describe(SimulatorControl, () => {
       })
     );
     expect(actionRequests()).toEqual([]);
+  });
+
+  it('shows fallback names when optional details are unavailable or blank', async () => {
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession({ name: ' \n ' }));
+    jest.mocked(fetchHostActionDeviceAsync).mockResolvedValueOnce({ udid: 'simulator-udid' });
+    const filePath = await writeImportAsync([
+      { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+    ]);
+    await createCommand(['--import', filePath, '--id', 'session-123']).runAsync();
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unnamed session'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unavailable'));
+  });
+
+  it.each([
+    { importing: true, jsonFlag: false },
+    { importing: true, jsonFlag: true },
+    { importing: false, jsonFlag: true },
+  ])(
+    'runs actions without display metadata (importing: $importing, json: $jsonFlag)',
+    async ({ importing, jsonFlag }) => {
+      jest
+        .mocked(fetchHostActionDeviceAsync)
+        .mockImplementationOnce(
+          jest.requireActual('../../../simulator/hostActions').fetchHostActionDeviceAsync
+        );
+      const fetch = jest
+        .spyOn(fetchModule, 'default')
+        .mockRejectedValueOnce(new Error('Metadata request failed'));
+      try {
+        const filePath = await writeImportAsync([
+          { action: 'hardwareKeyboard.set', params: { value: 'off' } },
+        ]);
+        await createCommand([
+          ...(importing ? ['--import', filePath] : ['hardwareKeyboard.set', 'off']),
+          ...(jsonFlag ? ['--json'] : []),
+          '--id',
+          'session-123',
+        ]).runAsync();
+        expect(actionRequests()).toEqual([['hardwareKeyboard.set', { value: 'off' }]]);
+        expect(close).toHaveBeenCalledTimes(1);
+        if (jsonFlag) {
+          expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+            expect.objectContaining({
+              session: expect.objectContaining({ device: { udid: 'simulator-udid' } }),
+            })
+          );
+        } else {
+          expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Unavailable'));
+        }
+      } finally {
+        fetch.mockRestore();
+      }
+    }
+  );
+
+  it('requires a session ID before opening a connection', async () => {
+    const previous = process.env[EAS_SIMULATOR_SESSION_ID];
+    delete process.env[EAS_SIMULATOR_SESSION_ID];
+    try {
+      await expect(createCommand([]).runAsync()).rejects.toThrow(
+        'No simulator session ID provided.'
+      );
+      expect(mockByIdAsync).not.toHaveBeenCalled();
+      expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) {
+        delete process.env[EAS_SIMULATOR_SESSION_ID];
+      } else {
+        process.env[EAS_SIMULATOR_SESSION_ID] = previous;
+      }
+    }
+  });
+
+  it('uses the session ID loaded into the simulator environment', async () => {
+    const previous = process.env[EAS_SIMULATOR_SESSION_ID];
+    process.env[EAS_SIMULATOR_SESSION_ID] = 'dotenv-session';
+    try {
+      await createCommand([]).runAsync();
+      expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'dotenv-session');
+    } finally {
+      if (previous === undefined) {
+        delete process.env[EAS_SIMULATOR_SESSION_ID];
+      } else {
+        process.env[EAS_SIMULATOR_SESSION_ID] = previous;
+      }
+    }
+  });
+
+  it('refuses Android before listing actions', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ platform: AppPlatform.Android }));
+    await expect(createCommand(['--id', 'session-123']).runAsync()).rejects.toThrow(
+      'not supported yet'
+    );
+    expect(mockConnectHostActionsAsync).not.toHaveBeenCalled();
   });
 
   it('refuses a session that is not running', async () => {

@@ -19,14 +19,22 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  /** A non-negative integer number of bytes. */
   ByteSize: { input: any; output: any; }
+  /** Date custom scalar type */
   DateTime: { input: any; output: any; }
+  /** A DevDomainName for a deployed serverless app */
   DevDomainName: { input: any; output: any; }
+  /** A name of an environment variable environment */
   EnvironmentVariableEnvironment: { input: any; output: any; }
+  /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: { input: any; output: any; }
+  /** The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSONObject: { input: any; output: any; }
   SubmissionAndroidTrack: { input: any; output: any; }
+  /** A alias name for a serverless deployment */
   WorkerDeploymentIdentifier: { input: any; output: any; }
+  /** A Worker Deployment Request ID (also known as the CF Ray ID) */
   WorkerDeploymentRequestID: { input: any; output: any; }
 };
 
@@ -489,7 +497,17 @@ export type Account_DeviceRunSessionsPaginatedArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type Account_EnvironmentSecretsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type Account_EnvironmentVariableEnvironmentsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
@@ -499,6 +517,7 @@ export type Account_EnvironmentSecretsArgs = {
  */
 export type Account_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -509,6 +528,7 @@ export type Account_EnvironmentVariablesArgs = {
  */
 export type Account_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -795,7 +815,6 @@ export type AccountMutation = {
    * using, creating, changing, or deleting an environment variable whose environments are
    * exclusively production needs the PUBLISH_PROTECTED permission on the account, whatever its
    * visibility, in every project of the account. Requires the ADMIN permission on the account.
-   * Turning protection off also requires a sudo session.
    */
   setEnvironmentVariableProtectionEnabled: Account;
   /** Set whether EAS Observe ingestion is paused for this account. */
@@ -1940,13 +1959,21 @@ export type App_EmbeddedUpdatesPaginatedArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentSecretsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type App_EnvironmentVariableEnvironmentsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1954,6 +1981,7 @@ export type App_EnvironmentVariablesArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -3068,13 +3096,13 @@ export enum AppObserveErrorOccurrencesOrderByField {
 /** AppObserveErrorStats for one platform; iOS includes iPadOS and tvOS. */
 export type AppObserveErrorPlatformStats = {
   __typename?: 'AppObserveErrorPlatformStats';
-  /** Distinct sessions on this platform that hit any exception. */
+  /** Distinct sessions on this platform that hit any exception, including installations outside the sampleRate sample. */
   affectedSessions: Scalars['Int']['output'];
-  /** Distinct users on this platform that hit any exception. */
+  /** Distinct users on this platform that hit any exception, including installations outside the sampleRate sample. */
   affectedUsers: Scalars['Int']['output'];
-  /** Fraction (0..1) of this platform's active sessions without a fatal error. */
+  /** Fraction (0..1) of this platform's active sessions without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of this platform's active users without a fatal error. */
+  /** Fraction (0..1) of this platform's active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
   fatalCount: Scalars['Int']['output'];
   nonFatalCount: Scalars['Int']['output'];
@@ -3090,13 +3118,13 @@ export enum AppObserveErrorSeverity {
 
 export type AppObserveErrorStats = {
   __typename?: 'AppObserveErrorStats';
-  /** Distinct sessions that hit any exception. */
+  /** Distinct sessions that hit any exception, including installations outside the sampleRate sample. */
   affectedSessions: Scalars['Int']['output'];
-  /** Distinct users that hit any exception. */
+  /** Distinct users that hit any exception, including installations outside the sampleRate sample that send errors because of errorSampleRate. */
   affectedUsers: Scalars['Int']['output'];
-  /** Fraction (0..1) of active sessions without a fatal error. Denominator spans app_metrics and app_events. */
+  /** Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample. Denominator spans app_metrics and app_events. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of active users without a fatal error. */
+  /** Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
   fatalCount: Scalars['Int']['output'];
   nonFatalCount: Scalars['Int']['output'];
@@ -3753,11 +3781,11 @@ export type AppObserveOverviewStability = {
   __typename?: 'AppObserveOverviewStability';
   /** Fatal exception events in range. */
   crashCount: Scalars['Int']['output'];
-  /** Fraction (0..1) of active sessions without a fatal error. */
+  /** Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of active users without a fatal error. */
+  /** Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
-  /** Distinct users that hit a fatal error in range. */
+  /** Distinct users that hit a fatal error in range, including installations outside the sampleRate sample. */
   crashedUsers: Scalars['Int']['output'];
   /** Fatal exception events in the equal-length window before startTime. Null when the window is longer than 45 days. */
   previousPeriodCrashCount?: Maybe<Scalars['Int']['output']>;
@@ -3963,6 +3991,7 @@ export type AppObserveSessionSpanFilter = {
   minDurationMs?: InputMaybe<Scalars['Float']['input']>;
   names?: InputMaybe<Array<Scalars['String']['input']>>;
   rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  scopes?: InputMaybe<Array<Scalars['String']['input']>>;
   statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
 };
 
@@ -4002,6 +4031,11 @@ export type AppObserveSpan = {
   /** Null for a root span. */
   parentSpanId?: Maybe<Scalars['String']['output']>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  /**
+   * The instrumentation scope that produced the span (OTLP scopeSpans.scope.name), such as
+   * expo-observe.network. Empty when the span was sent without a scope or stored before scopes were kept.
+   */
+  scopeName: Scalars['String']['output'];
   sessionId?: Maybe<Scalars['String']['output']>;
   spanId: Scalars['String']['output'];
   startTimestamp: Scalars['DateTime']['output'];
@@ -4084,6 +4118,8 @@ export type AppObserveSpanListFilter = {
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   /** Only spans with no parent. */
   rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Spans produced by any of these instrumentation scopes, such as expo-observe.network. */
+  scopes?: InputMaybe<Array<Scalars['String']['input']>>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
   startTime: Scalars['DateTime']['input'];
   statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
@@ -6620,8 +6656,15 @@ export type CreateAndConfigureRepositoryInput = {
 };
 
 export type CreateAndroidDeviceRunSessionInput = {
-  /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). */
+  /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). Defaults to "medium_phone". */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to
+   * ["emulator-output"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain
+   * credentials and personal data; include device-logcat only when you want to retain it.
+   * Logs are not redacted and use the existing 90-day artifact retention policy.
+   */
+  logSources?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Android SDK system image package to use for the emulator (e.g.
    * "system-images;android-35;google_apis;x86_64").
@@ -6874,7 +6917,10 @@ export type CreateGitHubRepositorySettingsInput = {
 };
 
 export type CreateIosDeviceRunSessionInput = {
-  /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
+  /**
+   * Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). Defaults to
+   * "iPhone 17".
+   */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -7382,6 +7428,12 @@ export type DeviceRunSession = ActivityTimelineProjectActivity & {
    */
   build?: Maybe<Build>;
   createdAt: Scalars['DateTime']['output'];
+  /**
+   * The simulator or emulator the session starts: the requested simulator device
+   * name or UDID on iOS, or the AVD hardware profile id on Android, or the platform
+   * default when none is requested. Null on sessions created before it was saved.
+   */
+  deviceIdentifier?: Maybe<Scalars['String']['output']>;
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
@@ -8687,7 +8739,7 @@ export type GitHubRepository = {
 
 export type GitHubRepositoryMetadata = {
   __typename?: 'GitHubRepositoryMetadata';
-  defaultBranch?: Maybe<Scalars['String']['output']>;
+  defaultBranch: Scalars['String']['output'];
   githubRepoDescription?: Maybe<Scalars['String']['output']>;
   githubRepoName: Scalars['String']['output'];
   githubRepoOwnerName: Scalars['String']['output'];
@@ -14561,7 +14613,20 @@ export type WorkflowRunGitBranchFilterInput = {
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
+/**
+ * Git metadata for a run started from an uploaded project. The commit must exist in the
+ * project's linked GitHub repository. The run records the branch and commit but is not
+ * linked to the repository.
+ */
+export type WorkflowRunGitInput = {
+  /** Branch name such as "main". Stored as refs/heads/<branch>. Fully qualified refs are rejected. */
+  branch: Scalars['String']['input'];
+  /** Full commit SHA. The commit message is read from GitHub. */
+  commitHash: Scalars['String']['input'];
+};
+
 export type WorkflowRunInput = {
+  git?: InputMaybe<WorkflowRunGitInput>;
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   projectSource: WorkflowProjectSourceInput;
   ssh?: InputMaybe<WorkflowRunSshInput>;
@@ -14668,6 +14733,7 @@ export enum WorkflowRunTriggerEventType {
   GithubPush = 'GITHUB_PUSH',
   GithubRefDelete = 'GITHUB_REF_DELETE',
   Manual = 'MANUAL',
+  ObserveNewError = 'OBSERVE_NEW_ERROR',
   RepackExpoGo = 'REPACK_EXPO_GO',
   Schedule = 'SCHEDULE',
   SentryIssueArchived = 'SENTRY_ISSUE_ARCHIVED',
@@ -16829,7 +16895,7 @@ export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
-    | { __typename: 'PartnerActor', id: string, username: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'PartnerActor', id: string, username: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission2: { __typename?: 'ViewerUserPermission', permissions: Array<Permission>, effectivePermissions: Array<Permission> } }> }
@@ -17027,7 +17093,7 @@ export type UsageMetricTotalFragment = { __typename?: 'UsageMetricTotal', id: st
 
 export type AccountUsageMetricFragment = { __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number };
 
-type MeActorFragment_PartnerActor = { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+type MeActorFragment_PartnerActor = { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
       | { __typename?: 'SSOUser', id: string, username: string }
       | { __typename?: 'User', id: string, username: string }
      | null, viewerUserPermission2: { __typename?: 'ViewerUserPermission', permissions: Array<Permission>, effectivePermissions: Array<Permission> } }> };

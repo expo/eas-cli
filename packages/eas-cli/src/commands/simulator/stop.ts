@@ -14,9 +14,14 @@ import {
   resetSimulatorEnvAsync,
 } from '../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 export default class SimulatorStop extends EasCommand {
-  static override aliases = ['sim:stop'];
+  static override aliases = getSimulatorCommandAliases('stop');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('stop');
   static override description =
     '[EXPERIMENTAL] stop a remote simulator session on EAS by its simulator session ID';
 

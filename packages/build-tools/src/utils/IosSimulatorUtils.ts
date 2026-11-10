@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import semver from 'semver';
 import { z } from 'zod';
 
 import { retryAsync } from './retry';
@@ -202,7 +203,7 @@ export namespace IosSimulatorUtils {
     env: NodeJS.ProcessEnv;
   }): Promise<IosSimulatorUuid> {
     if (UDID_PATTERN.test(deviceIdentifier)) {
-      return deviceIdentifier as IosSimulatorUuid;
+      return deviceIdentifier.toUpperCase() as IosSimulatorUuid;
     }
     const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
     const device = devices.find(candidate => candidate.name === deviceIdentifier);
@@ -284,9 +285,23 @@ export namespace IosSimulatorUtils {
     const readinessScreenshotPath = path.join(os.tmpdir(), 'eas-simulator-readiness.png');
     await retryAsync(
       async () => {
-        await spawn('xcrun', ['simctl', 'io', udid, 'screenshot', readinessScreenshotPath], {
-          env,
-        });
+        const { stdout: enumerateStdout } = await spawn(
+          'xcrun',
+          ['simctl', 'io', udid, 'enumerate'],
+          { env }
+        );
+        await spawn(
+          'xcrun',
+          [
+            'simctl',
+            'io',
+            udid,
+            'screenshot',
+            ...displayFlagForScreenshot(enumerateStdout),
+            readinessScreenshotPath,
+          ],
+          { env }
+        );
       },
       {
         retryOptions: {
@@ -298,22 +313,30 @@ export namespace IosSimulatorUtils {
     );
     await fs.promises.rm(readinessScreenshotPath, { force: true });
 
-    // Wait for data migration to complete before declaring the simulator ready
-    // Based on WebKit's approach: https://trac.webkit.org/changeset/231452/webkit
-    await retryAsync(
-      async () => {
-        const isDataMigrating = await isDataMigratorProcessRunning({ env });
-        if (isDataMigrating) {
-          throw new Error('com.apple.datamigrator still running');
-        }
-      },
-      {
-        retryOptions: {
-          retries: 30 * 60,
-          retryIntervalMs: 1_000,
-        },
-      }
+    const device = await getDeviceAsync({ udid, env });
+    const runtimes = await getAvailableRuntimesAsync({ env });
+    const iosVersion = semver.coerce(
+      runtimes.find(runtime => runtime.identifier === device?.runtime)?.version
     );
+    // From iOS 27.2 on, `com.apple.datamigrator` stays resident after the boot's data migration, so
+    // waiting for it to exit never ends; earlier runtimes exit it within about a minute of boot.
+    if (!iosVersion || semver.lt(iosVersion, '27.2.0')) {
+      // Based on WebKit's approach: https://trac.webkit.org/changeset/231452/webkit
+      await retryAsync(
+        async () => {
+          const isDataMigrating = await isDataMigratorProcessRunning({ env });
+          if (isDataMigrating) {
+            throw new Error('com.apple.datamigrator still running');
+          }
+        },
+        {
+          retryOptions: {
+            retries: 30 * 60,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
+    }
   }
 
   export async function disableApsdAsync({
@@ -520,6 +543,20 @@ async function isLaunchctlServiceLoadedAsync({
     }
     throw err;
   }
+}
+
+/**
+ * `simctl io screenshot` refuses to choose between the iPhone Duo's two integrated screens on
+ * iOS 27.2, while the simctl in Xcode 15.3 rejects a numeric `--display` ("Device does not have a
+ * '1' display port"), so the flag is passed only when there is a choice to make.
+ */
+function displayFlagForScreenshot(enumerateStdout: string): string[] {
+  // `simctl io enumerate` lists each screen as an indented "(n) Name:" header followed by its fields.
+  const screens = enumerateStdout.split(/^ {4}\(\d+\) .*:$/m);
+  const integratedScreenIds = screens
+    .filter(screen => /^\s*Screen Type: Integrated$/m.test(screen))
+    .flatMap(screen => screen.match(/^\s*Screen ID: (\d+)$/m)?.[1] ?? []);
+  return integratedScreenIds.length > 1 ? [`--display=${integratedScreenIds[0]}`] : [];
 }
 
 function parseUdidFromBootstatusStdout(stdout: string): IosSimulatorUuid | null {

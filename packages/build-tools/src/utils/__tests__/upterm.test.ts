@@ -1,7 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
 import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
@@ -164,10 +167,14 @@ describe(startUptermHostAsync, () => {
     };
   }
 
-  function makeCtx(env: Record<string, string> = {}): BuildContext {
+  function makeCtx(
+    env: Record<string, string> = {},
+    buildDirectory = '/workingdir/build'
+  ): BuildContext {
     return {
       logger: createMockLogger(),
       env,
+      buildDirectory,
     } as unknown as BuildContext;
   }
 
@@ -225,6 +232,33 @@ describe(startUptermHostAsync, () => {
       expect.arrayContaining(['host']),
       expect.objectContaining({ env: expect.objectContaining({ CUSTOM: '1', PATH: '/job/bin' }) })
     );
+  });
+
+  it('starts each client shell in the build directory', async () => {
+    const realFs = jest.requireActual<typeof import('node:fs')>('node:fs');
+    const tmpDir = realFs.mkdtempSync(path.join(os.tmpdir(), 'eas-upterm-join-'));
+    try {
+      const buildDirectory = path.join(tmpDir, "it's $HOME `pwd`", 'build');
+      realFs.mkdirSync(buildDirectory, { recursive: true });
+
+      await startUptermHostAsync(makeCtx({}, buildDirectory), { relayServerUrl: 'wss://r' });
+
+      const joinScriptCall = mockedFs.writeFile.mock.calls.find(
+        ([file]) => file === '/tmp/eas-ssh-1/join.sh'
+      );
+      const joinScriptPath = path.join(tmpDir, 'join.sh');
+      realFs.writeFileSync(joinScriptPath, String(joinScriptCall?.[1]));
+      const result = spawnSync('bash', [joinScriptPath], {
+        cwd: tmpDir,
+        env: { PATH: process.env.PATH, HOME: tmpDir },
+        input: 'pwd\n',
+        encoding: 'utf8',
+      });
+
+      expect(result.stdout.trim()).toBe(buildDirectory);
+    } finally {
+      realFs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it('downloads from GCS into a fresh temp dir when upterm is not on PATH', async () => {
