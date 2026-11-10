@@ -198,7 +198,7 @@ export async function startUptermHostAsync(
   const quotedBuildDirectory = `'${ctx.buildDirectory.replaceAll("'", "'\\''")}'`;
   await fs.writeFile(
     forceCommandPath,
-    `#!/usr/bin/env bash\ncd -- ${quotedBuildDirectory}\nexec bash -l\n`,
+    `#!/usr/bin/env bash\ncd -- ${quotedBuildDirectory}\nif [ -n "$SSH_ORIGINAL_COMMAND" ]; then\n  exec bash -lc "$SSH_ORIGINAL_COMMAND"\nfi\nexec bash -l\n`,
     { mode: 0o755 }
   );
 
@@ -218,8 +218,9 @@ export async function startUptermHostAsync(
     ctx.logger.debug('Connecting to the SSH relay.');
     let stdout: string;
     try {
-      // --force-command is what each connecting SSH client runs (a login shell). The `sleep` after
-      // `--` is the session's own command, which keeps it up while nobody is connected.
+      // --force-command is what each connecting SSH client runs: the client's command, or a login
+      // shell. The `sleep` after `--` is the session's own command, which keeps it up while nobody
+      // is connected.
       ({ stdout } = await spawn(
         uptermPath,
         [
