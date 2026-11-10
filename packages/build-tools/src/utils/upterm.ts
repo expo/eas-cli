@@ -90,12 +90,7 @@ export function redactConnectionSecrets(text: string): string {
 export async function resolveUptermAsync(
   env: Env,
   logger: bunyan
-): Promise<{ uptermPath: string; downloadDir: string | null }> {
-  try {
-    await spawn('upterm', ['version'], { stdio: 'pipe', env });
-    return { uptermPath: 'upterm', downloadDir: null };
-  } catch {}
-
+): Promise<{ uptermPath: string; downloadDir: string }> {
   const objectName = resolveUptermGcsObjectName();
   const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-upterm-'));
   const uptermPath = path.join(downloadDir, objectName);
@@ -128,7 +123,7 @@ export async function resolveUptermAsync(
   } catch (err) {
     await fs.rm(downloadDir, { recursive: true, force: true }).catch(() => {});
     throw new SystemError(
-      `The upterm SSH client was not on PATH and could not be downloaded from ${directUrl}. ${
+      `The upterm SSH client could not be downloaded from ${directUrl}. ${
         err instanceof Error ? err.message : String(err)
       }`
     );
@@ -214,9 +209,7 @@ export async function startUptermHostAsync(
       throw new SystemError(`Failed to stop the upterm session. Output:\n${spawnOutput(err)}`);
     } finally {
       await fs.rm(stateDir, { recursive: true, force: true });
-      if (downloadDir) {
-        await fs.rm(downloadDir, { recursive: true, force: true });
-      }
+      await fs.rm(downloadDir, { recursive: true, force: true });
     }
   };
 
