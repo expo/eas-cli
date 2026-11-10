@@ -358,6 +358,51 @@ describe(createReportMaestroTestResultsFunction, () => {
     );
   });
 
+  it('reports maestro-runner results with the tags from report.json', async () => {
+    vol.fromJSON({
+      '/junit/android-maestro-junit-attempt-0.xml': [
+        '<testsuites><testsuite name="maestro-runner">',
+        '  <testcase id="sign-in" name="sign-in" classname="sign-in" time="2.000" status="SUCCESS">',
+        '    <properties><property name="file" value="flows/sign-in.yaml"/></properties>',
+        '  </testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+      '/tests/android-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          {
+            name: 'sign-in',
+            sourceFile: 'flows/sign-in.yaml',
+            status: 'passed',
+            tags: ['auth', 'smoke'],
+          },
+        ],
+      }),
+    });
+    mockMutationFn.mockResolvedValue({
+      data: {
+        workflowDeviceTestCaseResult: {
+          createWorkflowDeviceTestCaseResults: [{ id: 'id-1' }],
+        },
+      },
+    });
+
+    await createStep().executeAsync();
+
+    const variables = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0][1];
+    expect(variables.input.testCaseResults).toEqual([
+      {
+        name: 'sign-in',
+        path: 'flows/sign-in.yaml',
+        status: 'PASSED',
+        errorMessage: null,
+        duration: 2000,
+        retryCount: 0,
+        tags: ['auth', 'smoke'],
+        properties: { file: 'flows/sign-in.yaml' },
+      },
+    ]);
+  });
+
   it('uses default directories when inputs are not provided', async () => {
     vol.fromJSON({
       '/home/expo/.maestro/tests/report.xml': JUNIT_PASS,
