@@ -283,6 +283,29 @@ describe(startUptermHostAsync, () => {
     );
   });
 
+  it('stops the session and removes the state and download dirs when upterm cannot start it', async () => {
+    hostResult = () =>
+      Promise.reject(
+        Object.assign(new Error('upterm exited with non-zero code: 1'), {
+          status: 1,
+          signal: null,
+          stdout: '',
+          stderr:
+            'upterm: session eas-3418b73 could not start: ssh://127.0.0.1:32222: Permission denied (publickey); the 1 identity offered was refused.',
+        })
+      );
+
+    const error = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' }).catch(
+      e => e
+    );
+
+    expect(error.message).toMatch(/could not register with the relay/);
+    expect(error.message).toContain('Permission denied (publickey)');
+    expect(callsOf('session', 'stop')).toHaveLength(1);
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-ssh-1', expect.anything());
+    expect(mockedFs.rm).toHaveBeenCalledWith('/tmp/eas-upterm-1', expect.anything());
+  });
+
   it('reports a start that ran into its timeout as not registered in time', async () => {
     hostResult = () =>
       Promise.reject(
