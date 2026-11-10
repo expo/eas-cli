@@ -177,6 +177,18 @@ describe(DeviceRunSessionWorkerApi, () => {
       expected: { url: 'https://uploads.test/preview', headers: {} },
     },
     {
+      name: 'createPreviewUploadSessionAsync with metadata',
+      call: (api: DeviceRunSessionWorkerApi) =>
+        api.createPreviewUploadSessionAsync({
+          metadata: { source: 'preview', width: 148, height: 320 },
+        }),
+      method: 'POST',
+      route: 'preview-upload-session',
+      json: { metadata: { source: 'preview', width: 148, height: 320 } },
+      data: { uploadSession: { url: 'https://uploads.test/preview', headers: {} } },
+      expected: { url: 'https://uploads.test/preview', headers: {} },
+    },
+    {
       name: 'fetchTurnIceServersAsync',
       call: (api: DeviceRunSessionWorkerApi) => api.fetchTurnIceServersAsync(),
       method: 'POST',

@@ -11,6 +11,11 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadContentWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { killProcessGroup } from '../../utils/processes';
+import {
+  type ImageSize,
+  type ScreenshotMetadata,
+  readImageSize,
+} from './deviceRunSessionScreenshotMetadata';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
@@ -20,7 +25,6 @@ const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 
 export function startDeviceRunSessionPreview({
   ctx,
-  deviceRunSessionId,
   captureAsync,
   logger,
 }: {
@@ -32,6 +36,7 @@ export function startDeviceRunSessionPreview({
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
   let uploadSession: { url: string; headers: Record<string, string> } | undefined;
+  let uploadSessionSize: ImageSize | undefined;
   let pending: Promise<void>;
 
   const uploadAsync = async (): Promise<void> => {
@@ -44,8 +49,16 @@ export function startDeviceRunSessionPreview({
       if (image.length === 0 || image.length > MAX_PREVIEW_SIZE_BYTES) {
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
-      if (!uploadSession) {
-        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
+      const size = readImageSize(image);
+      if (
+        !uploadSession ||
+        (size &&
+          (size.width !== uploadSessionSize?.width || size.height !== uploadSessionSize.height))
+      ) {
+        uploadSession = undefined;
+        uploadSessionSize = undefined;
+        uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
+        uploadSessionSize = size;
       }
       if (controller.signal.aborted) {
         return;
@@ -80,10 +93,16 @@ export function startDeviceRunSessionPreview({
 
 async function createPreviewUploadSessionAsync(
   ctx: CustomBuildContext,
-  deviceRunSessionId: string,
+  size: ImageSize | undefined,
   signal: AbortSignal
 ): Promise<{ url: string; headers: Record<string, string> }> {
-  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync({ signal });
+  const metadata: ScreenshotMetadata | undefined = size
+    ? { source: 'preview', ...size }
+    : undefined;
+  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync(
+    { metadata },
+    { signal }
+  );
 }
 
 /**

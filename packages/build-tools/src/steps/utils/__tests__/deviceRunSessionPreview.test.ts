@@ -45,6 +45,17 @@ function createCtx(): CustomBuildContext {
   } as unknown as CustomBuildContext;
 }
 
+function webpPreview(width: number, height: number): Buffer {
+  const image = Buffer.alloc(30);
+  image.write('RIFF', 0, 'latin1');
+  image.writeUInt32LE(22, 4);
+  image.write('WEBPVP8X', 8, 'latin1');
+  image.writeUInt32LE(10, 16);
+  image.writeUIntLE(width - 1, 24, 3);
+  image.writeUIntLE(height - 1, 27, 3);
+  return image;
+}
+
 function uploadSessionResponse(): InstanceType<typeof Response> {
   return new Response(JSON.stringify({ data: { uploadSession } }), {
     headers: { 'content-type': 'application/json' },
@@ -224,6 +235,63 @@ describe('session preview upload session from the worker API', () => {
       })
     );
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends no metadata when the preview size cannot be read', async () => {
+    start();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(turtleFetch).toHaveBeenCalledWith(
+      PREVIEW_UPLOAD_SESSION_URL,
+      'POST',
+      expect.not.objectContaining({ json: expect.anything() })
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the preview size and refreshes it only when the size changes', async () => {
+    const captureAsync = jest
+      .fn<Promise<Buffer>, [AbortSignal]>()
+      .mockResolvedValueOnce(webpPreview(148, 320))
+      .mockResolvedValueOnce(webpPreview(148, 320))
+      .mockResolvedValue(webpPreview(320, 148));
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(120_000);
+    expect(captureAsync).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', width: 148, height: 320 } },
+      { metadata: { source: 'preview', width: 320, height: 148 } },
+    ]);
+  });
+
+  it('sends the size again after a failed size refresh', async () => {
+    const captureAsync = jest
+      .fn<Promise<Buffer>, [AbortSignal]>()
+      .mockResolvedValueOnce(webpPreview(148, 320))
+      .mockResolvedValueOnce(webpPreview(320, 148))
+      .mockResolvedValue(webpPreview(148, 320));
+    jest
+      .mocked(turtleFetch)
+      .mockImplementationOnce(async () => uploadSessionResponse())
+      .mockRejectedValueOnce(new Error('response lost'));
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(120_000);
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', width: 148, height: 320 } },
+      { metadata: { source: 'preview', width: 320, height: 148 } },
+      { metadata: { source: 'preview', width: 148, height: 320 } },
+    ]);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('logs a failure and uploads nothing when the job has no device run session token', async () => {
