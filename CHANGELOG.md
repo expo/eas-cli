@@ -2,6 +2,13 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.7.1](https://github.com/expo/eas-cli/releases/tag/v27.7.1) - 2026-11-10
+
+### 🐛 Bug fixes
+
+- [eas-cli][eas-json][build-tools][eas-build-job][steps][local-build-plugin][worker][simulator-launcher] Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+- [build-tools] Strip the GitHub repository access token from the git remote before a sandbox agent starts. ([#4826](https://github.com/expo/eas-cli/pull/4826) by [@sswrk](https://github.com/sswrk))
+
 ## [27.7.0](https://github.com/expo/eas-cli/releases/tag/v27.7.0) - 2026-11-10
 
 ### 🎉 New features

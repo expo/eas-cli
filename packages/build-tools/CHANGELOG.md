@@ -1,5 +1,12 @@
 # @expo/build-tools
 
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+- Strip the GitHub repository access token from the git remote before a sandbox agent starts. ([#4826](https://github.com/expo/eas-cli/pull/4826) by [@sswrk](https://github.com/sswrk))
+
 ## 27.7.0
 
 ### Patch Changes

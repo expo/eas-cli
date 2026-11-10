@@ -1,5 +1,9 @@
 # create-eas-build-function
 
+## 27.7.1
+
+No changes in this release.
+
 ## 27.7.0
 
 No changes in this release.
