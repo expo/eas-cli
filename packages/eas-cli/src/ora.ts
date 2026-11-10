@@ -47,29 +47,32 @@ export function ora(options?: Options | string): Ora {
     spinner.text = spinner.text;
   };
 
-  // ora draws a frame as several writes: clear each line, move the cursor, then write the text.
-  // A terminal can paint between them and show a blank line, which flickers, most visibly when
-  // the text wraps. Corking the stream sends the whole frame as one write.
-  const oraRender = spinner.render.bind(spinner);
+  // ora clears the previous frame and writes the next text as several writes: clear each line,
+  // move the cursor, then write the text. A terminal can paint between them and show a blank
+  // line, which flickers, most visibly when the text wraps. A TTY stream sends everything written
+  // while it is corked as one write.
   const corkable = stream as Partial<Pick<Writable, 'cork' | 'uncork'>>;
-  spinner.render = (): Ora => {
+  const corked = <T>(write: () => T): T => {
     if (!corkable.cork || !corkable.uncork) {
-      return oraRender();
+      return write();
     }
     corkable.cork();
     try {
-      return oraRender();
+      return write();
     } finally {
       corkable.uncork();
     }
   };
+
+  const oraRender = spinner.render.bind(spinner);
+  spinner.render = (): Ora => corked(oraRender);
 
   const oraStart = spinner.start.bind(spinner);
   const oraStop = spinner.stop.bind(spinner);
   const oraStopAndPersist = spinner.stopAndPersist.bind(spinner);
 
   const logWrap = (method: any, args: any[]): void => {
-    oraStop();
+    corked(oraStop);
     method(...args);
     spinner.start();
   };
@@ -129,14 +132,14 @@ export function ora(options?: Options | string): Ora {
   };
 
   spinner.stopAndPersist = (options): Ora => {
-    const result = oraStopAndPersist(options);
+    const result = corked(() => oraStopAndPersist(options));
     resetNativeLogs();
     stream.off('resize', onResize);
     return result;
   };
 
   spinner.stop = (): Ora => {
-    const result = oraStop();
+    const result = corked(oraStop);
     resetNativeLogs();
     stream.off('resize', onResize);
     return result;

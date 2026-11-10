@@ -1,46 +1,41 @@
-import { EventEmitter } from 'events';
+import readline from 'readline';
+import { Writable } from 'stream';
 
 import type { ora as oraType } from '../ora';
 
 jest.unmock('ora');
 
-class FakeTTYStream extends EventEmitter {
+const CLEAR_LINE = '\x1b[2K';
+
+// A stream with the parts of tty.WriteStream that ora uses. Like a TTY stream, it implements
+// _writev, so Node hands over everything written while corked in one call.
+class FakeTTYStream extends Writable {
   isTTY = true;
   columns = 200;
   clearLineCalls = 0;
+  writes: string[] = [];
 
-  corked = false;
-  uncorkedWrites = 0;
-
-  cork(): void {
-    this.corked = true;
+  override _write(chunk: Buffer, _encoding: BufferEncoding, callback: () => void): void {
+    this.writes.push(chunk.toString());
+    callback();
   }
 
-  uncork(): void {
-    this.corked = false;
+  override _writev(chunks: { chunk: Buffer }[], callback: () => void): void {
+    this.writes.push(chunks.map(({ chunk }) => chunk.toString()).join(''));
+    callback();
   }
 
-  write(): boolean {
-    if (!this.corked) {
-      this.uncorkedWrites++;
-    }
-    return true;
-  }
-
-  clearLine(): boolean {
+  clearLine(dir: readline.Direction): boolean {
     this.clearLineCalls++;
-    if (!this.corked) {
-      this.uncorkedWrites++;
-    }
-    return true;
+    return readline.clearLine(this, dir);
   }
 
-  cursorTo(): boolean {
-    return true;
+  cursorTo(x: number): boolean {
+    return readline.cursorTo(this, x);
   }
 
-  moveCursor(): boolean {
-    return true;
+  moveCursor(dx: number, dy: number): boolean {
+    return readline.moveCursor(this, dx, dy);
   }
 }
 
@@ -87,24 +82,41 @@ describe('ora', () => {
   });
 
   it('sends each frame as one write', () => {
+    const text = 'x'.repeat(150);
     const stream = new FakeTTYStream();
+    stream.columns = 80;
+    const spinner = ora({
+      text,
+      stream: stream as unknown as NodeJS.WritableStream,
+      discardStdin: false,
+    }).start();
+    stream.writes = [];
+
+    jest.advanceTimersByTime(500);
+
+    expect(stream.writes.length).toBeGreaterThan(1);
+    for (const frame of stream.writes) {
+      expect(frame.split(CLEAR_LINE)).toHaveLength(3);
+      expect(frame).toContain(text);
+    }
+
+    spinner.stop();
+  });
+
+  it('clears the spinner and writes the final line as one write', () => {
+    const stream = new FakeTTYStream();
+    stream.columns = 80;
     const spinner = ora({
       text: 'x'.repeat(150),
       stream: stream as unknown as NodeJS.WritableStream,
       discardStdin: false,
     }).start();
+    stream.writes = [];
 
-    stream.columns = 80;
-    stream.emit('resize');
-    stream.uncorkedWrites = 0;
-    stream.clearLineCalls = 0;
+    spinner.succeed('done');
 
-    jest.advanceTimersByTime(500);
-
-    expect(stream.clearLineCalls).toBeGreaterThan(0);
-    expect(stream.uncorkedWrites).toBe(0);
-    expect(stream.corked).toBe(false);
-
-    spinner.stop();
+    expect(stream.writes).toHaveLength(1);
+    expect(stream.writes[0].split(CLEAR_LINE)).toHaveLength(3);
+    expect(stream.writes[0]).toContain('done');
   });
 });
