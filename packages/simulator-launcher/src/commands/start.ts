@@ -4,6 +4,7 @@ import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { createAgentDeviceTool } from '../utils/agentDevice';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
+import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
 import {
   type ChildProcessHandle,
   commands,
@@ -46,9 +47,7 @@ export async function startAsync(bootUuid: string): Promise<number> {
       return state;
     }
     if (state) {
-      throw new Error(
-        'Simulator preparation has already been started or disabled for this VM boot.'
-      );
+      throw new Error('Simulator preparation has already been started or disabled for this boot.');
     }
     return {
       bootUuid,
@@ -344,6 +343,8 @@ export function createWarmSimulatorSession({
 
   async function prepareDefaultAsync(): Promise<WarmSessionInfo> {
     signal.throwIfAborted();
+    const preparedExpoGo = await readPreparedExpoGoAsync();
+    signal.throwIfAborted();
     availableDevices = await listAvailableSimulatorsAsync(signal);
     signal.throwIfAborted();
     warmDevices = selectWarmupSimulators(availableDevices, process.env.EXPO_SIMULATOR_DEVICE);
@@ -368,7 +369,9 @@ export function createWarmSimulatorSession({
     const ready = waitForServeSimReadyAsync(first.udid, server, signal);
     void ready.catch(() => {});
     if (process.env.EXPO_SIMULATOR_PREINSTALL_EXPO_GO !== '0') {
-      expoGo = startExpoGoPreinstall(signal);
+      expoGo = preparedExpoGo
+        ? startExpoGoPreinstall(signal, preparedExpoGo)
+        : startExpoGoPreinstall(signal);
     }
     for (const tool of warmTools) {
       startedTools.set(tool, startTool(tool, first.udid, ready, signal, onPreparationFailure));
