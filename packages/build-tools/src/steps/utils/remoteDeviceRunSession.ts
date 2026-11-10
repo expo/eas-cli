@@ -29,9 +29,9 @@ import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
-  DeviceRunSessionWorkerApiError,
   requireDeviceRunSessionWorkerApi,
 } from './deviceRunSessionWorkerApi';
+import { WorkerApiError } from './workerApi';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
@@ -129,6 +129,8 @@ export type DeviceRunSessionIdleTimeout = {
   getLastPreviewActivityAt?: () => Date | undefined;
 };
 
+export class DeviceRunSessionStoppedError extends Error {}
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
@@ -162,9 +164,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }, maxDurationSeconds * 1_000);
 
   try {
-    logger.info(
-      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-    );
+    logger.info(`Polling device run session ${deviceRunSessionId} until it is stopped.`);
     if (durationTimeout !== undefined) {
       logger.info(
         `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
@@ -210,6 +210,9 @@ export async function waitForDeviceRunSessionStoppedAsync({
       } catch (err) {
         if (err instanceof SystemError) {
           throw err;
+        }
+        if (signal.aborted) {
+          return;
         }
 
         const error = err instanceof Error ? err : new Error(String(err));
@@ -522,10 +525,7 @@ export async function fetchWebPreviewTurnArgsAsync(
     }
     return args;
   } catch (err) {
-    if (
-      err instanceof DeviceRunSessionWorkerApiError &&
-      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
-    ) {
+    if (err instanceof WorkerApiError && err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED') {
       logger.info('Device run session was stopped before TURN credentials were fetched.');
       return [];
     }
@@ -556,12 +556,15 @@ export async function uploadRemoteSessionConfigAsync({
   deviceRunSessionId,
   remoteConfig,
   logger,
+  signal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   remoteConfig: Record<string, unknown>;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<'started' | 'stopped'> {
+  signal?.throwIfAborted();
   logger.info(
     `Reporting remote config to the API server (device run session: ${deviceRunSessionId}).`
   );
@@ -569,14 +572,12 @@ export async function uploadRemoteSessionConfigAsync({
   try {
     await workerApi.startAsync(
       { remoteConfig },
-      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger }
+      { retries: 3, timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS, logger, signal }
     );
     return 'started';
   } catch (err) {
-    if (
-      err instanceof DeviceRunSessionWorkerApiError &&
-      err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED'
-    ) {
+    signal?.throwIfAborted();
+    if (err instanceof WorkerApiError && err.code === 'DEVICE_RUN_SESSION_ALREADY_STOPPED') {
       logger.info(`Device run session ${deviceRunSessionId} was stopped during startup.`);
       return 'stopped';
     }

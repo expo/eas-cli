@@ -1,18 +1,25 @@
+import { type WarmIosSession } from '../../utils/warmIosSession';
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import { vol } from 'memfs';
+import plist from 'plist';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import * as timersPromises from 'node:timers/promises';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
+import { PackageManager, resolveConfiguredPackageManager } from '../../../utils/packageManager';
 import * as processes from '../../../utils/processes';
 import { sleepAsync } from '../../../utils/retry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { startAppiumEventCollectionAsync } from '../../utils/appiumEvents';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import { preparePreinstalledWdaAsync } from '../../utils/preinstalledWda';
+import { resolveLocalEgressServeSimBootEnvironmentAsync } from '../../utils/localEgressGuard';
 import {
   WarmSessionAdoptionError,
   runOnWarmIosSimulatorAsync,
@@ -25,6 +32,8 @@ import {
   startNgrokTunnelAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
+import { watchDeviceRunSessionStartup } from '../../utils/deviceRunSessionStartup';
+import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
 
 import {
   createStartAppiumRemoteSessionBuildFunction,
@@ -33,6 +42,10 @@ import {
   resolveAppiumDeviceAsync,
 } from '../startAppiumRemoteSession';
 
+jest.mock('node:timers/promises', () => ({
+  ...jest.requireActual('node:timers/promises'),
+  setTimeout: jest.fn(jest.requireActual('node:timers/promises').setTimeout),
+}));
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: { getAttachedDevicesAsync: jest.fn() },
 }));
@@ -50,6 +63,9 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   spawnDetached: jest.fn(),
   startNgrokTunnelAsync: jest.fn(),
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
+}));
+jest.mock('../../utils/deviceRunSessionStartup', () => ({
+  watchDeviceRunSessionStartup: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../sentry');
@@ -86,6 +102,46 @@ jest.mock('../../utils/localEgressSession', () => ({
 }));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as never;
+const preparedHome = path.join(os.homedir(), 'Library/Caches/expo-simulator-startup/appium');
+const preparedManifest = path.join(path.dirname(preparedHome), 'prepared.json');
+const preparedBin = path.join(preparedHome, 'node_modules', '.bin', 'appium');
+const preparedRunner = path.join(
+  preparedHome,
+  'preinstalled-wda',
+  'WebDriverAgentRunner-Runner.app'
+);
+
+const driverList = ['driver', 'list', '--installed', '--json'];
+
+/** Today's `driver list` output: the prepared home lists xcuitest, a new home lists nothing. */
+function driverListStdout(command: string): string {
+  return JSON.stringify(command === preparedBin ? { xcuitest: { installed: true } } : {});
+}
+
+/** Writes the Appium home that `simulator-launcher prefetch` prepares for reuse. */
+function writePreparedHome(): void {
+  fs.mkdirSync(path.dirname(preparedBin), { recursive: true });
+  fs.writeFileSync(preparedBin, '');
+  writeInstalledVersion('appium', '3.9.0');
+  writeInstalledVersion('appium-xcuitest-driver', '12.22.8');
+  fs.mkdirSync(preparedRunner, { recursive: true });
+  fs.writeFileSync(
+    path.join(preparedRunner, 'Info.plist'),
+    plist.build({ CFBundleExecutable: 'Runner' })
+  );
+  fs.writeFileSync(path.join(preparedRunner, 'Runner'), 'executable', { mode: 0o755 });
+  writePreparedManifest({ version: '3.9.0', xcuitest: '12.22.8', home: preparedHome });
+}
+
+function writePreparedManifest(appium: unknown): void {
+  fs.writeFileSync(preparedManifest, `${JSON.stringify({ tools: { appium } })}\n`);
+}
+
+function writeInstalledVersion(name: string, version: string): void {
+  const directory = path.join(preparedHome, 'node_modules', name);
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name, version }));
+}
 
 describe(resolveAppium3VersionSpec, () => {
   it('uses the worker-supported Appium 3 version by default', () => {
@@ -106,6 +162,7 @@ describe(resolveAppium3VersionSpec, () => {
 describe(resolveAppiumDeviceAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(watchDeviceRunSessionStartup).mockImplementation(createStartupWatchMock);
   });
 
   it('returns XCUITest capabilities for the booted iOS simulator', async () => {
@@ -158,9 +215,10 @@ describe(resolveAppiumDeviceAsync, () => {
 describe(installAppiumAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => {
+    jest.mocked(watchDeviceRunSessionStartup).mockImplementation(createStartupWatchMock);
+    jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => {
       if (args.includes('--json')) {
-        return { stdout: JSON.stringify({}) };
+        return { stdout: driverListStdout(command) };
       }
       return { stdout: '' };
     }) as never);
@@ -191,6 +249,255 @@ describe(installAppiumAsync, () => {
       );
     } finally {
       await fs.promises.rm(result.appiumHome, { recursive: true, force: true });
+    }
+  });
+
+  it('uses the xcuitest home prefetched without installing', async () => {
+    writePreparedHome();
+    const info = jest.fn();
+    const result = await installAppiumAsync({
+      versionSpec: '^3',
+      driverName: 'xcuitest',
+      env: { EXISTING: 'value' },
+      logger: { info } as never,
+    });
+    expect(jest.mocked(spawn).mock.calls).toEqual([
+      [
+        preparedBin,
+        driverList,
+        { env: { EXISTING: 'value', APPIUM_HOME: preparedHome }, stdio: 'pipe' },
+      ],
+    ]);
+    expect(info).toHaveBeenCalledWith(
+      'Using the prefetched Appium home (appium 3.9.0, xcuitest 12.22.8).'
+    );
+    expect(result).toEqual({
+      appiumHome: preparedHome,
+      appiumBinPath: preparedBin,
+      appiumEnv: { EXISTING: 'value', APPIUM_HOME: preparedHome },
+      prepared: true,
+    });
+
+    const env = { EAS_OVERRIDE_PACKAGE_MANAGER: 'nope' };
+    const expected = (() => {
+      try {
+        resolveConfiguredPackageManager(env, PackageManager.NPM);
+      } catch (error) {
+        return error;
+      }
+    })();
+    const onError = jest.fn();
+    await expect(
+      installAppiumAsync({ versionSpec: '^3', driverName: 'xcuitest', env, logger, onError })
+    ).rejects.toEqual(expected);
+    expect(onError).toHaveBeenCalledWith(expected);
+    expect(jest.mocked(spawn).mock.calls.map(([, args]) => args)).toEqual([driverList, driverList]);
+  });
+
+  it('reuses WDA with binary bundle metadata', async () => {
+    writePreparedHome();
+    fs.writeFileSync(
+      path.join(preparedRunner, 'Info.plist'),
+      Buffer.from(
+        'YnBsaXN0MDDRAQJfEBJDRkJ1bmRsZUV4ZWN1dGFibGVWUnVubmVyCAsgAAAAAAAAAQEAAAAAAAAAAwAAAAAAAAAAAAAAAAAAACc=',
+        'base64'
+      )
+    );
+    const result = await installAppiumAsync({
+      versionSpec: '^3',
+      driverName: 'xcuitest',
+      env: {},
+      logger,
+    });
+    expect(result.prepared).toBe(true);
+  });
+
+  it.each([
+    ['a version spec it does not satisfy', { versionSpec: '3.5.0' }, () => {}],
+    ['the uiautomator2 driver', { driverName: 'uiautomator2' as const }, () => {}],
+    ['no prepared.json', {}, () => fs.rmSync(preparedManifest)],
+    ['an invalid prepared.json', {}, () => fs.writeFileSync(preparedManifest, 'not json')],
+    ['a prepared.json without xcuitest', {}, () => writePreparedManifest({ version: '3.9.0' })],
+    [
+      'an older per-tool manifest',
+      {},
+      () => {
+        fs.rmSync(preparedManifest);
+        fs.writeFileSync(
+          path.join(preparedHome, 'prepared.json'),
+          JSON.stringify({
+            appium: '3.9.0',
+            xcuitest: '12.22.8',
+            home: preparedHome,
+          })
+        );
+      },
+    ],
+    [
+      'a home prepared at another path',
+      {},
+      () =>
+        writePreparedManifest({
+          version: '3.9.0',
+          xcuitest: '12.22.8',
+          home: '/Users/other/appium',
+        }),
+    ],
+    ['another installed Appium', {}, () => writeInstalledVersion('appium', '2.19.0')],
+    [
+      'another installed xcuitest driver',
+      {},
+      () => writeInstalledVersion('appium-xcuitest-driver', '12.0.0'),
+    ],
+    [
+      'no xcuitest driver',
+      {},
+      () =>
+        fs.rmSync(path.join(preparedHome, 'node_modules', 'appium-xcuitest-driver'), {
+          recursive: true,
+        }),
+    ],
+    ['no runner', {}, () => fs.rmSync(preparedRunner, { recursive: true })],
+    ['no runner metadata', {}, () => fs.rmSync(path.join(preparedRunner, 'Info.plist'))],
+    [
+      'invalid runner metadata',
+      {},
+      () => fs.writeFileSync(path.join(preparedRunner, 'Info.plist'), 'invalid'),
+    ],
+    ['no runner executable', {}, () => fs.rmSync(path.join(preparedRunner, 'Runner'))],
+    [
+      'a non-executable runner binary',
+      {},
+      () => fs.chmodSync(path.join(preparedRunner, 'Runner'), 0o644),
+    ],
+    ['an empty runner binary', {}, () => fs.writeFileSync(path.join(preparedRunner, 'Runner'), '')],
+    [
+      'a directory as runner binary',
+      {},
+      () => {
+        fs.rmSync(path.join(preparedRunner, 'Runner'));
+        fs.mkdirSync(path.join(preparedRunner, 'Runner'));
+      },
+    ],
+    [
+      'an executable outside the bundle',
+      {},
+      () =>
+        fs.writeFileSync(
+          path.join(preparedRunner, 'Info.plist'),
+          plist.build({ CFBundleExecutable: '../outside' })
+        ),
+    ],
+    ['an unreadable runner', {}, () => fs.chmodSync(preparedRunner, 0o000)],
+    [
+      'a runner that is a file',
+      {},
+      () => {
+        fs.rmSync(preparedRunner, { recursive: true });
+        // Readable and executable, so only the directory check rejects it.
+        fs.writeFileSync(preparedRunner, '', { mode: 0o755 });
+      },
+    ],
+  ])('installs as before for %s', async (_name, options, breakHome) => {
+    writePreparedHome();
+    breakHome();
+    const before = vol.toJSON(preparedHome);
+    const versionSpec = 'versionSpec' in options ? options.versionSpec : '^3';
+    const resolveRequestedVersionAsync = jest.fn(async () => {
+      throw new Error('registry unavailable');
+    });
+    const result = await installAppiumAsync({
+      versionSpec,
+      resolveRequestedVersionAsync,
+      driverName: 'driverName' in options ? options.driverName : 'xcuitest',
+      env: {},
+      logger,
+    });
+    try {
+      expect(spawn).toHaveBeenNthCalledWith(
+        1,
+        'npm',
+        ['install', '--no-audit', `appium@${versionSpec}`],
+        expect.objectContaining({ cwd: result.appiumHome })
+      );
+      expect(path.basename(result.appiumHome)).toMatch(/^eas-appium-home-/);
+      expect(result.prepared).toBe(false);
+      expect(resolveRequestedVersionAsync).not.toHaveBeenCalled();
+      expect(vol.toJSON(preparedHome)).toEqual(before);
+    } finally {
+      await fs.promises.rm(result.appiumHome, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['a driver list without xcuitest', async () => ({ stdout: '{}' })],
+    ['a failed driver list', async () => Promise.reject(new Error('appium exited with 1.'))],
+  ])('installs as before after %s in the prepared home', async (_name, list) => {
+    writePreparedHome();
+    jest.mocked(spawn).mockImplementationOnce(list as never);
+    const before = vol.toJSON(preparedHome);
+    const result = await installAppiumAsync({
+      versionSpec: '^3',
+      driverName: 'xcuitest',
+      env: {},
+      logger,
+    });
+    try {
+      expect(jest.mocked(spawn).mock.calls.slice(0, 2)).toEqual([
+        [preparedBin, driverList, expect.objectContaining({ stdio: 'pipe' })],
+        [
+          'npm',
+          ['install', '--no-audit', 'appium@^3'],
+          expect.objectContaining({ cwd: result.appiumHome }),
+        ],
+      ]);
+      expect(result.prepared).toBe(false);
+      expect(vol.toJSON(preparedHome)).toEqual(before);
+    } finally {
+      await fs.promises.rm(result.appiumHome, { recursive: true, force: true });
+    }
+  });
+
+  it('kills the prepared-home driver list on a stop and installs nothing', async () => {
+    writePreparedHome();
+    const before = vol.toJSON(preparedHome);
+    const controller = new AbortController();
+    const failure = new Error('session stopped');
+    const child = { pid: 4242, kill: jest.fn() };
+    let finishList!: (error: Error) => void;
+    let listStarted!: () => void;
+    const started = new Promise<void>(resolve => {
+      listStarted = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce(() => {
+      listStarted();
+      return Object.assign(
+        new Promise((_resolve, reject) => {
+          finishList = reject;
+        }),
+        { child }
+      ) as never;
+    });
+    const killGroup = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    const running = installAppiumAsync({
+      versionSpec: '^3',
+      driverName: 'xcuitest',
+      env: {},
+      logger,
+      signal: controller.signal,
+    });
+    running.catch(() => {});
+    try {
+      await started;
+      controller.abort(failure);
+      expect(killGroup).toHaveBeenCalledWith(child, 'SIGKILL');
+      finishList(new Error('killed'));
+      await expect(running).rejects.toBe(failure);
+      expect(spawn).toHaveBeenCalledTimes(1);
+      expect(vol.toJSON(preparedHome)).toEqual(before);
+    } finally {
+      finishList?.(new Error('test cleanup'));
+      killGroup.mockRestore();
     }
   });
 
@@ -288,6 +595,115 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
     });
   });
 
+  it.each(
+    [BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX].flatMap(platform =>
+      ['^3', '3.x'].map(version => [platform, version] as const)
+    )
+  )(
+    'starts cold Appium on %s with cached installer range %s and no registry lookup',
+    async (runtimePlatform, packageVersion) => {
+      // Android must ignore prepared XCUITest files too.
+      if (runtimePlatform === BuildRuntimePlatform.LINUX) {
+        writePreparedHome();
+      }
+      jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => {
+        if (args[0] === 'view') {
+          throw new Error('registry unavailable');
+        }
+        return { stdout: '{}' };
+      }) as never);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'simulator' }] as never);
+      jest
+        .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
+        .mockResolvedValue([{ serialId: 'emulator-5554', state: 'device' }] as never);
+      const launched = new Error('launch captured');
+      jest.mocked(spawnDetached).mockImplementation(() => {
+        throw launched;
+      });
+      const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+      await expect(
+        buildFunction.fn!(
+          { logger, global: { runtimePlatform } } as unknown as BuildStepContext,
+          {
+            inputs: {
+              package_version: { value: packageVersion },
+              max_idle_time_minutes: { value: undefined },
+            },
+            outputs: {},
+            env: {
+              DEVICE_RUN_SESSION_ID: 'session',
+              EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+              NGROK_AUTHTOKEN: 'token',
+              EAS_OVERRIDE_PACKAGE_MANAGER: 'bun',
+            },
+          } as never
+        )
+      ).rejects.toBe(launched);
+      expect(jest.mocked(spawn).mock.calls.some(([, args]) => args[0] === 'view')).toBe(false);
+      expect(spawn).toHaveBeenCalledWith(
+        'bun',
+        ['add', `appium@${packageVersion}`],
+        expect.anything()
+      );
+    }
+  );
+
+  it.each(
+    ['latest', '^3', '3.x'].flatMap(requested =>
+      ['3.9.0', '3.10.0'].map(latest => [requested, latest])
+    )
+  )('checks %s before using the prepared Appium version (%s)', async (requested, latest) => {
+    writePreparedHome();
+    const before = vol.toJSON(preparedHome);
+    jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => ({
+      stdout:
+        args[0] === 'view'
+          ? JSON.stringify(latest)
+          : args.includes('--json')
+            ? driverListStdout(command)
+            : '',
+    })) as never);
+    jest
+      .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+      .mockResolvedValue([{ udid: 'simulator' }] as never);
+    const launched = new Error('launch captured');
+    jest.mocked(spawnDetached).mockImplementation(() => {
+      throw launched;
+    });
+    const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext);
+    await expect(
+      buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: requested },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {
+            DEVICE_RUN_SESSION_ID: 'session',
+            EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'example.test',
+            NGROK_AUTHTOKEN: 'token',
+          },
+        } as never
+      )
+    ).rejects.toBe(launched);
+    const installs = jest.mocked(spawn).mock.calls.filter(([, args]) => args[0] === 'install');
+    if (latest === '3.9.0') {
+      expect(installs).toHaveLength(0);
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME).toBe(preparedHome);
+    } else {
+      expect(installs).toHaveLength(1);
+      expect(installs[0][1]).toContain('appium@3.10.0');
+    }
+    expect(vol.toJSON(preparedHome)).toEqual(before);
+  });
+
   it('claims the warm Simulator for Appium without its package version', async () => {
     jest.mocked(runOnWarmIosSimulatorAsync).mockResolvedValue(undefined);
     const buildFunction = createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext, {
@@ -344,6 +760,10 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   const finishHost = jest.fn();
 
   beforeEach(() => {
+    jest
+      .mocked(timersPromises.setTimeout)
+      .mockImplementation(jest.requireActual('node:timers/promises').setTimeout);
+    jest.mocked(watchDeviceRunSessionStartup).mockImplementation(createStartupWatchMock);
     jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
     jest.mocked(preparePreinstalledWdaAsync).mockResolvedValue({});
     jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({
@@ -351,8 +771,8 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       runtime: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
       state: 'Shutdown',
     } as never);
-    jest.mocked(spawn).mockImplementation((async (_command: string, args: string[]) => ({
-      stdout: args.includes('--json') ? '{}' : '',
+    jest.mocked(spawn).mockImplementation((async (command: string, args: string[]) => ({
+      stdout: args.includes('--json') ? driverListStdout(command) : '',
     })) as never);
     jest
       .mocked(AndroidEmulatorUtils.getAttachedDevicesAsync)
@@ -396,7 +816,8 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     maxIdleTimeMinutes?: number,
     runtimePlatform = BuildRuntimePlatform.LINUX,
     startupInputs: Record<string, { value: unknown }> = {},
-    warm = false
+    warm = false,
+    signal?: AbortSignal
   ): Promise<void> {
     await createStartAppiumRemoteSessionBuildFunction({} as CustomBuildContext, { warm }).fn!(
       {
@@ -410,6 +831,7 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
           ...startupInputs,
         },
         outputs: {},
+        signal,
         env: {
           DEVICE_RUN_SESSION_ID: 'device-run-session-id',
           EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN: 'tunnel.example.com',
@@ -428,6 +850,134 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it('does not allocate Appium or a host after parent cancellation during Xcode selection', async () => {
+    const controller = new AbortController();
+    const failure = new Error('parent step cancelled');
+    jest
+      .mocked(selectXcodeDeveloperDirectoryAsync)
+      .mockImplementationOnce(async () => controller.abort(failure));
+    await expect(
+      runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, false, controller.signal)
+    ).rejects.toBe(failure);
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves an aggregate host startup failure', async () => {
+    const failure = new AggregateError([
+      new Error('host failed'),
+      new Error('host cleanup failed'),
+    ]);
+    jest.mocked(startDeviceSessionHostAsync).mockRejectedValueOnce(failure);
+    stopAppium.mockResolvedValue(undefined);
+    await expect(runSessionAsync(logger)).rejects.toBe(failure);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('reports late host cleanup failure after startup Stop', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    let entered!: () => void;
+    const starting = new Promise<void>(resolve => {
+      entered = resolve;
+    });
+    let failed!: AggregateError;
+    jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(async (_ctx, options) => {
+      entered();
+      return await new Promise((_resolve, reject) => {
+        options.signal!.addEventListener(
+          'abort',
+          () => {
+            failed = new AggregateError([options.signal!.reason, new Error('host cleanup failed')]);
+            setImmediate(() => reject(failed));
+          },
+          { once: true }
+        );
+      });
+    });
+    const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+      boot_simulator: { value: true },
+      device_identifier: { value: 'selected-ios-udid' },
+    });
+    running.catch(() => {});
+    await starting;
+    jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    const failure = await running.then(
+      () => undefined,
+      error => error
+    );
+    expect(failure).toBe(failed);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps watching startup when warm adoption retries cold', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    const adoption = new Error('warm adoption failed');
+    jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation(async (_claim, run) => {
+      try {
+        return await run({
+          device: { udid: 'selected-ios-udid', name: 'iPhone 17' },
+        } as WarmIosSession);
+      } catch (error) {
+        if (error !== adoption) {
+          throw error;
+        }
+        return await run(undefined);
+      }
+    });
+    jest.mocked(startDeviceSessionHostAsync).mockImplementationOnce(async (_ctx, options) => {
+      options.onStartupError?.(adoption);
+      throw adoption;
+    });
+    await expect(
+      Promise.resolve(
+        runSessionAsync(
+          logger,
+          undefined,
+          BuildRuntimePlatform.DARWIN,
+          { boot_simulator: { value: true }, device_identifier: { value: 'selected-ios-udid' } },
+          true
+        )
+      )
+    ).resolves.toBeUndefined();
+    expect(watchDeviceRunSessionStartup).toHaveBeenCalledTimes(1);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([false, true])(
+    'observes Stop during warm claim and preserves cleanup failure=%s',
+    async failCleanup => {
+      let entered!: () => void;
+      const claiming = new Promise<void>(resolve => {
+        entered = resolve;
+      });
+      const cleanup = new Error('warm cleanup failed');
+      jest.mocked(runOnWarmIosSimulatorAsync).mockImplementation(async claim => {
+        entered();
+        await new Promise<void>((_resolve, reject) => {
+          claim.signal!.addEventListener(
+            'abort',
+            () =>
+              reject(
+                failCleanup
+                  ? new AggregateError([claim.signal!.reason, cleanup])
+                  : claim.signal!.reason
+              ),
+            { once: true }
+          );
+        });
+      });
+      const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {}, true);
+      running.catch(() => {});
+      await claiming;
+      jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+      if (failCleanup) {
+        await expect(running).rejects.toMatchObject({ errors: expect.arrayContaining([cleanup]) });
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
+      expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    }
+  );
   it('passes the existing Android selection to the preview host', async () => {
     stopAppium.mockResolvedValue(undefined);
     await runSessionAsync(logger);
@@ -476,6 +1026,73 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       );
     return stopWarm;
   }
+
+  it.each(['cancelled lookup', 'AbortError lookup', 'resolved lookup'])(
+    'recovers from failed warm adoption with a %s',
+    async stage => {
+      writePreparedHome();
+      const stopWarm = mockWarmSession();
+      stopAppium.mockResolvedValue(undefined);
+      const adoptionError = new WarmSessionAdoptionError();
+      let failHost!: (error: Error) => void;
+      jest.mocked(startDeviceSessionHostAsync).mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          failHost = reject;
+        })
+      );
+      let lookups = 0;
+      jest.mocked(spawn).mockImplementation((async (command, args, options) => {
+        if (args[0] !== 'view') {
+          return { stdout: args.includes('--json') ? driverListStdout(command) : '' };
+        }
+        lookups++;
+        if (lookups === 1 && stage !== 'resolved lookup') {
+          return await new Promise((_resolve, reject) => {
+            options!.signal!.addEventListener(
+              'abort',
+              () => {
+                reject(
+                  stage === 'AbortError lookup'
+                    ? new DOMException('Aborted', 'AbortError')
+                    : options!.signal!.reason
+                );
+              },
+              { once: true }
+            );
+            failHost(adoptionError);
+          });
+        }
+        return { stdout: JSON.stringify('3.9.0') };
+      }) as typeof spawn);
+      if (stage === 'resolved lookup') {
+        const process = jest.mocked(spawnDetached).getMockImplementation()!;
+        jest.mocked(spawnDetached).mockImplementationOnce(options => {
+          failHost(adoptionError);
+          return process(options);
+        });
+      }
+
+      await expect(
+        runSessionAsync(
+          logger,
+          undefined,
+          BuildRuntimePlatform.DARWIN,
+          {
+            boot_simulator: { value: true },
+            device_identifier: { value: 'iPhone 17' },
+            package_version: { value: '^3' },
+          },
+          true
+        )
+      ).resolves.toBeUndefined();
+
+      expect(lookups).toBe(stage === 'resolved lookup' ? 1 : 2);
+      expect(stopWarm).toHaveBeenCalledTimes(1);
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(2);
+      expect(spawnDetached).toHaveBeenCalledTimes(stage === 'resolved lookup' ? 2 : 1);
+      expect(fs.existsSync(preparedRunner)).toBe(true);
+    }
+  );
 
   it.each(['event collection', 'Appium process'])(
     'waits for warm %s teardown before finishing the session host',
@@ -631,6 +1248,116 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       }
     }
   );
+  it.each([
+    [BuildRuntimePlatform.LINUX, false],
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.DARWIN, true],
+  ])(
+    'handles Stop during the readiness retry sleep on %s with startup=%s',
+    async (runtimePlatform, bootSimulator) => {
+      stopAppium.mockResolvedValue(undefined);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+      jest.mocked(turtleFetch).mockResolvedValue({ ok: false } as never);
+      jest.mocked(timersPromises.setTimeout).mockImplementationOnce((async (ms, value, options) => {
+        const sleeping = jest.requireActual('node:timers/promises').setTimeout(ms, value, options);
+        jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+        return sleeping;
+      }) as typeof timersPromises.setTimeout);
+      await expect(
+        runSessionAsync(
+          logger,
+          undefined,
+          runtimePlatform,
+          bootSimulator
+            ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-device' } }
+            : {}
+        )
+      ).resolves.toBeUndefined();
+      expect(stopAppium).toHaveBeenCalledTimes(1);
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not open the preview after Stop while the Appium tunnel is opening', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    let tunnelEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      tunnelEntered = resolve;
+    });
+    let finishTunnel!: () => void;
+    const pendingTunnel = new Promise<void>(resolve => {
+      finishTunnel = resolve;
+    });
+    const stopTunnel = jest.fn();
+    jest.mocked(startNgrokTunnelAsync).mockImplementationOnce(async () => {
+      tunnelEntered();
+      await pendingTunnel;
+      return { url: 'https://appium.example.com', subdomainId: 'appium', stopAsync: stopTunnel };
+    });
+    const openPreviewAsync = jest.fn();
+    const finishHost = jest.fn();
+    jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+      openPreviewAsync,
+      finishAsync: finishHost,
+      getLastPreviewActivityAt: jest.fn(),
+    });
+    const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+      boot_simulator: { value: true },
+      device_identifier: { value: 'chosen-device' },
+    });
+    running.catch(() => {});
+    try {
+      await entered;
+      jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    } finally {
+      finishTunnel();
+    }
+    await expect(running).resolves.toBeUndefined();
+    expect(openPreviewAsync).not.toHaveBeenCalled();
+    expect(stopTunnel).toHaveBeenCalledTimes(1);
+    expect(finishHost).toHaveBeenCalledTimes(1);
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('ends normally when Stop interrupts the LOCAL-guard Simulator shutdown', async () => {
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockResolvedValueOnce({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
+    jest
+      .mocked(IosSimulatorUtils.getDeviceAsync)
+      .mockResolvedValueOnce({ state: 'Booted' } as never);
+    let shutdownEntered!: () => void;
+    const entered = new Promise<void>(resolve => {
+      shutdownEntered = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce((_command, _args, options) => {
+      shutdownEntered();
+      return new Promise((_resolve, reject) =>
+        options!.signal!.addEventListener(
+          'abort',
+          () => reject(new Error('Shutdown process aborted', { cause: options!.signal!.reason })),
+          { once: true }
+        )
+      ) as ReturnType<typeof spawn>;
+    });
+    const running = runSessionAsync(logger, undefined, BuildRuntimePlatform.DARWIN, {
+      boot_simulator: { value: true },
+      device_identifier: { value: 'chosen-device' },
+    });
+    running.catch(() => {});
+    await entered;
+    jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    await expect(running).resolves.toBeUndefined();
+    expect(ensureFfmpegInstalledOnceAsync).not.toHaveBeenCalled();
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(spawnDetached).not.toHaveBeenCalled();
+    expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
 
   it.each([false, true])(
     'preserves preview settings with Simulator startup %s',
@@ -659,6 +1386,154 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       );
     }
   );
+
+  it.each([
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.LINUX, false],
+    [BuildRuntimePlatform.DARWIN, true],
+  ])(
+    'handles Stop during %s setup, preserving teardown failure=%s',
+    async (runtimePlatform, teardownFails) => {
+      let setupEntered!: () => void;
+      const entered = new Promise<void>(resolve => {
+        setupEntered = resolve;
+      });
+      jest.mocked(ensureFfmpegInstalledOnceAsync).mockImplementationOnce(({ signal }) => {
+        setupEntered();
+        return new Promise<void>(resolve =>
+          signal!.addEventListener('abort', () => resolve(), { once: true })
+        );
+      });
+      const teardownError = new Error('host teardown failed');
+      const finishHost = jest.fn().mockImplementation(async () => {
+        if (teardownFails) {
+          throw teardownError;
+        }
+      });
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        jest.mocked(startDeviceSessionHostAsync).mockResolvedValueOnce({
+          openPreviewAsync: jest.fn(),
+          finishAsync: finishHost,
+          getLastPreviewActivityAt: () => undefined,
+        });
+      }
+      const running = runSessionAsync(
+        { info: jest.fn(), warn: jest.fn() },
+        undefined,
+        runtimePlatform,
+        runtimePlatform === BuildRuntimePlatform.DARWIN
+          ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-ios-udid' } }
+          : {}
+      );
+      running.catch(() => {});
+      await entered;
+      const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+      watch.stop();
+      if (teardownFails) {
+        await expect(running).rejects.toBe(teardownError);
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
+      expect(spawnDetached).not.toHaveBeenCalled();
+      expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+      expect(watch.finishAsync).toHaveBeenCalled();
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        expect(finishHost).toHaveBeenCalledTimes(1);
+      }
+    }
+  );
+
+  it.each([
+    [BuildRuntimePlatform.DARWIN, false],
+    [BuildRuntimePlatform.DARWIN, true],
+    [BuildRuntimePlatform.LINUX, false],
+  ])(
+    'preserves failed installer cleanup after Stop on %s with Simulator startup=%s',
+    async (runtimePlatform, bootSimulator) => {
+      const cleanupError = new Error('Appium home removal failed: EACCES');
+      const remove = fs.promises.rm.bind(fs.promises);
+      jest
+        .mocked(IosSimulatorUtils.getAvailableDevicesAsync)
+        .mockResolvedValue([{ udid: 'chosen-ios-udid' } as never]);
+      let enteredInstall!: () => void;
+      const installEntered = new Promise<void>(resolve => {
+        enteredInstall = resolve;
+      });
+      let closeInstaller!: (error: Error) => void;
+      jest.mocked(spawn).mockImplementationOnce(() => {
+        enteredInstall();
+        return Object.assign(
+          new Promise((_resolve, reject) => {
+            closeInstaller = reject;
+          }),
+          { child: { pid: 12345 } }
+        ) as never;
+      });
+      jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+      const rm = jest.spyOn(fs.promises, 'rm').mockRejectedValueOnce(cleanupError);
+      const running = runSessionAsync(
+        { info: jest.fn(), warn: jest.fn() },
+        undefined,
+        runtimePlatform,
+        bootSimulator
+          ? { boot_simulator: { value: true }, device_identifier: { value: 'chosen-ios-udid' } }
+          : {}
+      );
+      const observed = running.catch(() => {});
+      let home: string | undefined;
+      try {
+        await installEntered;
+        home = jest.mocked(spawn).mock.calls[0][2]?.cwd as string;
+        const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+        watch.stop();
+        closeInstaller(new Error('installer interrupted'));
+        await expect(running).rejects.toBe(cleanupError);
+        expect(rm).toHaveBeenCalledWith(home, { recursive: true, force: true });
+        expect(fs.existsSync(home)).toBe(true);
+        expect(spawnDetached).not.toHaveBeenCalled();
+        expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+        expect(watch.finishAsync).toHaveBeenCalled();
+      } finally {
+        closeInstaller?.(new Error('test cleanup'));
+        await observed;
+        if (home) {
+          await remove(home, { recursive: true, force: true });
+        }
+      }
+    }
+  );
+
+  it('preserves an Android installer failure observed before a later Stop', async () => {
+    const failed = new Error('Appium install failed first');
+    let observedFailure!: () => void;
+    const installFailed = new Promise<void>(resolve => {
+      observedFailure = resolve;
+    });
+    jest.mocked(spawn).mockImplementationOnce((() => {
+      observedFailure();
+      return Promise.reject(failed);
+    }) as never);
+    jest
+      .mocked(ensureFfmpegInstalledOnceAsync)
+      .mockImplementationOnce(
+        ({ signal }) =>
+          new Promise<void>(resolve =>
+            signal!.addEventListener('abort', () => resolve(), { once: true })
+          )
+      );
+    const running = runSessionAsync(
+      { info: jest.fn(), warn: jest.fn() },
+      undefined,
+      BuildRuntimePlatform.LINUX
+    );
+    running.catch(() => {});
+    await installFailed;
+    await new Promise(resolve => setImmediate(resolve));
+    const watch = jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value;
+    watch.stop();
+    await expect(running).rejects.toBe(failed);
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
 
   it('selects Xcode only once for an already-prepared iOS session', async () => {
     stopAppium.mockResolvedValue(undefined);
@@ -694,6 +1569,31 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     ).toBeLessThan(
       jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mock.invocationCallOrder[0]
     );
+  });
+
+  it('a Darwin session uses the prepared Appium home and keeps it', async () => {
+    stopAppium.mockResolvedValue(undefined);
+    writePreparedHome();
+    jest.mocked(IosSimulatorUtils.getAvailableDevicesAsync).mockResolvedValue([
+      {
+        udid: 'chosen-ios-udid',
+        runtime: 'com.apple.CoreSimulator.SimRuntime.iOS-26-4',
+      } as never,
+    ]);
+    await runSessionAsync(
+      { info: jest.fn(), warn: jest.fn() },
+      undefined,
+      BuildRuntimePlatform.DARWIN
+    );
+    expect(jest.mocked(spawnDetached).mock.calls[0][0].env.APPIUM_HOME).toBe(preparedHome);
+    expect(preparePreinstalledWdaAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ appiumHome: preparedHome, prepared: true })
+    );
+    expect(jest.mocked(spawn).mock.calls.map(([command, args]) => [command, args])).toEqual([
+      [preparedBin, driverList],
+    ]);
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(preparedManifest)).toBe(true);
   });
 
   it('starts serve-sim on the selected iOS device while Appium installation is pending', async () => {
@@ -976,9 +1876,9 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
   it('keeps the readiness error when Appium cannot be stopped', async () => {
     let now = Date.now();
     jest.spyOn(Date, 'now').mockImplementation(() => now);
-    jest.mocked(sleepAsync).mockImplementation(async ms => {
-      now += ms;
-    });
+    jest.mocked(timersPromises.setTimeout).mockImplementation((async ms => {
+      now += Number(ms ?? 0);
+    }) as typeof timersPromises.setTimeout);
     jest.mocked(turtleFetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
     const logger = { info: jest.fn(), warn: jest.fn() };
 

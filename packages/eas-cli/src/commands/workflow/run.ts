@@ -68,6 +68,7 @@ import {
   WorkflowProjectSourceType,
   WorkflowReferencedFileInput,
   WorkflowRevision,
+  WorkflowRunGitInput,
   WorkflowRunStatus,
 } from '../../graphql/generated';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
@@ -91,6 +92,25 @@ export function resolveWorkflowRunSshInput({
     throw new Error('--ssh-idle-timeout requires --ssh.');
   }
   return ssh ? { idleTimeoutSeconds } : null;
+}
+
+export function resolveWorkflowRunGitInput({
+  branch,
+  commitHash,
+}: {
+  branch: string | undefined;
+  commitHash: string | undefined;
+}): WorkflowRunGitInput | undefined {
+  if (branch === undefined || commitHash === undefined) {
+    return undefined;
+  }
+  const normalizedCommitHash = commitHash.toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(normalizedCommitHash)) {
+    throw new Error(
+      `--git-commit-hash must be the full 40-character commit SHA, got "${commitHash}".`
+    );
+  }
+  return { branch, commitHash: normalizedCommitHash };
 }
 
 export default class WorkflowRun extends EasCommand {
@@ -124,6 +144,21 @@ export default class WorkflowRun extends EasCommand {
       description:
         "The git reference must exist in the project's git repository, and the workflow file must exist at that reference. When this flag is used, the local project is not uploaded; instead, the workflow is run from the exact state of the project at the chosen reference.",
       summary: 'Git reference to run the workflow on',
+      exclusive: ['git-branch', 'git-commit-hash'],
+    }),
+    'git-branch': Flags.string({
+      description:
+        'Name of the branch the uploaded project comes from, for example "main". The run is listed under this branch on the EAS dashboard. Requires --git-commit-hash. Cannot be used with --ref.',
+      summary: 'Git branch of the uploaded project',
+      dependsOn: ['git-commit-hash'],
+      exclusive: ['ref'],
+    }),
+    'git-commit-hash': Flags.string({
+      description:
+        "Full 40-character SHA of the commit the uploaded project comes from. The commit must exist in the project's linked GitHub repository. Requires --git-branch. Cannot be used with --ref.",
+      summary: 'Git commit of the uploaded project',
+      dependsOn: ['git-branch'],
+      exclusive: ['ref'],
     }),
     ssh: Flags.boolean({
       default: false,
@@ -158,7 +193,6 @@ export default class WorkflowRun extends EasCommand {
       ssh: flags.ssh,
       idleTimeoutSeconds: flags['ssh-idle-timeout'],
     });
-
     const {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
@@ -319,6 +353,10 @@ export default class WorkflowRun extends EasCommand {
       workflowRunId = runResult.id;
     } else {
       // Run from local file
+      const gitInput = resolveWorkflowRunGitInput({
+        branch: flags['git-branch'],
+        commitHash: flags['git-commit-hash'],
+      });
       try {
         ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
           graphqlClient,
@@ -383,6 +421,7 @@ export default class WorkflowRun extends EasCommand {
               projectRootDirectory,
             },
             ssh: sshInput,
+            git: gitInput,
           },
         }));
       } catch (err) {

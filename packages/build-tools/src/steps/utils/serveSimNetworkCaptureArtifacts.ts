@@ -1,10 +1,9 @@
 import { type bunyan } from '@expo/logger';
-import { createReadStream } from 'node:fs';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 const NETWORK_CAPTURE_ARTIFACT_FILENAME = 'network-capture.har';
 const MAX_NETWORK_CAPTURE_ARTIFACT_SIZE_BYTES = 500 * 1024 * 1024;
@@ -39,15 +38,16 @@ export async function uploadServeSimNetworkCaptureFileAsync(
   }
   try {
     logger.info(`Uploading the network capture for ${udid}${label} (${formatBytes(size)}).`);
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
-      deviceRunSessionId,
-      artifactId: `network-capture-${udid}-${part}`,
-      name: `Network capture (${udid.slice(0, 8)}${label})`,
-      filename: NETWORK_CAPTURE_ARTIFACT_FILENAME,
-      kind: 'network-capture',
-      metadata: { __eas_type: 'network-capture', format: 'har', udid, part },
-      size,
-      openStream: () => createReadStream(filePath),
+    await uploadDeviceRunSessionFileAsync(ctx, {
+      filePath,
+      describe: () => ({
+        deviceRunSessionId,
+        artifactId: `network-capture-${udid}-${part}`,
+        name: `Network capture (${udid.slice(0, 8)}${label})`,
+        filename: NETWORK_CAPTURE_ARTIFACT_FILENAME,
+        kind: 'network-capture',
+        metadata: { __eas_type: 'network-capture', format: 'har', udid, part },
+      }),
       attempts: 3,
       signal,
     });

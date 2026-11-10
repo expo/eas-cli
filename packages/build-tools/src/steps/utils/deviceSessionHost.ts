@@ -55,6 +55,7 @@ import {
   isPreinstalledExpoGoAsync,
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
+import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -433,6 +434,8 @@ export type DeviceSessionServerLaunch = {
  */
 export type DeviceSessionServer = {
   port: number;
+  /** The exact serve-sim version prepared by the warm launcher. */
+  serveSimVersion?: string;
   turnArgs: Promise<string[]>;
   /** Cold iOS setup runs after control readiness, alongside app installation and before launch. */
   setupSimulatorAsync?(options: { signal: AbortSignal; logger: bunyan }): Promise<void>;
@@ -585,6 +588,7 @@ async function startDeviceSessionHostInternalAsync(
       ? await createAndroidDeviceSessionServerAsync(ctx, { logger })
       : await createColdIosSessionAsync(ctx, { env, logger, iosSimulatorUdid }));
   const port = server.port;
+  packageVersion = server.serveSimVersion ?? packageVersion;
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
@@ -603,6 +607,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewRetirementErrors: unknown[] = [];
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
+  let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
@@ -825,6 +830,7 @@ async function startDeviceSessionHostInternalAsync(
             await sessionPreview?.stopAsync();
             await previewActivity?.stopAsync();
           },
+          cleanupPreviewCaptureAsync: async () => iosPreviewCapture?.cleanupAfterHostStoppedAsync(),
           previewServer,
           screenshots,
           serverName,
@@ -990,6 +996,18 @@ async function startDeviceSessionHostInternalAsync(
     // readiness on macOS, so it starts after its encoder is installed there.
     previewSetupTask = (async () => {
       if (!isAndroid) {
+        iosPreviewCapture = createServeSimPreviewCapture({
+          port,
+          token: previewToken!,
+          device,
+          tmpdir: serveSimTmpdir,
+        });
+        if (!(await iosPreviewCapture.isSupportedAsync(previewSetupController.signal))) {
+          logger.warn(
+            'This serve-sim version does not support automated screenshots; skipping session previews.'
+          );
+          return;
+        }
         await ensureMacosPreviewEncoderInstalledAsync({
           env,
           logger,
@@ -1003,6 +1021,7 @@ async function startDeviceSessionHostInternalAsync(
           logger,
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
+              captureIosScreenshotAsync: iosPreviewCapture?.captureAsync,
               runtimePlatform,
               device: previewDevice ?? device,
               env,
@@ -1078,6 +1097,7 @@ async function finishDeviceSessionHostAsync(
   {
     previewRetirement,
     stopSessionPreviewAsync,
+    cleanupPreviewCaptureAsync,
     previewServer,
     screenshots,
     serverName,
@@ -1089,6 +1109,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewRetirement: Promise<boolean>;
     stopSessionPreviewAsync: () => Promise<void>;
+    cleanupPreviewCaptureAsync: () => Promise<void>;
     previewServer: DetachedProcessHandle;
     screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
@@ -1123,6 +1144,13 @@ async function finishDeviceSessionHostAsync(
     hostStopped = true;
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
+  }
+  if (hostStopped) {
+    try {
+      await cleanupPreviewCaptureAsync();
+    } catch (err) {
+      logger.warn({ err }, 'Could not remove session preview capture files.');
+    }
   }
   const previewRetired = await previewRetirement;
   onStopped(hostStopped && !hostExited && previewRetired);

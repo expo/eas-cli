@@ -30,13 +30,20 @@ export async function stageServeSimAppAsync(
   }
 }
 
-export async function runServeSimActionAsync({
+export async function runServeSimActionAsync(
+  options: Parameters<typeof runServeSimActionWithResultAsync>[0]
+): Promise<void> {
+  await runServeSimActionWithResultAsync(options);
+}
+
+export async function runServeSimActionWithResultAsync({
   port,
   token,
   action,
   params,
   timeoutMs,
   signal,
+  drainAfterDispatch = false,
 }: {
   port: number;
   token: string;
@@ -44,13 +51,15 @@ export async function runServeSimActionAsync({
   params: Record<string, unknown>;
   timeoutMs: number;
   signal?: AbortSignal;
-}): Promise<void> {
+  /** Abort before dispatch; once sent, wait for its reply or deadline because exec-ws cannot cancel it. */
+  drainAfterDispatch?: boolean;
+}): Promise<string> {
   signal?.throwIfAborted();
-  await new Promise<void>((resolve, reject) => {
+  return await new Promise<string>((resolve, reject) => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/exec-ws`, [`serve-sim.token.${token}`]);
     let settled = false;
     let sent = false;
-    const finish = (error?: unknown) => {
+    const finish = (error?: unknown, stdout = '') => {
       if (settled) {
         return;
       }
@@ -61,10 +70,14 @@ export async function runServeSimActionAsync({
       if (error) {
         reject(error);
       } else {
-        resolve();
+        resolve(stdout);
       }
     };
-    const aborted = () => finish(signal?.reason ?? new Error('Serve-sim action aborted.'));
+    const aborted = () => {
+      if (!sent || !drainAfterDispatch) {
+        finish(signal?.reason ?? new Error('Serve-sim action aborted.'));
+      }
+    };
     const timer = setTimeout(
       () => finish(new SystemError(`serve-sim ${action} timed out.`)),
       timeoutMs
@@ -75,6 +88,9 @@ export async function runServeSimActionAsync({
       finish(new SystemError(`serve-sim ${action} connection closed before completion.`))
     );
     socket.on('message', data => {
+      if (settled) {
+        return;
+      }
       let reply;
       try {
         reply = JSON.parse(data.toString());
@@ -90,7 +106,8 @@ export async function runServeSimActionAsync({
             ? undefined
             : new SystemError(
                 `serve-sim ${action} failed: ${(typeof reply.error === 'string' && reply.error) || (typeof reply.stderr === 'string' && reply.stderr) || 'invalid response'}`
-              )
+              ),
+          typeof reply.stdout === 'string' ? reply.stdout : ''
         );
       }
     });

@@ -11,9 +11,8 @@ jest.mock('node-fetch', () => {
   };
 });
 
-import { SandboxDaemonErrorCode, SystemError } from '@expo/eas-build-job';
+import { SandboxDaemonErrorCode } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client, CombinedError } from '@urql/core';
 import fetch, { type RequestInit } from 'node-fetch';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -24,6 +23,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { inspect } from 'node:util';
 
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
+import { type SandboxWorkerApi } from '../sandboxWorkerApi';
+import { WorkerApiError } from '../workerApi';
 
 const { AbortError, FetchError, Response } = jest.requireActual(
   'node-fetch'
@@ -33,25 +34,18 @@ const ARTIFACT_ID = '0199c0de-7b3a-7c1e-8f00-1234567890ab';
 const SIGNED_URL = 'https://uploads.expo.test/artifact?X-Amz-Signature=secret-signature';
 const DOWNLOAD_URL = 'https://downloads.expo.test/artifact?X-Amz-Signature=download-signature';
 
-const createdResult = {
-  data: {
-    sandbox: {
-      createArtifactUploadSession: {
-        artifact: { id: ARTIFACT_ID },
-        uploadSession: { url: SIGNED_URL, headers: { 'If-None-Match': '*' } },
-      },
-    },
-  },
-};
-const finalizedResult = {
-  data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID, downloadUrl: DOWNLOAD_URL } } },
+const createdSession = {
+  artifact: { id: ARTIFACT_ID },
+  uploadSession: { url: SIGNED_URL, headers: { 'If-None-Match': '*' } },
 };
 
 describe('sandbox artifact uploads', () => {
   let directory: string;
   let filePath: string;
-  let mutation: jest.Mock;
-  let graphqlClient: Client;
+  let workerApi: {
+    createArtifactUploadSessionAsync: jest.Mock;
+    finalizeArtifactAsync: jest.Mock;
+  };
   let logger: { info: jest.Mock; error: jest.Mock };
   let uploadArtifactAsync: (options: {
     filePath: string;
@@ -64,13 +58,14 @@ describe('sandbox artifact uploads', () => {
     filePath = path.join(directory, 'crash.log');
     await fs.writeFile(filePath, 'crash');
     jest.mocked(fetch).mockReset();
-    mutation = jest.fn();
+    workerApi = {
+      createArtifactUploadSessionAsync: jest.fn(),
+      finalizeArtifactAsync: jest.fn(),
+    };
     logger = { info: jest.fn(), error: jest.fn() };
-    graphqlClient = { mutation } as unknown as Client;
     uploadArtifactAsync = async options =>
       await startSandboxArtifactUploadAsync({
-        graphqlClient,
-        sandboxId: 'sandbox-id',
+        workerApi: workerApi as unknown as SandboxWorkerApi,
         logger: logger as unknown as bunyan,
         ...options,
       });
@@ -81,7 +76,7 @@ describe('sandbox artifact uploads', () => {
   });
 
   it('returns the artifact id before the PUT completes', async () => {
-    mockMutationResults(createdResult, finalizedResult);
+    mockWorkerApi({ finalize: DOWNLOAD_URL });
     let respond!: (response: InstanceType<typeof Response>) => void;
     jest.mocked(fetch).mockReturnValueOnce(
       new Promise(resolve => {
@@ -96,34 +91,29 @@ describe('sandbox artifact uploads', () => {
     });
 
     expect(upload.id).toBe(ARTIFACT_ID);
-    expect(mutation).toHaveBeenCalledTimes(1);
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      { sandboxId: 'sandbox-id', input: { name: 'Crash log', filename: 'crash.log', size: 5 } },
+    expect(workerApi.createArtifactUploadSessionAsync).toHaveBeenCalledWith(
+      { name: 'Crash log', filename: 'crash.log', size: 5 },
       expect.anything()
     );
+    expect(workerApi.finalizeArtifactAsync).not.toHaveBeenCalled();
     respond(new Response('', { status: 200 }));
     await expect(upload.completed).resolves.toEqual({
       status: 'uploaded',
       downloadUrl: DOWNLOAD_URL,
     });
-    expect(mutation).toHaveBeenLastCalledWith(
-      expect.anything(),
-      { artifactId: ARTIFACT_ID },
-      expect.anything()
+    expect(workerApi.finalizeArtifactAsync).toHaveBeenCalledWith(
+      ARTIFACT_ID,
+      expect.objectContaining({ retries: 2 })
     );
     expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('sends exactly the stat size on every attempt when the file grows', async () => {
-    mutation
-      .mockReturnValueOnce({
-        toPromise: async () => {
-          await fs.appendFile(filePath, ' and more');
-          return createdResult;
-        },
-      })
-      .mockReturnValueOnce({ toPromise: async () => finalizedResult });
+    workerApi.createArtifactUploadSessionAsync.mockImplementationOnce(async () => {
+      await fs.appendFile(filePath, ' and more');
+      return createdSession;
+    });
+    workerApi.finalizeArtifactAsync.mockResolvedValueOnce(DOWNLOAD_URL);
     const bodies: string[] = [];
     const respondAfterReadingBody =
       (status: number) =>
@@ -153,7 +143,7 @@ describe('sandbox artifact uploads', () => {
 
   it('uploads an empty file with an empty body', async () => {
     await fs.writeFile(filePath, '');
-    mockMutationResults(createdResult, finalizedResult);
+    mockWorkerApi({ finalize: DOWNLOAD_URL });
     let body: string | undefined;
     jest.mocked(fetch).mockImplementationOnce((async (_url: unknown, init?: RequestInit) => {
       const chunks: Buffer[] = [];
@@ -171,9 +161,8 @@ describe('sandbox artifact uploads', () => {
     });
     await upload.completed;
 
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      { sandboxId: 'sandbox-id', input: { name: 'Empty log', filename: 'crash.log', size: 0 } },
+    expect(workerApi.createArtifactUploadSessionAsync).toHaveBeenCalledWith(
+      { name: 'Empty log', filename: 'crash.log', size: 0 },
       expect.anything()
     );
     expect(body).toBe('');
@@ -181,7 +170,7 @@ describe('sandbox artifact uploads', () => {
   });
 
   it('finalizes when a retry fails the upload precondition', async () => {
-    mockMutationResults(createdResult, finalizedResult);
+    mockWorkerApi({ finalize: DOWNLOAD_URL });
     jest
       .mocked(fetch)
       .mockRejectedValueOnce(
@@ -199,33 +188,20 @@ describe('sandbox artifact uploads', () => {
     await upload.completed;
 
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(mutation).toHaveBeenLastCalledWith(
-      expect.anything(),
-      { artifactId: ARTIFACT_ID },
-      expect.anything()
-    );
+    expect(workerApi.finalizeArtifactAsync).toHaveBeenCalledWith(ARTIFACT_ID, expect.anything());
     expect(logger.error).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenLastCalledWith(
       `Uploaded sandbox artifact "Crash log" (${ARTIFACT_ID}, 5 bytes).`
     );
   });
 
-  it('retries finalize after a server error and logs a failure that persists', async () => {
-    mockMutationResults(
-      createdResult,
-      {
-        error: new CombinedError({
-          networkError: new Error('Bad Gateway'),
-          response: { status: 502 },
-        }),
-      },
-      {
-        error: new CombinedError({
-          graphQLErrors: ['Sandbox artifact "Crash log" has no uploaded file.'],
-          response: { status: 200 },
-        }),
-      }
-    );
+  it('logs a finalize failure and reports the upload as failed', async () => {
+    mockWorkerApi({
+      finalize: new WorkerApiError(
+        'POST /v2/sandbox-worker/artifacts/x/finalize failed with status 502: Bad Gateway',
+        502
+      ),
+    });
     jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const upload = await uploadArtifactAsync({
@@ -235,21 +211,23 @@ describe('sandbox artifact uploads', () => {
     });
 
     await expect(upload.completed).resolves.toEqual({ status: 'failed' });
-    expect(mutation).toHaveBeenCalledTimes(3);
     expect(logger.error).toHaveBeenCalledWith(
       expect.anything(),
       `Uploaded sandbox artifact "Crash log" (${ARTIFACT_ID}), but could not finalize it.`
     );
   });
 
-  it.each(['VALIDATION_ERROR', 'UNAUTHORIZED'])(
-    'rejects a %s upload session error as a bad request with the GraphQL message',
-    async errorCode => {
+  it.each([
+    { status: 400, code: 'VALIDATION_ERROR' },
+    { status: 403, code: 'UNAUTHORIZED' },
+  ])(
+    'rejects a $code upload session error as a bad request with the API message',
+    async ({ status, code }) => {
       const message =
-        'Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
-      mockMutationResults({
-        error: new CombinedError({ graphQLErrors: [{ message, extensions: { errorCode } }] }),
-      });
+        'POST /v2/sandbox-worker/artifact-upload-sessions failed with status 400: Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
+      workerApi.createArtifactUploadSessionAsync.mockRejectedValueOnce(
+        new WorkerApiError(message, status, undefined, code)
+      );
 
       const upload = uploadArtifactAsync({
         filePath,
@@ -265,23 +243,16 @@ describe('sandbox artifact uploads', () => {
     }
   );
 
-  it('rejects an unexpected upload session error as a system error', async () => {
-    mockMutationResults({
-      error: new CombinedError({
-        graphQLErrors: [
-          { message: 'Request failed.', extensions: { errorCode: 'UNEXPECTED_ERROR' } },
-        ],
-      }),
-    });
+  it.each([
+    { status: 500, code: 'UNEXPECTED_ERROR' },
+    { status: 401, code: 'AUTHENTICATION_ERROR' },
+  ])('rethrows a $code upload session error unchanged', async ({ status, code }) => {
+    const error = new WorkerApiError('Request failed.', status, undefined, code);
+    workerApi.createArtifactUploadSessionAsync.mockRejectedValueOnce(error);
 
-    const upload = uploadArtifactAsync({
-      filePath,
-      name: 'Crash log',
-      signal: new AbortController().signal,
-    });
-
-    await expect(upload).rejects.toBeInstanceOf(SystemError);
-    await expect(upload).rejects.toMatchObject({ message: 'Request failed.' });
+    await expect(
+      uploadArtifactAsync({ filePath, name: 'Crash log', signal: new AbortController().signal })
+    ).rejects.toBe(error);
   });
 
   it('rejects a missing file as a bad request without creating an upload session', async () => {
@@ -297,11 +268,11 @@ describe('sandbox artifact uploads', () => {
       code: SandboxDaemonErrorCode.BAD_REQUEST,
       message: `File does not exist: ${missingPath}`,
     });
-    expect(mutation).not.toHaveBeenCalled();
+    expect(workerApi.createArtifactUploadSessionAsync).not.toHaveBeenCalled();
   });
 
   it('keeps the signed URL out of logs', async () => {
-    mockMutationResults(createdResult);
+    mockWorkerApi({});
     jest.mocked(fetch).mockRejectedValue(
       new FetchError(`request to ${SIGNED_URL} failed, reason: socket hang up`, 'system', {
         code: 'ECONNRESET',
@@ -323,7 +294,7 @@ describe('sandbox artifact uploads', () => {
   });
 
   it('waits for an aborted upload before the manager reports that it stopped', async () => {
-    mockMutationResults(createdResult);
+    mockWorkerApi({});
     mockPutUntilAborted();
     const controller = new AbortController();
     const manager = createManager(controller.signal);
@@ -346,36 +317,24 @@ describe('sandbox artifact uploads', () => {
     ).rejects.toMatchObject({
       name: 'AbortError',
     });
-    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(workerApi.createArtifactUploadSessionAsync).toHaveBeenCalledTimes(1);
   });
 
   it.each([
     {
       case: 'a finalized upload as uploaded with its download URL',
-      finalizeResult: finalizedResult,
+      finalize: DOWNLOAD_URL,
       outcome: { status: 'uploaded', downloadUrl: DOWNLOAD_URL },
     },
     {
       case: 'a failed finalization as failed',
-      finalizeResult: {
-        error: new CombinedError({
-          graphQLErrors: ['Sandbox artifact "Crash log" has no uploaded file.'],
-          response: { status: 200 },
-        }),
-      },
-      outcome: { status: 'failed' },
-    },
-    {
-      case: 'a finalized artifact without a download URL as failed',
-      finalizeResult: {
-        data: { sandbox: { finalizeArtifact: { id: ARTIFACT_ID, downloadUrl: null } } },
-      },
+      finalize: new WorkerApiError('Sandbox artifact "Crash log" has no uploaded file.', 400),
       outcome: { status: 'failed' },
     },
   ])(
     'waits for an upload that ends within the yield time and reports $case',
-    async ({ finalizeResult, outcome }) => {
-      mockMutationResults(createdResult, finalizeResult);
+    async ({ finalize, outcome }) => {
+      mockWorkerApi({ finalize });
       jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
       const manager = createManager(new AbortController().signal);
 
@@ -390,12 +349,10 @@ describe('sandbox artifact uploads', () => {
     const finalizeCalledPromise = new Promise<void>(resolve => {
       finalizeCalled = resolve;
     });
-    mockMutationResults(createdResult);
-    mutation.mockReturnValueOnce({
-      toPromise: async () => {
-        finalizeCalled();
-        return finalizedResult;
-      },
+    mockWorkerApi({});
+    workerApi.finalizeArtifactAsync.mockImplementationOnce(async () => {
+      finalizeCalled();
+      return DOWNLOAD_URL;
     });
     let respond!: (response: InstanceType<typeof Response>) => void;
     jest.mocked(fetch).mockReturnValueOnce(
@@ -413,11 +370,9 @@ describe('sandbox artifact uploads', () => {
   });
 
   it('counts upload session creation toward the yield time', async () => {
-    mutation.mockReturnValueOnce({
-      toPromise: async () => {
-        await delay(400);
-        return createdResult;
-      },
+    workerApi.createArtifactUploadSessionAsync.mockImplementationOnce(async () => {
+      await delay(400);
+      return createdSession;
     });
     mockPutUntilAborted();
     const controller = new AbortController();
@@ -434,8 +389,7 @@ describe('sandbox artifact uploads', () => {
 
   function createManager(signal: AbortSignal): SandboxArtifactUploadManager {
     return new SandboxArtifactUploadManager({
-      graphqlClient,
-      sandboxId: 'sandbox-id',
+      workerApi: workerApi as unknown as SandboxWorkerApi,
       logger: logger as unknown as bunyan,
       signal,
     });
@@ -451,9 +405,12 @@ describe('sandbox artifact uploads', () => {
     }) as unknown as typeof fetch);
   }
 
-  function mockMutationResults(...results: unknown[]): void {
-    for (const result of results) {
-      mutation.mockReturnValueOnce({ toPromise: async () => result });
+  function mockWorkerApi({ finalize }: { finalize?: string | Error }): void {
+    workerApi.createArtifactUploadSessionAsync.mockResolvedValueOnce(createdSession);
+    if (finalize instanceof Error) {
+      workerApi.finalizeArtifactAsync.mockRejectedValueOnce(finalize);
+    } else if (finalize !== undefined) {
+      workerApi.finalizeArtifactAsync.mockResolvedValueOnce(finalize);
     }
   }
 });
