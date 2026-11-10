@@ -6659,6 +6659,13 @@ export type CreateAndroidDeviceRunSessionInput = {
   /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). Defaults to "medium_phone". */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to
+   * ["emulator-output"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain
+   * credentials and personal data; include device-logcat only when you want to retain it.
+   * Logs are not redacted and use the existing 90-day artifact retention policy.
+   */
+  logSources?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
    * Android SDK system image package to use for the emulator (e.g.
    * "system-images;android-35;google_apis;x86_64").
    */

@@ -47535,6 +47535,26 @@
             "deprecationReason": null
           },
           {
+            "name": "logSources",
+            "description": "Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to\n[\"emulator-output\"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain\ncredentials and personal data; include device-logcat only when you want to retain it.\nLogs are not redacted and use the existing 90-day artifact retention policy.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "systemImagePackage",
             "description": "Android SDK system image package to use for the emulator (e.g.\n\"system-images;android-35;google_apis;x86_64\").",
             "type": {
