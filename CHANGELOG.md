@@ -2,6 +2,35 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.7.0](https://github.com/expo/eas-cli/releases/tag/v27.7.0) - 2026-11-10
+
+### 🎉 New features
+
+- [eas-cli] Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### 🐛 Bug fixes
+
+- [build-tools] Record Android emulator output and, when selected, device logcat during simulator sessions, and upload the last 20 MiB of each as a session artifact. ([#4822](https://github.com/expo/eas-cli/pull/4822) by [@vonovak](https://github.com/vonovak))
+- [eas-cli] Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
+## [27.6.0](https://github.com/expo/eas-cli/releases/tag/v27.6.0) - 2026-11-10
+
+### 🎉 New features
+
+- [build-tools] Reuse compatible prefetched Appium and XCUITest files without removing them during cleanup. Resolve explicit package versions, including `latest`, and reuse prepared tools only when they match. Use the launcher's runtime serve-sim version for warm adoption and recordings, including prereleases. ([#4837](https://github.com/expo/eas-cli/pull/4837) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+- [simulator-launcher] Prepare pinned Appium, XCUITest and WebDriverAgent files with `prefetch`. ([#4836](https://github.com/expo/eas-cli/pull/4836) by [@gwdp](https://github.com/gwdp))
+- [simulator-launcher] Add `simulator-launcher prefetch` to cache Expo Go downloads. ([#4834](https://github.com/expo/eas-cli/pull/4834) by [@gwdp](https://github.com/gwdp))
+- [simulator-launcher] Use caller-supplied serve-sim, agent-device and Argent versions and include exact version inputs in claims. ([#4845](https://github.com/expo/eas-cli/pull/4845) by [@gwdp](https://github.com/gwdp))
+- [simulator-launcher] Add `simulator-launcher warmup` so consumers can warm up Simulators, install Expo Go and prepare native tool caches. The command stops its tools and shuts down the selected Simulators before returning. ([#4838](https://github.com/expo/eas-cli/pull/4838) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Stop waiting for `com.apple.datamigrator` to exit before an iOS Simulator on iOS 27.2 or later counts as ready; there it stays resident, so the wait never finished. Earlier runtimes keep the wait. Take the readiness screenshot from the first integrated screen when the device lists several, so the iPhone Duo on iOS 27.2 passes the check. ([#4816](https://github.com/expo/eas-cli/pull/4816) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+- [build-tools] Require the sandbox worker token for sandbox jobs and remove the sandbox GraphQL fallback. ([#4808](https://github.com/expo/eas-cli/pull/4808) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [vm-tools] Run the macOS VM-tools service with interactive scheduling so Simulator startup and preview processes avoid launchd's default CPU and I/O throttling. ([#4833](https://github.com/expo/eas-cli/pull/4833) by [@gwdp](https://github.com/gwdp))
+
 ## [27.5.0](https://github.com/expo/eas-cli/releases/tag/v27.5.0) - 2026-11-05
 
 ### 🎉 New features

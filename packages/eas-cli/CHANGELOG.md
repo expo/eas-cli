@@ -1,5 +1,25 @@
 # eas-cli
 
+## 27.7.0
+
+### Minor Changes
+
+- Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### Patch Changes
+
+- Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
+## 27.6.0
+
+### Minor Changes
+
+- Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+
+### Patch Changes
+
+- Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+
 ## 27.5.0
 
 ### Minor Changes

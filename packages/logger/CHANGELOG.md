@@ -1,5 +1,13 @@
 # @expo/logger
 
+## 27.7.0
+
+No changes in this release.
+
+## 27.6.0
+
+No changes in this release.
+
 ## 27.5.0
 
 No changes in this release.
