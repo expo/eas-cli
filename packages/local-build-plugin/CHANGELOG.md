@@ -1,5 +1,9 @@
 # eas-cli-local-build-plugin
 
+## 27.7.0
+
+No changes in this release.
+
 ## 27.6.0
 
 No changes in this release.

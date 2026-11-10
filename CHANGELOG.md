@@ -2,6 +2,17 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.7.0](https://github.com/expo/eas-cli/releases/tag/v27.7.0) - 2026-11-10
+
+### 🎉 New features
+
+- [eas-cli] Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### 🐛 Bug fixes
+
+- [build-tools] Record Android emulator output and, when selected, device logcat during simulator sessions, and upload the last 20 MiB of each as a session artifact. ([#4822](https://github.com/expo/eas-cli/pull/4822) by [@vonovak](https://github.com/vonovak))
+- [eas-cli] Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
 ## [27.6.0](https://github.com/expo/eas-cli/releases/tag/v27.6.0) - 2026-11-10
 
 ### 🎉 New features

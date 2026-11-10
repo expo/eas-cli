@@ -1,5 +1,11 @@
 # @expo/build-tools
 
+## 27.7.0
+
+### Patch Changes
+
+- Record Android emulator output and, when selected, device logcat during simulator sessions, and upload the last 20 MiB of each as a session artifact. ([#4822](https://github.com/expo/eas-cli/pull/4822) by [@vonovak](https://github.com/vonovak))
+
 ## 27.6.0
 
 ### Minor Changes
