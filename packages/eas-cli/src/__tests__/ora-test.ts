@@ -9,12 +9,29 @@ class FakeTTYStream extends EventEmitter {
   columns = 200;
   clearLineCalls = 0;
 
+  corked = false;
+  uncorkedWrites = 0;
+
+  cork(): void {
+    this.corked = true;
+  }
+
+  uncork(): void {
+    this.corked = false;
+  }
+
   write(): boolean {
+    if (!this.corked) {
+      this.uncorkedWrites++;
+    }
     return true;
   }
 
   clearLine(): boolean {
     this.clearLineCalls++;
+    if (!this.corked) {
+      this.uncorkedWrites++;
+    }
     return true;
   }
 
@@ -67,5 +84,27 @@ describe('ora', () => {
 
     spinner.stop();
     expect(stream.listenerCount('resize')).toBe(0);
+  });
+
+  it('sends each frame as one write', () => {
+    const stream = new FakeTTYStream();
+    const spinner = ora({
+      text: 'x'.repeat(150),
+      stream: stream as unknown as NodeJS.WritableStream,
+      discardStdin: false,
+    }).start();
+
+    stream.columns = 80;
+    stream.emit('resize');
+    stream.uncorkedWrites = 0;
+    stream.clearLineCalls = 0;
+
+    jest.advanceTimersByTime(500);
+
+    expect(stream.clearLineCalls).toBeGreaterThan(0);
+    expect(stream.uncorkedWrites).toBe(0);
+    expect(stream.corked).toBe(false);
+
+    spinner.stop();
   });
 });

@@ -1,6 +1,7 @@
 import { boolish } from 'getenv';
 // eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
+import type { Writable } from 'stream';
 
 import Log from './log';
 
@@ -44,6 +45,23 @@ export function ora(options?: Options | string): Ora {
   // terminal gets narrower, it clears too few lines and every frame leaves a copy behind.
   const onResize = (): void => {
     spinner.text = spinner.text;
+  };
+
+  // ora draws a frame as several writes: clear each line, move the cursor, then write the text.
+  // A terminal can paint between them and show a blank line, which flickers, most visibly when
+  // the text wraps. Corking the stream sends the whole frame as one write.
+  const oraRender = spinner.render.bind(spinner);
+  const corkable = stream as Partial<Pick<Writable, 'cork' | 'uncork'>>;
+  spinner.render = (): Ora => {
+    if (!corkable.cork || !corkable.uncork) {
+      return oraRender();
+    }
+    corkable.cork();
+    try {
+      return oraRender();
+    } finally {
+      corkable.uncork();
+    }
   };
 
   const oraStart = spinner.start.bind(spinner);
