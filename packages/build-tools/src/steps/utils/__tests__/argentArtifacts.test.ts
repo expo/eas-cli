@@ -155,17 +155,18 @@ describe(uploadArgentArtifactAsync, () => {
     });
   });
 
-  async function uploadAsync(artifact: {
-    id: string;
-    kind?: string;
-    filename: string;
-    mimeType: string;
-    isDirectory?: boolean;
-  }): Promise<CustomBuildContext> {
+  async function uploadAsync(
+    artifact: {
+      id: string;
+      kind?: string;
+      filename: string;
+      mimeType: string;
+      isDirectory?: boolean;
+    },
+    data = Buffer.from('artifact-data')
+  ): Promise<CustomBuildContext> {
     const ctx = {} as unknown as CustomBuildContext;
-    jest
-      .mocked(fetch)
-      .mockResolvedValueOnce(new Response(Readable.from([Buffer.from('artifact-data')])));
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
       .mockImplementationOnce(async (_ctx, { openStream }) => {
@@ -198,6 +199,42 @@ describe(uploadArgentArtifactAsync, () => {
       ctx,
       expect.objectContaining({ filename, kind })
     );
+  });
+
+  it('sends the size of a screenshot read from its header', async () => {
+    const png = Buffer.alloc(33);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
+    png.writeUInt32BE(13, 8);
+    png.write('IHDR', 12, 'latin1');
+    png.writeUInt32BE(1179, 16);
+    png.writeUInt32BE(2556, 20);
+    const ctx = await uploadAsync(
+      { id: 'artifact-id', filename: 'screen.png', mimeType: 'image/png' },
+      png
+    );
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        kind: 'screenshot',
+        metadata: { source: 'argent', width: 1179, height: 2556 },
+      })
+    );
+  });
+
+  it('sends no screenshot metadata for other artifacts', async () => {
+    await uploadAsync({ id: 'artifact-id', filename: 'session.mp4', mimeType: 'video/mp4' });
+    await uploadAsync({
+      id: 'artifact-id',
+      kind: 'screenshot',
+      filename: 'screenshots',
+      mimeType: 'image/png',
+      isDirectory: true,
+    });
+
+    for (const [, input] of jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls) {
+      expect(input).not.toHaveProperty('metadata');
+    }
   });
 
   it('uses the semantic kind reported by Argent', async () => {
