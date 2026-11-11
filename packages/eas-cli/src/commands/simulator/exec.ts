@@ -10,7 +10,7 @@ import {
 export default class SimulatorExec extends EasCommand {
   static override aliases = getSimulatorCommandAliases('exec');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('exec');
-  static override description = `[EXPERIMENTAL] execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
+  static override description = `execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
   static override strict = false;
 
   static override contextDefinition = {

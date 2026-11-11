@@ -101,7 +101,7 @@ export default class Simulator extends EasCommand {
     ...SIMULATOR_HIDDEN_TOPIC_ALIASES,
     ...getSimulatorCommandHiddenAliases('start'),
   ];
-  static override description = `[EXPERIMENTAL] start a remote simulator session on EAS
+  static override description = `start a remote simulator session on EAS
 
 Preview links require sign-in by default.
 
@@ -224,7 +224,7 @@ With local egress, actions wait for the connection and require interactive mode.
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
+        '[EXPERIMENTAL] With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
