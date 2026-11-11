@@ -198,6 +198,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       serialId: 'emulator-5554' as never,
       emulatorPromise: Promise.resolve(),
       shouldAdjustAnimationScale: true,
+      shouldReloadDeviceProfile: true,
     });
     jest
       .mocked(installBuildAsync)

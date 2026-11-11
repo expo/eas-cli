@@ -7,6 +7,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../../utils/AndroidEmulatorUtils';
+import { AndroidEmulatorDeviceProfile } from '../../../utils/androidEmulatorDeviceProfile';
 import { retryAsync } from '../../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocalEgress';
 import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
@@ -28,6 +29,12 @@ jest.mock('../../utils/androidLocalEgress', () => ({
 
 jest.mock('../../utils/androidEmulatorLogs');
 
+jest.mock('../../../utils/androidEmulatorDeviceProfile', () => ({
+  AndroidEmulatorDeviceProfile: {
+    reloadAsync: jest.fn(),
+  },
+}));
+
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
   AndroidEmulatorUtils: {
     defaultSystemImagePackage: 'system-images;android-30;default;x86_64',
@@ -44,6 +51,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
+const mockedDeviceProfile = jest.mocked(AndroidEmulatorDeviceProfile);
 const mockedResolveLocalEgress = jest.mocked(resolveAndroidEmulatorLocalEgressAsync);
 const mockedMkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
 function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
@@ -80,6 +88,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
+    mockedDeviceProfile.reloadAsync.mockResolvedValue(undefined);
     mockedResolveLocalEgress.mockResolvedValue(null);
 
     mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
@@ -399,6 +408,50 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         serialId: 'emulator-default',
       })
     );
+  });
+
+  it('reloads the device profile after boot, before the animation adjustments', async () => {
+    await createStep({ device_identifier: 'pixel_9' }).executeAsync();
+
+    expect(mockedDeviceProfile.reloadAsync).toHaveBeenCalledWith({
+      serialId: 'emulator-default',
+      deviceIdentifier: 'pixel_9',
+      env: expect.any(Object),
+      logger: expect.anything(),
+    });
+    expect(mockedAndroidUtils.waitForReadyAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedDeviceProfile.reloadAsync.mock.invocationCallOrder[0]
+    );
+    expect(mockedDeviceProfile.reloadAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('reloads the device profile on every clone', async () => {
+    mockedAndroidUtils.startAsync
+      .mockResolvedValueOnce(createStartResult('emulator-base'))
+      .mockResolvedValueOnce(createStartResult('emulator-clone-1'))
+      .mockResolvedValueOnce(createStartResult('emulator-clone-2'));
+
+    await createStep({ device_identifier: 'pixel_9', count: 2 }).executeAsync();
+
+    expect(mockedDeviceProfile.reloadAsync.mock.calls.map(([options]) => options.serialId)).toEqual(
+      ['emulator-base', 'emulator-clone-1', 'emulator-clone-2']
+    );
+    for (const [options] of mockedDeviceProfile.reloadAsync.mock.calls) {
+      expect(options.deviceIdentifier).toBe('pixel_9');
+    }
+  });
+
+  it('skips the device profile reload when opt out env var is disabled', async () => {
+    const step = createStep(
+      { device_identifier: 'pixel_9' },
+      { ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE: '0' }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedDeviceProfile.reloadAsync).not.toHaveBeenCalled();
   });
 
   it('skips animation scale adjustments when opt out env var is disabled', async () => {

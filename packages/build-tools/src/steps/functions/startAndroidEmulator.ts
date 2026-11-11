@@ -20,6 +20,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
+import { AndroidEmulatorDeviceProfile } from '../../utils/androidEmulatorDeviceProfile';
 import { type AndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogCapture';
 import { retryAsync } from '../../utils/retry';
 import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgress';
@@ -100,12 +101,13 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       outputs.logcat_directory.set(logcatDirectory);
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
-      const { serialId, emulatorPromise, shouldAdjustAnimationScale } =
+      // We can cast because allowedValueTypeName validated this is a string.
+      const deviceIdentifier = inputs.device_identifier.value as AndroidDeviceName | undefined;
+      const { serialId, emulatorPromise, shouldAdjustAnimationScale, shouldReloadDeviceProfile } =
         await startAndroidEmulatorAsync({
           deviceName,
           systemImagePackage: `${inputs.system_image_package.value}`,
-          // We can cast because allowedValueTypeName validated this is a string.
-          deviceIdentifier: inputs.device_identifier.value as AndroidDeviceName | undefined,
+          deviceIdentifier,
           lcdWidth: inputs.lcd_width.value as number | undefined,
           lcdHeight: inputs.lcd_height.value as number | undefined,
           lcdDensity: inputs.lcd_density.value as number | undefined,
@@ -160,6 +162,14 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   timeoutMs,
                   logger,
                 });
+                if (shouldReloadDeviceProfile) {
+                  await AndroidEmulatorDeviceProfile.reloadAsync({
+                    serialId: cloneSerialId,
+                    deviceIdentifier,
+                    env,
+                    logger,
+                  });
+                }
                 if (shouldAdjustAnimationScale) {
                   await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
                     env,
@@ -237,6 +247,7 @@ export async function startAndroidEmulatorAsync({
   serialId: AndroidDeviceSerialId;
   emulatorPromise: Promise<unknown>;
   shouldAdjustAnimationScale: boolean;
+  shouldReloadDeviceProfile: boolean;
 }> {
   if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
     await assertAndroidEmulatorHostSupportAsync({ env });
@@ -262,6 +273,16 @@ export async function startAndroidEmulatorAsync({
   if (!shouldAdjustAnimationScale) {
     logger.info(
       'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
+    );
+  }
+
+  const shouldReloadDeviceProfile =
+    env.ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE !== 'false' &&
+    env.ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE !== '0';
+
+  if (!shouldReloadDeviceProfile) {
+    logger.info(
+      'Skipping the Android emulator device profile reload because $ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE is disabled.'
     );
   }
 
@@ -323,6 +344,14 @@ export async function startAndroidEmulatorAsync({
           logger,
           ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
         });
+        if (shouldReloadDeviceProfile) {
+          await AndroidEmulatorDeviceProfile.reloadAsync({
+            serialId: attemptSerialId,
+            deviceIdentifier,
+            env,
+            logger,
+          });
+        }
         if (shouldAdjustAnimationScale) {
           await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
             env,
@@ -368,7 +397,7 @@ export async function startAndroidEmulatorAsync({
   if (!serialId || !emulatorPromise) {
     throw new Error(`Failed to start emulator ${deviceName}.`);
   }
-  return { serialId, emulatorPromise, shouldAdjustAnimationScale };
+  return { serialId, emulatorPromise, shouldAdjustAnimationScale, shouldReloadDeviceProfile };
 }
 
 async function assertAndroidEmulatorHostSupportAsync({
