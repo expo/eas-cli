@@ -1040,14 +1040,14 @@ describe(Simulator, () => {
     });
   });
 
-  it('fails with the waitlist link without creating a session when the account is gated', async () => {
+  it('fails with the upgrade link without creating a session when the account is gated', async () => {
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
     await expect(command.runAsync()).rejects.toThrow(
-      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
-        'Join the waitlist to get access: https://expo.dev/services/simulators'
+      "EAS Simulator isn't enabled for testuser. It's available on the Starter, Production, and Enterprise plans.\n" +
+        'Upgrade, or update billing if a payment is past due: https://expo.dev/accounts/testuser/settings/billing'
     );
     expect(mockAvailabilityByAppIdAsync).toHaveBeenCalledWith(graphqlClient, 'project-123');
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();

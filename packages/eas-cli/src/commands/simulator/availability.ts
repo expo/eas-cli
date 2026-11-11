@@ -3,13 +3,11 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { getAccountBillingUrl } from '../../build/utils/url';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
-import {
-  EAS_SIMULATOR_WAITLIST_URL,
-  formatSimulatorUnavailableMessage,
-} from '../../simulator/utils';
+import { formatSimulatorUnavailableMessage } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   getSimulatorCommandAliases,
@@ -65,8 +63,8 @@ export default class SimulatorAvailability extends EasCommand {
       printJsonOnlyOutput({
         available,
         accountName,
-        // Only present when gated, so scripts and agents can pass the waitlist link on.
-        ...(available ? {} : { waitlistUrl: EAS_SIMULATOR_WAITLIST_URL }),
+        // Only present when gated, so scripts and agents can pass the upgrade link on.
+        ...(available ? {} : { billingUrl: getAccountBillingUrl(accountName) }),
       });
       return;
     }
