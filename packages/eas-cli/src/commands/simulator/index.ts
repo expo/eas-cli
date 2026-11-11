@@ -397,12 +397,6 @@ With local egress, actions wait for the connection and require interactive mode.
       );
     }
 
-    if (platform === AppPlatform.Android) {
-      Log.warn(
-        'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
-      );
-      Log.newLine();
-    }
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
