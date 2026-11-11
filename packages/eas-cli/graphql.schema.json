@@ -1908,6 +1908,18 @@
             "description": "Environment secrets for an account",
             "args": [
               {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "filterNames",
                 "description": null,
                 "type": {
@@ -1951,7 +1963,20 @@
           {
             "name": "environmentVariableEnvironments",
             "description": null,
-            "args": [],
+            "args": [
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -1998,6 +2023,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -2055,6 +2092,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -4876,7 +4925,7 @@
           },
           {
             "name": "setEnvironmentVariableProtectionEnabled",
-            "description": "Set whether environment variable protection is on for this account. When it is on, reading,\nusing, creating, changing, or deleting an environment variable whose environments are\nexclusively production needs the PUBLISH_PROTECTED permission on the account, whatever its\nvisibility, in every project of the account. Requires the ADMIN permission on the account.\nTurning protection off also requires a sudo session.",
+            "description": "Set whether environment variable protection is on for this account. When it is on, reading,\nusing, creating, changing, or deleting an environment variable whose environments are\nexclusively production needs the PUBLISH_PROTECTED permission on the account, whatever its\nvisibility, in every project of the account. Requires the ADMIN permission on the account.",
             "args": [
               {
                 "name": "accountID",
@@ -11641,6 +11690,18 @@
             "description": "Environment secrets for an app",
             "args": [
               {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "filterNames",
                 "description": null,
                 "type": {
@@ -11684,7 +11745,20 @@
           {
             "name": "environmentVariableEnvironments",
             "description": null,
-            "args": [],
+            "args": [
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -11715,6 +11789,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -11772,6 +11858,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "EnvironmentVariableEnvironment",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "excludeProductionOnly",
+                "description": "Leave out variables whose only environment is production. In an account with environment\nvariable protection, a member without the Release Manager role may not read them, and the\nrequest fails unless it leaves them out.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -20634,7 +20732,7 @@
         "fields": [
           {
             "name": "affectedSessions",
-            "description": "Distinct sessions on this platform that hit any exception.",
+            "description": "Distinct sessions on this platform that hit any exception, including installations outside the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20650,7 +20748,7 @@
           },
           {
             "name": "affectedUsers",
-            "description": "Distinct users on this platform that hit any exception.",
+            "description": "Distinct users on this platform that hit any exception, including installations outside the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20666,7 +20764,7 @@
           },
           {
             "name": "crashFreeSessions",
-            "description": "Fraction (0..1) of this platform's active sessions without a fatal error.",
+            "description": "Fraction (0..1) of this platform's active sessions without a fatal error. Counts only installations in the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20682,7 +20780,7 @@
           },
           {
             "name": "crashFreeUsers",
-            "description": "Fraction (0..1) of this platform's active users without a fatal error.",
+            "description": "Fraction (0..1) of this platform's active users without a fatal error. Counts only installations in the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20796,7 +20894,7 @@
         "fields": [
           {
             "name": "affectedSessions",
-            "description": "Distinct sessions that hit any exception.",
+            "description": "Distinct sessions that hit any exception, including installations outside the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20812,7 +20910,7 @@
           },
           {
             "name": "affectedUsers",
-            "description": "Distinct users that hit any exception.",
+            "description": "Distinct users that hit any exception, including installations outside the sampleRate sample that send errors because of errorSampleRate.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20828,7 +20926,7 @@
           },
           {
             "name": "crashFreeSessions",
-            "description": "Fraction (0..1) of active sessions without a fatal error. Denominator spans app_metrics and app_events.",
+            "description": "Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample. Denominator spans app_metrics and app_events.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20844,7 +20942,7 @@
           },
           {
             "name": "crashFreeUsers",
-            "description": "Fraction (0..1) of active users without a fatal error.",
+            "description": "Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -26227,7 +26325,7 @@
           },
           {
             "name": "crashFreeSessions",
-            "description": "Fraction (0..1) of active sessions without a fatal error.",
+            "description": "Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -26243,7 +26341,7 @@
           },
           {
             "name": "crashFreeUsers",
-            "description": "Fraction (0..1) of active users without a fatal error.",
+            "description": "Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -26259,7 +26357,7 @@
           },
           {
             "name": "crashedUsers",
-            "description": "Distinct users that hit a fatal error in range.",
+            "description": "Distinct users that hit a fatal error in range, including installations outside the sampleRate sample.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -27931,6 +28029,26 @@
             "deprecationReason": null
           },
           {
+            "name": "scopes",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "statusCodes",
             "description": null,
             "type": {
@@ -28376,6 +28494,22 @@
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "scopeName",
+            "description": "The instrumentation scope that produced the span (OTLP scopeSpans.scope.name), such as\nexpo-observe.network. Empty when the span was sent without a scope or stored before scopes were kept.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -29069,6 +29203,26 @@
               "kind": "SCALAR",
               "name": "Boolean",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "scopes",
+            "description": "Spans produced by any of these instrumentation scopes, such as expo-observe.network.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -47370,11 +47524,31 @@
         "inputFields": [
           {
             "name": "deviceIdentifier",
-            "description": "AVD hardware profile id to use for the emulator (e.g. \"pixel_9\").",
+            "description": "AVD hardware profile id to use for the emulator (e.g. \"pixel_9\"). Defaults to \"medium_phone\".",
             "type": {
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "logSources",
+            "description": "Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to\n[\"emulator-output\"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain\ncredentials and personal data; include device-logcat only when you want to retain it.\nLogs are not redacted and use the existing 90-day artifact retention policy.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -48791,7 +48965,7 @@
         "inputFields": [
           {
             "name": "deviceIdentifier",
-            "description": "Simulator device name or UDID to use for the session (e.g. \"iPhone 16 Pro\").",
+            "description": "Simulator device name or UDID to use for the session (e.g. \"iPhone 16 Pro\"). Defaults to\n\"iPhone 17\".",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -52293,6 +52467,18 @@
                 "name": "DateTime",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deviceIdentifier",
+            "description": "The simulator or emulator the session starts: the requested simulator device\nname or UDID on iOS, or the AVD hardware profile id on Android, or the platform\ndefault when none is requested. Null on sessions created before it was saved.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -60746,9 +60932,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -102793,10 +102983,65 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "WorkflowRunGitInput",
+        "description": "Git metadata for a run started from an uploaded project. The commit must exist in the\nproject's linked GitHub repository. The run records the branch and commit but is not\nlinked to the repository.",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "branch",
+            "description": "Branch name such as \"main\". Stored as refs/heads/<branch>. Fully qualified refs are rejected.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "commitHash",
+            "description": "Full commit SHA. The commit message is read from GitHub.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "WorkflowRunInput",
         "description": null,
         "fields": null,
         "inputFields": [
+          {
+            "name": "git",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "WorkflowRunGitInput",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "inputs",
             "description": null,
@@ -103442,6 +103687,12 @@
           },
           {
             "name": "MANUAL",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "OBSERVE_NEW_ERROR",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

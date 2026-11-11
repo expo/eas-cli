@@ -3,6 +3,8 @@ import { type ChildProcess } from 'node:child_process';
 import { createWarmSimulatorSession } from '../commands/start';
 import { createArgentTool } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
+import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
+import { getConfiguredToolVersions } from '../utils/packageSpecs';
 import {
   type ChildProcessHandle,
   commands,
@@ -17,6 +19,8 @@ import {
 import { deferred, until } from './helpers';
 
 jest.mock('../utils/expoGo');
+jest.mock('../utils/preparedExpoGo');
+jest.mock('../utils/packageSpecs');
 jest.mock('../utils/argent');
 jest.mock('../utils/processes');
 jest.mock('../utils/serveSim');
@@ -70,6 +74,12 @@ function mockDefaultExpoGoInstall(install: Promise<void>) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(readPreparedExpoGoAsync).mockResolvedValue(undefined);
+  jest.mocked(getConfiguredToolVersions).mockReturnValue({
+    serveSimVersion: '0.13.3',
+    agentDeviceVersion: '0.21.36',
+    argentVersion: '0.32.0',
+  });
   env = { ...process.env };
   process.env.EXPO_SIMULATOR_DEVICE = 'iPhone Duo,iPhone 18';
   process.env.AGENT_DEVICE_STATE_DIR = '/fixture/agent';
@@ -116,6 +126,70 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+it('warmup waits for both devices, both installs and tools after default readiness', async () => {
+  const secondaryBoot = deferred();
+  const install = deferred();
+  const tool = deferred();
+  jest.mocked(waitForSimulatorBootAsync).mockReturnValue(secondaryBoot.promise);
+  const preinstall = mockDefaultExpoGoInstall(install.promise);
+  preinstall.claimAsync.mockImplementation(async () => ({ udid: 'DUO' }) as never);
+  jest.mocked(createArgentTool).mockReturnValue({
+    name: 'argent',
+    startAsync: () => tool.promise,
+    stopAsync: async () => {},
+  });
+  const session = createSession();
+  await session.prepareAsync();
+  let done = false;
+  const finishing = session.waitForWarmupAsync().then(() => {
+    done = true;
+  });
+  try {
+    install.resolve();
+    tool.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+    expect(done).toBe(false);
+    secondaryBoot.resolve();
+    await finishing;
+    expect(preinstall.preinstallOnDeviceAsync.mock.calls.map(([udid]) => udid)).toEqual([
+      'DUO',
+      'PHONE18',
+    ]);
+    expect(preinstall.claimAsync).toHaveBeenCalledWith('DUO');
+    expect(preinstall.claimAsync).toHaveBeenCalledWith('PHONE18');
+  } finally {
+    install.resolve();
+    secondaryBoot.resolve();
+    tool.resolve();
+    await session.stopAsync();
+  }
+});
+
+it('warmup completion rejects an Expo Go install that runtime preparation only warns about', async () => {
+  const session = createSession();
+  await session.prepareAsync();
+  try {
+    await expect(session.waitForWarmupAsync()).rejects.toThrow(
+      'Expo Go preparation did not finish'
+    );
+  } finally {
+    await session.stopAsync();
+  }
+});
+
+it('warmup completion fails when the secondary Simulator cannot boot', async () => {
+  jest.mocked(waitForSimulatorBootAsync).mockRejectedValue(new Error('secondary boot failed'));
+  const session = createSession();
+  await session.prepareAsync();
+  try {
+    await expect(session.waitForWarmupAsync()).rejects.toThrow('secondary boot failed');
+  } finally {
+    await session.stopAsync();
+  }
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('DUO');
+  expect(shutdownSimulatorAsync).toHaveBeenCalledWith('PHONE18');
+});
+
 it('creates a stoppable owner before any native work and does not start after stop', async () => {
   const session = createSession();
   expect(commands.runAsync).not.toHaveBeenCalled();
@@ -131,6 +205,9 @@ it('stop joins pending device selection without starting a late server', async (
   const session = createSession();
   const preparing = session.prepareAsync();
   void preparing.catch(() => {});
+  await until(() =>
+    jest.mocked(commands.runAsync).mock.calls.some(([, args]) => args.includes('devices'))
+  );
   let stopped = false;
   const stopping = session.stopAsync().then(() => {
     stopped = true;
@@ -589,4 +666,24 @@ it('warns on ordinary adopted-device apsd failure without failing the claimed se
   expect(warning.mock.calls.map(([text]) => text).join('')).toContain(
     'Could not disable apsd on OTHER; continuing'
   );
+});
+
+it('stop joins a pending manifest read and never starts a late native process', async () => {
+  const metadata = deferred<undefined>();
+  jest.mocked(readPreparedExpoGoAsync).mockReturnValue(metadata.promise);
+  const session = createSession();
+  const preparing = session.prepareAsync();
+  void preparing.catch(() => {});
+  await until(() => jest.mocked(readPreparedExpoGoAsync).mock.calls.length > 0);
+  let stopped = false;
+  const stopping = session.stopAsync().then(() => {
+    stopped = true;
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  expect(stopped).toBe(false);
+  metadata.resolve(undefined);
+  await stopping;
+  await expect(preparing).rejects.toThrow();
+  expect(commands.runAsync).not.toHaveBeenCalled();
+  expect(startServeSim).not.toHaveBeenCalled();
 });

@@ -108,7 +108,10 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
         startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
       });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
-      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+      const startSessionAsync = async (
+        warmSession?: WarmIosSession,
+        resolvedPackageVersion = packageVersion
+      ): Promise<void> => {
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
@@ -149,7 +152,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             preview: { baseDomain: ngrokTunnelDomain, authtoken: ngrokAuthtoken },
             signal: startupSignal,
             onStartupError: error => startupAbortController.abort(error),
-            packageVersion,
+            packageVersion: resolvedPackageVersion,
             disableShare: inputs.public_preview?.value === false,
             privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
             frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),

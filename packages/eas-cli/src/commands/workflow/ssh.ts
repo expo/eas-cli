@@ -105,6 +105,13 @@ export default class WorkflowSsh extends EasCommand {
   static override description =
     '[EXPERIMENTAL] open an ssh session on the worker running a workflow job';
 
+  static override usage = 'workflow:ssh [--show-connect] ID';
+
+  static override examples = [
+    '$ eas workflow:ssh <ID>  \t # Open an SSH session on the worker. Use the ID in the job logs ("Start SSH session" step)',
+    '$ eas workflow:ssh --show-connect <ID>  \t # Print the ssh command to connect, without opening the SSH session',
+  ];
+
   static override strict = false;
 
   static override flags = {

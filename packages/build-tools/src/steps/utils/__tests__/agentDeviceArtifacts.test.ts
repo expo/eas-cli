@@ -217,8 +217,12 @@ describe(uploadAgentDeviceArtifactAsync, () => {
     );
   });
 
-  it('uploads a screenshot display rotation as artifact metadata', async () => {
-    const data = Buffer.from('png-data');
+  it('uploads the screenshot size, source and display rotation as artifact metadata', async () => {
+    const data = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=',
+      'base64'
+    );
+    const logger = createLoggerMock();
     const ctx = {} as unknown as CustomBuildContext;
 
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
@@ -232,7 +236,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
-      logger: createLoggerMock(),
+      logger,
       artifact: {
         id: 'artifact-id',
         artifactType: 'screenshot',
@@ -245,12 +249,48 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       ctx,
       expect.objectContaining({
         kind: 'screenshot',
-        metadata: { displayRotation: 'landscape-right' },
+        metadata: {
+          source: 'agent-device',
+          displayRotation: 'landscape-right',
+          width: 1,
+          height: 1,
+        },
       })
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('uploads a screenshot without its size and warns when its header cannot be read', async () => {
+    const data = Buffer.from('not-an-image');
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { openStream }) => {
+        await readStreamAsync(openStream());
+      });
+
+    await uploadAgentDeviceArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger,
+      artifact: { id: 'artifact-id', artifactType: 'screenshot', filename: 'shot.png' },
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ kind: 'screenshot', metadata: { source: 'agent-device' } })
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ file: expect.stringMatching(/shot\.png$/) }),
+      expect.stringContaining('without its width and height')
     );
   });
 
-  it('uploads no metadata when the artifact has no display rotation', async () => {
+  it('uploads no metadata for a non-screenshot artifact without a display rotation', async () => {
     const data = Buffer.from('artifact-data');
     const ctx = {} as unknown as CustomBuildContext;
 
@@ -266,7 +306,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
       logger: createLoggerMock(),
-      artifact: { id: 'artifact-id', artifactType: 'screenshot', filename: 'shot.png' },
+      artifact: { id: 'artifact-id', artifactType: 'screen-recording', filename: 'session.mp4' },
     });
 
     expect(jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls[0][1]).not.toHaveProperty(

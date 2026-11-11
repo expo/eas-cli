@@ -2,6 +2,8 @@ import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import { resolveSimulatorPackageVersionAsync } from '../../../utils/simulatorPackageVersion';
+import { stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
 import { fetchWebPreviewTurnArgsAsync } from '../remoteDeviceRunSession';
 import {
@@ -16,6 +18,8 @@ import {
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('@expo/turtle-spawn');
+jest.mock('../../../utils/simulatorPackageVersion');
+jest.mock('../../../utils/warmSimulator');
 jest.mock('../IosSimulatorRecordingUtils');
 jest.mock('../warmIosSession');
 jest.mock('../localEgress');
@@ -85,9 +89,11 @@ it('sets proxy environment on the exact adopted Simulator before preparing tools
 });
 
 it('adopts the warm device on the warm port with its recording, then prepares tools', async () => {
+  warm.serveSimVersion = '0.13.3';
   const server = createWarmDeviceSessionServer(ctx, logger, warm);
   expect(server).toMatchObject({
     port: 3200,
+    serveSimVersion: '0.13.3',
     requiresPreviewRetirement: true,
     preinstalledApp: warm.preinstalledExpoGo,
   });
@@ -149,7 +155,7 @@ describe(runOnWarmIosSimulatorAsync, () => {
     jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(undefined);
     const run = jest.fn().mockResolvedValue('cold');
     await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('cold');
-    expect(run).toHaveBeenCalledWith(undefined);
+    expect(run).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it('runs on the claimed warm Simulator', async () => {
@@ -157,7 +163,7 @@ describe(runOnWarmIosSimulatorAsync, () => {
     const run = jest.fn().mockResolvedValue('warm');
     await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('warm');
     expect(run).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenCalledWith(warm);
+    expect(run).toHaveBeenCalledWith(warm, undefined);
   });
 
   it('stops warmup and runs cold after an adoption failure', async () => {
@@ -168,7 +174,71 @@ describe(runOnWarmIosSimulatorAsync, () => {
       .mockResolvedValueOnce('cold');
     await expect(runOnWarmIosSimulatorAsync(claim, run)).resolves.toBe('cold');
     expect(warm.process.stopAsync).toHaveBeenCalledTimes(1);
-    expect(run).toHaveBeenLastCalledWith(undefined);
+    expect(run).toHaveBeenLastCalledWith(undefined, undefined);
+  });
+
+  it.each([true, false])(
+    'uses the resolved request for claim and setup (warm: %s)',
+    async reuse => {
+      jest.mocked(resolveSimulatorPackageVersionAsync).mockResolvedValue('0.14.0');
+      jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(reuse ? warm : undefined);
+      const request = { ...claim, env: { EAS_USE_WARM_SIMULATOR: '1' }, packageVersion: 'latest' };
+      const run = jest.fn().mockResolvedValue('done');
+      await expect(runOnWarmIosSimulatorAsync(request, run)).resolves.toBe('done');
+      expect(tryClaimWarmIosSessionAsync).toHaveBeenCalledWith({
+        ...request,
+        packageVersion: '0.14.0',
+      });
+      expect(run).toHaveBeenCalledWith(reuse ? warm : undefined, '0.14.0');
+    }
+  );
+
+  it('keeps the resolved version through an adoption failure', async () => {
+    jest.mocked(resolveSimulatorPackageVersionAsync).mockResolvedValue('0.14.0');
+    jest.mocked(tryClaimWarmIosSessionAsync).mockResolvedValue(warm);
+    const run = jest
+      .fn()
+      .mockRejectedValueOnce(new WarmSessionAdoptionError())
+      .mockResolvedValue('cold');
+    await runOnWarmIosSimulatorAsync(
+      { ...claim, env: { EAS_USE_WARM_SIMULATOR: '1' }, packageVersion: 'latest' },
+      run
+    );
+    expect(resolveSimulatorPackageVersionAsync).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls).toEqual([
+      [warm, '0.14.0'],
+      [undefined, '0.14.0'],
+    ]);
+  });
+
+  it('stops warmup and fails when an explicit request cannot be resolved', async () => {
+    const error = new Error('lookup failed');
+    jest.mocked(resolveSimulatorPackageVersionAsync).mockRejectedValue(error);
+    const run = jest.fn();
+    await expect(
+      runOnWarmIosSimulatorAsync(
+        { ...claim, env: { EAS_USE_WARM_SIMULATOR: '1' }, packageVersion: 'latest' },
+        run
+      )
+    ).rejects.toBe(error);
+    expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+    expect(tryClaimWarmIosSessionAsync).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('preserves lookup and cleanup failures without starting a session', async () => {
+    const lookup = new Error('lookup failed');
+    const cleanup = new Error('cleanup failed');
+    jest.mocked(resolveSimulatorPackageVersionAsync).mockRejectedValue(lookup);
+    jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(cleanup);
+    const run = jest.fn();
+    await expect(
+      runOnWarmIosSimulatorAsync(
+        { ...claim, env: { EAS_USE_WARM_SIMULATOR: '1' }, packageVersion: 'latest' },
+        run
+      )
+    ).rejects.toMatchObject({ errors: [lookup, cleanup] });
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('does not run cold after a failure during the session', async () => {

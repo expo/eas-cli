@@ -202,7 +202,12 @@ export async function startUptermHostAsync(
   await spawn('ssh-keygen', ['-t', 'ed25519', '-N', '', '-f', hostKeyPath, '-q'], {
     logger: ctx.logger,
   });
-  await fs.writeFile(forceCommandPath, '#!/usr/bin/env bash\nexec bash -l\n', { mode: 0o755 });
+  const quotedBuildDirectory = `'${ctx.buildDirectory.replaceAll("'", "'\\''")}'`;
+  await fs.writeFile(
+    forceCommandPath,
+    `#!/usr/bin/env bash\ncd -- ${quotedBuildDirectory}\nexec bash -l\n`,
+    { mode: 0o755 }
+  );
 
   let currentProcess: SpawnPromise<SpawnResult> | null = null;
 

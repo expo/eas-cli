@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
+import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('../../../utils/warmSimulator');
@@ -84,6 +85,24 @@ it('takes the preinstalled Expo Go that prepare-tools reports', async () => {
   expect(session!.preinstalledExpoGo).toEqual(expoGo);
 });
 
+it('keeps the exact serve-sim version from the launcher claim', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockResolvedValueOnce(JSON.stringify({ ...claim, serveSimVersion: '0.13.3' }));
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  expect(session?.serveSimVersion).toBe('0.13.3');
+});
+
+it('stops warmup when the claim contains an invalid serve-sim version', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockResolvedValueOnce(JSON.stringify({ ...claim, serveSimVersion: 'latest' }));
+  await expect(
+    tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger })
+  ).resolves.toBeUndefined();
+  expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+});
+
 it('reads the agent-device server after tool preparation', async () => {
   jest
     .spyOn(fs, 'readFile')
@@ -121,7 +140,6 @@ it.each([
     {},
     () => jest.mocked(runSimulatorLauncherAsync).mockRejectedValue(new Error('no session')),
   ],
-  ['a pinned package version', { packageVersion: '1.2.3' }, () => {}],
   ['a job Simulator setting', { env: { ...env, SIMCTL_CHILD_FOO: '1' } }, () => {}],
 ])('stops warmup and returns nothing for %s', async (_name, options, setup) => {
   setup();
@@ -160,4 +178,70 @@ it('stops warmup before claiming when the egress handoff is malformed', async ()
   ).resolves.toBeUndefined();
   expect(runSimulatorLauncherAsync).not.toHaveBeenCalled();
   expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['serve-sim', 'serveSimVersion'],
+  ['agent-device', 'agentDeviceVersion'],
+  ['argent', 'argentVersion'],
+] as const)(
+  'reuses %s only when its recorded version matches the resolved request',
+  async (engine, field) => {
+    jest
+      .mocked(runSimulatorLauncherAsync)
+      .mockResolvedValue(JSON.stringify({ ...claim, [field]: '1.2.3' }));
+    await expect(
+      tryClaimWarmIosSessionAsync({ engine, packageVersion: '1.2.3', env, logger })
+    ).resolves.toBeDefined();
+    expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+    await expect(
+      tryClaimWarmIosSessionAsync({ engine, packageVersion: '1.2.4', env, logger })
+    ).resolves.toBeUndefined();
+    expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+  }
+);
+
+it.each(['serve-sim', 'agent-device', 'argent'] as const)(
+  'uses normal setup for %s when older claims omit its version',
+  async engine => {
+    await expect(
+      tryClaimWarmIosSessionAsync({ engine, packageVersion: '1.2.3', env, logger })
+    ).resolves.toBeUndefined();
+    expect(stopWarmSimulatorAsync).toHaveBeenCalledTimes(1);
+  }
+);
+
+it('accepts a resolved prerelease pin for matching warm adoption', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockResolvedValue(JSON.stringify({ ...claim, serveSimVersion: '0.13.4-beta.1+build.2' }));
+  await expect(
+    tryClaimWarmIosSessionAsync({
+      engine: 'serve-sim',
+      packageVersion: '0.13.4-beta.1+build.2',
+      env,
+      logger,
+    })
+  ).resolves.toMatchObject({ serveSimVersion: '0.13.4-beta.1+build.2' });
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('preserves exact build metadata through job resolution and warm claim', async () => {
+  const version = '0.13.4-beta.1+build.2';
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockResolvedValueOnce(JSON.stringify({ ...claim, serveSimVersion: version }));
+  const run = jest.fn(async (session, resolvedVersion) => {
+    expect(session?.serveSimVersion).toBe(version);
+    expect(resolvedVersion).toBe(version);
+    return 'warm';
+  });
+  await expect(
+    runOnWarmIosSimulatorAsync(
+      { engine: 'serve-sim', packageVersion: `v${version}`, env, logger },
+      run
+    )
+  ).resolves.toBe('warm');
+  expect(run).toHaveBeenCalledTimes(1);
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });

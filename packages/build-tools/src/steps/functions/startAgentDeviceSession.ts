@@ -16,6 +16,8 @@ import {
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
+import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
+import { parseLogSourcesInput } from '../utils/logSourcesInput';
 import { getDeviceRunSessionWorkerApi } from '../utils/deviceRunSessionWorkerApi';
 import { readIosApplicationIdentifierAsync } from '../utils/iosAppArtifact';
 import { resolveIosSessionStartupAsync } from '../utils/iosSimulatorSession';
@@ -71,6 +73,12 @@ export function createStartAgentDeviceSessionBuildFunction(
     name: 'Start agent-device session',
     __metricsId: warm ? 'eas/start_warm_agent_device_session' : 'eas/start_agent_device_session',
     inputProviders: [
+      // No default: an omitted input must stay distinguishable from an explicit selection.
+      BuildStepInput.createProvider({
+        id: 'log_sources',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
       // Device. On iOS a Simulator name or UDID, on Android an AVD hardware profile.
       BuildStepInput.createProvider({
         id: 'device_identifier',
@@ -188,6 +196,10 @@ export function createStartAgentDeviceSessionBuildFunction(
       } else {
         validateAndroidLaunchOptions({ launchArgs, openUrl });
       }
+      const logSources = parseLogSourcesInput(inputs.log_sources.value, {
+        runtimePlatform,
+        fallback: isIos ? [] : ['emulator-output'],
+      });
       const deviceIdentifier = inputs.device_identifier.value as string | undefined;
       const capture = parseNetworkCaptureInputs(
         {
@@ -205,7 +217,10 @@ export function createStartAgentDeviceSessionBuildFunction(
         logger,
         startup: { signal: startupSignal, abort: reason => startup.abort(reason) },
       });
-      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+      const startSessionAsync = async (
+        warmSession?: WarmIosSession,
+        resolvedPackageVersion = inputs.package_version.value as string | undefined
+      ): Promise<void> => {
         const tasks = createStartupTasks(logger, startupSignal);
         let booted: Promise<void> | undefined;
         let sessionOwnsTeardown = false;
@@ -254,6 +269,7 @@ export function createStartAgentDeviceSessionBuildFunction(
                   lcdHeight: inputs.lcd_height.value as number | undefined,
                   lcdDensity: inputs.lcd_density.value as number | undefined,
                   logcatDirectory,
+                  logCapture: getAndroidEmulatorLogCapture(global, env, logSources),
                   env,
                   logger: taskLogger,
                 });
@@ -339,7 +355,7 @@ export function createStartAgentDeviceSessionBuildFunction(
             signal,
             runtimePlatform,
             sessionEnv,
-            packageVersion: inputs.package_version.value as string | undefined,
+            packageVersion: resolvedPackageVersion,
             // A missing or non-positive value disables the idle timeout (opt-in feature).
             maxIdleTimeMinutes: inputs.max_idle_time_minutes.value as number | undefined,
             maxDurationSeconds: inputs.max_duration_seconds.value as number | undefined,
