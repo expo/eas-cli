@@ -224,6 +224,20 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it('passes the resolved version to cold setup after a warm version mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '0.14.0'));
+    await createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }).fn!(
+      { logger, global: { runtimePlatform: BuildRuntimePlatform.DARWIN } } as never,
+      { inputs: { package_version: { value: 'latest' } }, outputs: {}, env } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ packageVersion: '0.14.0' })
+    );
+  });
+
   it('uses preview activity to reset the configured idle timeout', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, { max_idle_time_minutes: { value: 5 } });
     const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];

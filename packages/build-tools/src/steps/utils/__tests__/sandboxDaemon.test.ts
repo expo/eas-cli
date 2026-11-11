@@ -6,7 +6,6 @@ import WebSocket, { WebSocketServer } from 'ws';
 
 import * as sandboxCommandImplementations from '../sandboxCommandImplementations';
 import { startSandboxDaemonAsync } from '../sandboxDaemon';
-import { type LegacySandboxApi } from '../legacySandboxApi';
 import { type SandboxWorkerApi } from '../sandboxWorkerApi';
 
 jest.unmock('@expo/logger');
@@ -17,7 +16,7 @@ jest.unmock('node:fs/promises');
 
 describe(startSandboxDaemonAsync.name, () => {
   const logger = Log.child({ buildStepId: 'sandbox-test' });
-  const workerApi = {} as SandboxWorkerApi | LegacySandboxApi;
+  const workerApi = {} as SandboxWorkerApi;
   it.each(['ftp://localhost', 'not a URL'])('reports invalid server URL %s', async serverUrl => {
     const errorLog = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const daemon = await startSandboxDaemonAsync({

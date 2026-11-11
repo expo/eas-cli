@@ -13,6 +13,7 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { Sentry } from '../sentry';
+import { type AndroidEmulatorLogCapture } from './androidEmulatorLogCapture';
 import { retryAsync } from './retry';
 
 /** Android Virtual Device is the device we run. */
@@ -329,6 +330,7 @@ export namespace AndroidEmulatorUtils {
     env,
     logcatDirectory,
     launchGate,
+    logCapture,
     consolePort,
     extraArgs = [],
     extraEnv = {},
@@ -337,6 +339,7 @@ export namespace AndroidEmulatorUtils {
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
     launchGate?: AndroidEmulatorLaunchGate;
+    logCapture: AndroidEmulatorLogCapture;
     /**
      * The console port, from `findFreeConsolePortAsync`. It sets the serial (`emulator-<port>`)
      * before the start. Without it, the emulator picks a free port itself.
@@ -349,11 +352,9 @@ export namespace AndroidEmulatorUtils {
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
-    logcatOutputPath: string;
-    emulatorOutputPath: string;
   }> {
-    let logcatOutputPath: string;
-    let emulatorOutputPath: string;
+    let logcatOutputPath: string | undefined;
+    let emulatorOutputPath: string | undefined;
     try {
       await fs.promises.mkdir(logcatDirectory, { recursive: true });
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
@@ -361,16 +362,21 @@ export namespace AndroidEmulatorUtils {
         .toString(16)
         .padStart(8, '0');
       const outputName = `${safeDeviceName}-${timestamp}-${randomBytes(2).toString('hex')}`;
-      logcatOutputPath = path.join(logcatDirectory, `${outputName}-logcat.log`);
-      emulatorOutputPath = path.join(logcatDirectory, `${outputName}-emulator.log`);
-      await fs.promises.writeFile(logcatOutputPath, '');
-      await fs.promises.writeFile(emulatorOutputPath, '');
+      if (logCapture.sources.includes('device-logcat')) {
+        logcatOutputPath = path.join(logcatDirectory, `${outputName}-logcat.log`);
+      }
+      if (logCapture.sources.includes('emulator-output')) {
+        emulatorOutputPath = path.join(logcatDirectory, `${outputName}-emulator.log`);
+      }
     } catch (err) {
       throw new SystemError(`Failed to prepare Android emulator output for ${deviceName}.`, {
         cause: err,
       });
     }
 
+    const logcatOutput = logcatOutputPath
+      ? await logCapture.prepareLogcatOutputAsync(logcatOutputPath)
+      : undefined;
     const emulatorCommand = `${process.env.ANDROID_HOME}/emulator/emulator`;
     const emulatorArgs = [
       '-no-window',
@@ -378,10 +384,7 @@ export namespace AndroidEmulatorUtils {
       '-writable-system',
       '-noaudio',
       '-no-snapshot-save',
-      '-logcat',
-      '*:v',
-      '-logcat-output',
-      logcatOutputPath,
+      ...(logcatOutput ? ['-logcat', '*:v', '-logcat-output', logcatOutput.path] : []),
       '-avd',
       deviceName,
       '-accel',
@@ -398,49 +401,37 @@ export namespace AndroidEmulatorUtils {
       // We don't need to wait for emulator to exit gracefully.
       ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
     };
+    const outputStdio = emulatorOutputPath ? 'pipe' : 'ignore';
     const emulatorPromise = launchGate
       ? spawn(
           launchGate.wrapperCommand,
           [...launchGate.wrapperArgs, emulatorCommand, ...emulatorArgs, ...launchGate.emulatorArgs],
           {
             detached: true,
-            stdio: ['pipe', 'pipe', 'pipe'],
+            stdio: ['pipe', outputStdio, outputStdio],
             ignoreStdio: true,
             env: emulatorEnv,
           }
         )
       : spawn(emulatorCommand, emulatorArgs, {
           detached: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
+          stdio: ['ignore', outputStdio, outputStdio],
           ignoreStdio: true,
           env: emulatorEnv,
         });
-    const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
-    let reportedEmulatorOutputError = false;
-    emulatorOutputStream.on('error', err => {
-      process.stderr.write(
-        `Failed to write Android emulator output to ${emulatorOutputPath}: ${err}\n`
-      );
-      if (!reportedEmulatorOutputError) {
-        reportedEmulatorOutputError = true;
-        Sentry.capture('Failed to write Android emulator process output', err, {
-          level: 'warning',
-          tags: {
-            errorCode: (err as NodeJS.ErrnoException).code ?? 'unknown',
-          },
-          extras: {
-            deviceName,
-            emulatorOutputPath,
-          },
-        });
+    if (logcatOutput) {
+      emulatorPromise.child.once('close', logcatOutput.close);
+    }
+    if (emulatorOutputPath) {
+      for (const input of [emulatorPromise.child.stdout, emulatorPromise.child.stderr]) {
+        if (input) {
+          logCapture.attach(input, emulatorOutputPath, 'emulator-output');
+        }
       }
-    });
-    // Only into the log file -- this process' stdout/stderr is not watched or uploaded.
-    emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
-    emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
-    emulatorPromise.child.once('close', () => {
-      emulatorOutputStream.end();
-    });
+      emulatorPromise.child.once('close', () => {
+        void logCapture.finishFileAsync(emulatorOutputPath);
+      });
+    }
     // Piped stdio creates socket handles in this process which, unlike inherited
     // file descriptors, keep the event loop alive for as long as the emulator runs.
     // We never stop the emulator explicitly, so without unref-ing these the process
@@ -490,7 +481,7 @@ export namespace AndroidEmulatorUtils {
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
-    return { emulatorPromise, serialId, logcatOutputPath, emulatorOutputPath };
+    return { emulatorPromise, serialId };
   }
 
   export async function waitForReadyAsync({

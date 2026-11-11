@@ -13,6 +13,7 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const AGENT_DEVICE_ARTIFACT_CLEANUP_TIMEOUT_MS = 30_000;
@@ -216,6 +217,17 @@ export async function uploadAgentDeviceArtifactAsync(
       signal,
     });
     const { size } = await stat(temporaryArtifactPath);
+    const display = artifact.displayRotation
+      ? { displayRotation: artifact.displayRotation }
+      : undefined;
+    const metadata =
+      artifact.artifactType === 'screenshot'
+        ? await createScreenshotMetadataAsync(temporaryArtifactPath, {
+            source: 'agent-device',
+            ...display,
+            logger,
+          })
+        : display;
     logger.info(`Uploading artifact ${artifact.filename} (${formatBytes(size)}).`);
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
@@ -223,9 +235,7 @@ export async function uploadAgentDeviceArtifactAsync(
       name: `${artifact.filename} (${artifact.id})`,
       filename: artifact.filename,
       kind: artifact.artifactType ?? undefined,
-      ...(artifact.displayRotation
-        ? { metadata: { displayRotation: artifact.displayRotation } }
-        : {}),
+      ...(metadata ? { metadata } : {}),
       size,
       openStream: () => createReadStream(temporaryArtifactPath),
       ...(signal ? { signal } : {}),

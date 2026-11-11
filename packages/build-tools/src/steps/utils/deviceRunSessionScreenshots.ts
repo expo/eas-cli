@@ -9,6 +9,7 @@ import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotSession,
   loadScreenshotSessionAsync,
@@ -93,7 +94,10 @@ async function uploadScreenshotAsync(
     artifactId: name.slice(0, -4),
     name: artifactDetails.name,
     filename: artifactDetails.filename,
-    metadata: artifactDetails.metadata,
+    metadata: {
+      ...artifactDetails.metadata,
+      ...(await createScreenshotMetadataAsync(file, { source: 'manual', logger })),
+    },
     kind: 'screenshot',
     size,
     openStream: () => createReadStream(file),

@@ -211,7 +211,9 @@ const MaestroRunnerRecordedFlowSchema = z.object({
   name: z.string().min(1),
   sourceFile: z.string().min(1),
   status: z.enum(['passed', 'failed']),
+  tags: z.array(z.string()).optional(),
 });
+type MaestroRunnerRecordedFlow = z.infer<typeof MaestroRunnerRecordedFlowSchema>;
 const MaestroRunnerReportSchema = z.object({
   flows: z
     .array(
@@ -377,6 +379,111 @@ export async function parseFailedFlowsFromFileAttrs(args: {
     }
   }
   return paths;
+}
+
+const MAESTRO_RUNNER_ATTEMPT_DIRECTORY_PATTERN = /-maestro-runner-attempt-(\d+)$/;
+
+export function maestroRunnerAttemptDirectoryName(args: {
+  platform: string;
+  attempt: number;
+}): string {
+  return `${args.platform}-maestro-runner-attempt-${args.attempt}`;
+}
+
+async function listMaestroRunnerAttemptDirectories(
+  testsDirectory: string
+): Promise<{ attempt: number; reportDirectory: string }[]> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(testsDirectory);
+  } catch {
+    return [];
+  }
+  return entries.flatMap(entry => {
+    const match = entry.match(MAESTRO_RUNNER_ATTEMPT_DIRECTORY_PATTERN);
+    return match
+      ? [{ attempt: parseInt(match[1], 10), reportDirectory: path.join(testsDirectory, entry) }]
+      : [];
+  });
+}
+
+export async function hasMaestroRunnerAttemptDirectories(testsDirectory: string): Promise<boolean> {
+  return (await listMaestroRunnerAttemptDirectories(testsDirectory)).length > 0;
+}
+
+export async function parseMaestroRunnerResults(args: {
+  junitDirectory: string;
+  testsDirectory: string;
+  workingDirectory: string;
+}): Promise<MaestroFlowResult[]> {
+  const results = await parseMaestroResultsFromFileAttrs(args.junitDirectory);
+
+  const attempts = await listMaestroRunnerAttemptDirectories(args.testsDirectory);
+  const flows = await Promise.all(
+    attempts.map(({ reportDirectory }) =>
+      parseMaestroRunnerFlowsWithPaths({
+        reportDirectory,
+        workingDirectory: args.workingDirectory,
+      })
+    )
+  );
+  const flowsByAttempt = new Map(attempts.map(({ attempt }, index) => [attempt, flows[index]]));
+  const realWorkingDirectory = await resolveRealPath(args.workingDirectory);
+
+  return results.map(result => {
+    const tags = findMaestroRunnerFlowTags({
+      flows: flowsByAttempt.get(result.retryCount) ?? [],
+      junitFlowPath: result.path,
+      workingDirectory: args.workingDirectory,
+      realWorkingDirectory,
+    });
+    return tags ? { ...result, tags } : result;
+  });
+}
+
+type MaestroRunnerFlowWithPaths = MaestroRunnerRecordedFlow & {
+  resolvedPath: string;
+  realPath: string;
+};
+
+// maestro-runner >= 1.1.18 resolves symlinks in the JUnit path, but not in report.json.
+async function parseMaestroRunnerFlowsWithPaths(args: {
+  reportDirectory: string;
+  workingDirectory: string;
+}): Promise<MaestroRunnerFlowWithPaths[]> {
+  const report = await parseMaestroRunnerReport(args.reportDirectory);
+  return await Promise.all(
+    (report?.flows ?? []).map(async flow => {
+      const resolvedPath = path.resolve(args.workingDirectory, flow.sourceFile);
+      return { ...flow, resolvedPath, realPath: await resolveRealPath(resolvedPath) };
+    })
+  );
+}
+
+async function resolveRealPath(filePath: string): Promise<string> {
+  const realPathResult = await asyncResult(fs.realpath(filePath));
+  return realPathResult.ok ? realPathResult.value : filePath;
+}
+
+function findMaestroRunnerFlowTags(args: {
+  flows: MaestroRunnerFlowWithPaths[];
+  junitFlowPath: string;
+  workingDirectory: string;
+  realWorkingDirectory: string;
+}): string[] | undefined {
+  const junitPath = path.resolve(args.workingDirectory, args.junitFlowPath);
+  const junitRealPath = path.resolve(args.realWorkingDirectory, args.junitFlowPath);
+  const samePath = args.flows.find(
+    flow => flow.resolvedPath === junitPath || flow.realPath === junitRealPath
+  );
+  if (samePath) {
+    return samePath.tags;
+  }
+  // maestro-runner <= 1.1.17 writes only the file name to JUnit.
+  const sameFileName = args.flows.filter(
+    flow => path.basename(flow.sourceFile) === args.junitFlowPath
+  );
+  return sameFileName.length === 1 ? sameFileName[0].tags : undefined;
 }
 
 export async function parseMaestroResults(

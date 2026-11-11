@@ -11,7 +11,6 @@ import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
 
 import { SignedUrlUploadApiError, uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
-import { type LegacySandboxApi } from './legacySandboxApi';
 import { type SandboxArtifactUploadSession, type SandboxWorkerApi } from './sandboxWorkerApi';
 import { WorkerApiError } from './workerApi';
 
@@ -29,7 +28,7 @@ export class SandboxArtifactUploadManager {
 
   public constructor(
     private readonly options: {
-      workerApi: SandboxWorkerApi | LegacySandboxApi;
+      workerApi: SandboxWorkerApi;
       logger: bunyan;
       signal: AbortSignal;
     }
@@ -88,7 +87,7 @@ export async function startSandboxArtifactUploadAsync({
   name,
   signal,
 }: {
-  workerApi: SandboxWorkerApi | LegacySandboxApi;
+  workerApi: SandboxWorkerApi;
   logger: bunyan;
   filePath: string;
   name: string;
@@ -157,7 +156,7 @@ export async function startSandboxArtifactUploadAsync({
 }
 
 async function createSandboxArtifactUploadSessionAsync(
-  workerApi: SandboxWorkerApi | LegacySandboxApi,
+  workerApi: SandboxWorkerApi,
   input: { name: string; filename: string; size: number },
   signal: AbortSignal
 ): Promise<SandboxArtifactUploadSession> {

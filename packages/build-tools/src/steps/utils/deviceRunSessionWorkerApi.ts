@@ -126,13 +126,14 @@ export class DeviceRunSessionWorkerApi {
   }
 
   public async createPreviewUploadSessionAsync(
+    input: { metadata?: Record<string, unknown> } = {},
     options: WorkerApiRequestOptions = {}
   ): Promise<DeviceRunSessionUploadSession> {
     const { uploadSession } = await this.client.requestAsync(
       'POST',
       'preview-upload-session',
       UploadSessionSchema,
-      options
+      input.metadata ? { ...options, json: { metadata: input.metadata } } : options
     );
     return uploadSession;
   }

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
+import { serveSimPackageSpec } from './packageSpecs';
 import { type ChildProcessHandle, commands, isProcessOwnedByServiceAsync } from './processes';
 import { type WarmServer } from './state';
 
@@ -26,7 +27,7 @@ export function startServeSim(
   return commands.start(
     'bunx',
     [
-      `@expo/serve-sim@${process.env.SERVE_SIM_VERSION || 'latest'}`,
+      serveSimPackageSpec(),
       ...devices,
       '--host',
       '127.0.0.1',
