@@ -73,6 +73,10 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+// expo-device-hub downloads the scrcpy server on first start. This copy keeps Android sessions
+// working when the GitHub release download fails; expo-device-hub falls back to GitHub when the
+// copy is missing.
+const SCRCPY_SERVER_MIRROR_BASE_URL = 'https://storage.googleapis.com/turtle-v2/scrcpy';
 // expo-device-hub's record of each running Hub, like serve-sim's: `server-<port>.json`.
 export const EXPO_DEVICE_HUB_STATE_DIR = path.join(os.tmpdir(), 'expo-device-hub');
 // On SIGTERM the Hub finalizes the recording itself, with this deadline before it force-exits,
@@ -773,6 +777,12 @@ async function startDeviceSessionHostInternalAsync(
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
         // The Hub must write its token in the directory read by this host.
         ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
+        ...(isAndroid
+          ? {
+              SERVE_EMU_SCRCPY_BASE_URL:
+                env.SERVE_EMU_SCRCPY_BASE_URL || SCRCPY_SERVER_MIRROR_BASE_URL,
+            }
+          : {}),
       },
       logger,
     };
