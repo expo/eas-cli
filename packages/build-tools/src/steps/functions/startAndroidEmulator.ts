@@ -103,19 +103,24 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
       // We can cast because allowedValueTypeName validated this is a string.
       const deviceIdentifier = inputs.device_identifier.value as AndroidDeviceName | undefined;
-      const { serialId, emulatorPromise, shouldAdjustAnimationScale, shouldReloadDeviceProfile } =
-        await startAndroidEmulatorAsync({
-          deviceName,
-          systemImagePackage: `${inputs.system_image_package.value}`,
-          deviceIdentifier,
-          lcdWidth: inputs.lcd_width.value as number | undefined,
-          lcdHeight: inputs.lcd_height.value as number | undefined,
-          lcdDensity: inputs.lcd_density.value as number | undefined,
-          logcatDirectory,
-          logCapture,
-          env,
-          logger,
-        });
+      const {
+        serialId,
+        emulatorPromise,
+        shouldAdjustAnimationScale,
+        shouldReloadDeviceProfile,
+        shouldApplyDeviceProfileCorrections,
+      } = await startAndroidEmulatorAsync({
+        deviceName,
+        systemImagePackage: `${inputs.system_image_package.value}`,
+        deviceIdentifier,
+        lcdWidth: inputs.lcd_width.value as number | undefined,
+        lcdHeight: inputs.lcd_height.value as number | undefined,
+        lcdDensity: inputs.lcd_density.value as number | undefined,
+        logcatDirectory,
+        logCapture,
+        env,
+        logger,
+      });
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
@@ -162,6 +167,23 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   timeoutMs,
                   logger,
                 });
+                if (shouldApplyDeviceProfileCorrections) {
+                  // Clones copy the base AVD; when its corrections are already on, this only checks them.
+                  const hasRestarted = await AndroidEmulatorDeviceProfile.applyCorrectionsAsync({
+                    serialId: cloneSerialId,
+                    deviceIdentifier,
+                    env,
+                    logger,
+                  });
+                  if (hasRestarted) {
+                    await AndroidEmulatorUtils.waitForReadyAsync({
+                      serialId: cloneSerialId,
+                      env,
+                      timeoutMs,
+                      logger,
+                    });
+                  }
+                }
                 if (shouldReloadDeviceProfile) {
                   await AndroidEmulatorDeviceProfile.reloadAsync({
                     serialId: cloneSerialId,
@@ -248,6 +270,7 @@ export async function startAndroidEmulatorAsync({
   emulatorPromise: Promise<unknown>;
   shouldAdjustAnimationScale: boolean;
   shouldReloadDeviceProfile: boolean;
+  shouldApplyDeviceProfileCorrections: boolean;
 }> {
   if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
     await assertAndroidEmulatorHostSupportAsync({ env });
@@ -279,6 +302,15 @@ export async function startAndroidEmulatorAsync({
   const shouldReloadDeviceProfile =
     env.ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE !== 'false' &&
     env.ANDROID_EMULATOR_RELOAD_DEVICE_PROFILE !== '0';
+  const shouldApplyDeviceProfileCorrections =
+    env.ANDROID_EMULATOR_APPLY_DEVICE_PROFILE_CORRECTIONS !== 'false' &&
+    env.ANDROID_EMULATOR_APPLY_DEVICE_PROFILE_CORRECTIONS !== '0';
+
+  if (!shouldApplyDeviceProfileCorrections) {
+    logger.info(
+      'Skipping the Android emulator device profile corrections because $ANDROID_EMULATOR_APPLY_DEVICE_PROFILE_CORRECTIONS is disabled.'
+    );
+  }
 
   if (!shouldReloadDeviceProfile) {
     logger.info(
@@ -344,6 +376,23 @@ export async function startAndroidEmulatorAsync({
           logger,
           ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
         });
+        if (shouldApplyDeviceProfileCorrections) {
+          const hasRestarted = await AndroidEmulatorDeviceProfile.applyCorrectionsAsync({
+            serialId: attemptSerialId,
+            deviceIdentifier,
+            env,
+            logger,
+          });
+          if (hasRestarted) {
+            await AndroidEmulatorUtils.waitForReadyAsync({
+              env,
+              serialId: attemptSerialId,
+              timeoutMs,
+              logger,
+              ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
+            });
+          }
+        }
         if (shouldReloadDeviceProfile) {
           await AndroidEmulatorDeviceProfile.reloadAsync({
             serialId: attemptSerialId,
@@ -397,7 +446,13 @@ export async function startAndroidEmulatorAsync({
   if (!serialId || !emulatorPromise) {
     throw new Error(`Failed to start emulator ${deviceName}.`);
   }
-  return { serialId, emulatorPromise, shouldAdjustAnimationScale, shouldReloadDeviceProfile };
+  return {
+    serialId,
+    emulatorPromise,
+    shouldAdjustAnimationScale,
+    shouldReloadDeviceProfile,
+    shouldApplyDeviceProfileCorrections,
+  };
 }
 
 async function assertAndroidEmulatorHostSupportAsync({

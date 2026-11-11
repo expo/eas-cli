@@ -36,6 +36,7 @@ jest.mock('../startAndroidEmulator', () => ({
     emulatorPromise: Promise.resolve(),
     shouldAdjustAnimationScale: true,
     shouldReloadDeviceProfile: true,
+    shouldApplyDeviceProfileCorrections: true,
   }),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
