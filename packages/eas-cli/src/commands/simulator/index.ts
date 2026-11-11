@@ -197,6 +197,12 @@ With local egress, actions wait for the connection and require interactive mode.
       description:
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'log-source': Flags.option({
+      description:
+        'Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted.',
+      options: ['emulator-output', 'device-logcat'],
+      multiple: true,
+    })(),
     'network-capture': Flags.boolean({
       allowNo: true,
       description:
@@ -309,6 +315,7 @@ With local egress, actions wait for the connection and require interactive mode.
     const systemImagePackage = flags['system-image']?.trim() || undefined;
     const experimentalEmulatorCaptureVersion =
       flags['experimental-emulator-capture-version']?.trim() || undefined;
+    const logSources = flags['log-source'];
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -363,6 +370,11 @@ With local egress, actions wait for the connection and require interactive mode.
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (logSources && platform !== AppPlatform.Android) {
+      throw new EasCommandError(
+        '--log-source selects Android emulator logs. Pass --platform android.'
+      );
+    }
     if (systemImagePackage && platform !== AppPlatform.Android) {
       throw new EasCommandError('--system-image is only supported with --platform android.');
     }
@@ -456,6 +468,20 @@ With local egress, actions wait for the connection and require interactive mode.
         packageVersion: flags['package-version'],
         nonInteractive,
       });
+      const android = {
+        ...(deviceIdentifier ? { deviceIdentifier } : {}),
+        ...(systemImagePackage ? { systemImagePackage } : {}),
+        ...(logSources ? { logSources } : {}),
+        ...(experimentalEmulatorCaptureVersion ? { experimentalEmulatorCaptureVersion } : {}),
+      };
+      const platformInput =
+        platform === AppPlatform.Ios
+          ? deviceIdentifier
+            ? { ios: { deviceIdentifier } }
+            : {}
+          : Object.keys(android).length
+            ? { android }
+            : {};
       const session = await withSimulatorRequestAnalyticsAsync(
         analytics,
         requestProperties,
@@ -471,21 +497,7 @@ With local egress, actions wait for the connection and require interactive mode.
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-            ...(platform === AppPlatform.Ios
-              ? deviceIdentifier
-                ? { ios: { deviceIdentifier } }
-                : {}
-              : deviceIdentifier || systemImagePackage || experimentalEmulatorCaptureVersion
-                ? {
-                    android: {
-                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
-                      ...(systemImagePackage ? { systemImagePackage } : {}),
-                      ...(experimentalEmulatorCaptureVersion
-                        ? { experimentalEmulatorCaptureVersion }
-                        : {}),
-                    },
-                  }
-                : {}),
+            ...platformInput,
             ...(buildId ? { buildId } : {}),
             ...(buildFingerprint ? { buildFingerprint } : {}),
             ...(applicationArchiveUrlFromFlag

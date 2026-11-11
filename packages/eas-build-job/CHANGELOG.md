@@ -1,5 +1,23 @@
 # @expo/eas-build-job
 
+## 27.7.2
+
+No changes in this release.
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+
+## 27.7.0
+
+No changes in this release.
+
+## 27.6.0
+
+No changes in this release.
+
 ## 27.5.0
 
 No changes in this release.

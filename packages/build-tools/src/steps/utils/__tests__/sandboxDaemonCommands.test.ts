@@ -18,7 +18,6 @@ import {
   type SandboxDaemonCommandImplementations,
   createSandboxCommandImplementations,
 } from '../sandboxCommandImplementations';
-import { type LegacySandboxApi } from '../legacySandboxApi';
 import { type SandboxWorkerApi } from '../sandboxWorkerApi';
 
 const READ_FILE_LIMITS = { maxTextBytes: 40_000, maxImageBytes: 3_000_000 };
@@ -50,7 +49,7 @@ describe('sandbox daemon commands', () => {
       workingDirectory,
       env: process.env,
       signal: controller.signal,
-      workerApi: workerApi as unknown as SandboxWorkerApi | LegacySandboxApi,
+      workerApi: workerApi as unknown as SandboxWorkerApi,
       logger,
     });
     commandImplementations = commands.commandImplementations;
@@ -79,7 +78,7 @@ describe('sandbox daemon commands', () => {
       workingDirectory,
       env: process.env,
       signal: controller.signal,
-      workerApi: workerApi as unknown as SandboxWorkerApi | LegacySandboxApi,
+      workerApi: workerApi as unknown as SandboxWorkerApi,
       logger,
     });
     const command = commands.commandImplementations.execCommand({ cmd: 'printf should-not-run' });

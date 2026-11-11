@@ -1,5 +1,35 @@
 # @expo/build-tools
 
+## 27.7.2
+
+### Patch Changes
+
+- Start SSH session shells in the job's build directory instead of the worker's directory. ([#4843](https://github.com/expo/eas-cli/pull/4843) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+- Strip the GitHub repository access token from the git remote before a sandbox agent starts. ([#4826](https://github.com/expo/eas-cli/pull/4826) by [@sswrk](https://github.com/sswrk))
+
+## 27.7.0
+
+### Patch Changes
+
+- Record Android emulator output and, when selected, device logcat during simulator sessions, and upload the last 20 MiB of each as a session artifact. ([#4822](https://github.com/expo/eas-cli/pull/4822) by [@vonovak](https://github.com/vonovak))
+
+## 27.6.0
+
+### Minor Changes
+
+- Reuse compatible prefetched Appium and XCUITest files without removing them during cleanup. Resolve explicit package versions, including `latest`, and reuse prepared tools only when they match. Use the launcher's runtime serve-sim version for warm adoption and recordings, including prereleases. ([#4837](https://github.com/expo/eas-cli/pull/4837) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Stop waiting for `com.apple.datamigrator` to exit before an iOS Simulator on iOS 27.2 or later counts as ready; there it stays resident, so the wait never finished. Earlier runtimes keep the wait. Take the readiness screenshot from the first integrated screen when the device lists several, so the iPhone Duo on iOS 27.2 passes the check. ([#4816](https://github.com/expo/eas-cli/pull/4816) by [@hSATAC](https://github.com/hSATAC))
+- Require the sandbox worker token for sandbox jobs and remove the sandbox GraphQL fallback. ([#4808](https://github.com/expo/eas-cli/pull/4808) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.5.0
 
 ### Patch Changes

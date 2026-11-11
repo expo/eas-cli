@@ -1,11 +1,11 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
+import { stripRepositoryCredentialsAsync } from '../../common/git';
 import { CustomBuildContext } from '../../customBuildContext';
 import { withLogPhaseAsync } from '../../utils/logPhase';
-import { getLegacySandboxConnection } from '../utils/legacySandboxApi';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
-import { getSandboxWorkerApi } from '../utils/sandboxWorkerApi';
+import { requireSandboxWorkerApi } from '../utils/sandboxWorkerApi';
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
@@ -29,18 +29,7 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }),
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
-      const workerApi = getSandboxWorkerApi(ctx);
-      const { sandboxApi, credential, commandEnv } = workerApi
-        ? {
-            sandboxApi: workerApi,
-            credential: workerApi.token,
-            commandEnv: env,
-          }
-        : getLegacySandboxConnection({
-            graphqlClient: ctx.graphqlClient,
-            env,
-            sandboxId: String(inputs.sandbox_id.value),
-          });
+      const workerApi = requireSandboxWorkerApi(ctx);
       const mcpServerUrl = ctx.mcpServerUrl;
       if (!mcpServerUrl) {
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
@@ -57,20 +46,29 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
           `Invalid sandbox maximum duration: ${String(maxDurationSeconds)}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
       }
+      if (ctx.job.projectArchive.type === ArchiveSourceType.GIT) {
+        // Scripts and commands inside the sandbox could read the token from .git/config.
+        await stripRepositoryCredentialsAsync({
+          repositoryDirectory: stepCtx.global.wasCheckedOut()
+            ? ctx.projectTargetDirectory
+            : ctx.projectSourceDirectory,
+        });
+      }
+
       const daemon = await startSandboxDaemonAsync({
-        credential,
+        credential: workerApi.token,
         serverUrl: mcpServerUrl,
         reconnectDelayMs: RECONNECT_DELAY_MS,
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
-        env: commandEnv,
-        workerApi: sandboxApi,
+        env,
+        workerApi,
       });
       try {
         await daemon.ready;
         signal?.throwIfAborted();
-        await sandboxApi.markReadyAsync({ signal }).catch((error: unknown) => {
+        await workerApi.markReadyAsync({ signal }).catch((error: unknown) => {
           signal?.throwIfAborted();
           throw new SystemError(
             `Failed to mark sandbox ${String(inputs.sandbox_id.value)} as ready.`,

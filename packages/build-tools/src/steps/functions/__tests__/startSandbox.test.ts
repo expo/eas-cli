@@ -1,14 +1,30 @@
-import { EnvironmentSecretType, SystemError, UserError } from '@expo/eas-build-job';
+import {
+  ArchiveSourceType,
+  EnvironmentSecretType,
+  SystemError,
+  UserError,
+} from '@expo/eas-build-job';
 import fetch from 'node-fetch';
 
+import { stripRepositoryCredentialsAsync } from '../../../common/git';
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
 import { SandboxWorkerApi } from '../../utils/sandboxWorkerApi';
 import { createStartSandboxBuildFunction } from '../startSandbox';
 
 const { AbortError, Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
+jest.mock('../../../common/git');
+
+const checkedOutStepCtx = { logger: {}, global: { wasCheckedOut: () => true } } as any;
+const notCheckedOutStepCtx = { logger: {}, global: { wasCheckedOut: () => false } } as any;
+
+const URL_JOB = {
+  projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com/project.tar.gz' },
+};
+
 const context = {
   job: {
+    ...URL_JOB,
     secrets: {
       environmentSecrets: [
         {
@@ -183,67 +199,102 @@ describe('sandbox build functions', () => {
     expect(stopAsync).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the legacy token and keeps the Expo token for commands without a worker token', async () => {
+  it('strips the repository credentials before starting the daemon for git sources', async () => {
     const startupError = new Error('stop after checking options');
     const start = jest
       .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
       .mockRejectedValue(startupError);
-    const fn = createStartSandboxBuildFunction({ ...context, job: {} } as any);
-
-    await expect(
-      fn.fn!({ logger: {} } as any, {
-        inputs,
-        outputs: {},
-        env: {
-          PREPARED_BY_EARLIER_STEP: 'value',
-          EXPO_TOKEN: 'expo-token',
-          __EAS_SANDBOX_MCP_TOKEN: 'legacy-token',
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: 'refs/heads/main',
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
         },
-      })
-    ).rejects.toBe(startupError);
-    expect(start.mock.calls[0][0]).toMatchObject({ credential: 'legacy-token' });
-    expect(start.mock.calls[0][0].env).toEqual({
-      PREPARED_BY_EARLIER_STEP: 'value',
-      EXPO_TOKEN: 'expo-token',
+      },
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!(checkedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).toHaveBeenCalledWith({
+      repositoryDirectory: '/workingdir/build',
+    });
+    expect(jest.mocked(stripRepositoryCredentialsAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      start.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('strips the repository credentials from the source directory before eas/checkout', async () => {
+    const startupError = new Error('stop after checking options');
+    jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: null,
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+        },
+      },
+      projectSourceDirectory: '/workingdir/temporary-custom-build',
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!(notCheckedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).toHaveBeenCalledWith({
+      repositoryDirectory: '/workingdir/temporary-custom-build',
     });
   });
 
-  it('marks the sandbox ready over GraphQL without a worker token', async () => {
-    const stopAsync = jest.fn(async () => {});
-    jest
-      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
-      .mockResolvedValue({ ready: Promise.resolve(), stopAsync });
-    const mutation = jest.fn(() => ({
-      toPromise: async () => ({ data: { sandbox: { markSandboxReady: { id: 'sandbox-id' } } } }),
-    }));
-    const logger = { info: jest.fn(), child: jest.fn() };
-    logger.child.mockReturnValue(logger);
+  it('does not start the daemon when stripping the repository credentials fails', async () => {
+    const stripError = new SystemError('Failed to strip credentials from the origin remote URL.');
+    jest.mocked(stripRepositoryCredentialsAsync).mockRejectedValueOnce(stripError);
+    const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
     const fn = createStartSandboxBuildFunction({
       ...context,
-      job: {},
-      graphqlClient: { mutation },
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: null,
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+        },
+      },
+      projectTargetDirectory: '/workingdir/build',
     } as any);
 
-    await fn.fn!({ logger } as any, {
-      inputs: { ...inputs, max_duration_seconds: { value: 0.0001 } },
-      outputs: {},
-      env: { __EAS_SANDBOX_MCP_TOKEN: 'legacy-token' },
-    });
-
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      { sandboxId: 'sandbox-id' },
-      undefined
+    await expect(fn.fn!(checkedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      stripError
     );
-    expect(fetch).not.toHaveBeenCalled();
-    expect(stopAsync).toHaveBeenCalledTimes(1);
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('leaves the remote alone for non-git sources', async () => {
+    const startupError = new Error('stop after checking options');
+    jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!({ logger: {} } as any, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).not.toHaveBeenCalled();
   });
 
   it.each([
     {
-      missing: 'a sandbox worker token or a legacy token',
+      missing: 'the sandbox worker token',
       overrides: { job: {} },
-      message: 'This sandbox job has neither EAS_SANDBOX_WORKER_TOKEN nor __EAS_SANDBOX_MCP_TOKEN.',
+      message: 'This sandbox job has no EAS_SANDBOX_WORKER_TOKEN secret.',
     },
     {
       missing: 'the MCP server URL',

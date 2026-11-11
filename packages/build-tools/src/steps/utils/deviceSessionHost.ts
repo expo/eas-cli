@@ -54,6 +54,7 @@ import {
   isPreinstalledExpoGoAsync,
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
+import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -72,6 +73,10 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+// expo-device-hub downloads the scrcpy server on first start. This copy keeps Android sessions
+// working when the GitHub release download fails; expo-device-hub falls back to GitHub when the
+// copy is missing.
+const SCRCPY_SERVER_MIRROR_BASE_URL = 'https://storage.googleapis.com/turtle-v2/scrcpy';
 // expo-device-hub's record of each running Hub, like serve-sim's: `server-<port>.json`.
 export const EXPO_DEVICE_HUB_STATE_DIR = path.join(os.tmpdir(), 'expo-device-hub');
 // On SIGTERM the Hub finalizes the recording itself, with this deadline before it force-exits,
@@ -432,6 +437,8 @@ export type DeviceSessionServerLaunch = {
  */
 export type DeviceSessionServer = {
   port: number;
+  /** The exact serve-sim version prepared by the warm launcher. */
+  serveSimVersion?: string;
   turnArgs: Promise<string[]>;
   /** Cold iOS setup runs after control readiness, alongside app installation and before launch. */
   setupSimulatorAsync?(options: { signal: AbortSignal; logger: bunyan }): Promise<void>;
@@ -584,6 +591,7 @@ async function startDeviceSessionHostInternalAsync(
       ? await createAndroidDeviceSessionServerAsync(ctx, { logger })
       : await createColdIosSessionAsync(ctx, { env, logger, iosSimulatorUdid }));
   const port = server.port;
+  packageVersion = server.serveSimVersion ?? packageVersion;
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
   const packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
@@ -602,6 +610,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewRetirementErrors: unknown[] = [];
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
+  let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
@@ -768,6 +777,12 @@ async function startDeviceSessionHostInternalAsync(
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
         // The Hub must write its token in the directory read by this host.
         ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
+        ...(isAndroid
+          ? {
+              SERVE_EMU_SCRCPY_BASE_URL:
+                env.SERVE_EMU_SCRCPY_BASE_URL || SCRCPY_SERVER_MIRROR_BASE_URL,
+            }
+          : {}),
       },
       logger,
     };
@@ -824,6 +839,7 @@ async function startDeviceSessionHostInternalAsync(
             await sessionPreview?.stopAsync();
             await previewActivity?.stopAsync();
           },
+          cleanupPreviewCaptureAsync: async () => iosPreviewCapture?.cleanupAfterHostStoppedAsync(),
           previewServer,
           screenshots,
           serverName,
@@ -989,6 +1005,18 @@ async function startDeviceSessionHostInternalAsync(
     // readiness on macOS, so it starts after its encoder is installed there.
     previewSetupTask = (async () => {
       if (!isAndroid) {
+        iosPreviewCapture = createServeSimPreviewCapture({
+          port,
+          token: previewToken!,
+          device,
+          tmpdir: serveSimTmpdir,
+        });
+        if (!(await iosPreviewCapture.isSupportedAsync(previewSetupController.signal))) {
+          logger.warn(
+            'This serve-sim version does not support automated screenshots; skipping session previews.'
+          );
+          return;
+        }
         await ensureMacosPreviewEncoderInstalledAsync({
           env,
           logger,
@@ -1002,6 +1030,7 @@ async function startDeviceSessionHostInternalAsync(
           logger,
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
+              captureIosScreenshotAsync: iosPreviewCapture?.captureAsync,
               runtimePlatform,
               device: previewDevice ?? device,
               env,
@@ -1077,6 +1106,7 @@ async function finishDeviceSessionHostAsync(
   {
     previewRetirement,
     stopSessionPreviewAsync,
+    cleanupPreviewCaptureAsync,
     previewServer,
     screenshots,
     serverName,
@@ -1088,6 +1118,7 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewRetirement: Promise<boolean>;
     stopSessionPreviewAsync: () => Promise<void>;
+    cleanupPreviewCaptureAsync: () => Promise<void>;
     previewServer: DetachedProcessHandle;
     screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
@@ -1120,6 +1151,13 @@ async function finishDeviceSessionHostAsync(
     hostStopped = true;
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
+  }
+  if (hostStopped) {
+    try {
+      await cleanupPreviewCaptureAsync();
+    } catch (err) {
+      logger.warn({ err }, 'Could not remove session preview capture files.');
+    }
   }
   const previewRetired = await previewRetirement;
   onStopped(hostStopped && !hostExited && previewRetired);
