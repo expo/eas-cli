@@ -32,6 +32,7 @@ jest.mock('../../utils/androidEmulatorLogs');
 jest.mock('../../../utils/androidEmulatorDeviceProfile', () => ({
   AndroidEmulatorDeviceProfile: {
     reloadAsync: jest.fn(),
+    applyCorrectionsAsync: jest.fn(),
   },
 }));
 
@@ -89,6 +90,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
     mockedDeviceProfile.reloadAsync.mockResolvedValue(undefined);
+    mockedDeviceProfile.applyCorrectionsAsync.mockResolvedValue(false);
     mockedResolveLocalEgress.mockResolvedValue(null);
 
     mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
@@ -441,6 +443,43 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     for (const [options] of mockedDeviceProfile.reloadAsync.mock.calls) {
       expect(options.deviceIdentifier).toBe('pixel_9');
     }
+  });
+
+  it('applies the device profile corrections before the reload and waits for the restart', async () => {
+    mockedDeviceProfile.applyCorrectionsAsync.mockResolvedValueOnce(true);
+
+    await createStep({ device_identifier: 'pixel_9' }).executeAsync();
+
+    expect(mockedDeviceProfile.applyCorrectionsAsync).toHaveBeenCalledWith({
+      serialId: 'emulator-default',
+      deviceIdentifier: 'pixel_9',
+      env: expect.any(Object),
+      logger: expect.anything(),
+    });
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledTimes(2);
+    expect(mockedDeviceProfile.applyCorrectionsAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.waitForReadyAsync.mock.invocationCallOrder[1]
+    );
+    expect(mockedAndroidUtils.waitForReadyAsync.mock.invocationCallOrder[1]).toBeLessThan(
+      mockedDeviceProfile.reloadAsync.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not wait again when the corrections changed nothing', async () => {
+    await createStep({ device_identifier: 'pixel_9' }).executeAsync();
+
+    expect(mockedDeviceProfile.applyCorrectionsAsync).toHaveBeenCalledTimes(1);
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the device profile corrections when opt out env var is disabled', async () => {
+    await createStep(
+      { device_identifier: 'pixel_9' },
+      { ANDROID_EMULATOR_APPLY_DEVICE_PROFILE_CORRECTIONS: 'false' }
+    ).executeAsync();
+
+    expect(mockedDeviceProfile.applyCorrectionsAsync).not.toHaveBeenCalled();
+    expect(mockedDeviceProfile.reloadAsync).toHaveBeenCalled();
   });
 
   it('skips the device profile reload when opt out env var is disabled', async () => {

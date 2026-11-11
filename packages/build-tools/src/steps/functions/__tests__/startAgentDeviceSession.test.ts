@@ -199,6 +199,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       emulatorPromise: Promise.resolve(),
       shouldAdjustAnimationScale: true,
       shouldReloadDeviceProfile: true,
+      shouldApplyDeviceProfileCorrections: true,
     });
     jest
       .mocked(installBuildAsync)

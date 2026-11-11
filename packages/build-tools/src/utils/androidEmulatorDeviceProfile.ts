@@ -1,7 +1,16 @@
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { type AndroidDeviceName, type AndroidDeviceSerialId } from './AndroidEmulatorUtils';
+import {
+  ANDROID_EMULATOR_DEVICE_PROFILE_CORRECTIONS,
+  type AndroidEmulatorDeviceProfileCorrection,
+  type AndroidResourceOverlay,
+} from './androidEmulatorDeviceProfileCorrections';
+import { buildAndroidResourceOverlayApkAsync } from './androidResourceOverlayApk';
 import { retryAsync } from './retry';
 
 const SYSTEM_UI_PACKAGE = 'com.android.systemui';
@@ -16,6 +25,13 @@ const RETRY_INTERVAL_MS = 1_000;
  */
 export namespace AndroidEmulatorDeviceProfile {
   export const SYSTEM_UI_RESTART_TIMEOUT_MS = 30_000;
+  export const OVERLAY_ENABLED_TIMEOUT_MS = 60_000;
+  export const BOOT_TIMEOUT_MS = 180_000;
+  /**
+   * The profile overlays have no category. Turning one on "exclusive in its category" turns off
+   * every other overlay without one, so the correction overlays need their own.
+   */
+  export const CORRECTION_OVERLAY_CATEGORY = 'expo.eas.emulator.profile';
 
   export function getProfileOverlayPackages(deviceIdentifier: AndroidDeviceName): string[] {
     return [
@@ -116,6 +132,160 @@ export namespace AndroidEmulatorDeviceProfile {
     return true;
   }
 
+  export function getCorrectionOverlayPackage(
+    deviceIdentifier: AndroidDeviceName,
+    targetPackage: AndroidResourceOverlay['targetPackage']
+  ): string {
+    return `${CORRECTION_OVERLAY_CATEGORY}.${deviceIdentifier}.${getTargetSuffix(targetPackage)}`;
+  }
+
+  /**
+   * Installs overlays that make the device profile match the real device (see
+   * ANDROID_EMULATOR_DEVICE_PROFILE_CORRECTIONS). They go to /product/overlay, which needs root
+   * and an emulator started with -writable-system, and the framework restarts twice to load them.
+   * Returns true when it restarted adbd or the framework, so the caller should wait for the
+   * emulator to be ready again. Failures are logged and ignored.
+   */
+  export async function applyCorrectionsAsync({
+    serialId,
+    deviceIdentifier,
+    env,
+    logger,
+    corrections = ANDROID_EMULATOR_DEVICE_PROFILE_CORRECTIONS,
+    bootTimeoutMs = BOOT_TIMEOUT_MS,
+    overlayTimeoutMs = OVERLAY_ENABLED_TIMEOUT_MS,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    deviceIdentifier: AndroidDeviceName | null | undefined;
+    env: NodeJS.ProcessEnv;
+    logger: bunyan;
+    corrections?: Readonly<Partial<Record<string, AndroidEmulatorDeviceProfileCorrection>>>;
+    bootTimeoutMs?: number;
+    overlayTimeoutMs?: number;
+  }): Promise<boolean> {
+    const correction = deviceIdentifier ? corrections[deviceIdentifier] : undefined;
+    if (!deviceIdentifier || !correction) {
+      return false;
+    }
+
+    const overlays = correction.overlays.map(overlay => {
+      const suffix = getTargetSuffix(overlay.targetPackage);
+      const directoryName = `EasProfile_${deviceIdentifier}_${suffix}`;
+      return {
+        ...overlay,
+        packageName: getCorrectionOverlayPackage(deviceIdentifier, overlay.targetPackage),
+        devicePath: `/product/overlay/${directoryName}/${directoryName}.apk`,
+      };
+    });
+    const adb = (args: string[]): ReturnType<typeof spawn> =>
+      spawn('adb', ['-s', serialId, ...args], { env });
+
+    let hasRestarted = false;
+    let workingDirectory: string | null = null;
+    try {
+      const { stdout: overlayList } = await adb(['shell', 'cmd', 'overlay', 'list']);
+      if (
+        overlays.every(
+          ({ packageName }) => parseOverlayState(overlayList, packageName) === 'enabled'
+        )
+      ) {
+        logger.info(`The ${deviceIdentifier} device profile corrections are already applied.`);
+        return false;
+      }
+
+      logger.info(`Applying the ${deviceIdentifier} device profile corrections.`);
+      logger.info(`Source: ${correction.source}`);
+      workingDirectory = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), 'eas-emulator-profile-overlays-')
+      );
+      const apkPaths: string[] = [];
+      for (const overlay of overlays) {
+        apkPaths.push(
+          await buildAndroidResourceOverlayApkAsync({
+            packageName: overlay.packageName,
+            targetPackage: overlay.targetPackage,
+            category: CORRECTION_OVERLAY_CATEGORY,
+            values: overlay.values,
+            workingDirectory,
+            env,
+            logger,
+          })
+        );
+      }
+
+      if (!(await enableRootAsync({ serialId, env, timeoutMs: bootTimeoutMs }))) {
+        logger.warn(
+          `The ${deviceIdentifier} device profile corrections need root, which this system image does not allow (for example Google Play images). Skipping them.`
+        );
+        return false;
+      }
+      hasRestarted = true;
+
+      // The first remount of a -writable-system emulator sets up overlayfs and needs a reboot.
+      const firstRemount = await adbRemountAsync({ serialId, env });
+      if (/reboot/i.test(firstRemount)) {
+        logger.info('Rebooting the emulator to make the system partitions writable.');
+        await adb(['reboot']);
+        await waitForBootAsync({ serialId, env, timeoutMs: bootTimeoutMs });
+        if (!(await enableRootAsync({ serialId, env, timeoutMs: bootTimeoutMs }))) {
+          throw new Error(`Could not restart adbd as root on ${serialId} after the reboot.`);
+        }
+        const secondRemount = await adbRemountAsync({ serialId, env });
+        if (!/remount succeeded/i.test(secondRemount)) {
+          throw new Error(`Could not remount the system partitions: ${secondRemount.trim()}`);
+        }
+      }
+
+      for (const [index, overlay] of overlays.entries()) {
+        await adb(['shell', 'mkdir', '-p', path.posix.dirname(overlay.devicePath)]);
+        await adb(['push', apkPaths[index], overlay.devicePath]);
+      }
+
+      // The package manager scans /product/overlay when the framework starts.
+      await restartFrameworkAsync({ serialId, env, timeoutMs: bootTimeoutMs });
+      await waitForOverlaysAsync({
+        serialId,
+        env,
+        packageNames: overlays.map(({ packageName }) => packageName),
+        isReady: state => state !== 'missing',
+        timeoutMs: overlayTimeoutMs,
+      });
+      for (const { packageName } of overlays) {
+        await adb(['shell', 'cmd', 'overlay', 'enable', '--user', '0', packageName]);
+        await adb(['shell', 'cmd', 'overlay', 'set-priority', packageName, 'highest']);
+      }
+      // The reboot and the framework restart stop the emulator from turning the profile on.
+      await enableProfileOverlaysAsync({ serialId, deviceIdentifier, env });
+
+      // The window manager reads the status bar height when the framework starts.
+      await restartFrameworkAsync({ serialId, env, timeoutMs: bootTimeoutMs });
+      await waitForOverlaysAsync({
+        serialId,
+        env,
+        packageNames: overlays.map(({ packageName }) => packageName),
+        isReady: state => state === 'enabled',
+        timeoutMs: overlayTimeoutMs,
+      });
+      logger.info(`Applied the ${deviceIdentifier} device profile corrections.`);
+      return hasRestarted;
+    } catch (err) {
+      logger.warn({ err }, `Failed to apply the ${deviceIdentifier} device profile corrections.`);
+      return hasRestarted;
+    } finally {
+      if (hasRestarted) {
+        try {
+          await adb(['unroot']);
+          await waitForBootAsync({ serialId, env, timeoutMs: bootTimeoutMs });
+        } catch (err) {
+          logger.warn({ err }, `Failed to restart adbd without root on ${serialId}.`);
+        }
+      }
+      if (workingDirectory) {
+        await fs.promises.rm(workingDirectory, { recursive: true, force: true });
+      }
+    }
+  }
+
   /**
    * Restarts System UI without root, so it also works on Google Play images. `am crash` ends the
    * process the way an app crash does; the system starts the persistent System UI again.
@@ -176,6 +346,120 @@ export namespace AndroidEmulatorDeviceProfile {
       }
     }
     return 'missing';
+  }
+
+  function getTargetSuffix(targetPackage: AndroidResourceOverlay['targetPackage']): string {
+    return targetPackage === 'android' ? 'framework' : 'systemui';
+  }
+
+  /** Restarts adbd as root. Returns false when the system image does not allow it. */
+  async function enableRootAsync({
+    serialId,
+    env,
+    timeoutMs,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    timeoutMs: number;
+  }): Promise<boolean> {
+    try {
+      await spawn('adb', ['-s', serialId, 'root'], { env });
+    } catch {
+      return false;
+    }
+    await waitForBootAsync({ serialId, env, timeoutMs });
+    const { stdout } = await spawn('adb', ['-s', serialId, 'shell', 'id', '-u'], { env });
+    return stdout.trim() === '0';
+  }
+
+  async function adbRemountAsync({
+    serialId,
+    env,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+  }): Promise<string> {
+    const { stdout, stderr } = await spawn('adb', ['-s', serialId, 'remount'], { env });
+    return `${stdout}\n${stderr}`;
+  }
+
+  /** Restarts the Android framework (system_server and the apps) without rebooting the kernel. */
+  async function restartFrameworkAsync({
+    serialId,
+    env,
+    timeoutMs,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    timeoutMs: number;
+  }): Promise<void> {
+    await spawn('adb', ['-s', serialId, 'shell', 'stop'], { env });
+    await spawn('adb', ['-s', serialId, 'shell', 'setprop', 'sys.boot_completed', '0'], { env });
+    await spawn('adb', ['-s', serialId, 'shell', 'start'], { env });
+    await waitForBootAsync({ serialId, env, timeoutMs });
+  }
+
+  async function waitForBootAsync({
+    serialId,
+    env,
+    timeoutMs,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    timeoutMs: number;
+  }): Promise<void> {
+    await retryAsync(
+      async () => {
+        const { stdout } = await spawn(
+          'adb',
+          ['-s', serialId, 'shell', 'getprop', 'sys.boot_completed'],
+          { env }
+        );
+        if (stdout.trim() !== '1') {
+          throw new Error(`Emulator (${serialId}) boot has not completed.`);
+        }
+      },
+      {
+        retryOptions: {
+          retries: Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1),
+          retryIntervalMs: RETRY_INTERVAL_MS,
+        },
+      }
+    );
+  }
+
+  async function waitForOverlaysAsync({
+    serialId,
+    env,
+    packageNames,
+    isReady,
+    timeoutMs,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    packageNames: string[];
+    isReady: (state: 'enabled' | 'disabled' | 'missing') => boolean;
+    timeoutMs: number;
+  }): Promise<void> {
+    await retryAsync(
+      async () => {
+        const { stdout } = await spawn('adb', ['-s', serialId, 'shell', 'cmd', 'overlay', 'list'], {
+          env,
+        });
+        const notReady = packageNames.filter(
+          packageName => !isReady(parseOverlayState(stdout, packageName))
+        );
+        if (notReady.length > 0) {
+          throw new Error(`Overlays are not ready on ${serialId}: ${notReady.join(', ')}.`);
+        }
+      },
+      {
+        retryOptions: {
+          retries: Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1),
+          retryIntervalMs: RETRY_INTERVAL_MS,
+        },
+      }
+    );
   }
 
   async function getSystemUiPidAsync({
