@@ -772,12 +772,13 @@ describe('dotenv instructions', () => {
 });
 
 describe(formatSimulatorUnavailableMessage, () => {
-  it('names the account, the paid plans, and the billing page', () => {
+  it('names the account, the paid plans, the billing page, and the account executive', () => {
     const message = formatSimulatorUnavailableMessage('acme');
 
     expect(message).toContain('acme');
     expect(message).toContain('Starter, Production, and Enterprise plans');
     expect(message).toContain('https://expo.dev/accounts/acme/settings/billing');
+    expect(message).toContain('annual Enterprise plan, contact your Expo account executive');
   });
 });
 

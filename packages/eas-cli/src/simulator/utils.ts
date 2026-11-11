@@ -31,6 +31,7 @@ export function formatSimulatorUnavailableMessage(accountName: string): string {
   return [
     `EAS Simulator isn't enabled for ${accountName}. It's available on the Starter, Production, and Enterprise plans.`,
     `Upgrade, or update billing if a payment is past due: ${link(getAccountBillingUrl(accountName))}`,
+    'If your account is on an annual Enterprise plan, contact your Expo account executive.',
   ].join('\n');
 }
 

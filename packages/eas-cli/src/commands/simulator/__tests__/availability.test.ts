@@ -125,7 +125,8 @@ describe(SimulatorAvailability, () => {
     expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
     expect(mockLog).toHaveBeenCalledWith(
       "EAS Simulator isn't enabled for testuser. It's available on the Starter, Production, and Enterprise plans.\n" +
-        'Upgrade, or update billing if a payment is past due: https://expo.dev/accounts/testuser/settings/billing'
+        'Upgrade, or update billing if a payment is past due: https://expo.dev/accounts/testuser/settings/billing\n' +
+        'If your account is on an annual Enterprise plan, contact your Expo account executive.'
     );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
