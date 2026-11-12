@@ -955,14 +955,20 @@ export function describeServeSimLaunch({
 // take a released ephemeral port in that gap, and the server then fails with "already in use".
 export const SESSION_PORT_RANGE = { min: 20_000, max: 32_000 } as const;
 const SESSION_PORT_ATTEMPTS = 20;
+// Ports already returned in this process. Two callers can each get a port before either binds it,
+// so a port is not returned twice.
+const returnedSessionPorts = new Set<number>();
 
 /** Returns a port on 127.0.0.1 that is free now. The caller binds it later. */
 export async function findAvailablePortAsync(): Promise<number> {
   for (let attempt = 0; attempt < SESSION_PORT_ATTEMPTS; attempt++) {
-    const port = await tryListenOnPortAsync(
-      randomInt(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max)
-    );
+    const candidate = randomInt(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max);
+    if (returnedSessionPorts.has(candidate)) {
+      continue;
+    }
+    const port = await tryListenOnPortAsync(candidate);
     if (port !== null) {
+      returnedSessionPorts.add(port);
       return port;
     }
   }

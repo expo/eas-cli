@@ -10,6 +10,8 @@ jest.mock('node:crypto', () => ({
 }));
 
 const servers: Server[] = [];
+// findAvailablePortAsync does not return a port twice, so each test uses a port not used before.
+const usedPorts = new Set<number>();
 
 async function listenAsync(port: number): Promise<number> {
   const server = createServer();
@@ -24,9 +26,13 @@ async function freePortInRangeAsync(): Promise<number> {
     jest.requireActual<typeof import('node:crypto')>('node:crypto');
   for (;;) {
     const port = actualRandomInt(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max);
+    if (usedPorts.has(port)) {
+      continue;
+    }
     try {
       await listenAsync(port);
       await new Promise<void>(resolve => servers.pop()!.close(() => resolve()));
+      usedPorts.add(port);
       return port;
     } catch {
       servers.pop();
@@ -45,7 +51,12 @@ afterEach(async () => {
 });
 
 describe(findAvailablePortAsync, () => {
-  it('returns a free port below the ephemeral port ranges', async () => {
+  it('uses a range below the Linux and macOS ephemeral port ranges', () => {
+    expect(SESSION_PORT_RANGE.min).toBeGreaterThanOrEqual(1_024);
+    expect(SESSION_PORT_RANGE.max).toBeLessThanOrEqual(32_768);
+  });
+
+  it('returns a free port from the session port range', async () => {
     const free = await freePortInRangeAsync();
     jest.mocked(randomInt).mockImplementation(() => free);
     const port = await findAvailablePortAsync();
@@ -64,6 +75,19 @@ describe(findAvailablePortAsync, () => {
       .mockReturnValue(free as never);
     await expect(findAvailablePortAsync()).resolves.toBe(free);
     expect(randomInt).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not return the same port twice', async () => {
+    const free = await freePortInRangeAsync();
+    const other = await freePortInRangeAsync();
+    jest
+      .mocked(randomInt)
+      .mockReturnValueOnce(free as never)
+      .mockReturnValueOnce(free as never)
+      .mockReturnValue(other as never);
+    await expect(findAvailablePortAsync()).resolves.toBe(free);
+    await expect(findAvailablePortAsync()).resolves.toBe(other);
+    expect(randomInt).toHaveBeenCalledTimes(3);
   });
 
   it('falls back to a system-assigned port when every candidate is in use', async () => {
