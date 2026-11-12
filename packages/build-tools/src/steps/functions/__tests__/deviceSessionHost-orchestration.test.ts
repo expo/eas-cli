@@ -35,6 +35,7 @@ jest.mock('../startAndroidEmulator', () => ({
     serialId: 'emulator-5554',
     emulatorPromise: Promise.resolve(),
     shouldAdjustAnimationScale: true,
+    shouldReloadDeviceProfile: true,
   }),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
