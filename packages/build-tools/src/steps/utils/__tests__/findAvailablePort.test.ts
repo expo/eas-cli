@@ -1,0 +1,77 @@
+import { randomInt } from 'node:crypto';
+import { once } from 'node:events';
+import { type AddressInfo, type Server, createServer } from 'node:net';
+
+import { SESSION_PORT_RANGE, findAvailablePortAsync } from '../remoteDeviceRunSession';
+
+jest.mock('node:crypto', () => ({
+  ...jest.requireActual<typeof import('node:crypto')>('node:crypto'),
+  randomInt: jest.fn(),
+}));
+
+const servers: Server[] = [];
+
+async function listenAsync(port: number): Promise<number> {
+  const server = createServer();
+  servers.push(server);
+  server.listen(port, '127.0.0.1');
+  await once(server, 'listening');
+  return (server.address() as AddressInfo).port;
+}
+
+async function freePortInRangeAsync(): Promise<number> {
+  const { randomInt: actualRandomInt } =
+    jest.requireActual<typeof import('node:crypto')>('node:crypto');
+  for (;;) {
+    const port = actualRandomInt(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max);
+    try {
+      await listenAsync(port);
+      await new Promise<void>(resolve => servers.pop()!.close(() => resolve()));
+      return port;
+    } catch {
+      servers.pop();
+    }
+  }
+}
+
+beforeEach(() => {
+  jest.mocked(randomInt).mockReset();
+});
+
+afterEach(async () => {
+  await Promise.all(
+    servers.splice(0).map(server => new Promise<void>(resolve => server.close(() => resolve())))
+  );
+});
+
+describe(findAvailablePortAsync, () => {
+  it('returns a free port below the ephemeral port ranges', async () => {
+    const free = await freePortInRangeAsync();
+    jest.mocked(randomInt).mockImplementation(() => free);
+    const port = await findAvailablePortAsync();
+    expect(port).toBe(free);
+    expect(randomInt).toHaveBeenCalledWith(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max);
+    // The port is released, so the session server can bind it.
+    await expect(listenAsync(port)).resolves.toBe(port);
+  });
+
+  it('skips a port that another process holds', async () => {
+    const taken = await listenAsync(await freePortInRangeAsync());
+    const free = await freePortInRangeAsync();
+    jest
+      .mocked(randomInt)
+      .mockReturnValueOnce(taken as never)
+      .mockReturnValue(free as never);
+    await expect(findAvailablePortAsync()).resolves.toBe(free);
+    expect(randomInt).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to a system-assigned port when every candidate is in use', async () => {
+    const taken = await listenAsync(await freePortInRangeAsync());
+    jest.mocked(randomInt).mockImplementation(() => taken);
+    const port = await findAvailablePortAsync();
+    expect(randomInt).toHaveBeenCalledTimes(20);
+    expect(port).not.toBe(taken);
+    await expect(listenAsync(port)).resolves.toBe(port);
+  });
+});
