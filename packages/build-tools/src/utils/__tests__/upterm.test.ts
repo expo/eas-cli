@@ -197,20 +197,12 @@ describe(startUptermHostAsync, () => {
     expect(ready.startedReconnecting).toBe(false);
   });
 
-  it('uses an upterm on PATH and keeps the working directory when the session stops', async () => {
+  it('downloads upterm from GCS even when one is on PATH', async () => {
     uptermOnPath = true;
 
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    await host.stopAsync();
-
-    expect(callsOf('host')[0].cmd).toBe('upterm');
-    expect(mockedDownloadFile).not.toHaveBeenCalled();
-    expect(mockedFs.rm.mock.calls.map(([dir]) => dir)).toEqual(['/tmp/eas-ssh-1']);
-  });
-
-  it('downloads upterm from GCS when none is on PATH', async () => {
     await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
 
+    expect(calls.some(c => c.cmd === 'upterm')).toBe(false);
     expect(mockedDownloadFile).toHaveBeenCalledWith(
       'https://storage.googleapis.com/turtle-v2/upterm/' + resolveUptermGcsObjectName(),
       expect.stringContaining('/tmp/eas-upterm-1'),
