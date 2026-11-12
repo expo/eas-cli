@@ -10,6 +10,7 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createDownloadSandboxArtifactFunction } from './functions/downloadSandboxArtifact';
 import { createDownloadSubmissionArchiveFunction } from './functions/downloadSubmissionArchive';
 import { createEasDeployBuildFunction } from './functions/deploy';
 import { createEasExportBuildFunction } from './functions/export';
@@ -91,6 +92,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createReadAndroidAppInfoBuildFunction(),
     createDownloadBuildFunction(ctx),
     createDownloadSubmissionArchiveFunction(ctx),
+    createDownloadSandboxArtifactFunction(ctx),
     createInstallBuildFunction(),
     createLaunchApplicationFunction(),
     createEasExportBuildFunction(),
