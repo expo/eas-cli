@@ -14,6 +14,10 @@ import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
+import {
+  type ScreenshotThumbnailEncoder,
+  uploadDeviceRunSessionScreenshotAsync,
+} from './deviceRunSessionScreenshotThumbnails';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const AGENT_DEVICE_ARTIFACT_CLEANUP_TIMEOUT_MS = 30_000;
@@ -49,6 +53,7 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
     logger,
     signal,
     stopPollingSignal,
+    thumbnailEncoder,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
@@ -56,6 +61,7 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
     logger: bunyan;
     signal?: AbortSignal;
     stopPollingSignal?: AbortSignal;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
@@ -104,6 +110,7 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
               artifact,
               logger,
               ...(transferSignal ? { signal: transferSignal } : {}),
+              ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
             });
             uploadedArtifactIds.add(artifact.id);
           } catch (err) {
@@ -195,6 +202,7 @@ export async function uploadAgentDeviceArtifactAsync(
     artifact,
     logger,
     signal,
+    thumbnailEncoder,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
@@ -202,6 +210,7 @@ export async function uploadAgentDeviceArtifactAsync(
     artifact: AgentDeviceArtifact;
     logger: bunyan;
     signal?: AbortSignal;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<void> {
   signal?.throwIfAborted();
@@ -220,25 +229,36 @@ export async function uploadAgentDeviceArtifactAsync(
     const display = artifact.displayRotation
       ? { displayRotation: artifact.displayRotation }
       : undefined;
-    const metadata =
-      artifact.artifactType === 'screenshot'
-        ? await createScreenshotMetadataAsync(temporaryArtifactPath, {
-            source: 'agent-device',
-            ...display,
-            logger,
-          })
-        : display;
-    logger.info(`Uploading artifact ${artifact.filename} (${formatBytes(size)}).`);
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
+    const upload = {
       deviceRunSessionId,
       artifactId: artifact.id,
       name: `${artifact.filename} (${artifact.id})`,
       filename: artifact.filename,
       kind: artifact.artifactType ?? undefined,
-      ...(metadata ? { metadata } : {}),
       size,
-      openStream: () => createReadStream(temporaryArtifactPath),
       ...(signal ? { signal } : {}),
+    };
+    if (artifact.artifactType === 'screenshot') {
+      const metadata = await createScreenshotMetadataAsync(temporaryArtifactPath, {
+        source: 'agent-device',
+        ...display,
+        logger,
+      });
+      logger.info(`Uploading artifact ${artifact.filename} (${formatBytes(size)}).`);
+      await uploadDeviceRunSessionScreenshotAsync(ctx, {
+        ...upload,
+        file: temporaryArtifactPath,
+        metadata,
+        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+        logger,
+      });
+      return;
+    }
+    logger.info(`Uploading artifact ${artifact.filename} (${formatBytes(size)}).`);
+    await uploadDeviceRunSessionArtifactAsync(ctx, {
+      ...upload,
+      ...(display ? { metadata: display } : {}),
+      openStream: () => createReadStream(temporaryArtifactPath),
     });
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });

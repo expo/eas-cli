@@ -369,6 +369,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             toolsAuthToken: toolServerToken,
             logger,
             signal: artifactPollSignal,
+            thumbnailEncoder: { runtimePlatform, env },
           });
 
           eventCollection = await startArgentEventCollectionAsync({
