@@ -67,6 +67,7 @@ async function uploadBuildCacheAsync({
   platform,
   fingerprintHash,
   buildPath,
+  runOptions,
 }: UploadBuildCacheProps): Promise<string | null> {
   const easJsonPath = path.join(projectRoot, 'eas.json');
   if (!(await fs.exists(easJsonPath))) {
@@ -84,6 +85,11 @@ async function uploadBuildCacheAsync({
         `--platform=${platform}`,
         `--fingerprint=${fingerprintHash}`,
         buildPath ? `--build-path=${buildPath}` : '',
+        // Record the build under the same predicate `resolveBuildCacheAsync` searches
+        // with. Letting `eas-cli upload` infer it from the archive instead makes the
+        // two halves of this cache disagree, and an upload filed under the other
+        // value is never found again.
+        isDevClientBuild({ runOptions, projectRoot }) ? '--dev-client' : '--no-dev-client',
         '--non-interactive',
         '--json',
       ],
