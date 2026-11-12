@@ -250,6 +250,12 @@ export async function startNgrokTunnelAsync({
         if (pendingOpen || retiredListeners.size > 0) {
           // A retry would wait behind the stuck open, or would open the endpoint while a late
           // listener from the failed open still holds it.
+          logger.warn(
+            { err, attempt },
+            pendingOpen
+              ? `Not retrying ngrok tunnel ${domain}: the failed open is still pending.`
+              : `Not retrying ngrok tunnel ${domain}: a late listener from the failed open did not close.`
+          );
           throw err;
         }
         logger.warn(

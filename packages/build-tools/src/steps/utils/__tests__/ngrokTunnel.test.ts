@@ -577,9 +577,13 @@ it('bounds initial tunnel creation and retires a late listener', async () => {
   await rejected;
   // ngrok runs forwards one at a time, so a retry would only wait behind the stuck open.
   expect(ngrok.forward).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    expect.objectContaining({ attempt: 1 }),
+    'Not retrying ngrok tunnel web-preview-fixed.example.test: the failed open is still pending.'
+  );
   expect(logger.warn).not.toHaveBeenCalledWith(
     expect.anything(),
-    expect.stringContaining('retrying')
+    expect.stringContaining('); retrying.')
   );
   resolveOpening(initial as never);
   await jest.advanceTimersByTimeAsync(0);
@@ -633,6 +637,10 @@ it('does not retry while the late listener of a timed-out open cannot close', as
   await rejected;
   expect(initial.close).toHaveBeenCalled();
   expect(ngrok.forward).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    expect.objectContaining({ attempt: 1 }),
+    'Not retrying ngrok tunnel web-preview-fixed.example.test: a late listener from the failed open did not close.'
+  );
 });
 
 it('retries an initial open that ngrok rejects', async () => {
@@ -688,6 +696,15 @@ it('stops retrying the initial open when the caller aborts startup', async () =>
   await rejected;
   await jest.advanceTimersByTimeAsync(10_000);
   expect(ngrok.forward).toHaveBeenCalledTimes(1);
+});
+
+it('does not open when the caller aborts while the local target starts', async () => {
+  const startup = new AbortController();
+  const reason = new Error('startup aborted');
+  const opening = startNgrokTunnelAsync({ ...options, signal: startup.signal });
+  startup.abort(reason);
+  await expect(opening).rejects.toBe(reason);
+  expect(ngrok.forward).not.toHaveBeenCalled();
 });
 
 it('fails with the abort reason when the caller aborts while a timed-out open settles', async () => {
