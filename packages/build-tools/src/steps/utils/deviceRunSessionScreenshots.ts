@@ -1,5 +1,6 @@
 import { formatBytes } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
+import { randomUUID } from 'node:crypto';
 import { type FSWatcher, createReadStream, watch } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm, rmdir, stat } from 'node:fs/promises';
 import os from 'node:os';
@@ -8,7 +9,11 @@ import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import {
+  type ArtifactUploadRequest,
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotSession,
@@ -51,7 +56,10 @@ async function reportScreenshotFailureRecordAsync(file: string, logger: bunyan):
   await rm(file, { force: true });
 }
 
-type FailedUploads = Map<string, { attempts: number; lastError: Error }>;
+type FailedUploads = Map<
+  string,
+  { attempts: number; lastError: Error; request: ArtifactUploadRequest }
+>;
 
 type ScreenshotEntry = { kind: 'failureRecord' } | { kind: 'screenshot'; timestamp: string };
 
@@ -74,6 +82,7 @@ async function uploadScreenshotAsync(
     session,
     signal,
     failedUploads,
+    request,
     logger,
   }: {
     file: string;
@@ -84,31 +93,34 @@ async function uploadScreenshotAsync(
     session: Promise<ScreenshotSession | null>;
     signal: AbortSignal;
     failedUploads: FailedUploads;
+    request: ArtifactUploadRequest;
     logger: bunyan;
   }
 ): Promise<void> {
   const artifactDetails = screenshotArtifactDetails(timestamp, await session);
   const startedAt = Date.now();
+  request.metadata ??= {
+    ...artifactDetails.metadata,
+    ...(await createScreenshotMetadataAsync(file, { source: 'manual', logger })),
+  };
   await uploadDeviceRunSessionArtifactAsync(ctx, {
     deviceRunSessionId,
     artifactId: name.slice(0, -4),
     name: artifactDetails.name,
     filename: artifactDetails.filename,
-    metadata: {
-      ...artifactDetails.metadata,
-      ...(await createScreenshotMetadataAsync(file, { source: 'manual', logger })),
-    },
+    metadata: request.metadata,
     kind: 'screenshot',
     size,
     openStream: () => createReadStream(file),
     attempts: 3,
     signal,
+    idempotencyKey: request.idempotencyKey,
   });
   await rm(file);
   const previousFailures = failedUploads.get(name)?.attempts ?? 0;
   failedUploads.delete(name);
-  // Each earlier failed attempt may have left an artifact row without a file on the server.
-  // The API deletes such rows when the job run finishes (expo/universe#31539).
+  // An earlier failed attempt may have created the artifact row without uploading the file.
+  // The retry reuses that row through the Idempotency-Key.
   const retryNote =
     previousFailures > 0
       ? ` after ${previousFailures} failed attempt${previousFailures === 1 ? '' : 's'}`
@@ -127,6 +139,7 @@ function recordUploadFailure(
     size,
     signal,
     failedUploads,
+    request,
     logger,
   }: {
     file: string;
@@ -134,6 +147,7 @@ function recordUploadFailure(
     size: number | undefined;
     signal: AbortSignal;
     failedUploads: FailedUploads;
+    request: ArtifactUploadRequest;
     logger: bunyan;
   }
 ): 'aborted' | 'recorded' {
@@ -146,7 +160,14 @@ function recordUploadFailure(
   }
   const error = err instanceof Error ? err : new Error(String(err));
   const attempt = (failedUploads.get(name)?.attempts ?? 0) + 1;
-  failedUploads.set(name, { attempts: attempt, lastError: error });
+  failedUploads.set(name, { attempts: attempt, lastError: error, request });
+  if (error instanceof DeviceRunSessionArtifactRejectedError) {
+    logger.warn(
+      { err: error, file, attempt, size },
+      'EAS rejected the preview screenshot upload. Not retrying it.'
+    );
+    return 'recorded';
+  }
   // A sustained outage would otherwise warn for every waiting file on each 30 s scan.
   if (attempt <= 3 || attempt % 10 === 0) {
     logger.warn(
@@ -202,6 +223,11 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
       saveFailures++;
       continue;
     }
+    const failure = failedUploads.get(entry.name);
+    if (failure?.lastError instanceof DeviceRunSessionArtifactRejectedError) {
+      continue;
+    }
+    const request = failure?.request ?? { idempotencyKey: randomUUID() };
     let size: number | undefined;
     try {
       size = (await stat(file)).size;
@@ -214,6 +240,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
         session,
         signal,
         failedUploads,
+        request,
         logger,
       });
       uploadedCount++;
@@ -227,6 +254,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
         size,
         signal,
         failedUploads,
+        request,
         logger,
       });
       if (outcome === 'aborted') {

@@ -330,6 +330,10 @@ describe('with a device run session token', () => {
     });
 
     expectWorkerApiCall('artifact-upload-sessions', 'POST', {
+      headers: {
+        [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN,
+        'Idempotency-Key': expect.any(String),
+      },
       json: {
         name: 'Report',
         filename: 'report.json',

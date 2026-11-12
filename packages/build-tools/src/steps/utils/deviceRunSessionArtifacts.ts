@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import { randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -10,6 +11,7 @@ import {
 } from '../../storage/uploadWithSignedUrl';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
+import { WorkerApiError } from './workerApi';
 
 export type ArtifactMetadata = {
   deviceRunSessionId: string;
@@ -21,18 +23,30 @@ export type ArtifactMetadata = {
   size: number;
 };
 
+export type ArtifactUploadRequest = {
+  idempotencyKey: string;
+  metadata?: Record<string, unknown>;
+};
+
 export async function uploadDeviceRunSessionArtifactAsync(
   ctx: CustomBuildContext,
   options: ArtifactMetadata & {
     openStream: () => Readable;
     signal?: AbortSignal;
     attempts?: number;
+    idempotencyKey?: string;
   }
 ): Promise<void> {
+  const idempotencyKey = options.idempotencyKey ?? randomUUID();
   try {
     const uploadSession = await withDeviceRunSessionTimeoutAsync(
       { name: 'Artifact upload session creation', timeoutMs: 15_000, signal: options.signal },
-      async signal => await createDeviceRunSessionArtifactUploadSessionAsync(ctx, options, signal)
+      async signal =>
+        await createDeviceRunSessionArtifactUploadSessionAsync(
+          ctx,
+          { ...options, idempotencyKey },
+          signal
+        )
     );
     options.signal?.throwIfAborted();
     await uploadWithSignedUrl(
@@ -47,6 +61,8 @@ export async function uploadDeviceRunSessionArtifactAsync(
   }
 }
 
+export class DeviceRunSessionArtifactRejectedError extends SystemError {}
+
 class DeviceRunSessionArtifactUploadError extends SystemError {
   constructor(artifactId: string, reason: string) {
     super(`Failed to upload device run session artifact ${artifactId}: ${reason}.`);
@@ -55,7 +71,16 @@ class DeviceRunSessionArtifactUploadError extends SystemError {
 
 async function createDeviceRunSessionArtifactUploadSessionAsync(
   ctx: CustomBuildContext,
-  { deviceRunSessionId, artifactId, name, filename, kind, metadata, size }: ArtifactMetadata,
+  {
+    deviceRunSessionId,
+    artifactId,
+    name,
+    filename,
+    kind,
+    metadata,
+    size,
+    idempotencyKey,
+  }: ArtifactMetadata & { idempotencyKey: string },
   signal: AbortSignal
 ): Promise<SignedUrl> {
   const workerApi = requireDeviceRunSessionWorkerApi(ctx);
@@ -68,17 +93,19 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
         ...(kind !== undefined ? { kind } : {}),
         ...(metadata !== undefined ? { metadata } : {}),
         size,
+        idempotencyKey,
       },
       { signal }
     );
   } catch (err) {
     signal.throwIfAborted();
-    throw new SystemError(
-      `Failed to create upload session for device run session artifact ${artifactId}: ${
-        err instanceof Error ? err.message : String(err)
-      }`,
-      { cause: err }
-    );
+    const message = `Failed to create upload session for device run session artifact ${artifactId}: ${
+      err instanceof Error ? err.message : String(err)
+    }`;
+    if (err instanceof WorkerApiError && !err.isTransient) {
+      throw new DeviceRunSessionArtifactRejectedError(message, { cause: err });
+    }
+    throw new SystemError(message, { cause: err });
   }
   signal.throwIfAborted();
   return uploadSession;

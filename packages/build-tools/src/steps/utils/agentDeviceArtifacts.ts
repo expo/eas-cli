@@ -1,5 +1,6 @@
 import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import fetch from 'node-fetch';
@@ -11,7 +12,11 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import {
+  type ArtifactUploadRequest,
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
@@ -58,7 +63,8 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
   }
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
-  const uploadedArtifactIds = new Set<string>();
+  const finishedArtifactIds = new Set<string>();
+  const uploadRequests = new Map<string, ArtifactUploadRequest>();
   let listArtifactsErrorCount = 0;
 
   // Ending normal polling must not cancel a transfer that the session already produced.
@@ -92,22 +98,30 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
         });
         listArtifactsErrorCount = 0;
         for (const artifact of artifacts) {
-          if (uploadedArtifactIds.has(artifact.id)) {
+          if (finishedArtifactIds.has(artifact.id)) {
             continue;
           }
+          const request = uploadRequests.get(artifact.id) ?? { idempotencyKey: randomUUID() };
+          uploadRequests.set(artifact.id, request);
           try {
             await uploadAgentDeviceArtifactAsync(ctx, {
               deviceRunSessionId,
               daemonUrl,
               daemonToken,
               artifact,
+              request,
               logger,
-              ...(transferSignal ? { signal: transferSignal } : {}),
+              signal: transferSignal,
             });
-            uploadedArtifactIds.add(artifact.id);
+            finishedArtifactIds.add(artifact.id);
+            uploadRequests.delete(artifact.id);
           } catch (err) {
             if (transferSignal?.aborted) {
               return;
+            }
+            if (err instanceof DeviceRunSessionArtifactRejectedError) {
+              finishedArtifactIds.add(artifact.id);
+              uploadRequests.delete(artifact.id);
             }
             const error = err instanceof Error ? err : new Error(String(err));
             Sentry.capture('Could not upload agent-device remote session artifact', error);
@@ -192,6 +206,7 @@ export async function uploadAgentDeviceArtifactAsync(
     daemonUrl,
     daemonToken,
     artifact,
+    request,
     logger,
     signal,
   }: {
@@ -199,6 +214,7 @@ export async function uploadAgentDeviceArtifactAsync(
     daemonUrl: string;
     daemonToken: string;
     artifact: AgentDeviceArtifact;
+    request: ArtifactUploadRequest;
     logger: bunyan;
     signal?: AbortSignal;
   }
@@ -219,7 +235,7 @@ export async function uploadAgentDeviceArtifactAsync(
     const display = artifact.displayRotation
       ? { displayRotation: artifact.displayRotation }
       : undefined;
-    const metadata =
+    request.metadata ??=
       artifact.artifactType === 'screenshot'
         ? await createScreenshotMetadataAsync(temporaryArtifactPath, {
             source: 'agent-device',
@@ -234,9 +250,10 @@ export async function uploadAgentDeviceArtifactAsync(
       name: `${artifact.filename} (${artifact.id})`,
       filename: artifact.filename,
       kind: artifact.artifactType ?? undefined,
-      ...(metadata ? { metadata } : {}),
+      ...(request.metadata ? { metadata: request.metadata } : {}),
       size,
       openStream: () => createReadStream(temporaryArtifactPath),
+      idempotencyKey: request.idempotencyKey,
       ...(signal ? { signal } : {}),
     });
   } finally {

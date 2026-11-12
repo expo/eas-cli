@@ -15,8 +15,15 @@ import { type SandboxArtifactUploadSession, type SandboxWorkerApi } from './sand
 import { WorkerApiError } from './workerApi';
 
 const WORKER_API_REQUEST_TIMEOUT_MS = 15_000;
+const UPLOAD_SESSION_RETRIES = 2;
+const UPLOAD_SESSION_ATTEMPT_TIMEOUT_MS = 8_000;
+const UPLOAD_SESSION_DEADLINE_MS = 25_000;
 const FINALIZE_RETRIES = 2;
-const REJECTED_UPLOAD_SESSION_ERROR_CODES = new Set(['VALIDATION_ERROR', 'UNAUTHORIZED']);
+const REJECTED_UPLOAD_SESSION_ERROR_CODES = new Set([
+  'VALIDATION_ERROR',
+  'UNAUTHORIZED',
+  'ARTIFACT_NAME_CONFLICT',
+]);
 
 type SandboxArtifactUploadOutcome =
   | { status: 'uploaded'; downloadUrl: string }
@@ -124,7 +131,7 @@ export async function startSandboxArtifactUploadAsync({
   } = await createSandboxArtifactUploadSessionAsync(
     workerApi,
     { name, filename: path.basename(filePath), size },
-    signal
+    { signal, logger }
   );
   const completed = (async (): Promise<SandboxArtifactUploadOutcome> => {
     logger.info(`Uploading sandbox artifact "${name}" (${artifactId}, ${size} bytes).`);
@@ -158,15 +165,30 @@ export async function startSandboxArtifactUploadAsync({
 async function createSandboxArtifactUploadSessionAsync(
   workerApi: SandboxWorkerApi,
   input: { name: string; filename: string; size: number },
-  signal: AbortSignal
+  { signal, logger }: { signal: AbortSignal; logger: bunyan }
 ): Promise<SandboxArtifactUploadSession> {
+  const deadline = new AbortController();
+  const deadlineTimer = setTimeout(
+    () =>
+      deadline.abort(
+        new Error(
+          `Could not create an upload session for sandbox artifact "${input.name}" within ${
+            UPLOAD_SESSION_DEADLINE_MS / 1000
+          } seconds.`
+        )
+      ),
+    UPLOAD_SESSION_DEADLINE_MS
+  );
   try {
     return await workerApi.createArtifactUploadSessionAsync(input, {
-      signal,
-      timeoutMs: WORKER_API_REQUEST_TIMEOUT_MS,
+      signal: AbortSignal.any([signal, deadline.signal]),
+      timeoutMs: UPLOAD_SESSION_ATTEMPT_TIMEOUT_MS,
+      retries: UPLOAD_SESSION_RETRIES,
+      logger,
     });
   } catch (error) {
     signal.throwIfAborted();
+    deadline.signal.throwIfAborted();
     if (
       error instanceof WorkerApiError &&
       error.code !== undefined &&
@@ -177,6 +199,8 @@ async function createSandboxArtifactUploadSessionAsync(
       });
     }
     throw error;
+  } finally {
+    clearTimeout(deadlineTimer);
   }
 }
 
