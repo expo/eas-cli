@@ -23,6 +23,7 @@ import {
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
+  StatuspageServiceName,
 } from '../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
@@ -77,6 +78,7 @@ import {
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 // Allow the cold-cache client download (up to 60s) and a further minute to connect.
 const EGRESS_SETUP_TIMEOUT_MS = 120_000;
@@ -415,6 +417,12 @@ With local egress, actions wait for the connection and require interactive mode.
       );
       Log.newLine();
     }
+
+    // Same services as the outage banner on the simulator pages of the website.
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [
+      StatuspageServiceName.EasSimulator,
+      StatuspageServiceName.EasWorkflows,
+    ]);
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;

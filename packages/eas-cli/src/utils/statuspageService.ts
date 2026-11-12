@@ -27,6 +27,15 @@ const humanReadableServiceName: Record<StatuspageServiceName, string> = {
   [StatuspageServiceName.GithubApiRequests]: 'GitHub API Requests',
   [StatuspageServiceName.GithubWebhooks]: 'Github Webhooks',
   [StatuspageServiceName.EasWorkflows]: 'EAS Workflows',
+  [StatuspageServiceName.EasSimulator]: 'EAS Simulator',
+};
+
+const statusDescription: Record<StatuspageServiceStatus, string> = {
+  [StatuspageServiceStatus.MajorOutage]: 'is experiencing a major outage',
+  [StatuspageServiceStatus.PartialOutage]: 'is experiencing a partial outage',
+  [StatuspageServiceStatus.DegradedPerformance]: 'is experiencing degraded performance',
+  [StatuspageServiceStatus.UnderMaintenance]: 'is under maintenance',
+  [StatuspageServiceStatus.Operational]: 'is operational',
 };
 
 function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
@@ -34,12 +43,11 @@ function warnAboutServiceOutage(service: StatuspageServiceFragment): void {
     return;
   }
 
-  const outageType = service.status === StatuspageServiceStatus.MajorOutage ? 'major' : 'partial';
+  // An older CLI can receive a status that was added to the API later.
+  const description = statusDescription[service.status] ?? 'is experiencing issues';
 
   Log.addNewLineIfNone();
-  Log.warn(
-    chalk.bold(`${humanReadableServiceName[service.name]} is experiencing a ${outageType} outage.`)
-  );
+  Log.warn(chalk.bold(`${humanReadableServiceName[service.name]} ${description}.`));
 
   if (service.incidents.length > 0) {
     const [currentIncident] = service.incidents;
