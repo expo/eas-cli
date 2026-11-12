@@ -27,6 +27,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import { markAsParentCommand } from '../analytics/parentCommand';
 import Log, { link } from '../log';
 import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
@@ -238,13 +239,13 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    const parentCommand = process.env.EXPO_PARENT_COMMAND;
-    // Child processes and nested EAS commands inherit this command as their parent.
-    // Keep our own inherited parent separate so later events retain the same context.
-    process.env.EXPO_PARENT_COMMAND = `eas ${this.id ?? 'unknown'}`;
+    // id is assigned by oclif in constructor based on the filepath:
+    // commands/submit === submit, commands/build/list === build:list
+    const command = `eas ${this.id}`;
+    const { parentCommand, restoreParentCommand } = markAsParentCommand(command);
 
     try {
-      this.analyticsInternal = await createAnalyticsAsync(parentCommand || null);
+      this.analyticsInternal = await createAnalyticsAsync(parentCommand);
       this.sessionManagerInternal = new SessionManager(this.analytics);
 
       // this is needed for logEvent call below as it identifies the user in the analytics system
@@ -257,19 +258,13 @@ export default abstract class EasCommand extends Command {
         });
       }
 
-      this.analytics.logEvent(CommandEvent.ACTION, {
-        // id is assigned by oclif in constructor based on the filepath:
-        // commands/submit === submit, commands/build/list === build:list
-        action: `eas ${this.id}`,
-      });
+      this.analytics.logEvent(CommandEvent.ACTION, { action: command });
 
       return await this.runAsync();
     } finally {
-      if (parentCommand === undefined) {
-        delete process.env.EXPO_PARENT_COMMAND;
-      } else {
-        process.env.EXPO_PARENT_COMMAND = parentCommand;
-      }
+      // Commands can run inside each other, for example `eas open` runs `eas browse`.
+      // The outer command is the parent command again after the inner one ends.
+      restoreParentCommand();
     }
   }
 

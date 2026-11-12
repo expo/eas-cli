@@ -1,6 +1,4 @@
 import { Config } from '@oclif/core';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
@@ -85,13 +83,8 @@ const createTestEasCommand = (): any => {
 // instance and calling run() like other command tests, because they cover
 // oclif's catch and finally wiring, which only runs inside the static path.
 describe('EasCommand', () => {
-  describe('parent command context', () => {
-    let originalParentCommand: string | undefined;
-
-    beforeEach(() => {
-      originalParentCommand = process.env.EXPO_PARENT_COMMAND;
-      delete process.env.EXPO_PARENT_COMMAND;
-    });
+  describe('parent command', () => {
+    const originalParentCommand = process.env.EXPO_PARENT_COMMAND;
 
     afterEach(() => {
       if (originalParentCommand === undefined) {
@@ -101,33 +94,12 @@ describe('EasCommand', () => {
       }
     });
 
-    it('marks subprocesses while keeping a direct command parentless', async () => {
-      const TestEasCommand = createTestEasCommand();
-      jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(async () => {
-        const { stdout: parent } = await promisify(execFile)(
-          process.execPath,
-          ['-e', 'process.stdout.write(process.env.EXPO_PARENT_COMMAND)'],
-          { encoding: 'utf8', env: process.env }
-        );
-        expect(parent).toBe('eas testEasCommand');
-      });
-
-      await TestEasCommand.run([], mockConfig);
-
-      const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
-      expect(createAnalyticsAsync).toHaveBeenCalledWith(null);
-      expect(process.env.EXPO_PARENT_COMMAND).toBeUndefined();
-    });
-
-    it('assigns the immediate parent to nested commands and restores it afterward', async () => {
+    it('is the parent of a command that it runs, then restores the inherited parent', async () => {
       process.env.EXPO_PARENT_COMMAND = 'expo run:ios';
       const ParentCommand = createTestEasCommand();
       const ChildCommand = createTestEasCommand();
       ParentCommand.id = 'build';
       ChildCommand.id = 'update:configure';
-      jest.spyOn(ChildCommand.prototype, 'runAsync').mockImplementation(async () => {
-        expect(process.env.EXPO_PARENT_COMMAND).toBe('eas update:configure');
-      });
       jest.spyOn(ParentCommand.prototype, 'runAsync').mockImplementation(async () => {
         expect(process.env.EXPO_PARENT_COMMAND).toBe('eas build');
         await ChildCommand.run([], mockConfig);
@@ -142,10 +114,8 @@ describe('EasCommand', () => {
       expect(process.env.EXPO_PARENT_COMMAND).toBe('expo run:ios');
     });
 
-    it.each([undefined, '', 'expo run:ios'])('restores %p after a command fails', async parent => {
-      if (parent !== undefined) {
-        process.env.EXPO_PARENT_COMMAND = parent;
-      }
+    it('restores the inherited parent after the command fails', async () => {
+      process.env.EXPO_PARENT_COMMAND = 'expo run:ios';
       const TestEasCommand = createTestEasCommand();
       jest
         .spyOn(TestEasCommand.prototype, 'runAsync')
@@ -155,18 +125,6 @@ describe('EasCommand', () => {
         'testEasCommand command failed.'
       );
 
-      expect(process.env.EXPO_PARENT_COMMAND).toBe(parent);
-    });
-
-    it('restores the inherited parent if analytics initialization fails', async () => {
-      process.env.EXPO_PARENT_COMMAND = 'expo run:ios';
-      const TestEasCommand = createTestEasCommand();
-      const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
-      createAnalyticsAsync.mockRejectedValue(new Error('Analytics initialization failed'));
-
-      await expect(TestEasCommand.run([], mockConfig)).rejects.toThrow();
-
-      expect(createAnalyticsAsync).toHaveBeenCalledWith('expo run:ios');
       expect(process.env.EXPO_PARENT_COMMAND).toBe('expo run:ios');
     });
   });

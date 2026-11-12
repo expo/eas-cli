@@ -152,7 +152,7 @@ export async function isAnalyticsOptedOutAsync(): Promise<boolean> {
  * Create an instance of Analytics based on the user's analytics enabled preferences.
  */
 export async function createAnalyticsAsync(
-  parentCommand: string | null = process.env.EXPO_PARENT_COMMAND || null
+  parentCommand: string | null = null
 ): Promise<AnalyticsWithOrchestration> {
   // TODO: remove after some time
   const amplitudeEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_AMPLITUDE_ENABLED, null);
@@ -278,10 +278,10 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
     const agent = getAgentTelemetryContext();
     const sandboxProvider = getSandboxTelemetryContext();
     return {
-      parent_command: this.parentCommand,
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },
       app: { name: 'eas cli', version: easCliVersion ?? undefined },
+      ...(this.parentCommand ? { parent_command: this.parentCommand } : {}),
       ...(sandboxProvider ? { sandbox_provider: sandboxProvider } : {}),
       ...(agent ? { agent } : {}),
     };

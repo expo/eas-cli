@@ -123,6 +123,28 @@ it('adds detected sandbox context to analytics events', async () => {
   );
 });
 
+it('omits the parent command when no command started this one', async () => {
+  const analytics = await createAnalyticsAsync();
+
+  analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
+
+  expect(mockTrack.mock.calls[0][0].context).not.toHaveProperty('parent_command');
+});
+
+it('adds the parent command to analytics events', async () => {
+  const analytics = await createAnalyticsAsync('expo run:ios');
+
+  analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
+
+  expect(mockTrack).toHaveBeenCalledWith(
+    expect.objectContaining({
+      context: expect.objectContaining({
+        parent_command: 'expo run:ios',
+      }),
+    })
+  );
+});
+
 describe(isAnalyticsOptedOutAsync, () => {
   it('is false by default', async () => {
     await expect(isAnalyticsOptedOutAsync()).resolves.toBe(false);
@@ -190,78 +212,5 @@ describe('getDeviceId', () => {
     );
     const analytics = await createAnalyticsAsync();
     expect(analytics.getDeviceId()).toBeNull();
-  });
-});
-
-describe('parent command context', () => {
-  let originalParentCommand: string | undefined;
-
-  beforeEach(() => {
-    originalParentCommand = process.env.EXPO_PARENT_COMMAND;
-    delete process.env.EXPO_PARENT_COMMAND;
-  });
-
-  afterEach(() => {
-    if (originalParentCommand === undefined) {
-      delete process.env.EXPO_PARENT_COMMAND;
-    } else {
-      process.env.EXPO_PARENT_COMMAND = originalParentCommand;
-    }
-  });
-
-  it.each<[string | undefined, string | null]>([
-    [undefined, null],
-    ['', null],
-    ['expo run:ios', 'expo run:ios'],
-    ['eas build', 'eas build'],
-  ])('includes the inherited parent %p in telemetry context', async (parent, expected) => {
-    if (parent !== undefined) {
-      process.env.EXPO_PARENT_COMMAND = parent;
-    }
-    const analytics = await createAnalyticsAsync();
-
-    analytics.logEvent(CommandEvent.ACTION, { action: 'eas update:configure' });
-
-    expect(mockTrack).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: CommandEvent.ACTION,
-        properties: expect.objectContaining({ action: 'eas update:configure', source: 'eas cli' }),
-        context: expect.objectContaining({ parent_command: expected }),
-      })
-    );
-  });
-
-  it('captures the parent before asynchronous initialization', async () => {
-    process.env.EXPO_PARENT_COMMAND = 'expo run:ios';
-    const analyticsPromise = createAnalyticsAsync();
-    process.env.EXPO_PARENT_COMMAND = 'eas build';
-    const analytics = await analyticsPromise;
-
-    analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
-
-    expect(mockTrack).toHaveBeenCalledWith(
-      expect.objectContaining({
-        context: expect.objectContaining({ parent_command: 'expo run:ios' }),
-      })
-    );
-  });
-
-  it('keeps separate parent context for nested commands and later parent events', async () => {
-    process.env.EXPO_PARENT_COMMAND = 'eas build';
-    const parentAnalytics = await createAnalyticsAsync(null);
-    const childAnalytics = await createAnalyticsAsync();
-    process.env.EXPO_PARENT_COMMAND = 'eas update:configure';
-
-    childAnalytics.logEvent(CommandEvent.ACTION, { action: 'eas update:configure' });
-    parentAnalytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
-
-    expect(mockTrack).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ context: expect.objectContaining({ parent_command: 'eas build' }) })
-    );
-    expect(mockTrack).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ context: expect.objectContaining({ parent_command: null }) })
-    );
   });
 });
