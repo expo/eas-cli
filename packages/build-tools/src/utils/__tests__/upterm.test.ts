@@ -238,6 +238,34 @@ describe(startUptermHostAsync, () => {
     }
   });
 
+  it("runs the client's command in the build directory and returns its exit status", async () => {
+    const realFs = jest.requireActual<typeof import('node:fs')>('node:fs');
+    const tmpDir = realFs.mkdtempSync(path.join(os.tmpdir(), 'eas-upterm-join-'));
+    try {
+      const buildDirectory = path.join(tmpDir, "it's $HOME `pwd`", 'build');
+      realFs.mkdirSync(buildDirectory, { recursive: true });
+
+      await startUptermHostAsync(makeCtx({}, buildDirectory), { relayServerUrl: 'wss://r' });
+
+      const joinScriptCall = mockedFs.writeFile.mock.calls.find(
+        ([file]) => file === '/tmp/eas-ssh-1/join.sh'
+      );
+      const joinScriptPath = path.join(tmpDir, 'join.sh');
+      realFs.writeFileSync(joinScriptPath, String(joinScriptCall?.[1]));
+      const result = spawnSync('bash', [joinScriptPath], {
+        cwd: tmpDir,
+        env: { PATH: process.env.PATH, HOME: tmpDir, SSH_ORIGINAL_COMMAND: 'pwd; exit 3' },
+        input: '',
+        encoding: 'utf8',
+      });
+
+      expect(result.stdout.trim()).toBe(buildDirectory);
+      expect(result.status).toBe(3);
+    } finally {
+      realFs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('downloads through the cache proxy when one is configured', async () => {
     await startUptermHostAsync(
       makeCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://10.0.0.1:8081/repository/proxy' }),
