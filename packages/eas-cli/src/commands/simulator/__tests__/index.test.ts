@@ -17,6 +17,7 @@ import {
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
+  StatuspageServiceName,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
@@ -37,6 +38,7 @@ import { applyStartConfigAsync } from '../../../simulator/startSetup';
 import { ControlConfigExecutionError } from '../../../simulator/controlConfig';
 import * as promiseUtils from '../../../utils/promise';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -71,6 +73,7 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../utils/json');
+jest.mock('../../../utils/statuspageService');
 jest.mock('../../../utils/promise', () => ({
   ...jest.requireActual('../../../utils/promise'),
   sleepAsync: jest.fn().mockResolvedValue(undefined),
@@ -1053,6 +1056,22 @@ describe(Simulator, () => {
     expect(mockAvailabilityByAppIdAsync).toHaveBeenCalledWith(graphqlClient, 'project-123');
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
     expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(maybeWarnAboutEasOutagesAsync).not.toHaveBeenCalled();
+  });
+
+  it('warns about EAS Simulator and EAS Workflows outages before creating the session', async () => {
+    mockCreateDeviceRunSessionAsync.mockImplementationOnce(async () => {
+      expect(maybeWarnAboutEasOutagesAsync).toHaveBeenCalledWith(graphqlClient, [
+        StatuspageServiceName.EasSimulator,
+        StatuspageServiceName.EasWorkflows,
+      ]);
+      return makeCreatedDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledTimes(1);
   });
 
   it('skips the gate check for Expo admins on a gated account', async () => {
