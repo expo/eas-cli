@@ -972,11 +972,14 @@ export async function findAvailablePortAsync(): Promise<number> {
       return port;
     }
   }
-  const port = await tryListenOnPortAsync(0);
-  if (port === null) {
-    throw new SystemError('Could not allocate a local port for the web preview.');
+  for (let attempt = 0; attempt < SESSION_PORT_ATTEMPTS; attempt++) {
+    const port = await tryListenOnPortAsync(0);
+    if (port !== null && !returnedSessionPorts.has(port)) {
+      returnedSessionPorts.add(port);
+      return port;
+    }
   }
-  return port;
+  throw new SystemError('Could not allocate a local port for the web preview.');
 }
 
 /** Returns null if the port is in use. Port 0 returns the port that the system picked. */

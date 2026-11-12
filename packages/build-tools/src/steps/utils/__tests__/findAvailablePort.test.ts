@@ -98,4 +98,12 @@ describe(findAvailablePortAsync, () => {
     expect(port).not.toBe(taken);
     await expect(listenAsync(port)).resolves.toBe(port);
   });
+
+  it('does not return the same system-assigned port twice', async () => {
+    const taken = await listenAsync(await freePortInRangeAsync());
+    jest.mocked(randomInt).mockImplementation(() => taken);
+    const first = await findAvailablePortAsync();
+    const second = await findAvailablePortAsync();
+    expect(second).not.toBe(first);
+  });
 });
