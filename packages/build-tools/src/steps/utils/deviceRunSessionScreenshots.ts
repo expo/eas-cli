@@ -16,6 +16,8 @@ import {
 } from './deviceRunSessionScreenshotNames';
 import {
   type ScreenshotThumbnailEncoder,
+  type ScreenshotThumbnails,
+  createScreenshotThumbnails,
   uploadDeviceRunSessionScreenshotAsync,
 } from './deviceRunSessionScreenshotThumbnails';
 
@@ -77,7 +79,7 @@ async function uploadScreenshotAsync(
     session,
     signal,
     failedUploads,
-    thumbnailEncoder,
+    thumbnails,
     logger,
   }: {
     file: string;
@@ -88,7 +90,7 @@ async function uploadScreenshotAsync(
     session: Promise<ScreenshotSession | null>;
     signal: AbortSignal;
     failedUploads: FailedUploads;
-    thumbnailEncoder?: ScreenshotThumbnailEncoder;
+    thumbnails?: ScreenshotThumbnails;
     logger: bunyan;
   }
 ): Promise<void> {
@@ -108,8 +110,7 @@ async function uploadScreenshotAsync(
     size,
     attempts: 3,
     signal,
-    ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
-    logger,
+    ...(thumbnails ? { thumbnails } : {}),
   });
   await rm(file);
   const previousFailures = failedUploads.get(name)?.attempts ?? 0;
@@ -177,7 +178,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     signal,
     failedUploads,
     session = Promise.resolve(null),
-    thumbnailEncoder,
+    thumbnails,
   }: {
     directory: string;
     deviceRunSessionId: string;
@@ -185,7 +186,8 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     signal: AbortSignal;
     failedUploads: FailedUploads;
     session?: Promise<ScreenshotSession | null>;
-    thumbnailEncoder?: ScreenshotThumbnailEncoder;
+    /** Makes small copies of the uploaded screenshots, separately from these uploads. */
+    thumbnails?: ScreenshotThumbnails;
   }
 ): Promise<{ uploaded: number; saveFailures: number }> {
   let uploadedCount = 0;
@@ -223,7 +225,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
         session,
         signal,
         failedUploads,
-        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+        ...(thumbnails ? { thumbnails } : {}),
         logger,
       });
       uploadedCount++;
@@ -376,8 +378,12 @@ export async function startDeviceRunSessionScreenshotsAsync(
     thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<{ directory: string; finishAsync: (hostStopped: boolean) => Promise<void> }> {
+  const { thumbnailEncoder, ...uploadOptions } = options;
   const session = loadScreenshotSessionAsync(ctx, options.deviceRunSessionId, options.logger);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'device-session-screenshots-'));
+  const thumbnails = thumbnailEncoder
+    ? createScreenshotThumbnails(ctx, { ...thumbnailEncoder, logger: options.logger })
+    : undefined;
   const failedUploads: FailedUploads = new Map();
   const totals = { uploaded: 0, saveFailures: 0 };
   const controller = new AbortController();
@@ -389,7 +395,8 @@ export async function startDeviceRunSessionScreenshotsAsync(
       scanRequested = false;
       try {
         const { uploaded, saveFailures } = await uploadDeviceRunSessionScreenshotsAsync(ctx, {
-          ...options,
+          ...uploadOptions,
+          ...(thumbnails ? { thumbnails } : {}),
           session,
           directory,
           failedUploads,
@@ -424,6 +431,7 @@ export async function startDeviceRunSessionScreenshotsAsync(
   return {
     directory,
     finishAsync(hostStopped) {
+      // The copies run while the screenshots drain. The copies that remain then get a short wait.
       finishTask ??= finishCollectionAsync({
         directory,
         hostStopped,
@@ -437,7 +445,7 @@ export async function startDeviceRunSessionScreenshotsAsync(
         },
         totals,
         failedUploads,
-      });
+      }).finally(() => thumbnails?.closeAsync());
       return finishTask;
     },
   };

@@ -16,6 +16,8 @@ import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotThumbnailEncoder,
+  type ScreenshotThumbnails,
+  createScreenshotThumbnails,
   uploadDeviceRunSessionScreenshotAsync,
 } from './deviceRunSessionScreenshotThumbnails';
 
@@ -87,6 +89,9 @@ export async function pollArgentArtifactsForUploadAsync(
   const seenArtifactIds = new Set<string>();
   const pendingUploads = new Set<Promise<void>>();
   let listArtifactsErrorCount = 0;
+  const thumbnails = thumbnailEncoder
+    ? createScreenshotThumbnails(ctx, { ...thumbnailEncoder, logger })
+    : undefined;
 
   const queueArtifactUpload = (artifact: ArgentArtifact): void => {
     if (seenArtifactIds.has(artifact.id)) {
@@ -99,7 +104,7 @@ export async function pollArgentArtifactsForUploadAsync(
       toolsAuthToken,
       artifact,
       logger,
-      ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+      ...(thumbnails ? { thumbnails } : {}),
     }).catch(err => {
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('Could not upload Argent remote session artifact', error);
@@ -155,12 +160,19 @@ export async function pollArgentArtifactsForUploadAsync(
   }
 
   logger.info('Argent artifact polling stopped; draining remaining artifacts.');
-  await listAndQueueArtifactUploadsAsync();
-  await waitForPendingUploadsAsync({
-    pendingUploads,
-    timeoutMs: ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS,
-    logger,
-  });
+  let drained = false;
+  try {
+    await listAndQueueArtifactUploadsAsync();
+    await waitForPendingUploadsAsync({
+      pendingUploads,
+      timeoutMs: ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS,
+      logger,
+    });
+    drained = true;
+  } finally {
+    // The copies are optional, so they get no time after a timed-out drain.
+    await thumbnails?.closeAsync(drained ? undefined : 0);
+  }
 }
 
 export async function listArgentArtifactsAsync({
@@ -196,14 +208,14 @@ export async function uploadArgentArtifactAsync(
     toolsAuthToken,
     artifact,
     logger,
-    thumbnailEncoder,
+    thumbnails,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     artifact: ArgentArtifact;
     logger: bunyan;
-    thumbnailEncoder?: ScreenshotThumbnailEncoder;
+    thumbnails?: ScreenshotThumbnails;
   }
 ): Promise<void> {
   const filename = artifact.isDirectory ? `${artifact.filename}.tar.gz` : artifact.filename;
@@ -237,8 +249,7 @@ export async function uploadArgentArtifactAsync(
         ...upload,
         file: temporaryArtifactPath,
         metadata,
-        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
-        logger,
+        ...(thumbnails ? { thumbnails } : {}),
       });
       return;
     }

@@ -600,6 +600,43 @@ describe(ensureMacosPreviewEncoderInstalledAsync, () => {
     expect(getEventListeners(controller.signal, 'abort')).toEqual([]);
   });
 
+  it('shares one install between callers and keeps it when only one caller is canceled', async () => {
+    jest.mocked(spawn).mockReset();
+    let finishInstall!: () => void;
+    jest.mocked(spawn).mockImplementation(
+      command =>
+        (command === 'cwebp'
+          ? Promise.reject(new Error('cwebp missing'))
+          : Object.assign(
+              new Promise(resolve => {
+                finishInstall = () => resolve({ stdout: '', stderr: '' });
+              }),
+              { child: { pid: 12345 } }
+            )) as unknown as ReturnType<typeof spawn>
+    );
+    const killed = jest.spyOn(processes, 'killProcessGroup').mockImplementation(() => {});
+    try {
+      const preview = new AbortController();
+      const reason = new Error('preview ended');
+      const previewSetup = ensureMacosPreviewEncoderInstalledAsync({
+        env: {},
+        logger,
+        signal: preview.signal,
+      });
+      const copiesSetup = ensureMacosPreviewEncoderInstalledAsync({ env: {}, logger });
+      await new Promise(resolve => setImmediate(resolve));
+      preview.abort(reason);
+      await expect(previewSetup).rejects.toBe(reason);
+      expect(killed).not.toHaveBeenCalled();
+      finishInstall();
+      await expect(copiesSetup).resolves.toBeUndefined();
+      expect(jest.mocked(spawn).mock.calls.map(([command]) => command)).toEqual(['cwebp', 'brew']);
+      expect(getEventListeners(preview.signal, 'abort')).toEqual([]);
+    } finally {
+      killed.mockRestore();
+    }
+  });
+
   it('removes its abort listener after a successful probe', async () => {
     jest.mocked(spawn).mockReset();
     jest.mocked(spawn).mockResolvedValue({ stdout: '', stderr: '' } as never);

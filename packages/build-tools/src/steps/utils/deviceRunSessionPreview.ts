@@ -109,9 +109,16 @@ async function createPreviewUploadSessionAsync(
   );
 }
 
+type MacosEncoderSetup = { promise: Promise<void>; controller: AbortController; waiters: number };
+let macosEncoderSetup: MacosEncoderSetup | undefined;
+
 /**
- * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews with `cwebp` from
- * Homebrew's webp package instead. Throws when it cannot be installed.
+ * Homebrew's FFmpeg is built without libwebp, so macOS encodes previews and screenshot copies with
+ * `cwebp` from Homebrew's webp package instead. Throws when it cannot be installed.
+ *
+ * Callers at the same time share one probe and install, so two `brew install` commands never run
+ * together. A canceled caller stops waiting. The install stops only when its last caller is
+ * canceled, and that caller waits until the command closes.
  */
 export async function ensureMacosPreviewEncoderInstalledAsync({
   env,
@@ -122,14 +129,72 @@ export async function ensureMacosPreviewEncoderInstalledAsync({
   logger: bunyan;
   signal?: AbortSignal;
 }): Promise<void> {
+  signal?.throwIfAborted();
+  if (!macosEncoderSetup || macosEncoderSetup.controller.signal.aborted) {
+    const controller = new AbortController();
+    const created: MacosEncoderSetup = {
+      controller,
+      waiters: 0,
+      promise: installMacosPreviewEncoderAsync({ env, logger, signal: controller.signal }),
+    };
+    macosEncoderSetup = created;
+    const clear = (): void => {
+      if (macosEncoderSetup === created) {
+        macosEncoderSetup = undefined;
+      }
+    };
+    created.promise.then(clear, clear);
+  }
+  const setup = macosEncoderSetup;
+  setup.waiters++;
+  let waiting = true;
+  const leave = (): number => {
+    if (waiting) {
+      waiting = false;
+      setup.waiters--;
+    }
+    return setup.waiters;
+  };
+  let removeAbortListener = (): void => {};
+  try {
+    await new Promise<void>((resolve, reject) => {
+      setup.promise.then(resolve, reject);
+      if (!signal) {
+        return;
+      }
+      const onAbort = (): void => {
+        if (leave() > 0) {
+          reject(signal.reason);
+        } else {
+          setup.controller.abort(signal.reason);
+        }
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+      removeAbortListener = () => signal.removeEventListener('abort', onAbort);
+    });
+  } finally {
+    removeAbortListener();
+    leave();
+  }
+}
+
+async function installMacosPreviewEncoderAsync({
+  env,
+  logger,
+  signal,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal: AbortSignal;
+}): Promise<void> {
   const probe = await asyncResult(
     runEncoderCommandAsync('cwebp', ['-version'], { env, stdio: 'pipe' }, signal)
   );
   if (probe.ok) {
     return;
   }
-  signal?.throwIfAborted();
-  logger.info('Installing webp with Homebrew for the session preview.');
+  signal.throwIfAborted();
+  logger.info('Installing webp with Homebrew for the session preview and screenshot copies.');
   await runEncoderCommandAsync(
     'brew',
     ['install', 'webp'],

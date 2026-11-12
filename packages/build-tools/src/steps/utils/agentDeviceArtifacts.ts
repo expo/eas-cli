@@ -16,6 +16,8 @@ import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotThumbnailEncoder,
+  type ScreenshotThumbnails,
+  createScreenshotThumbnails,
   uploadDeviceRunSessionScreenshotAsync,
 } from './deviceRunSessionScreenshotThumbnails';
 
@@ -66,6 +68,9 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
   const uploadedArtifactIds = new Set<string>();
+  const thumbnails = thumbnailEncoder
+    ? createScreenshotThumbnails(ctx, { ...thumbnailEncoder, logger })
+    : undefined;
   let listArtifactsErrorCount = 0;
 
   // Ending normal polling must not cancel a transfer that the session already produced.
@@ -110,7 +115,7 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
               artifact,
               logger,
               ...(transferSignal ? { signal: transferSignal } : {}),
-              ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+              ...(thumbnails ? { thumbnails } : {}),
             });
             uploadedArtifactIds.add(artifact.id);
           } catch (err) {
@@ -162,6 +167,8 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
         'Timed out draining agent-device artifacts; some session artifacts may not have been uploaded.'
       );
     }
+    // The copies are optional, so they get no time after a canceled or timed-out drain.
+    await thumbnails?.closeAsync(transferSignal?.aborted ? 0 : undefined);
   }
 }
 
@@ -202,7 +209,7 @@ export async function uploadAgentDeviceArtifactAsync(
     artifact,
     logger,
     signal,
-    thumbnailEncoder,
+    thumbnails,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
@@ -210,7 +217,7 @@ export async function uploadAgentDeviceArtifactAsync(
     artifact: AgentDeviceArtifact;
     logger: bunyan;
     signal?: AbortSignal;
-    thumbnailEncoder?: ScreenshotThumbnailEncoder;
+    thumbnails?: ScreenshotThumbnails;
   }
 ): Promise<void> {
   signal?.throwIfAborted();
@@ -249,8 +256,7 @@ export async function uploadAgentDeviceArtifactAsync(
         ...upload,
         file: temporaryArtifactPath,
         metadata,
-        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
-        logger,
+        ...(thumbnails ? { thumbnails } : {}),
       });
       return;
     }
