@@ -967,7 +967,8 @@ export async function findAvailablePortAsync(): Promise<number> {
       continue;
     }
     const port = await tryListenOnPortAsync(candidate);
-    if (port !== null) {
+    // Checked again, because a call that overlaps this one can return the same port meanwhile.
+    if (port !== null && !returnedSessionPorts.has(port)) {
       returnedSessionPorts.add(port);
       return port;
     }

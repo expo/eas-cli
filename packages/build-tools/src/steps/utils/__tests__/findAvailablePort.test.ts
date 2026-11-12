@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { once } from 'node:events';
-import { type AddressInfo, type Server, createServer } from 'node:net';
+import { type AddressInfo, Server, createServer } from 'node:net';
 
 import { SESSION_PORT_RANGE, findAvailablePortAsync } from '../remoteDeviceRunSession';
 
@@ -99,11 +99,37 @@ describe(findAvailablePortAsync, () => {
     await expect(listenAsync(port)).resolves.toBe(port);
   });
 
-  it('does not return the same system-assigned port twice', async () => {
-    const taken = await listenAsync(await freePortInRangeAsync());
-    jest.mocked(randomInt).mockImplementation(() => taken);
-    const first = await findAvailablePortAsync();
-    const second = await findAvailablePortAsync();
-    expect(second).not.toBe(first);
+  describe('when the system assigns a port that was already returned', () => {
+    // A port that findAvailablePortAsync never returned, so it is not in its set.
+    const unusedPort = 1;
+    function systemAssigns(...ports: number[]) {
+      const address = jest.spyOn(Server.prototype, 'address');
+      for (const port of ports) {
+        address.mockReturnValueOnce({ address: '127.0.0.1', family: 'IPv4', port });
+      }
+      return address;
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('skips it and returns the next one', async () => {
+      const taken = await listenAsync(await freePortInRangeAsync());
+      jest.mocked(randomInt).mockImplementation(() => taken);
+      const first = await findAvailablePortAsync();
+      const address = systemAssigns(first, unusedPort);
+      await expect(findAvailablePortAsync()).resolves.toBe(unusedPort);
+      expect(address).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails after 20 attempts', async () => {
+      const taken = await listenAsync(await freePortInRangeAsync());
+      jest.mocked(randomInt).mockImplementation(() => taken);
+      const first = await findAvailablePortAsync();
+      const address = systemAssigns(...Array<number>(20).fill(first));
+      await expect(findAvailablePortAsync()).rejects.toThrow('Could not allocate a local port');
+      expect(address).toHaveBeenCalledTimes(20);
+    });
   });
 });
