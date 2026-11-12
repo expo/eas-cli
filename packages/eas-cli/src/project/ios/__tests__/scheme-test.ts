@@ -1,12 +1,19 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import os from 'os';
+import resolveFrom from 'resolve-from';
 
 import { promptAsync } from '../../../prompts';
-import { selectSchemeAsync } from '../scheme';
+import { resolveVcsClient } from '../../../vcs';
+import { resolveXcodeBuildContextAsync, selectSchemeAsync } from '../scheme';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
+jest.mock(
+  '/app/node_modules/expo/config-plugins.js',
+  () => ({ IOSConfig: { XcodeUtils: { sanitizedName: () => 'FottoFotografos' } } }),
+  { virtual: true }
+);
 
 beforeEach(async () => {
   vol.reset();
@@ -16,6 +23,25 @@ beforeEach(async () => {
   await fs.mkdirp(os.tmpdir());
 
   jest.mocked(promptAsync).mockReset();
+});
+
+describe(resolveXcodeBuildContextAsync, () => {
+  it("names the managed scheme with the project's config-plugins", async () => {
+    jest
+      .spyOn(resolveFrom, 'silent')
+      .mockReturnValueOnce('/app/node_modules/expo/config-plugins.js');
+
+    const xcodeBuildContext = await resolveXcodeBuildContextAsync(
+      {
+        exp: { name: 'Fotto Fotógrafos', slug: 'fotto' },
+        projectDir: '/app',
+        nonInteractive: true,
+        vcsClient: resolveVcsClient(),
+      },
+      {} as any
+    );
+    expect(xcodeBuildContext).toEqual({ buildScheme: 'FottoFotografos' });
+  });
 });
 
 describe(selectSchemeAsync, () => {
