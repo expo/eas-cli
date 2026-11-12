@@ -564,22 +564,89 @@ it('does not queue more native opens while a timed-out open is still pending', a
 });
 
 it('bounds initial tunnel creation and retires a late listener', async () => {
+  const resolvers: ((value: ngrok.Listener) => void)[] = [];
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockImplementation(() => new Promise(resolve => resolvers.push(resolve)) as never);
+  const opening = startNgrokTunnelAsync(options);
+  const rejected = expect(opening).rejects.toThrow('Ngrok tunnel open timed out');
+  // Three attempts, each followed by a bounded cleanup wait and a backoff before the next one.
+  await jest.advanceTimersByTimeAsync(15_000 + 4_000 + 1_000 + 15_000 + 4_000 + 2_000 + 15_000);
+  await rejected;
+  expect(ngrok.forward).toHaveBeenCalledTimes(3);
+  const late = [initial, listener(), listener()];
+  resolvers.forEach((resolve, index) => resolve(late[index] as never));
+  await jest.advanceTimersByTimeAsync(0);
+  for (const lateListener of late) {
+    expect(lateListener.close).toHaveBeenCalledTimes(1);
+  }
+});
+
+it('retries a timed-out initial open on a new agent session and retires the late listener', async () => {
   let resolveOpening!: (value: ngrok.Listener) => void;
   jest
     .mocked(ngrok.forward)
     .mockReset()
-    .mockReturnValueOnce(
-      new Promise(resolve => {
-        resolveOpening = resolve;
-      })
-    );
+    .mockReturnValueOnce(new Promise(resolve => (resolveOpening = resolve)))
+    .mockResolvedValue(replacement as never);
   const opening = startNgrokTunnelAsync(options);
-  const rejected = expect(opening).rejects.toThrow('Ngrok tunnel open timed out');
   await jest.advanceTimersByTimeAsync(15_000);
-  await rejected;
+  expect(ngrok.forward).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    expect.objectContaining({ attempt: 1 }),
+    'Could not open ngrok tunnel web-preview-fixed.example.test (attempt 1 of 3); retrying.'
+  );
+  // The retry waits for the stuck open, so its late listener closes before the endpoint is reused.
   resolveOpening(initial as never);
-  await jest.advanceTimersByTimeAsync(0);
-  expect(initial.close).toHaveBeenCalledTimes(1);
+  await jest.advanceTimersByTimeAsync(1_000);
+  const tunnel = await opening;
+  try {
+    expect(initial.close).toHaveBeenCalledTimes(1);
+    expect(ngrok.forward).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(ngrok.forward).mock.calls[1][0]).toMatchObject({ force_new_session: true });
+    expect(tunnel.url).toBe(url);
+  } finally {
+    await tunnel.stopAsync();
+  }
+  expect(replacement.close).toHaveBeenCalledTimes(1);
+});
+
+it('retries an initial open while the timed-out open never settles', async () => {
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockReturnValueOnce(new Promise(() => {}))
+    .mockResolvedValue(replacement as never);
+  const opening = startNgrokTunnelAsync(options);
+  await jest.advanceTimersByTimeAsync(15_000 + 4_000 + 1_000);
+  const tunnel = await opening;
+  expect(ngrok.forward).toHaveBeenCalledTimes(2);
+  expect(tunnel.url).toBe(url);
+  // Stop is bounded while the first open is still pending.
+  const stopped = expect(tunnel.stopAsync()).rejects.toThrow('stop timed out');
+  await jest.advanceTimersByTimeAsync(4_000);
+  await stopped;
+  expect(replacement.close).toHaveBeenCalledTimes(1);
+});
+
+it('retries an initial open that ngrok rejects', async () => {
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockRejectedValueOnce(
+      new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+    )
+    .mockResolvedValue(initial as never);
+  const opening = startNgrokTunnelAsync(options);
+  await jest.advanceTimersByTimeAsync(1_000);
+  const tunnel = await opening;
+  try {
+    expect(ngrok.forward).toHaveBeenCalledTimes(2);
+    expect(tunnel.url).toBe(url);
+  } finally {
+    await tunnel.stopAsync();
+  }
 });
 
 it('retries a rejected close after initial tunnel creation timed out', async () => {
@@ -587,15 +654,20 @@ it('retries a rejected close after initial tunnel creation timed out', async () 
   jest
     .mocked(ngrok.forward)
     .mockReset()
-    .mockReturnValueOnce(new Promise(resolve => (resolveOpening = resolve)));
+    .mockReturnValueOnce(new Promise(resolve => (resolveOpening = resolve)))
+    .mockResolvedValue(replacement as never);
   const opening = startNgrokTunnelAsync(options);
-  const rejected = expect(opening).rejects.toThrow('Ngrok tunnel open timed out');
   await jest.advanceTimersByTimeAsync(15_000);
-  await rejected;
   initial.close.mockRejectedValueOnce(new Error('temporary unlisten failure'));
   resolveOpening(initial as never);
-  await jest.advanceTimersByTimeAsync(250);
-  expect(initial.close).toHaveBeenCalledTimes(2);
+  await jest.advanceTimersByTimeAsync(1_250);
+  const tunnel = await opening;
+  try {
+    expect(initial.close).toHaveBeenCalledTimes(2);
+    expect(ngrok.forward).toHaveBeenCalledTimes(2);
+  } finally {
+    await tunnel.stopAsync();
+  }
 });
 
 it('retires only the late listener without blaming it for an older stuck listener', async () => {
@@ -756,9 +828,13 @@ it('blocks HTTP and existing WebSockets on Stop even when ngrok cannot close', a
 });
 
 it('releases its local target when initial tunnel creation fails', async () => {
-  jest.useRealTimers();
   jest.mocked(ngrok.forward).mockReset().mockRejectedValue(new Error('forward failed'));
-  await expect(startNgrokTunnelAsync(options)).rejects.toThrow('forward failed');
+  const opening = startNgrokTunnelAsync(options);
+  const rejected = expect(opening).rejects.toThrow('forward failed');
+  await jest.advanceTimersByTimeAsync(3_000);
+  await rejected;
+  expect(ngrok.forward).toHaveBeenCalledTimes(3);
+  jest.useRealTimers();
   const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr;
   const server = createServer();
   server.listen(targetPort as number, '127.0.0.1');
@@ -816,7 +892,8 @@ it.each(['resolve', 'reject'])(
     const opening = startNgrokTunnelAsync(options);
     const rejected = expect(opening).rejects.toThrow('open timed out');
     await new Promise<void>(resolve => setImmediate(resolve));
-    await jest.advanceTimersByTimeAsync(15_000);
+    // Three timed-out attempts, with a bounded cleanup wait and a backoff between them.
+    await jest.advanceTimersByTimeAsync(15_000 + 4_000 + 1_000 + 15_000 + 4_000 + 2_000 + 15_000);
     await rejected;
     const targetPort = (jest.mocked(ngrok.forward).mock.calls[0][0] as ngrok.Config).addr as number;
     if (outcome === 'resolve') {

@@ -832,14 +832,14 @@ it('opens the preview tunnel during startup', async () => {
 it('retries a failed tunnel without restarting the host', async () => {
   const host = await startHostAsync();
   await (await host.openPreviewAsync()).closeAsync();
-  jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
+  rejectEveryNgrokOpenAttempt(new Error('tunnel unavailable'));
   await expect(host.openPreviewAsync()).rejects.toThrow('tunnel unavailable');
   expect(stopServer).not.toHaveBeenCalled();
   await host.openPreviewAsync();
   expect(spawnDetached).toHaveBeenCalledTimes(1);
   await host.finishAsync();
   expect(closeTunnel).toHaveBeenCalledTimes(2);
-});
+}, 15_000);
 
 it('drains an in-flight tunnel when finishing and rejects new opens', async () => {
   const host = await startHostAsync();
@@ -1432,14 +1432,23 @@ it('ends the preview phase with failure when startup never provides a token', as
 });
 
 it('fails startup and ends the preview phase with failure if opening the tunnel fails', async () => {
-  jest.mocked(ngrok.forward).mockRejectedValueOnce(new Error('tunnel unavailable'));
+  rejectEveryNgrokOpenAttempt(new Error('tunnel unavailable'));
   await expect(startHostAsync()).rejects.toThrow('tunnel unavailable');
   expect(stopServer).toHaveBeenCalledTimes(1);
   expect(logger.info).toHaveBeenCalledWith(
     { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
     'End phase: Simulator preview'
   );
-});
+}, 15_000);
+
+/** startNgrokTunnelAsync retries its first open, so a tunnel fails only when every attempt fails. */
+function rejectEveryNgrokOpenAttempt(error: Error): void {
+  jest
+    .mocked(ngrok.forward)
+    .mockRejectedValueOnce(error)
+    .mockRejectedValueOnce(error)
+    .mockRejectedValueOnce(error);
+}
 
 it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   'uploads screenshots and flushes them exactly once when the %s host finishes',

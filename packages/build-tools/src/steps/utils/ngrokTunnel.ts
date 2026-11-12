@@ -12,6 +12,8 @@ import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 const PROBE_INTERVAL_MS = 15_000;
 const FAILURE_THRESHOLD = 3;
 const STOP_TIMEOUT_MS = 4_000;
+const INITIAL_OPEN_ATTEMPTS = 3;
+const INITIAL_OPEN_RETRY_DELAY_MS = 1_000;
 
 export type NgrokTunnelHandle = {
   url: string;
@@ -80,10 +82,15 @@ export async function startNgrokTunnelAsync({
   const ownedListeners = new Set<ngrok.Listener>();
   const retiredListeners = new Set<ngrok.Listener>();
   const closingListeners = new Map<ngrok.Listener, Promise<void>>();
-  let pendingOpen: Promise<ngrok.Listener> | undefined;
+  const pendingOpens = new Set<Promise<ngrok.Listener>>();
   let currentListener: ngrok.Listener | undefined;
   function releaseTarget(): void {
-    if (signal.aborted && !pendingOpen && ownedListeners.size === 0 && target.listening) {
+    if (
+      signal.aborted &&
+      pendingOpens.size === 0 &&
+      ownedListeners.size === 0 &&
+      target.listening
+    ) {
       target.close();
     }
   }
@@ -154,8 +161,15 @@ export async function startNgrokTunnelAsync({
     }
   }
 
-  async function openAsync(forceNewSession = false): Promise<ngrok.Listener> {
-    if (pendingOpen) {
+  /**
+   * Supervision never queues an open behind a pending one. An initial retry can, because the
+   * pending open may never settle, and its listener is retired if it arrives late.
+   */
+  async function openAsync(
+    forceNewSession = false,
+    allowPendingOpen = false
+  ): Promise<ngrok.Listener> {
+    if (pendingOpens.size > 0 && !allowPendingOpen) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
     let acquired: ngrok.Listener | undefined;
@@ -181,9 +195,9 @@ export async function startNgrokTunnelAsync({
               return listener;
             })
             .finally(() => {
-              pendingOpen = undefined;
+              pendingOpens.delete(opening);
             });
-          pendingOpen = opening;
+          pendingOpens.add(opening);
           void opening
             .then(() => {
               if (openSignal.aborted) {
@@ -202,10 +216,49 @@ export async function startNgrokTunnelAsync({
     }
   }
 
+  /** Waits, within a bound, for a failed open to settle and for its late listener to close. */
+  async function settleFailedOpenAsync(): Promise<void> {
+    try {
+      await withDeviceRunSessionTimeoutAsync(
+        { name: 'Failed ngrok tunnel open cleanup', timeoutMs: STOP_TIMEOUT_MS, signal },
+        async cleanupSignal => {
+          await Promise.all([...pendingOpens].map(pending => pending.catch(() => {})));
+          await retireListenersAsync(cleanupSignal);
+        }
+      );
+    } catch {
+      // The next attempt starts anyway; a late listener from this open is retired when it arrives.
+    }
+  }
+
+  // Opening fails now and then because of a slow or failed ngrok control-plane request (for
+  // example ERR_NGROK_802), so the first open is retried before the session fails.
+  async function openInitialAsync(): Promise<ngrok.Listener> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        // A retry starts a new agent session, so it does not reuse a session that is stuck.
+        return await openAsync(
+          /* forceNewSession */ attempt > 1,
+          /* allowPendingOpen */ attempt > 1
+        );
+      } catch (err) {
+        if (signal.aborted || attempt >= INITIAL_OPEN_ATTEMPTS) {
+          throw err;
+        }
+        logger.warn(
+          { err, attempt },
+          `Could not open ngrok tunnel ${domain} (attempt ${attempt} of ${INITIAL_OPEN_ATTEMPTS}); retrying.`
+        );
+        await settleFailedOpenAsync();
+        await waitAsync(INITIAL_OPEN_RETRY_DELAY_MS * attempt, signal);
+      }
+    }
+  }
+
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   let publicUrl: string | null;
   try {
-    currentListener = await openAsync();
+    currentListener = await openInitialAsync();
     publicUrl = currentListener.url();
     if (!publicUrl) {
       await closeAsync(currentListener, signal);
@@ -341,7 +394,10 @@ export async function startNgrokTunnelAsync({
               retiredListeners.add(currentListener);
               currentListener = undefined;
             }
-            await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
+            await Promise.all([
+              ...[...pendingOpens].map(pending => pending.catch(() => {})),
+              retireListenersAsync(stopSignal),
+            ]);
             await retireListenersAsync(stopSignal);
           }
         );
