@@ -1,5 +1,11 @@
 # eas-cli
 
+## 27.9.0
+
+### Minor Changes
+
+- Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## 27.8.0
 
 ### Minor Changes

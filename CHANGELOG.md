@@ -2,6 +2,12 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.9.0](https://github.com/expo/eas-cli/releases/tag/v27.9.0) - 2026-11-12
+
+### 🎉 New features
+
+- [eas-cli] Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [27.8.0](https://github.com/expo/eas-cli/releases/tag/v27.8.0) - 2026-11-12
 
 ### 🎉 New features

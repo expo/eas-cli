@@ -1,5 +1,9 @@
 # @expo/downloader
 
+## 27.9.0
+
+No changes in this release.
+
 ## 27.8.0
 
 No changes in this release.
