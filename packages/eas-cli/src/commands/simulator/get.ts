@@ -107,6 +107,11 @@ export default class SimulatorGet extends EasCommand {
         ? await fetchSimulatorSessionErrorsAsync(graphqlClient, session.id)
         : [];
 
+    // Screenshot thumbnails are small copies for the website lists, not separate results.
+    const artifacts = session.artifacts.filter(
+      artifact => artifact.metadata?.__eas_type !== 'screenshot-thumbnail'
+    );
+
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: session.id,
@@ -127,7 +132,7 @@ export default class SimulatorGet extends EasCommand {
               session.publicPreview
             )
           : session.remoteConfig,
-        artifacts: session.artifacts,
+        artifacts,
         errors,
       });
       return;
@@ -162,7 +167,7 @@ export default class SimulatorGet extends EasCommand {
       }
     }
 
-    printArtifacts('Session artifacts', session.artifacts, formatDeviceRunSessionArtifactFields);
+    printArtifacts('Session artifacts', artifacts, formatDeviceRunSessionArtifactFields);
   }
 }
 

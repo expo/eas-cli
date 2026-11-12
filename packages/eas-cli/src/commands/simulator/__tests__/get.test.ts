@@ -302,6 +302,44 @@ describe(SimulatorGet, () => {
     }
   );
 
+  it('hides screenshot thumbnails in JSON and human output', async () => {
+    const session = makeDeviceRunSession();
+    const screenshot = {
+      ...session.artifacts[0],
+      id: 'screenshot-123',
+      name: 'Screenshot 1',
+      filename: 'screenshot-1.png',
+      metadata: { __eas_type: 'screenshot', thumbnailKey: 'key-123' },
+    };
+    const thumbnail = {
+      ...session.artifacts[0],
+      id: 'thumbnail-123',
+      name: 'Screenshot 1 thumbnail',
+      filename: 'screenshot-1.thumbnail.webp',
+      metadata: { __eas_type: 'screenshot-thumbnail', thumbnailKey: 'key-123' },
+    };
+    const sessionWithThumbnail = makeDeviceRunSession({ artifacts: [screenshot, thumbnail] });
+    mockByIdAsync.mockResolvedValue(sessionWithThumbnail);
+
+    const { command } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ artifacts: [screenshot] })
+    );
+
+    jest.clearAllMocks();
+    mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockByIdAsync.mockResolvedValue(sessionWithThumbnail);
+
+    const { command: humanCommand } = createCommand(['--id', 'session-123']);
+    await humanCommand.runAsync();
+
+    const output = JSON.stringify(jest.mocked(Log.log).mock.calls);
+    expect(output).toContain('screenshot-1.png');
+    expect(output).not.toContain('screenshot-1.thumbnail.webp');
+  });
+
   it('includes the session name in JSON and human output when the session is named', async () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
 
