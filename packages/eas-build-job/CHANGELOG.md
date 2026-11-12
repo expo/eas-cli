@@ -1,5 +1,11 @@
 # @expo/eas-build-job
 
+## 27.8.0
+
+### Patch Changes
+
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+
 ## 27.7.2
 
 No changes in this release.

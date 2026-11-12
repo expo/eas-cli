@@ -1,5 +1,19 @@
 # @expo/build-tools
 
+## 27.8.0
+
+### Patch Changes
+
+- Point expo-device-hub at the scrcpy server copy in the `turtle-v2` bucket in Android device sessions, so a failed GitHub release download no longer fails the session. expo-device-hub falls back to GitHub when the copy is missing. ([#4848](https://github.com/expo/eas-cli/pull/4848) by [@sjkim-expo](https://github.com/sjkim-expo))
+- Fix black iOS session preview artifacts on multi-display Simulators by capturing the active display through serve-sim. ([#4777](https://github.com/expo/eas-cli/pull/4777) by [@gwdp](https://github.com/gwdp))
+
+  Skip automatic previews on older serve-sim versions that cannot exclude them from idle activity.
+
+- Report flow tags with the Maestro test results of jobs that run `maestro-runner`. The tags are read from the runner's `report.json`. ([#4853](https://github.com/expo/eas-cli/pull/4853) by [@hSATAC](https://github.com/hSATAC))
+- Send the session preview size to `preview-upload-session` and refresh it when the size changes. ([#4864](https://github.com/expo/eas-cli/pull/4864) by [@hirbod](https://github.com/hirbod))
+- Send the width, height and source of simulator session screenshots (manual, agent-device and Argent, including Argent screenshot diffs) as artifact metadata, read from the image header. ([#4858](https://github.com/expo/eas-cli/pull/4858) by [@hirbod](https://github.com/hirbod))
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+
 ## 27.7.2
 
 ### Patch Changes
