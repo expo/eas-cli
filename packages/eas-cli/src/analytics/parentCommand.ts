@@ -1,11 +1,9 @@
-// Expo CLI uses the same variable name and the same `<cli> <command>` value. Do not change them.
-const COMMAND_PATTERN = /^(expo|eas) [\w:-]+$/;
-
 /**
  * Makes child processes and nested EAS commands report `command` as their parent command.
+ * Expo CLI uses the same variable name and the same `<cli> <command>` value. Do not change them.
  *
- * `parentCommand` is the Expo CLI or EAS CLI command that started the current one. Any other
- * inherited value is dropped. `restoreParentCommand` puts the inherited value back.
+ * `parentCommand` is the Expo CLI or EAS CLI command that started the current one.
+ * `restoreParentCommand` puts the inherited value back.
  */
 export function markAsParentCommand(command: string): {
   parentCommand: string | null;
@@ -15,10 +13,7 @@ export function markAsParentCommand(command: string): {
   process.env.EXPO_PARENT_COMMAND = command;
 
   return {
-    parentCommand:
-      inheritedCommand !== undefined && COMMAND_PATTERN.test(inheritedCommand)
-        ? inheritedCommand
-        : null,
+    parentCommand: inheritedCommand || null,
     restoreParentCommand: () => {
       if (inheritedCommand === undefined) {
         delete process.env.EXPO_PARENT_COMMAND;

@@ -14,19 +14,16 @@ afterEach(() => {
   setInheritedCommand(originalParentCommand);
 });
 
-it.each(['expo run:ios', 'eas build', 'eas update:roll-back-to-embedded'])(
-  'returns the inherited parent command %p',
-  command => {
-    setInheritedCommand(command);
+it('returns the inherited parent command', () => {
+  setInheritedCommand('expo run:ios');
 
-    expect(markAsParentCommand('eas build').parentCommand).toBe(command);
-  }
-);
+  expect(markAsParentCommand('eas build').parentCommand).toBe('expo run:ios');
+});
 
-it.each([undefined, '', 'npm install', 'eas build --profile production', '/usr/bin/expo start'])(
-  'drops the inherited value %p',
-  value => {
-    setInheritedCommand(value);
+it.each([undefined, ''])(
+  'returns no parent command when the inherited value is %p',
+  inheritedCommand => {
+    setInheritedCommand(inheritedCommand);
 
     expect(markAsParentCommand('eas build').parentCommand).toBeNull();
   }
