@@ -7,14 +7,20 @@ import path from 'node:path';
 
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import {
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from '../deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from '../deviceRunSessionScreenshotMetadata';
 import {
   startDeviceRunSessionScreenshotsAsync,
   uploadDeviceRunSessionScreenshotsAsync,
 } from '../deviceRunSessionScreenshots';
 
-jest.mock('../deviceRunSessionArtifacts');
+jest.mock('../deviceRunSessionArtifacts', () => ({
+  ...jest.requireActual('../deviceRunSessionArtifacts'),
+  uploadDeviceRunSessionArtifactAsync: jest.fn(),
+}));
 jest.mock('../deviceRunSessionScreenshotMetadata');
 jest.mock('../../../sentry');
 const ctx = {} as CustomBuildContext;
@@ -22,7 +28,7 @@ const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const options = { deviceRunSessionId: 'session-id', logger };
 let directory: string;
 let uploaded: Buffer[];
-let failedUploads: Map<string, { attempts: number; lastError: Error }>;
+let failedUploads: Map<string, { attempts: number; lastError: Error; idempotencyKey: string }>;
 
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -91,7 +97,11 @@ it('uploads captures that never failed first, oldest first, before retrying fail
   for (const name of [newer, failed, older]) {
     await writeFile(path.join(directory, name), name);
   }
-  failedUploads.set(failed, { attempts: 1, lastError: new Error('stalled') });
+  failedUploads.set(failed, {
+    attempts: 1,
+    lastError: new Error('stalled'),
+    idempotencyKey: 'failed-key',
+  });
   await flush();
   expect(
     jest
@@ -122,6 +132,41 @@ it('keeps failed uploads and retries the same artifact ID, logging the failed at
   );
   expect(failedUploads.size).toBe(0);
   expect(Sentry.capture).not.toHaveBeenCalled();
+});
+
+it('retries a screenshot with its first idempotency key and gives each screenshot its own key', async () => {
+  const first = 'screenshot-2026-09-24T08-45-00-000Z-aaaaaaaaaaaa.png';
+  const second = 'screenshot-2026-09-24T08-45-30-000Z-bbbbbbbbbbbb.png';
+  await writeFile(path.join(directory, first), 'png');
+  await writeFile(path.join(directory, second), 'png');
+  jest.mocked(uploadDeviceRunSessionArtifactAsync).mockRejectedValueOnce(new Error('offline'));
+  await flush();
+  await flush();
+  const calls = jest
+    .mocked(uploadDeviceRunSessionArtifactAsync)
+    .mock.calls.map(([, { artifactId, idempotencyKey }]) => ({ artifactId, idempotencyKey }));
+  expect(calls.map(call => call.artifactId)).toEqual(
+    [first, second, first].map(name => name.slice(0, -4))
+  );
+  expect(calls[0].idempotencyKey).toEqual(expect.any(String));
+  expect(calls[2].idempotencyKey).toBe(calls[0].idempotencyKey);
+  expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
+});
+
+it('keeps a screenshot that www rejects without retrying it', async () => {
+  const filename = 'screenshot-2026-09-24T08-45-59-123Z-ffffffffffff.png';
+  await writeFile(path.join(directory, filename), 'png');
+  jest
+    .mocked(uploadDeviceRunSessionArtifactAsync)
+    .mockRejectedValueOnce(new DeviceRunSessionArtifactRejectedError('Rejected.'));
+  await flush();
+  await flush();
+  expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
+  expect(await readdir(directory)).toEqual([filename]);
+  expect(logger.warn).toHaveBeenCalledWith(
+    expect.objectContaining({ attempt: 1 }),
+    'www rejected the preview screenshot upload. Keeping it without retrying.'
+  );
 });
 
 it('uploads atomic captures immediately, including a capture arriving during another upload', async () => {
@@ -244,6 +289,7 @@ it('warns for the first three attempts and every tenth after, without reporting 
   expect(failedUploads.get(filename)).toEqual({
     attempts: 12,
     lastError: expect.objectContaining({ message: 'offline' }),
+    idempotencyKey: expect.any(String),
   });
   expect(Sentry.capture).not.toHaveBeenCalled();
 });

@@ -1,4 +1,5 @@
 import { type Env, type EnvironmentSecret, type Job, SystemError } from '@expo/eas-build-job';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import {
@@ -65,7 +66,7 @@ export class SandboxWorkerApi {
       'POST',
       'artifact-upload-sessions',
       ArtifactUploadSessionSchema,
-      { ...options, json: input }
+      { ...options, json: input, idempotencyKey: randomUUID() }
     );
   }
 

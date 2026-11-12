@@ -210,7 +210,10 @@ it('keeps the signed upload URL out of the error when the upload connection drop
   handle = request => request.socket.destroy();
   const filename = 'screenshot-2026-09-24T08-45-59-123Z-a1b2c3d4e5f6.png';
   await writeFile(path.join(directory, filename), 'png');
-  const failedUploads = new Map<string, { attempts: number; lastError: Error }>();
+  const failedUploads = new Map<
+    string,
+    { attempts: number; lastError: Error; idempotencyKey: string }
+  >();
   const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
   await uploadDeviceRunSessionScreenshotsAsync(ctx, {
     directory,

@@ -192,6 +192,29 @@ describe('worker API retries', () => {
     });
   });
 
+  it('sends the same idempotency key on every attempt', async () => {
+    jest
+      .mocked(turtleFetch)
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'thing-id' } }));
+    const assertion = expect(
+      new WorkerApi(BASE_URL, AUTH).requestAsync('POST', 'things', ThingSchema, {
+        json: {},
+        idempotencyKey: 'idempotency-key',
+        retries: 3,
+      })
+    ).resolves.toEqual({ id: 'thing-id' });
+    await jest.runAllTimersAsync();
+    await assertion;
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.headers)).toEqual(
+      Array.from({ length: 3 }, () => ({
+        'expo-test-worker-token': 'test-worker-token-value',
+        'Idempotency-Key': 'idempotency-key',
+      }))
+    );
+  });
+
   it('recovers from a network failure', async () => {
     jest
       .mocked(turtleFetch)
