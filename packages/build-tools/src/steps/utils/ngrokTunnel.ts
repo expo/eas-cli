@@ -52,8 +52,6 @@ export async function startNgrokTunnelAsync({
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   const controller = new AbortController();
   const { signal } = controller;
-  const abortStartup = () => controller.abort(startupSignal?.reason);
-  startupSignal?.addEventListener('abort', abortStartup, { once: true });
   const sockets = new Set<Socket>();
   const target = createServer({ allowHalfOpen: true }, client => {
     if (signal.aborted) {
@@ -242,12 +240,16 @@ export async function startNgrokTunnelAsync({
         // A retry starts a new agent session, so it does not reuse a session that is stuck.
         return await openAsync(/* forceNewSession */ attempt > 1);
       } catch (err) {
-        if (signal.aborted || attempt >= INITIAL_OPEN_ATTEMPTS || !isRetryableOpenError(err)) {
+        // A cancelled startup fails with the caller's reason, so the caller can tell it from an error.
+        signal.throwIfAborted();
+        if (attempt >= INITIAL_OPEN_ATTEMPTS || !isRetryableOpenError(err)) {
           throw err;
         }
         await settleFailedOpenAsync();
-        if (signal.aborted || pendingOpen) {
-          // A retry would wait behind the stuck open, so it cannot succeed sooner.
+        signal.throwIfAborted();
+        if (pendingOpen || retiredListeners.size > 0) {
+          // A retry would wait behind the stuck open, or would open the endpoint while a late
+          // listener from the failed open still holds it.
           throw err;
         }
         logger.warn(
@@ -259,6 +261,12 @@ export async function startNgrokTunnelAsync({
     }
   }
 
+  // Added after the target listens, so the finally below always removes it.
+  const abortStartup = () => controller.abort(startupSignal?.reason);
+  startupSignal?.addEventListener('abort', abortStartup, { once: true });
+  if (startupSignal?.aborted) {
+    abortStartup();
+  }
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   let publicUrl: string | null;
   try {
