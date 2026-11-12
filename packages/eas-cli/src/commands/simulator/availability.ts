@@ -18,7 +18,7 @@ export default class SimulatorAvailability extends EasCommand {
   static override aliases = getSimulatorCommandAliases('availability');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('availability');
   static override description =
-    '[EXPERIMENTAL] check whether EAS Simulator is enabled for the current project account';
+    'check whether EAS Simulator is enabled for the current project account';
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
