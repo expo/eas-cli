@@ -102,7 +102,7 @@ it('uploads a WebP copy made with cwebp on macOS and links it with a shared key'
   expect(spawn).toHaveBeenCalledWith(
     'cwebp',
     ['-quiet', '-q', '70', '-resize', '480', '0', file, '-o', expect.stringMatching(/\.webp$/)],
-    expect.objectContaining({ env, stdio: 'pipe', timeout: 30_000 })
+    expect.objectContaining({ env, stdio: 'pipe', timeout: 10_000 })
   );
   expect(uploaded).toEqual([
     { filename: 'screenshot-1.png', content: 'png-content' },
@@ -174,22 +174,67 @@ it('encodes the WebP copy with FFmpeg on Linux', async () => {
   ]);
 });
 
-it('uploads the screenshot without a key when the copy cannot be encoded', async () => {
-  jest.mocked(spawn).mockRejectedValue(new Error('cwebp: command not found'));
-
+it('uploads the screenshot before it encodes the copy', async () => {
   await uploadDeviceRunSessionScreenshotAsync(ctx, {
     ...screenshotOptions(),
     thumbnailEncoder: { runtimePlatform: BuildRuntimePlatform.DARWIN, env },
   });
 
+  expect(jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.invocationCallOrder[0]).toBeLessThan(
+    jest.mocked(spawn).mock.invocationCallOrder[0]
+  );
+});
+
+it('keeps the uploaded screenshot when the copy cannot be encoded', async () => {
+  jest.mocked(spawn).mockRejectedValue(new Error('cwebp: command not found'));
+
+  await expect(
+    uploadDeviceRunSessionScreenshotAsync(ctx, {
+      ...screenshotOptions(),
+      thumbnailEncoder: { runtimePlatform: BuildRuntimePlatform.DARWIN, env },
+    })
+  ).resolves.toBeUndefined();
+
   expect(uploaded).toEqual([{ filename: 'screenshot-1.png', content: 'png-content' }]);
-  expect(
-    jest.mocked(uploadDeviceRunSessionArtifactAsync).mock.calls[0][1].metadata
-  ).not.toHaveProperty('thumbnailKey');
   expect(logger.warn).toHaveBeenCalledWith(
     expect.objectContaining({ file }),
-    'Could not create a small copy of the screenshot. The website uses the full screenshot.'
+    'Could not create or upload a small copy of the screenshot. The website uses the full screenshot.'
   );
+});
+
+it('does not encode the copy after the upload is aborted', async () => {
+  const controller = new AbortController();
+  jest.mocked(uploadDeviceRunSessionArtifactAsync).mockImplementation(async () => {
+    controller.abort();
+  });
+
+  await uploadDeviceRunSessionScreenshotAsync(ctx, {
+    ...screenshotOptions(),
+    signal: controller.signal,
+    thumbnailEncoder: { runtimePlatform: BuildRuntimePlatform.DARWIN, env },
+  });
+
+  expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(1);
+  expect(spawn).not.toHaveBeenCalled();
+});
+
+it('keeps the display rotation in the metadata of the copy', async () => {
+  await uploadDeviceRunSessionScreenshotAsync(ctx, {
+    ...screenshotOptions(),
+    metadata: {
+      source: 'agent-device',
+      width: 2556,
+      height: 1179,
+      displayRotation: 'landscape-left',
+    },
+    thumbnailEncoder: { runtimePlatform: BuildRuntimePlatform.DARWIN, env },
+  });
+
+  expect(createScreenshotMetadataAsync).toHaveBeenCalledWith(expect.stringMatching(/\.webp$/), {
+    source: 'agent-device',
+    displayRotation: 'landscape-left',
+    logger,
+  });
 });
 
 it('does not fail the screenshot upload when the copy cannot be uploaded', async () => {
@@ -208,7 +253,7 @@ it('does not fail the screenshot upload when the copy cannot be uploaded', async
   expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledTimes(2);
   expect(logger.warn).toHaveBeenCalledWith(
     expect.objectContaining({ file }),
-    'Could not upload the small copy of the screenshot. The website uses the full screenshot.'
+    'Could not create or upload a small copy of the screenshot. The website uses the full screenshot.'
   );
 });
 
