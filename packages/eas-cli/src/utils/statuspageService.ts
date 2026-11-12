@@ -27,7 +27,7 @@ const humanReadableServiceName: Record<StatuspageServiceName, string> = {
   [StatuspageServiceName.GithubApiRequests]: 'GitHub API Requests',
   [StatuspageServiceName.GithubWebhooks]: 'Github Webhooks',
   [StatuspageServiceName.EasWorkflows]: 'EAS Workflows',
-  [StatuspageServiceName.EasSimulator]: 'EAS Simulator',
+  [StatuspageServiceName.EasSimulator]: 'Expo Simulators',
 };
 
 const statusDescription: Record<StatuspageServiceStatus, string> = {

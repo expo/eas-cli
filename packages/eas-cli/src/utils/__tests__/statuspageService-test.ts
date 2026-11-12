@@ -47,7 +47,7 @@ describe(maybeWarnAboutEasOutagesAsync, () => {
     jest.mocked(Log.warn).mockClear();
   });
 
-  it('warns about an EAS Simulator outage with the incident name', async () => {
+  it('warns about an Expo Simulators outage with the incident name', async () => {
     jest
       .mocked(StatuspageServiceQuery.statuspageServicesAsync)
       .mockResolvedValue([
@@ -64,7 +64,7 @@ describe(maybeWarnAboutEasOutagesAsync, () => {
       StatuspageServiceName.EasSimulator,
     ]);
     const warnings = getWarnings();
-    expect(warnings[0]).toContain('EAS Simulator is experiencing a partial outage.');
+    expect(warnings[0]).toContain('Expo Simulators is experiencing a partial outage.');
     expect(warnings[1]).toBe('Reason: iOS simulator sessions fail to start.');
   });
 
