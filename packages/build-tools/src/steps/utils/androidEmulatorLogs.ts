@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { type BuildStepGlobalContext } from '@expo/steps';
 import path from 'node:path';
@@ -10,7 +11,6 @@ import {
 } from '../../utils/androidEmulatorLogCapture';
 import { AndroidEmulatorLogFiles } from '../../utils/androidEmulatorLogFiles';
 import { type AndroidEmulatorLogSource } from '../../utils/androidEmulatorLogSources';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 const UPLOAD_TIMEOUT_MS = 30_000;

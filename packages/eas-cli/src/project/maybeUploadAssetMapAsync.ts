@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -6,7 +7,6 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AssetMapSourceInput, AssetMapSourceType, UploadSessionType } from '../graphql/generated';
 import Log from '../log';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
-import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 
 export async function maybeUploadAssetMapAsync(

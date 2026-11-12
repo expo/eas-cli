@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
@@ -12,7 +12,6 @@ import * as tar from 'tar';
 import z from 'zod';
 
 import { uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
-import { formatBytes } from '../../utils/artifacts';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { getCacheVersion } from '../utils/cache';
 
