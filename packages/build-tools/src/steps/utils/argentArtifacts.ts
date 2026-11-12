@@ -14,6 +14,10 @@ import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
+import {
+  type ScreenshotThumbnailEncoder,
+  uploadDeviceRunSessionScreenshotAsync,
+} from './deviceRunSessionScreenshotThumbnails';
 
 const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
@@ -69,12 +73,14 @@ export async function pollArgentArtifactsForUploadAsync(
     toolsAuthToken,
     logger,
     signal,
+    thumbnailEncoder,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     logger: bunyan;
     signal: AbortSignal;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<void> {
   logger.info('Started polling Argent tool-server for artifacts.');
@@ -93,6 +99,7 @@ export async function pollArgentArtifactsForUploadAsync(
       toolsAuthToken,
       artifact,
       logger,
+      ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
     }).catch(err => {
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('Could not upload Argent remote session artifact', error);
@@ -189,12 +196,14 @@ export async function uploadArgentArtifactAsync(
     toolsAuthToken,
     artifact,
     logger,
+    thumbnailEncoder,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     artifact: ArgentArtifact;
     logger: bunyan;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<void> {
   const filename = artifact.isDirectory ? `${artifact.filename}.tar.gz` : artifact.filename;
@@ -210,19 +219,32 @@ export async function uploadArgentArtifactAsync(
     });
     const { size } = await stat(temporaryArtifactPath);
     const kind = getArgentArtifactKind(artifact);
-    const metadata =
-      (kind === 'screenshot' || kind === 'screenshot-diff') && !artifact.isDirectory
-        ? await createScreenshotMetadataAsync(temporaryArtifactPath, { source: 'argent', logger })
-        : undefined;
-    logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
+    const upload = {
       deviceRunSessionId,
       artifactId: artifact.id,
       name: `${filename} (${artifact.id})`,
       filename,
       kind,
-      ...(metadata ? { metadata } : {}),
       size,
+    };
+    if ((kind === 'screenshot' || kind === 'screenshot-diff') && !artifact.isDirectory) {
+      const metadata = await createScreenshotMetadataAsync(temporaryArtifactPath, {
+        source: 'argent',
+        logger,
+      });
+      logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
+      await uploadDeviceRunSessionScreenshotAsync(ctx, {
+        ...upload,
+        file: temporaryArtifactPath,
+        metadata,
+        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+        logger,
+      });
+      return;
+    }
+    logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
+    await uploadDeviceRunSessionArtifactAsync(ctx, {
+      ...upload,
       openStream: () => createReadStream(temporaryArtifactPath),
     });
   } finally {

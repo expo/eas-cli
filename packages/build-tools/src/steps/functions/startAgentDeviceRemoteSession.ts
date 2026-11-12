@@ -278,6 +278,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       logger,
       signal,
       stopPollingSignal: stopArtifactPolling.signal,
+      thumbnailEncoder: { runtimePlatform, env },
     });
     // Attach a handler at once; the teardown still awaits and reports a rejection.
     void artifactUploads.catch(() => {});

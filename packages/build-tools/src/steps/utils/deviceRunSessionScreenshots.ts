@@ -1,5 +1,5 @@
 import type { bunyan } from '@expo/logger';
-import { type FSWatcher, createReadStream, watch } from 'node:fs';
+import { type FSWatcher, watch } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm, rmdir, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,13 +8,16 @@ import { z } from 'zod';
 import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotSession,
   loadScreenshotSessionAsync,
   screenshotArtifactDetails,
 } from './deviceRunSessionScreenshotNames';
+import {
+  type ScreenshotThumbnailEncoder,
+  uploadDeviceRunSessionScreenshotAsync,
+} from './deviceRunSessionScreenshotThumbnails';
 
 // The device-hub repository writes these files from
 // packages/serve-sim/packages/serve-sim/src/screenshot-artifacts.ts and
@@ -74,6 +77,7 @@ async function uploadScreenshotAsync(
     session,
     signal,
     failedUploads,
+    thumbnailEncoder,
     logger,
   }: {
     file: string;
@@ -84,12 +88,14 @@ async function uploadScreenshotAsync(
     session: Promise<ScreenshotSession | null>;
     signal: AbortSignal;
     failedUploads: FailedUploads;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
     logger: bunyan;
   }
 ): Promise<void> {
   const artifactDetails = screenshotArtifactDetails(timestamp, await session);
   const startedAt = Date.now();
-  await uploadDeviceRunSessionArtifactAsync(ctx, {
+  await uploadDeviceRunSessionScreenshotAsync(ctx, {
+    file,
     deviceRunSessionId,
     artifactId: name.slice(0, -4),
     name: artifactDetails.name,
@@ -100,9 +106,10 @@ async function uploadScreenshotAsync(
     },
     kind: 'screenshot',
     size,
-    openStream: () => createReadStream(file),
     attempts: 3,
     signal,
+    ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
+    logger,
   });
   await rm(file);
   const previousFailures = failedUploads.get(name)?.attempts ?? 0;
@@ -170,6 +177,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     signal,
     failedUploads,
     session = Promise.resolve(null),
+    thumbnailEncoder,
   }: {
     directory: string;
     deviceRunSessionId: string;
@@ -177,6 +185,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
     signal: AbortSignal;
     failedUploads: FailedUploads;
     session?: Promise<ScreenshotSession | null>;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
   }
 ): Promise<{ uploaded: number; saveFailures: number }> {
   let uploadedCount = 0;
@@ -214,6 +223,7 @@ export async function uploadDeviceRunSessionScreenshotsAsync(
         session,
         signal,
         failedUploads,
+        ...(thumbnailEncoder ? { thumbnailEncoder } : {}),
         logger,
       });
       uploadedCount++;
@@ -360,7 +370,11 @@ async function finishCollectionAsync({
 
 export async function startDeviceRunSessionScreenshotsAsync(
   ctx: CustomBuildContext,
-  options: { deviceRunSessionId: string; logger: bunyan }
+  options: {
+    deviceRunSessionId: string;
+    logger: bunyan;
+    thumbnailEncoder?: ScreenshotThumbnailEncoder;
+  }
 ): Promise<{ directory: string; finishAsync: (hostStopped: boolean) => Promise<void> }> {
   const session = loadScreenshotSessionAsync(ctx, options.deviceRunSessionId, options.logger);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'device-session-screenshots-'));

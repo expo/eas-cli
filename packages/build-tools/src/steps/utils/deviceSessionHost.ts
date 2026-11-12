@@ -600,6 +600,7 @@ async function startDeviceSessionHostInternalAsync(
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
     logger: artifactLogger,
+    thumbnailEncoder: { runtimePlatform, env },
   });
   let stagedAppDirectory: string | undefined;
   let simulatorSetup: ReturnType<typeof asyncResult<void>> | undefined;
