@@ -7,13 +7,18 @@ import { type AddressInfo, type Socket, createConnection, createServer } from 'n
 import { clearTimeout, setTimeout } from 'node:timers';
 
 import { turtleFetch } from '../../utils/turtleFetch';
-import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  DeviceRunSessionTimeoutError,
+  withDeviceRunSessionTimeoutAsync,
+} from './deviceRunSessionTimeout';
 
 const PROBE_INTERVAL_MS = 15_000;
 const FAILURE_THRESHOLD = 3;
 const STOP_TIMEOUT_MS = 4_000;
 const INITIAL_OPEN_ATTEMPTS = 3;
 const INITIAL_OPEN_RETRY_DELAY_MS = 1_000;
+/** ngrok error codes for failed control-plane requests that can succeed on a retry. */
+const RETRYABLE_NGROK_ERROR_CODES = ['ERR_NGROK_802'];
 
 export type NgrokTunnelHandle = {
   url: string;
@@ -30,6 +35,7 @@ export async function startNgrokTunnelAsync({
   rewriteHostHeader,
   healthCheck,
   logger,
+  signal: startupSignal,
 }: {
   port: number;
   subdomainPrefix: string;
@@ -39,10 +45,15 @@ export async function startNgrokTunnelAsync({
   rewriteHostHeader?: boolean;
   healthCheck?: { path: string; statuses?: number[] };
   logger: bunyan;
+  /** Cancels startup, including retries of the first open. It has no effect after startup. */
+  signal?: AbortSignal;
 }): Promise<NgrokTunnelHandle> {
+  startupSignal?.throwIfAborted();
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   const controller = new AbortController();
   const { signal } = controller;
+  const abortStartup = () => controller.abort(startupSignal?.reason);
+  startupSignal?.addEventListener('abort', abortStartup, { once: true });
   const sockets = new Set<Socket>();
   const target = createServer({ allowHalfOpen: true }, client => {
     if (signal.aborted) {
@@ -82,15 +93,10 @@ export async function startNgrokTunnelAsync({
   const ownedListeners = new Set<ngrok.Listener>();
   const retiredListeners = new Set<ngrok.Listener>();
   const closingListeners = new Map<ngrok.Listener, Promise<void>>();
-  const pendingOpens = new Set<Promise<ngrok.Listener>>();
+  let pendingOpen: Promise<ngrok.Listener> | undefined;
   let currentListener: ngrok.Listener | undefined;
   function releaseTarget(): void {
-    if (
-      signal.aborted &&
-      pendingOpens.size === 0 &&
-      ownedListeners.size === 0 &&
-      target.listening
-    ) {
+    if (signal.aborted && !pendingOpen && ownedListeners.size === 0 && target.listening) {
       target.close();
     }
   }
@@ -162,14 +168,11 @@ export async function startNgrokTunnelAsync({
   }
 
   /**
-   * Supervision never queues an open behind a pending one. An initial retry can, because the
-   * pending open may never settle, and its listener is retired if it arrives late.
+   * No open is queued behind a pending one: @ngrok/ngrok runs every forward behind one
+   * process-wide lock, so a new open cannot start until the pending one settles.
    */
-  async function openAsync(
-    forceNewSession = false,
-    allowPendingOpen = false
-  ): Promise<ngrok.Listener> {
-    if (pendingOpens.size > 0 && !allowPendingOpen) {
+  async function openAsync(forceNewSession = false): Promise<ngrok.Listener> {
+    if (pendingOpen) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
     let acquired: ngrok.Listener | undefined;
@@ -195,9 +198,9 @@ export async function startNgrokTunnelAsync({
               return listener;
             })
             .finally(() => {
-              pendingOpens.delete(opening);
+              pendingOpen = undefined;
             });
-          pendingOpens.add(opening);
+          pendingOpen = opening;
           void opening
             .then(() => {
               if (openSignal.aborted) {
@@ -222,12 +225,12 @@ export async function startNgrokTunnelAsync({
       await withDeviceRunSessionTimeoutAsync(
         { name: 'Failed ngrok tunnel open cleanup', timeoutMs: STOP_TIMEOUT_MS, signal },
         async cleanupSignal => {
-          await Promise.all([...pendingOpens].map(pending => pending.catch(() => {})));
+          await pendingOpen?.catch(() => {});
           await retireListenersAsync(cleanupSignal);
         }
       );
     } catch {
-      // The next attempt starts anyway; a late listener from this open is retired when it arrives.
+      // The caller checks for a pending open; a late listener is retired when it arrives.
     }
   }
 
@@ -237,19 +240,20 @@ export async function startNgrokTunnelAsync({
     for (let attempt = 1; ; attempt++) {
       try {
         // A retry starts a new agent session, so it does not reuse a session that is stuck.
-        return await openAsync(
-          /* forceNewSession */ attempt > 1,
-          /* allowPendingOpen */ attempt > 1
-        );
+        return await openAsync(/* forceNewSession */ attempt > 1);
       } catch (err) {
-        if (signal.aborted || attempt >= INITIAL_OPEN_ATTEMPTS) {
+        if (signal.aborted || attempt >= INITIAL_OPEN_ATTEMPTS || !isRetryableOpenError(err)) {
+          throw err;
+        }
+        await settleFailedOpenAsync();
+        if (signal.aborted || pendingOpen) {
+          // A retry would wait behind the stuck open, so it cannot succeed sooner.
           throw err;
         }
         logger.warn(
           { err, attempt },
           `Could not open ngrok tunnel ${domain} (attempt ${attempt} of ${INITIAL_OPEN_ATTEMPTS}); retrying.`
         );
-        await settleFailedOpenAsync();
         await waitAsync(INITIAL_OPEN_RETRY_DELAY_MS * attempt, signal);
       }
     }
@@ -269,6 +273,8 @@ export async function startNgrokTunnelAsync({
     controller.abort();
     releaseTarget();
     throw error;
+  } finally {
+    startupSignal?.removeEventListener('abort', abortStartup);
   }
 
   const url = publicUrl;
@@ -394,16 +400,21 @@ export async function startNgrokTunnelAsync({
               retiredListeners.add(currentListener);
               currentListener = undefined;
             }
-            await Promise.all([
-              ...[...pendingOpens].map(pending => pending.catch(() => {})),
-              retireListenersAsync(stopSignal),
-            ]);
+            await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
             await retireListenersAsync(stopSignal);
           }
         );
         releaseTarget();
       })()),
   };
+}
+
+function isRetryableOpenError(err: unknown): boolean {
+  if (err instanceof DeviceRunSessionTimeoutError) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return RETRYABLE_NGROK_ERROR_CODES.some(code => message.includes(code));
 }
 
 function waitAsync(ms: number, signal: AbortSignal): Promise<boolean> {

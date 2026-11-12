@@ -386,6 +386,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             rewriteHostHeader: true,
             healthCheck: { path: '/tools', statuses: [200, 401] },
             logger,
+            signal: startupSignal,
           });
           const publicToolsUrl = toolsTunnel.url;
           logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
