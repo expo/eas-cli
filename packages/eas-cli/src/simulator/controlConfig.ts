@@ -115,7 +115,9 @@ export async function preflightControlConfigFilesAsync(
         throw new Error('The simulator is selected by the session; remove params.udid.');
       }
       if (action.file) {
-        await assertLocalFileAsync(path.resolve(path.dirname(config.path), action.file));
+        await assertLocalFileAsync(path.resolve(path.dirname(config.path), action.file), {
+          action: action.action,
+        });
       }
       if (action.output) {
         await assertWritableOutputAsync(
@@ -181,7 +183,10 @@ function assertUnambiguousFileSource(
 export async function executeControlConfigAsync(
   connection: HostActionConnection,
   config: PreparedControlConfig,
-  { onProgress }: { onProgress?: (progress: ControlConfigProgress) => void } = {}
+  {
+    onProgress,
+    handleInterrupt,
+  }: { onProgress?: (progress: ControlConfigProgress) => void; handleInterrupt?: boolean } = {}
 ): Promise<ControlConfigResult[]> {
   if (config.udid !== connection.udid) {
     throw new Error('The simulator changed after this configuration was checked. Import it again.');
@@ -192,7 +197,10 @@ export async function executeControlConfigAsync(
     onProgress?.({ ...progress, status: 'running' });
     let result: ControlActionResult;
     try {
-      result = await executeControlActionAsync(connection, plan, { validateParams });
+      result = await executeControlActionAsync(connection, plan, {
+        validateParams,
+        handleInterrupt,
+      });
     } catch (error) {
       throw new ControlConfigExecutionError(index + 1, plan.action, completed, error);
     }
