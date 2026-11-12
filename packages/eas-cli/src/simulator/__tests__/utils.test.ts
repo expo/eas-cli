@@ -9,7 +9,6 @@ import {
   DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
-  EAS_SIMULATOR_WAITLIST_URL,
   deviceRunSessionTypeToFlagValue,
   deviceRunSessionTypesForFlagValue,
   formatEmbedPreviewUrl,
@@ -773,11 +772,13 @@ describe('dotenv instructions', () => {
 });
 
 describe(formatSimulatorUnavailableMessage, () => {
-  it('names the account and points at the waitlist', () => {
+  it('names the account, the paid plans, the billing page, and the account executive', () => {
     const message = formatSimulatorUnavailableMessage('acme');
 
     expect(message).toContain('acme');
-    expect(message).toContain(EAS_SIMULATOR_WAITLIST_URL);
+    expect(message).toContain('Starter, Production, and Enterprise plans');
+    expect(message).toContain('https://expo.dev/accounts/acme/settings/billing');
+    expect(message).toContain('annual Enterprise plan, contact your Expo account executive');
   });
 });
 

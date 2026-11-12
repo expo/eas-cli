@@ -288,7 +288,7 @@ With local egress, actions wait for the connection and require interactive mode.
     });
 
     // The server would reject the session anyway, but check the gate first so gated
-    // accounts get the waitlist link instead of a generic permission error. Expo admins
+    // accounts get the upgrade link instead of a generic permission error. Expo admins
     // skip the check so they can work on any account and let the server decide.
     if (!actor.isExpoAdmin) {
       const { accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
