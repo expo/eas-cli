@@ -238,26 +238,39 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    this.analyticsInternal = await createAnalyticsAsync();
-    this.sessionManagerInternal = new SessionManager(this.analytics);
+    const parentCommand = process.env.EXPO_PARENT_COMMAND;
+    // Child processes and nested EAS commands inherit this command as their parent.
+    // Keep our own inherited parent separate so later events retain the same context.
+    process.env.EXPO_PARENT_COMMAND = `eas ${this.id ?? 'unknown'}`;
 
-    // this is needed for logEvent call below as it identifies the user in the analytics system
-    // if possible
-    const actor = await this.sessionManager.getUserAsync();
-    if (actor) {
-      Sentry.setUser({
-        id: actor.id,
-        username: getActorDisplayName(actor),
+    try {
+      this.analyticsInternal = await createAnalyticsAsync(parentCommand || null);
+      this.sessionManagerInternal = new SessionManager(this.analytics);
+
+      // this is needed for logEvent call below as it identifies the user in the analytics system
+      // if possible
+      const actor = await this.sessionManager.getUserAsync();
+      if (actor) {
+        Sentry.setUser({
+          id: actor.id,
+          username: getActorDisplayName(actor),
+        });
+      }
+
+      this.analytics.logEvent(CommandEvent.ACTION, {
+        // id is assigned by oclif in constructor based on the filepath:
+        // commands/submit === submit, commands/build/list === build:list
+        action: `eas ${this.id}`,
       });
+
+      return await this.runAsync();
+    } finally {
+      if (parentCommand === undefined) {
+        delete process.env.EXPO_PARENT_COMMAND;
+      } else {
+        process.env.EXPO_PARENT_COMMAND = parentCommand;
+      }
     }
-
-    this.analytics.logEvent(CommandEvent.ACTION, {
-      // id is assigned by oclif in constructor based on the filepath:
-      // commands/submit === submit, commands/build/list === build:list
-      action: `eas ${this.id}`,
-    });
-
-    return await this.runAsync();
   }
 
   // eslint-disable-next-line async-protect/async-suffix
