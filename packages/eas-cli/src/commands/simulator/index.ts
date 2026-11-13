@@ -49,6 +49,7 @@ import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
+  getSimulatorEnvFilePath,
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
@@ -507,7 +508,7 @@ With local egress, actions wait for the connection and require interactive mode.
           : false;
       createSpinner.succeed(
         `Simulator session created (id: ${deviceRunSessionId}${
-          simulatorEnvWritten ? `, saved to ${SIMULATOR_DOTENV_FILE_NAME}` : ''
+          simulatorEnvWritten ? `, saved to ${getSimulatorEnvFilePath(projectDir)}` : ''
         }) ${link(deviceRunSessionUrl)}`
       );
       if (flags['network-capture']) {

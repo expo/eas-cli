@@ -1517,7 +1517,7 @@ describe(Simulator, () => {
       mockByIdAsync.mock.invocationCallOrder[0]
     );
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
-      `Simulator session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${deviceRunSessionUrl}`
+      `Simulator session created (id: session-123, saved to ${simulatorDotenvPath}) ${deviceRunSessionUrl}`
     );
     expect(Log.withTick).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith(

@@ -23,44 +23,52 @@ export function getSimulatorEnvFilePath(projectDir: string): string {
   return path.join(projectDir, SIMULATOR_DOTENV_FILE_NAME);
 }
 
-export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
-  const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
-
-  loadProjectEnv(projectDir, { silent: true });
+/**
+ * @returns the variables in the simulator dotenv file, or null when the file does not exist.
+ */
+export async function readSimulatorEnvAsync(
+  projectDir: string
+): Promise<Record<string, string> | null> {
   try {
-    const simulatorEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
-    if (simulatorEnv[EAS_SIMULATOR_SESSION_ID] || simulatorEnv[EAS_SIMULATOR_EGRESS_URL]) {
-      // loadEnvFiles never replaces existing variables, even with force: true.
-      // Keep this session's credentials and destination policy together rather
-      // than combining them with values exported for an older session.
-      for (const key of [
-        EAS_SIMULATOR_SESSION_ID,
-        'AGENT_DEVICE_DAEMON_BASE_URL',
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
-        'ARGENT_TOOLS_URL',
-        'ARGENT_AUTH_TOKEN',
-        'APPIUM_URL',
-        'APPIUM_CAPS',
-        EAS_SIMULATOR_EGRESS_URL,
-        EAS_SIMULATOR_EGRESS_TOKEN,
-        EAS_SIMULATOR_EGRESS_FINGERPRINT,
-        EAS_SIMULATOR_EGRESS_PORT,
-        EAS_SIMULATOR_EGRESS_PLATFORM,
-      ]) {
-        if (simulatorEnv[key] === undefined) {
-          delete process.env[key];
-        } else {
-          process.env[key] = simulatorEnv[key];
-        }
-      }
-      process.env[EAS_SIMULATOR_EGRESS_ALLOW] = simulatorEnv[EAS_SIMULATOR_EGRESS_ALLOW] ?? '';
-    }
+    return parseDotenv(await fs.readFile(getSimulatorEnvFilePath(projectDir), 'utf8'));
   } catch (err) {
-    if (!(typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT')) {
-      throw err;
+    if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT') {
+      return null;
     }
+    throw err;
   }
-  loadEnvFiles([simulatorDotenvFilePath], { force: true });
+}
+
+export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
+  loadProjectEnv(projectDir, { silent: true });
+  const simulatorEnv = await readSimulatorEnvAsync(projectDir);
+  if (simulatorEnv?.[EAS_SIMULATOR_SESSION_ID] || simulatorEnv?.[EAS_SIMULATOR_EGRESS_URL]) {
+    // loadEnvFiles never replaces existing variables, even with force: true.
+    // Keep this session's credentials and destination policy together rather
+    // than combining them with values exported for an older session.
+    for (const key of [
+      EAS_SIMULATOR_SESSION_ID,
+      'AGENT_DEVICE_DAEMON_BASE_URL',
+      'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
+      'ARGENT_TOOLS_URL',
+      'ARGENT_AUTH_TOKEN',
+      'APPIUM_URL',
+      'APPIUM_CAPS',
+      EAS_SIMULATOR_EGRESS_URL,
+      EAS_SIMULATOR_EGRESS_TOKEN,
+      EAS_SIMULATOR_EGRESS_FINGERPRINT,
+      EAS_SIMULATOR_EGRESS_PORT,
+      EAS_SIMULATOR_EGRESS_PLATFORM,
+    ]) {
+      if (simulatorEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = simulatorEnv[key];
+      }
+    }
+    process.env[EAS_SIMULATOR_EGRESS_ALLOW] = simulatorEnv[EAS_SIMULATOR_EGRESS_ALLOW] ?? '';
+  }
+  loadEnvFiles([getSimulatorEnvFilePath(projectDir)], { force: true });
 }
 
 export async function writeSimulatorEnvAsync(
