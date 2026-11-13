@@ -63,6 +63,8 @@ import { createStartServeSimMetricsBuildFunction } from './functions/startServeS
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
 import { createStartServeSimNetworkCaptureBuildFunction } from './functions/startServeSimNetworkCapture';
+import { createStartServeSimCrashesBuildFunction } from './functions/startServeSimCrashes';
+import { createCollectServeSimCrashesBuildFunction } from './functions/collectServeSimCrashes';
 import { createCollectAndroidEmulatorLogsBuildFunction } from './functions/collectAndroidEmulatorLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
@@ -131,6 +133,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
+    createStartServeSimCrashesBuildFunction(),
+    createCollectServeSimCrashesBuildFunction(ctx),
     createCollectServeSimLogsBuildFunction(ctx),
     createCollectAndroidEmulatorLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
