@@ -152,6 +152,7 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
             signal: startupSignal,
             onStartupError: error => startupAbortController.abort(error),
             packageVersion: resolvedPackageVersion,
+            emulatorCapture: true,
             disableShare: inputs.public_preview?.value === false,
             privatePreviewUrl: inputs.private_preview_url?.value as string | undefined,
             frameAncestors: parseFrameAncestorsInput(inputs.frame_ancestors?.value),
