@@ -1234,7 +1234,7 @@ describe('metrics', () => {
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         1,
-        { tunnel: 'web-preview', outcome: 'failed', error_code: 'none' },
+        { tunnel: 'web-preview', outcome: 'timed_out', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.late_open',
@@ -1244,13 +1244,14 @@ describe('metrics', () => {
     ]);
   });
 
-  it('reports a cancelled open and startup', async () => {
+  it('reports a cancelled open and startup without the error code of the abort reason', async () => {
     jest
       .mocked(ngrok.forward)
       .mockReset()
       .mockReturnValueOnce(new Promise(() => {}));
     const startup = new AbortController();
-    const reason = new Error('startup aborted');
+    // A caller aborts with the error that failed its startup, which can be another tunnel's.
+    const reason = new Error(ERR_802);
     const opening = startNgrokTunnelAsync({ ...options, signal: startup.signal });
     const rejected = expect(opening).rejects.toBe(reason);
     await jest.advanceTimersByTimeAsync(2_000);
@@ -1267,6 +1268,54 @@ describe('metrics', () => {
         1,
         { tunnel: 'web-preview', outcome: 'cancelled', error_code: 'none' },
       ],
+    ]);
+  });
+
+  it('reports no open when startup is cancelled before ngrok is called', async () => {
+    const startup = new AbortController();
+    const reason = new Error('startup aborted');
+    const opening = startNgrokTunnelAsync({ ...options, signal: startup.signal });
+    startup.abort(reason);
+    await expect(opening).rejects.toBe(reason);
+    expect(metrics()).toEqual([
+      [
+        'eas.device_run_session.ngrok_tunnel.startup',
+        0,
+        { tunnel: 'web-preview', outcome: 'cancelled', error_code: 'none' },
+      ],
+    ]);
+  });
+
+  it('reports a failed startup when ngrok returns no public URL', async () => {
+    jest
+      .mocked(ngrok.forward)
+      .mockReset()
+      .mockResolvedValue(listener(null as unknown as string) as never);
+    await expect(startNgrokTunnelAsync(options)).rejects.toThrow('did not return a public URL');
+    expect(metrics().at(-1)).toEqual([
+      'eas.device_run_session.ngrok_tunnel.startup',
+      1,
+      { tunnel: 'web-preview', outcome: 'failed', error_code: 'none' },
+    ]);
+  });
+
+  it('reports a timed-out open that ngrok rejects later with its error code', async () => {
+    let rejectOpening!: (error: Error) => void;
+    jest
+      .mocked(ngrok.forward)
+      .mockReset()
+      .mockReturnValueOnce(new Promise((_, reject) => (rejectOpening = reject)));
+    const opening = startNgrokTunnelAsync(options);
+    const rejected = expect(opening).rejects.toThrow('Ngrok tunnel open timed out');
+    await jest.advanceTimersByTimeAsync(19_000);
+    await rejected;
+    await jest.advanceTimersByTimeAsync(2_000);
+    rejectOpening(new Error(ERR_802));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(metrics().at(-1)).toEqual([
+      'eas.device_run_session.ngrok_tunnel.late_open',
+      21_000,
+      { tunnel: 'web-preview', kind: 'initial_1', outcome: 'failed', error_code: 'ERR_NGROK_802' },
     ]);
   });
 

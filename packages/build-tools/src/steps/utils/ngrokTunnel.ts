@@ -30,6 +30,9 @@ const RETRYABLE_NGROK_ERROR_CODES = new Set(['ERR_NGROK_802']);
  * `expo.www.` prefix. Every metric has a `tunnel` tag with the subdomain prefix.
  */
 const METRIC_PREFIX = 'eas.device_run_session.ngrok_tunnel';
+/** The `kind` tag of open metrics: an attempt of the first open, or a supervised reopen. */
+type OpenKind = `initial_${number}` | 'reopen';
+type OpenOutcome = 'opened' | 'failed' | 'timed_out' | 'cancelled';
 
 export type NgrokTunnelHandle = {
   url: string;
@@ -68,7 +71,19 @@ export async function startNgrokTunnelAsync({
   startupSignal?.throwIfAborted();
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
   function reportMetric(name: string, value: number, tags: Record<string, string>): void {
-    Datadog.distribution(`${METRIC_PREFIX}.${name}`, value, { tunnel: subdomainPrefix, ...tags });
+    // A metric must not change the tunnel's control flow.
+    try {
+      Datadog.distribution(`${METRIC_PREFIX}.${name}`, value, { tunnel: subdomainPrefix, ...tags });
+    } catch (err) {
+      logger.warn({ err }, `Could not report the ${name} metric of ngrok tunnel ${domain}.`);
+    }
+  }
+  /**
+   * The ngrok error code tag. A cancelled operation has none: its error is the caller's abort
+   * reason, which can come from a different tunnel.
+   */
+  function errorCodeTag(outcome: string, err: unknown): string {
+    return (outcome !== 'cancelled' && getNgrokErrorCode(err)) || 'none';
   }
   const controller = new AbortController();
   const { signal } = controller;
@@ -108,6 +123,8 @@ export async function startNgrokTunnelAsync({
     ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
   };
 
+  /** Calls to ngrok. Supervision starts after startup, so during startup these are first opens. */
+  let forwardCalls = 0;
   const ownedListeners = new Set<ngrok.Listener>();
   const retiredListeners = new Set<ngrok.Listener>();
   const closingListeners = new Map<ngrok.Listener, Promise<void>>();
@@ -194,8 +211,7 @@ export async function startNgrokTunnelAsync({
     forceNewSession = false,
     timeoutMs = OPEN_TIMEOUT_MS,
   }: {
-    /** The `kind` tag of the open metric: the first open with its attempt number, or a reopen. */
-    kind: string;
+    kind: OpenKind;
     forceNewSession?: boolean;
     timeoutMs?: number;
   }): Promise<ngrok.Listener> {
@@ -203,13 +219,17 @@ export async function startNgrokTunnelAsync({
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
     const startedAt = Date.now();
-    // One `open` metric for each attempt, with the time until it settled, timed out, or was cancelled.
-    const reportOpen = (outcome: string, err?: unknown) => {
-      reportMetric('open', Date.now() - startedAt, {
-        kind,
-        outcome,
-        error_code: getNgrokErrorCode(err) ?? 'none',
-      });
+    let forwarding = false;
+    // One `open` metric for each call to ngrok, with the time until it settled, timed out, or was
+    // cancelled. An open cancelled before it called ngrok reports nothing.
+    const reportOpen = (outcome: OpenOutcome, err?: unknown) => {
+      if (forwarding) {
+        reportMetric('open', Date.now() - startedAt, {
+          kind,
+          outcome,
+          error_code: errorCodeTag(outcome, err),
+        });
+      }
     };
     let acquired: ngrok.Listener | undefined;
     let retirement: Promise<void> | undefined;
@@ -223,6 +243,8 @@ export async function startNgrokTunnelAsync({
         { name: 'Ngrok tunnel open', timeoutMs, signal },
         async openSignal => {
           openSignal.throwIfAborted();
+          forwarding = true;
+          forwardCalls++;
           const opening = ngrok
             .forward({
               ...config,
@@ -238,12 +260,12 @@ export async function startNgrokTunnelAsync({
             });
           pendingOpen = opening;
           // Records how long a timed-out or cancelled open takes to settle, to tune the time-out.
-          const logLateSettlement = (outcome: 'opened' | 'failed', err?: unknown) => {
+          const reportLateSettlement = (outcome: 'opened' | 'failed', err?: unknown) => {
             const elapsedMs = Date.now() - startedAt;
             reportMetric('late_open', elapsedMs, {
               kind,
               outcome,
-              error_code: getNgrokErrorCode(err) ?? 'none',
+              error_code: errorCodeTag(outcome, err),
             });
             logger.info(
               { err, outcome, elapsedMs },
@@ -253,13 +275,13 @@ export async function startNgrokTunnelAsync({
           void opening.then(
             () => {
               if (openSignal.aborted) {
-                logLateSettlement('opened');
+                reportLateSettlement('opened');
                 retireAcquired();
               }
             },
             err => {
               if (openSignal.aborted) {
-                logLateSettlement('failed', err);
+                reportLateSettlement('failed', err);
               }
               releaseTarget();
             }
@@ -289,10 +311,8 @@ export async function startNgrokTunnelAsync({
   // ngrok sometimes rejects an open because a control-plane request failed (for example
   // ERR_NGROK_802), so a rejected first open is retried before the session fails. A timed-out
   // open is not retried: it still holds the ngrok lock, so a retry would only wait behind it.
-  let initialAttempts = 0;
   async function openInitialAsync(): Promise<ngrok.Listener> {
     for (let attempt = 1; ; attempt++) {
-      initialAttempts = attempt;
       try {
         return await openAsync({
           kind: `initial_${attempt}`,
@@ -345,13 +365,15 @@ export async function startNgrokTunnelAsync({
       currentListener = undefined;
       throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
     }
-    // The value is the number of open attempts, so a startup saved by a retry has a value above 1.
-    reportMetric('startup', initialAttempts, { outcome: 'started', error_code: 'none' });
+    // The value is the number of calls to ngrok.
+    reportMetric('startup', forwardCalls, { outcome: 'started', error_code: 'none' });
   } catch (error) {
-    reportMetric('startup', initialAttempts, {
-      outcome: signal.aborted ? 'cancelled' : 'failed',
-      error_code: getNgrokErrorCode(error) ?? 'none',
-    });
+    const outcome = signal.aborted
+      ? 'cancelled'
+      : error instanceof DeviceRunSessionTimeoutError
+        ? 'timed_out'
+        : 'failed';
+    reportMetric('startup', forwardCalls, { outcome, error_code: errorCodeTag(outcome, error) });
     controller.abort();
     releaseTarget();
     throw error;
@@ -507,14 +529,15 @@ function isRetryableNgrokError(err: unknown): boolean {
 
 /**
  * The ngrok error code of a failed open. @ngrok/ngrok sets `errorCode` from the message. When it is
- * missing, the code is read from the message here.
+ * missing, the code is read from the message here. Other errors, such as a `SystemError`, can have an
+ * `errorCode` too, so only an `ERR_NGROK_<n>` code is returned.
  */
 function getNgrokErrorCode(err: unknown): string | null {
   if (!(err instanceof Error)) {
     return null;
   }
   const { errorCode } = err as { errorCode?: unknown };
-  if (typeof errorCode === 'string') {
+  if (typeof errorCode === 'string' && /^ERR_NGROK_\d+$/.test(errorCode)) {
     return errorCode;
   }
   return /\berror_code: (ERR_NGROK_\d+)\b/.exec(err.message)?.[1] ?? null;
