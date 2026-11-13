@@ -113,6 +113,7 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
   DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
 );
 const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
+const mockProfilesAsync = jest.mocked(DeviceRunSessionQuery.profilesAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockJobRunErrorsByIdAsync = jest.mocked(DeviceRunSessionQuery.jobRunErrorsByIdAsync);
 const mockFetch = jest.mocked(fetch);
@@ -205,6 +206,20 @@ describe(Simulator, () => {
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockJobRunErrorsByIdAsync.mockResolvedValue(null);
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
+    mockProfilesAsync.mockReset().mockResolvedValue({
+      ios: {
+        devices: [
+          { identifier: 'iPhone 17', displayName: 'iPhone 17' },
+          { identifier: 'iPhone 17 Pro', displayName: 'iPhone 17 Pro' },
+        ],
+      },
+      android: {
+        devices: [
+          { identifier: 'medium_phone', displayName: 'Medium Phone' },
+          { identifier: 'pixel_9', displayName: 'Pixel 9' },
+        ],
+      },
+    });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
       id: 'session-123',
@@ -287,12 +302,21 @@ describe(Simulator, () => {
       expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
     });
 
+    it('rejects an unlisted imported device before creating a session', async () => {
+      config({ platform: 'ios', device: 'iPhnoe 17' });
+      const { command } = createCommand(['--import', configPath, '--json']);
+
+      await expect(command.runAsync()).rejects.toThrow('Unknown iOS device "iPhnoe 17".');
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      expect(applyStartConfigAsync).not.toHaveBeenCalled();
+    });
+
     it('creates from saved flags with explicit CLI overrides and unchanged output without actions', async () => {
       config({
         platform: 'ios',
         name: 'Saved name',
         type: 'web-preview-only',
-        device: 'Saved phone',
+        device: 'iPhone 17',
         tag: ['saved'],
       });
       const { command } = createCommand(['--import', configPath, '--name', 'CLI name', '--json']);
@@ -302,7 +326,7 @@ describe(Simulator, () => {
         expect.objectContaining({
           name: 'CLI name',
           type: DeviceRunSessionType.WebPreviewOnly,
-          ios: { deviceIdentifier: 'Saved phone' },
+          ios: { deviceIdentifier: 'iPhone 17' },
           tags: ['saved'],
         })
       );
@@ -328,7 +352,7 @@ describe(Simulator, () => {
           platform,
           type: 'web-preview-only',
           name: 'Startup regression',
-          device: platform === 'ios' ? 'iPhone 17 Pro' : 'pixel_7',
+          device: platform === 'ios' ? 'iPhone 17 Pro' : 'pixel_9',
           'out-config-type': output,
           ...(egress ? { egress: 'local' } : {}),
         };
@@ -1952,19 +1976,109 @@ describe(Simulator, () => {
     expect(input).not.toHaveProperty('agentSessionId');
   });
 
+  it.each([
+    {
+      platform: 'ios',
+      device: 'pixel_9',
+      message:
+        'Unknown iOS device "pixel_9".\n' +
+        'Available --device values:\n  "iPhone 17"\n  "iPhone 17 Pro"\n' +
+        'Run eas simulator:devices --platform ios to list devices.',
+    },
+    {
+      platform: 'android',
+      device: 'iPhone 17',
+      message:
+        'Unknown Android device "iPhone 17".\n' +
+        'Available --device values:\n  "medium_phone" (Medium Phone)\n  "pixel_9" (Pixel 9)\n' +
+        'Run eas simulator:devices --platform android to list devices.',
+    },
+  ])(
+    'rejects an unlisted $platform device and lists that platform',
+    async ({ platform, device, message }) => {
+      const { command } = createCommand(['--platform', platform, '--device', device, '--json']);
+
+      await expect(command.runAsync()).rejects.toThrow(message);
+      expect(mockProfilesAsync).toHaveBeenCalledWith(graphqlClient);
+      expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+      expect(Log.log).not.toHaveBeenCalled();
+      expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+    }
+  );
+
+  it('validates against the platform selected interactively', async () => {
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
+    const { command } = createCommand(['--device', 'iPhone 17']);
+
+    await expect(command.runAsync()).rejects.toThrow('Unknown Android device "iPhone 17".');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not create a session if device profiles cannot be fetched', async () => {
+    mockProfilesAsync.mockRejectedValueOnce(new Error('network down'));
+    const { command } = createCommand(['--platform', 'ios', '--device', 'iPhone 17', '--json']);
+
+    await expect(command.runAsync()).rejects.toThrow('network down');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('handles an empty device list before creating a session', async () => {
+    mockProfilesAsync.mockResolvedValueOnce({
+      ios: { devices: [] },
+      android: { devices: [] },
+    });
+    const { command } = createCommand(['--platform', 'ios', '--device', 'iPhone 17', '--json']);
+
+    await expect(command.runAsync()).rejects.toThrow('No devices are currently listed.');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '123e4567-e89b-42d3-a456-426614174000',
+    '12345678-1234-1234-1234-123456789abc',
+    '12345678-1234-1234-1234-123456789ABC',
+  ])('forwards iOS UDID %s without fetching device profiles', async udid => {
+    const { command } = createCommand(['--platform', 'ios', '--device', udid, '--json']);
+    await command.runAsync();
+
+    expect(mockProfilesAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ ios: { deviceIdentifier: udid } })
+    );
+  });
+
+  it('rejects an arbitrary hash as an unlisted iOS device name', async () => {
+    const hash = '12345678123412341234123456789abc';
+    const { command } = createCommand(['--platform', 'ios', '--device', hash, '--json']);
+
+    await expect(command.runAsync()).rejects.toThrow(`Unknown iOS device "${hash}".`);
+    expect(mockProfilesAsync).toHaveBeenCalledWith(graphqlClient);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch device profiles when no device is requested', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--json']);
+    await command.runAsync();
+
+    expect(mockProfilesAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
+  });
+
   it('forwards --device in the iOS create options', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
       '--non-interactive',
       '--device',
-      'iPhone 16 Pro',
+      'iPhone 17 Pro',
     ]);
     await command.runAsync();
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 17 Pro' } })
     );
   });
 
@@ -2060,13 +2174,13 @@ describe(Simulator, () => {
       'ios',
       '--non-interactive',
       '--device',
-      '  iPhone 16 Pro  ',
+      '  iPhone 17 Pro  ',
     ]);
     await command.runAsync();
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 16 Pro' } })
+      expect.objectContaining({ ios: { deviceIdentifier: 'iPhone 17 Pro' } })
     );
   });
 
@@ -2075,6 +2189,7 @@ describe(Simulator, () => {
     await command.runAsync();
 
     expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('ios');
+    expect(mockProfilesAsync).not.toHaveBeenCalled();
   });
 
   it('omits resourceClass when --resource-class is not set', async () => {

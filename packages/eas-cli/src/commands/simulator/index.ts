@@ -92,6 +92,8 @@ const OUT_CONFIG_TYPE_VALUES = {
   Dotenv: 'dotenv',
 } as const;
 const EGRESS_FLAG_VALUES = ['local'] as const;
+const IOS_SIMULATOR_UDID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', ...getSimulatorCommandAliases('start')];
@@ -141,7 +143,7 @@ With local egress, actions wait for the connection and require interactive mode.
     }),
     device: Flags.string({
       description:
-        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 17 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner. eas simulator:devices lists the devices Expo suggests.',
+        'Virtual device to start for the session. On iOS, a listed Simulator device name or UDID (e.g. "iPhone 17 Pro"). On Android, a listed AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner. Run eas simulator:devices to list device names.',
     }),
     'system-image': Flags.string({
       description:
@@ -394,6 +396,10 @@ With local egress, actions wait for the connection and require interactive mode.
       throw new EasCommandError(
         'Imported actions with local egress require interactive mode. Start without actions, connect eas simulator:egress, then run eas simulator:control --import with the same file.'
       );
+    }
+
+    if (deviceIdentifier) {
+      await validateDeviceIdentifierAsync(graphqlClient, platform, deviceIdentifier);
     }
 
     const expoGoSdkVersion = flags['expo-go']
@@ -891,6 +897,38 @@ async function formatJobRunErrorsAsync(
     signal,
   });
   return errors.map(error => `\n${formatSimulatorSessionError(error)}`).join('');
+}
+
+async function validateDeviceIdentifierAsync(
+  graphqlClient: ExpoGraphqlClient,
+  platform: AppPlatform,
+  deviceIdentifier: string
+): Promise<void> {
+  if (platform === AppPlatform.Ios && IOS_SIMULATOR_UDID_PATTERN.test(deviceIdentifier)) {
+    return;
+  }
+
+  const platformFlag = platform === AppPlatform.Ios ? 'ios' : 'android';
+  const platformName = platform === AppPlatform.Ios ? 'iOS' : 'Android';
+  const profiles = await DeviceRunSessionQuery.profilesAsync(graphqlClient);
+  const devices = profiles[platformFlag].devices;
+  if (devices.some(({ identifier }) => identifier === deviceIdentifier)) {
+    return;
+  }
+
+  const deviceList = devices
+    .map(
+      ({ identifier, displayName }) =>
+        `  ${JSON.stringify(identifier)}${identifier === displayName ? '' : ` (${displayName})`}`
+    )
+    .join('\n');
+  throw new EasCommandError(
+    `Unknown ${platformName} device ${JSON.stringify(deviceIdentifier)}.\n` +
+      (deviceList
+        ? `Available --device values:\n${deviceList}\n`
+        : 'No devices are currently listed.\n') +
+      `Run eas simulator:devices --platform ${platformFlag} to list devices.`
+  );
 }
 
 async function resolvePlatformAsync(

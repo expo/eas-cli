@@ -30,7 +30,7 @@ function formatDeviceFlagValue(identifier: string): string {
 export default class SimulatorDevices extends EasCommand {
   static override aliases = getSimulatorCommandAliases('devices');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('devices');
-  static override description = 'list the devices Expo suggests for a remote simulator session';
+  static override description = 'list available devices for a remote simulator session';
 
   static override flags = {
     platform: Flags.option({
