@@ -30,6 +30,21 @@ type DatadogSetupOptions =
 let setupOptions: DatadogSetupOptions | null = null;
 let pendingUploads: Promise<unknown>[] = [];
 
+/**
+ * Bounds each upload. After this deadline, every request of the upload fails at once, so only the
+ * 1-second retry waits remain. The worker awaits `flushAsync` before it reports the job result, so a
+ * request that never gets a response must not hold it.
+ */
+const UPLOAD_TIMEOUT_MS = 10_000;
+
+function createUploadSignal(): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => {
+    controller.abort(new Error(`Upload did not finish within ${UPLOAD_TIMEOUT_MS} ms.`));
+  }, UPLOAD_TIMEOUT_MS).unref();
+  return controller.signal;
+}
+
 function withTargetTag(
   tags: Record<string, string>,
   target: MetricsTarget
@@ -89,6 +104,7 @@ export const Datadog = {
       json: { metrics },
       headers,
       retries: 2,
+      signal: createUploadSignal(),
     }).catch(err => {
       Sentry.capture(`Failed to report turtle ${target.kind} metric`, err, {
         extras: { metrics },
@@ -118,6 +134,7 @@ export const Datadog = {
         Authorization: `Bearer ${robotAccessToken}`,
       },
       shouldThrowOnNotOk: false,
+      signal: createUploadSignal(),
     }).catch(err => {
       Sentry.capture(`Failed to report turtle ${target.kind} log`, err, {
         extras: { log },

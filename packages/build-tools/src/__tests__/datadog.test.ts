@@ -58,6 +58,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -94,6 +95,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -127,6 +129,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         shouldThrowOnNotOk: false,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -158,6 +161,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         shouldThrowOnNotOk: false,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -345,6 +349,7 @@ describe('Datadog singleton', () => {
         },
         headers: { 'expo-device-run-session-token': 'session-token' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -388,6 +393,7 @@ describe('Datadog singleton', () => {
         },
         headers: { 'expo-sandbox-worker-token': 'sandbox-token' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -420,6 +426,41 @@ describe('Datadog singleton', () => {
     Datadog.log('Custom build saw user-provided function');
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting for an upload that gets no response, retries included', async () => {
+    jest.useFakeTimers();
+    try {
+      turtleFetchMock.mockImplementationOnce(
+        (_url, _method, { signal }) =>
+          new Promise((_resolve, reject) => {
+            signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+          })
+      );
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      let flushed = false;
+      const flushing = Datadog.flushAsync().then(() => {
+        flushed = true;
+      });
+
+      await jest.advanceTimersByTimeAsync(9_999);
+      expect(flushed).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      await flushing;
+
+      expect(sentryCaptureMock).toHaveBeenCalledWith(
+        'Failed to report turtle deviceRunSession metric',
+        expect.objectContaining({ message: 'Upload did not finish within 10000 ms.' }),
+        expect.anything()
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('flushes pending metric uploads', async () => {
