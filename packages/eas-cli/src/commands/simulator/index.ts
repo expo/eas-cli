@@ -48,7 +48,10 @@ import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/fra
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
+  EAS_SIMULATOR_SESSION_STATUS,
+  EAS_SIMULATOR_SESSION_STATUS_STARTING,
   SIMULATOR_DOTENV_FILE_NAME,
+  getSimulatorEnvFilePath,
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
@@ -502,12 +505,14 @@ With local egress, actions wait for the connection and require interactive mode.
         !imported.config?.actions?.length &&
         flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
           ? await writeSimulatorEnvSafelyAsync(projectDir, {
+              // Before the session ID; see EAS_SIMULATOR_SESSION_STATUS.
+              [EAS_SIMULATOR_SESSION_STATUS]: EAS_SIMULATOR_SESSION_STATUS_STARTING,
               [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
             })
           : false;
       createSpinner.succeed(
         `Simulator session created (id: ${deviceRunSessionId}${
-          simulatorEnvWritten ? `, saved to ${SIMULATOR_DOTENV_FILE_NAME}` : ''
+          simulatorEnvWritten ? `, saved to ${getSimulatorEnvFilePath(projectDir)}` : ''
         }) ${link(deviceRunSessionUrl)}`
       );
       if (flags['network-capture']) {
@@ -577,7 +582,9 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      if (await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId)) {
+        await resetUnreadySimulatorEnvAsync(projectDir, deviceRunSessionId);
+      }
       sessionInterrupt.dispose();
       throw err;
     }
@@ -595,7 +602,9 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      if (await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId)) {
+        await resetUnreadySimulatorEnvAsync(projectDir, deviceRunSessionId);
+      }
       sessionInterrupt.dispose();
       throw new Error(
         `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
@@ -637,13 +646,14 @@ With local egress, actions wait for the connection and require interactive mode.
         });
       }
     };
-    const writeReadySimulatorEnvAsync = async (): Promise<void> => {
-      if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
-        await writeSimulatorEnvSafelyAsync(projectDir, {
-          ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
-          [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
-        });
+    const writeReadySimulatorEnvAsync = async (): Promise<boolean> => {
+      if (flags['out-config-type'] !== OUT_CONFIG_TYPE_VALUES.Dotenv) {
+        return false;
       }
+      return await writeSimulatorEnvSafelyAsync(projectDir, {
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
+        [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+      });
     };
     try {
       if (!jsonFlag && !imported.config?.actions?.length) {
@@ -825,9 +835,10 @@ With local egress, actions wait for the connection and require interactive mode.
         }
       }
 
+      let simulatorEnvWritten = false;
       if (jsonFlag || imported.config?.actions?.length) {
         // Keep the previous session's saved credentials until setup succeeds.
-        await writeReadySimulatorEnvAsync();
+        simulatorEnvWritten = await writeReadySimulatorEnvAsync();
         if (sessionInterrupt.signal.aborted) {
           await stopDeviceRunSessionAfterInterruptAsync({
             graphqlClient,
@@ -838,6 +849,9 @@ With local egress, actions wait for the connection and require interactive mode.
           });
           return;
         }
+        if (simulatorEnvWritten && !jsonFlag) {
+          Log.log(`Saved the session configuration to ${getSimulatorEnvFilePath(projectDir)}`);
+        }
       }
       if (jsonFlag) {
         sessionInterrupt.dispose();
@@ -846,6 +860,9 @@ With local egress, actions wait for the connection and require interactive mode.
           name,
           type: flags.type,
           deviceRunSessionUrl,
+          ...(simulatorEnvWritten
+            ? { simulatorEnvFilePath: getSimulatorEnvFilePath(projectDir) }
+            : {}),
           ...(setup ? { setup } : {}),
           remoteConfig: sanitizeRemoteConfigForJson(
             remoteConfig,
@@ -929,7 +946,7 @@ async function writeSimulatorEnvSafelyAsync(
     return true;
   } catch (err) {
     Log.warn(
-      `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}: ${
+      `Failed to write simulator environment variables to ${getSimulatorEnvFilePath(projectDir)}: ${
         err instanceof Error ? err.message : String(err)
       }`
     );
@@ -1101,6 +1118,26 @@ async function stopDeviceRunSessionCreatedAfterCancelAsync(
   } else {
     spinner.fail(
       `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+  }
+}
+
+/**
+ * Clears the dotenv file of a session that stopped before it was ready, so that
+ * `eas simulator:exec` does not report the session as still starting. A failure only warns, so
+ * that the caller can still throw the error that stopped the session.
+ */
+async function resetUnreadySimulatorEnvAsync(
+  projectDir: string,
+  deviceRunSessionId: string
+): Promise<void> {
+  try {
+    await resetSimulatorEnvAsync(projectDir, deviceRunSessionId);
+  } catch (error) {
+    Log.warn(
+      `The session stopped, but ${getSimulatorEnvFilePath(projectDir)} could not be cleaned up: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     );
   }
 }
