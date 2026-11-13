@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { stripVTControlCharacters } from 'util';
 
+import { getAccountBillingUrl } from '../build/utils/url';
 import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
@@ -20,17 +21,17 @@ import {
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
 
-/** Landing page where accounts without access can request it. */
-export const EAS_SIMULATOR_WAITLIST_URL = 'https://expo.dev/services/simulators';
-
 /**
  * Message shown when EAS Simulator is not enabled for the account. Shared by every
- * command that can hit the gate so users always get the same waitlist pointer.
+ * command that can hit the gate so users always get the same upgrade pointer. The gate
+ * result does not say whether the account is on the Free plan or is past due, so the
+ * message covers both.
  */
 export function formatSimulatorUnavailableMessage(accountName: string): string {
   return [
-    `EAS Simulator isn't available on ${accountName} yet — it's coming soon.`,
-    `Join the waitlist to get access: ${link(EAS_SIMULATOR_WAITLIST_URL)}`,
+    `EAS Simulator isn't enabled for ${accountName}. It's available on the Starter, Production, and Enterprise plans.`,
+    `Upgrade, or update billing if a payment is past due: ${link(getAccountBillingUrl(accountName))}`,
+    'If your account is on an annual Enterprise plan, contact your Expo account executive.',
   ].join('\n');
 }
 
