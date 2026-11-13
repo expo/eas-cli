@@ -246,17 +246,20 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
-  it('uses preview activity to reset the configured idle timeout', async () => {
-    await runAsync(BuildRuntimePlatform.DARWIN, { max_idle_time_minutes: { value: 5 } });
-    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
-    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
-    expect(idleTimeout?.getLastEventObservedAt()).toBeUndefined();
-    const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
-    const observedAt = new Date();
-    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(observedAt);
-    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(observedAt);
-    expect(stopAsync).toHaveBeenCalledTimes(1);
-  });
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'uses preview activity to reset the configured idle timeout on %s',
+    async runtimePlatform => {
+      await runAsync(runtimePlatform, { max_idle_time_minutes: { value: 5 } });
+      const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+      expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+      expect(idleTimeout?.getLastEventObservedAt()).toBeUndefined();
+      const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
+      const observedAt = new Date();
+      jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(observedAt);
+      expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(observedAt);
+      expect(stopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
     'leaves the idle timer disabled when omitted on %s',
@@ -275,16 +278,6 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
       expect.objectContaining({ idleTimeout: undefined, maxDurationSeconds: 120 })
     );
-  });
-
-  it('rejects an Android idle timeout before starting the host', async () => {
-    await expect(
-      runAsync(BuildRuntimePlatform.LINUX, {
-        max_idle_time_minutes: { value: 5 },
-      })
-    ).rejects.toThrow('Omit max_idle_time_minutes for Android sessions.');
-    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
-    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(

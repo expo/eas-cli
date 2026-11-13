@@ -1,4 +1,3 @@
-import { UserError } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -87,16 +86,6 @@ export function createStartWebPreviewRemoteSessionBuildFunction(
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
       const { runtimePlatform } = global;
-      if (
-        maxIdleTimeMinutes !== undefined &&
-        maxIdleTimeMinutes > 0 &&
-        runtimePlatform !== BuildRuntimePlatform.DARWIN
-      ) {
-        throw new UserError(
-          'UNSUPPORTED_WEB_PREVIEW_IDLE_TIMEOUT',
-          'Web preview idle timeouts require iOS preview activity reporting. Omit max_idle_time_minutes for Android sessions.'
-        );
-      }
       const startupStop = new AbortController();
       const watchSignal = signal
         ? AbortSignal.any([signal, startupStop.signal])

@@ -45,7 +45,7 @@ import {
   runServeSimActionWithResultAsync,
   stageServeSimAppAsync,
 } from '../serveSimActions';
-import { startServeSimActivityPolling } from '../serveSimActivity';
+import { startPreviewActivityPolling } from '../previewActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import * as previewCapture from '../serveSimPreviewCapture';
 
@@ -59,7 +59,7 @@ jest.mock('../serveSimActions');
 jest.mock('../iosAppArtifact', () => ({
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
-jest.mock('../serveSimActivity');
+jest.mock('../previewActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
@@ -644,7 +644,7 @@ it('starts the readiness budget after refusals that exceed the normal startup de
 it('reports preview activity from serve-sim on iOS and stops polling when finished', async () => {
   const observedAt = new Date('2026-10-19T12:00:00Z');
   const stopActivity = jest.fn().mockResolvedValue(undefined);
-  jest.mocked(startServeSimActivityPolling).mockReturnValue({
+  jest.mocked(startPreviewActivityPolling).mockReturnValue({
     getLastActivityObservedAt: () => observedAt,
     stopAsync: stopActivity,
   });
@@ -661,7 +661,8 @@ it('reports preview activity from serve-sim on iOS and stops polling when finish
     ]
   );
 
-  expect(startServeSimActivityPolling).toHaveBeenCalledWith({
+  expect(startPreviewActivityPolling).toHaveBeenCalledWith({
+    server: 'serve-sim',
     port,
     token: 'preview-token',
     logger: expect.anything(),
@@ -688,15 +689,33 @@ it('does not start polling preview activity when startup is cancelled', async ()
       signal: controller.signal,
     })
   ).rejects.toThrow();
-  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
+  expect(startPreviewActivityPolling).not.toHaveBeenCalled();
 });
 
-it('reports no preview activity on Android, where expo-device-hub keeps no event log', async () => {
+it('reports preview activity from expo-device-hub on Android and stops polling when finished', async () => {
+  const observedAt = new Date('2026-11-13T12:00:00Z');
+  const stopActivity = jest.fn().mockResolvedValue(undefined);
+  jest.mocked(startPreviewActivityPolling).mockReturnValue({
+    getLastActivityObservedAt: () => observedAt,
+    stopAsync: stopActivity,
+  });
   const host = await startHostAsync();
+  const port = Number(
+    jest.mocked(spawnDetached).mock.calls[0][0].args[
+      jest.mocked(spawnDetached).mock.calls[0][0].args.indexOf('--port') + 1
+    ]
+  );
 
-  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
-  expect(host.getLastPreviewActivityAt()).toBeUndefined();
+  expect(startPreviewActivityPolling).toHaveBeenCalledWith({
+    server: 'expo-device-hub',
+    port,
+    token: expect.any(String),
+    logger: expect.anything(),
+  });
+  expect(host.getLastPreviewActivityAt()).toBe(observedAt);
+
   await host.finishAsync();
+  expect(stopActivity).toHaveBeenCalledTimes(1);
 });
 
 it('stops a host that became ready on a different Simulator', async () => {

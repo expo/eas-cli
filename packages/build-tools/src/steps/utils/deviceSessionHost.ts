@@ -56,7 +56,7 @@ import {
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
 import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
-import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
+import { type PreviewActivityPolling, startPreviewActivityPolling } from './previewActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createColdIosSessionAsync } from './coldIosSession';
@@ -376,7 +376,7 @@ export type DeviceWebPreview = {
 export type DeviceSessionHost = {
   /** The preview tunnel opened during startup, or a new one after closeAsync. */
   openPreviewAsync(): Promise<DeviceWebPreview>;
-  /** Last observed preview input. Always `undefined` on Android, which keeps no event log. */
+  /** Last observed preview input from the serve-sim (iOS) or expo-device-hub (Android) input log. */
   getLastPreviewActivityAt(): Date | undefined;
   /**
    * Terminal and idempotent. Finalization, host-stop and upload failures are logged and reported.
@@ -634,7 +634,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
-  let previewActivity: ServeSimActivityPolling | null = null;
+  let previewActivity: PreviewActivityPolling | null = null;
 
   function openPreviewAsync(): Promise<DeviceWebPreview> {
     if (finishTask) {
@@ -1025,9 +1025,14 @@ async function startDeviceSessionHostInternalAsync(
     secrets.push(previewToken);
     if (!isAndroid) {
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
-      if (!finishTask) {
-        previewActivity = startServeSimActivityPolling({ port, token: previewToken, logger });
-      }
+    }
+    if (!finishTask) {
+      previewActivity = startPreviewActivityPolling({
+        server: isAndroid ? 'expo-device-hub' : 'serve-sim',
+        port,
+        token: previewToken,
+        logger,
+      });
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.
