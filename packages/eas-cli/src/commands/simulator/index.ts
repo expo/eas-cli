@@ -201,7 +201,11 @@ With local egress, actions wait for the connection and require interactive mode.
     'network-capture': Flags.boolean({
       allowNo: true,
       description:
-        'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
+        'Capture HTTP(S) traffic from apps on the device for live inspection (iOS only). HTTPS is decrypted, so captured traffic can contain credentials in cleartext and certificate-pinned apps fail to connect.',
+    }),
+    'network-capture-recording': Flags.boolean({
+      description: 'Save network capture as HAR artifacts for access after the session ends.',
+      dependsOn: ['network-capture'],
     }),
     'network-capture-field': Flags.string({
       description:
@@ -462,6 +466,7 @@ With local egress, actions wait for the connection and require interactive mode.
             publicPreview: flags['public-link'] ?? false,
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
+            ...(flags['network-capture-recording'] ? { networkCaptureRecording: true } : {}),
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
             ...platformInput,
             ...(buildId ? { buildId } : {}),
@@ -512,7 +517,7 @@ With local egress, actions wait for the connection and require interactive mode.
       );
       if (flags['network-capture']) {
         Log.warn(
-          'Network capture was requested. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an installed app to record its traffic.'
+          'Network capture was requested. HTTPS is decrypted, so captured traffic can contain credentials in cleartext. Relaunch an installed app to capture its traffic.'
         );
       }
     } catch (err) {

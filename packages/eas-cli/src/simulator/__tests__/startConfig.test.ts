@@ -65,12 +65,18 @@ describe('simulator start configuration', () => {
 
   it('lets the CLI disable saved public links and network capture with its saved fields', async () => {
     const { parsed } = await resolve(
-      { 'public-link': true, 'network-capture': true, 'network-capture-field': ['header'] },
+      {
+        'public-link': true,
+        'network-capture': true,
+        'network-capture-field': ['header'],
+        'network-capture-recording': true,
+      },
       ['--no-public-link', '--no-network-capture']
     );
     expect(parsed.flags['public-link']).toBe(false);
     expect(parsed.flags['network-capture']).toBe(false);
     expect(parsed.flags['network-capture-field']).toBeUndefined();
+    expect(parsed.flags['network-capture-recording']).toBeUndefined();
   });
 
   it('validates dependencies after merging and replaces array flags instead of appending', async () => {
