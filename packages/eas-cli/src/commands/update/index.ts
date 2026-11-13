@@ -3,6 +3,7 @@ import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
@@ -28,7 +29,7 @@ import {
 } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import Log, { learnMore, link } from '../../log';
-import { ora } from '../../ora';
+import { isSpinnerEnabled, ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { maybeUploadAssetMapAsync } from '../../project/maybeUploadAssetMapAsync';
 import {
@@ -56,6 +57,7 @@ import {
   resolveInputDirectoryAsync,
   uploadAssetsAsync,
 } from '../../project/publish';
+import { createUploadProgressReporter } from '../../project/uploadProgressReporter';
 import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
 import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from '../../update/active-rollout';
 import { ensureEASUpdateIsConfiguredAsync } from '../../update/configure';
@@ -389,13 +391,41 @@ export default class UpdatePublish extends EasCommand {
       // - Start with NO_ACTIVITY_TIMEOUT. 180 seconds is chosen because the cloud function that processes
       //   uploaded assets has a timeout of 60 seconds and uploading can take some time on a slow connection.
       // - Each time one or more assets reports as ready, reset the timeout.
-      // - Each time an asset upload begins, reset the timeout. This includes retries.
+      // - Each time an asset upload begins or sends more bytes, reset the timeout. This includes retries.
       // - Start upload. Internally, uploadAssetsAsync uploads them all first and then checks for successful
       //   processing every (5 + n) seconds with a linear backoff of n + 1 second.
       // - At the same time as upload is started, start timeout checker which checks every 1 second to see
       //   if timeout has been reached. When timeout expires, send a cancellation signal to currently running
       //   upload function call to instruct it to stop uploading or checking for successful processing.
       const NO_ACTIVITY_TIMEOUT = 180 * 1000; // 180 seconds
+      let uploadCountText = 'Uploading...';
+      let activeUploadLines: string[] = [];
+      let unfinishedAssetPaths: string[] = [];
+      const fullySentAssetPaths = new Set<string>();
+      const updateAssetSpinnerText = (): void => {
+        const processingAssetNames = unfinishedAssetPaths
+          .filter(assetPath => fullySentAssetPaths.has(assetPath))
+          .map(assetPath => path.basename(assetPath));
+        assetSpinner.text = [
+          uploadCountText,
+          ...activeUploadLines,
+          ...(processingAssetNames.length > 0
+            ? [
+                `Waiting for the server to process ${processingAssetNames.slice(0, 3).join(', ')}` +
+                  (processingAssetNames.length > 3
+                    ? ` and ${processingAssetNames.length - 3} more`
+                    : ''),
+              ]
+            : []),
+        ].join('\n');
+      };
+      const reportUploadProgress = createUploadProgressReporter({
+        isInteractive: isSpinnerEnabled(),
+        onActiveUploadsChanged: lines => {
+          activeUploadLines = lines;
+          updateAssetSpinnerText();
+        },
+      });
       let lastUploadedStorageKeys = new Set<string>();
       let lastAssetUploadResults: {
         asset: RawAsset & { storageKey: string };
@@ -422,11 +452,23 @@ export default class UpdatePublish extends EasCommand {
 
             const totalAssets = assetUploadResults.length;
             const missingAssetCount = assetUploadResults.filter(a => !a.finished).length;
-            assetSpinner.text = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+            uploadCountText = `Uploading (${totalAssets - missingAssetCount}/${totalAssets})`;
+            unfinishedAssetPaths = assetUploadResults
+              .filter(r => !r.finished)
+              .map(r => r.asset.path);
+            updateAssetSpinnerText();
           },
-          () => {
+          progress => {
             // when an upload is retried, reset the timeout as we know this will now need more time
             timeAtWhichToTimeout = Date.now() + NO_ACTIVITY_TIMEOUT; // reset timeout to NO_ACTIVITY_TIMEOUT
+            if (progress) {
+              if (progress.uploadedBytes >= progress.fileSize) {
+                fullySentAssetPaths.add(progress.file);
+              } else {
+                fullySentAssetPaths.delete(progress.file);
+              }
+              reportUploadProgress(progress);
+            }
           }
         ),
         (async () => {
