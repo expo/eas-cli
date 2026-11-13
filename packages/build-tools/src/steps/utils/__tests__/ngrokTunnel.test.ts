@@ -608,6 +608,23 @@ it('keeps a first open that settles after the reopen time-out', async () => {
   expect(initial.close).toHaveBeenCalledTimes(1);
 });
 
+it('fails without a retry when the first open fails for another reason after 15 seconds', async () => {
+  let rejectOpening!: (error: Error) => void;
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockReturnValueOnce(new Promise((_, reject) => (rejectOpening = reject)))
+    .mockResolvedValue(replacement as never);
+  const error = new Error('invalid authtoken');
+  const opening = startNgrokTunnelAsync(options);
+  const rejected = expect(opening).rejects.toBe(error);
+  await jest.advanceTimersByTimeAsync(16_000);
+  rejectOpening(error);
+  await rejected;
+  await jest.advanceTimersByTimeAsync(10_000);
+  expect(ngrok.forward).toHaveBeenCalledTimes(1);
+});
+
 it('does not retry a timed-out open that ngrok rejects later', async () => {
   let rejectOpening!: (error: Error) => void;
   jest

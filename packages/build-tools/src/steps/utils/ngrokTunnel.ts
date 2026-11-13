@@ -426,8 +426,8 @@ function isRetryableNgrokError(err: unknown): boolean {
 }
 
 /**
- * The ngrok error code of a failed open. `forward()` does not set `errorCode`, so the code is read
- * from the message, as @ngrok/ngrok does for its other calls.
+ * The ngrok error code of a failed open. @ngrok/ngrok sets `errorCode` from the message; the
+ * message is parsed the same way when `errorCode` is missing.
  */
 function getNgrokErrorCode(err: unknown): string | null {
   if (!(err instanceof Error)) {
