@@ -566,7 +566,9 @@ describe(Simulator, () => {
         await createCommand(['--import', configPath, '--non-interactive']).command.runAsync();
 
         expect(applyStartConfigAsync).toHaveBeenCalledTimes(1);
-        expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+        expect(Log.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('Install and launch your app')
+        );
         expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
       }
     );
@@ -1559,7 +1561,7 @@ describe(Simulator, () => {
       expect.stringContaining('eas simulator:exec npx agent-device <command>')
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Install and launch your app'));
     expect(Log.log).toHaveBeenCalledWith(
       expect.stringContaining('eas simulator:control app.install ./MyApp.app --id session-123')
     );
@@ -1578,7 +1580,9 @@ describe(Simulator, () => {
 
     await command.runAsync();
 
-    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Install and launch your app')
+    );
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('app.install ./MyApp.app'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
   });

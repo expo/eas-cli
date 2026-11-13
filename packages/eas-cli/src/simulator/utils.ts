@@ -551,27 +551,31 @@ function formatAppSetupInstructions(
   if (appRequested !== false) {
     return [];
   }
-  let guidance: string;
+  let client: string | undefined;
   switch (remoteConfig.__typename) {
     case 'ArgentRunSessionRemoteConfig':
-      guidance = 'Use Argent to install and open your app.';
+      client = 'Argent';
       break;
     case 'AgentDeviceRunSessionRemoteConfig':
-      guidance = 'Use agent-device to install and open your app.';
+      client = 'agent-device';
       break;
     case 'AppiumRunSessionRemoteConfig':
-      guidance = 'Use your Appium client to install and launch your app.';
+      client = 'your Appium client';
       break;
-    default:
-      guidance = 'Install and open your app to see it in the preview.';
   }
-  const lines = ['', `No app was requested. ${guidance}`];
+  const lines = [''];
   if (platform === AppPlatform.Ios && sessionId) {
     lines.push(
-      'You can also install an iOS Simulator build and launch it with:',
+      `Install and launch your app using ${client ? `${client} or ` : ''}EAS CLI:`,
       '',
       `eas simulator:control app.install ./MyApp.app --id ${sessionId}`,
       `eas simulator:control app.launch com.example.app --id ${sessionId}`
+    );
+  } else {
+    lines.push(
+      client
+        ? `Install and launch your app using ${client}.`
+        : 'Install and launch your app to see it in the preview.'
     );
   }
   return lines;

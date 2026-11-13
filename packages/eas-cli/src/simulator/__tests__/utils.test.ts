@@ -815,30 +815,36 @@ describe('session-specific startup instructions', () => {
     'does not claim an app is missing for $__typename without request context',
     config => {
       expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain(
-        'No app was requested.'
+        'Install and launch your app'
       );
       expect(
         formatRemoteSessionInstructions(config, 'dotenv', { appRequested: true })
-      ).not.toContain('No app was requested.');
+      ).not.toContain('Install and launch your app');
     }
   );
 
   it.each([
-    { config: agentDeviceConfig, guidance: 'Use agent-device to install and open your app.' },
-    { config: iosAppiumConfig, guidance: 'Use your Appium client to install and launch your app.' },
+    {
+      config: agentDeviceConfig,
+      guidance: 'Install and launch your app using agent-device or EAS CLI:',
+    },
+    {
+      config: iosAppiumConfig,
+      guidance: 'Install and launch your app using your Appium client or EAS CLI:',
+    },
     {
       config: {
         __typename: 'ArgentRunSessionRemoteConfig',
         toolsUrl: 'https://argent.example.test',
       } as const,
-      guidance: 'Use Argent to install and open your app.',
+      guidance: 'Install and launch your app using Argent or EAS CLI:',
     },
     {
       config: {
         __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
         previewUrl: 'https://preview.example.test',
       } as const,
-      guidance: 'Install and open your app to see it in the preview.',
+      guidance: 'Install and launch your app using EAS CLI:',
     },
   ])(
     'explains how to continue with $config.__typename when no app was requested',
@@ -849,7 +855,7 @@ describe('session-specific startup instructions', () => {
         appRequested: false,
       });
 
-      expect(instructions).toContain(`No app was requested. ${guidance}`);
+      expect(instructions).toContain(guidance);
       expect(instructions).toContain(
         'eas simulator:control app.install ./MyApp.app --id selected-session'
       );
@@ -868,7 +874,7 @@ describe('session-specific startup instructions', () => {
         appRequested: false,
       });
 
-      expect(instructions).toContain('No app was requested.');
+      expect(instructions).toContain('Install and launch your app');
       expect(instructions).not.toContain('eas simulator:control app.install');
       expect(instructions).not.toContain('eas simulator:control app.launch');
       expect(instructions).not.toContain('iOS Simulator build');
