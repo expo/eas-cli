@@ -8,7 +8,7 @@ export function isNonInteractiveByDefault(): boolean {
 export const EasNonInteractiveAndJsonFlags = {
   json: Flags.boolean({
     description:
-      'Enable JSON output, non-JSON messages will be printed to stderr. On failure, prints {"error": {"message", "requestId"?}}. Implies --non-interactive.',
+      'Enable JSON output, non-JSON messages will be printed to stderr. On failure, prints {"error": {"message", "code"?, "requestId"?}}. Implies --non-interactive.',
   }),
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
@@ -88,7 +88,7 @@ export const EASNonInteractiveFlag = {
 export const EasJsonOnlyFlag = {
   json: Flags.boolean({
     description:
-      'Enable JSON output, non-JSON messages will be printed to stderr. On failure, prints {"error": {"message", "requestId"?}}.',
+      'Enable JSON output, non-JSON messages will be printed to stderr. On failure, prints {"error": {"message", "code"?, "requestId"?}}.',
   }),
 };
 
