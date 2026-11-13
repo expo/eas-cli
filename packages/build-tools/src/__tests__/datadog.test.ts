@@ -428,7 +428,7 @@ describe('Datadog singleton', () => {
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
-  it('stops waiting for an upload that gets no response, retries included', async () => {
+  it('cancels the request of an upload that gets no response after 10 seconds', async () => {
     jest.useFakeTimers();
     try {
       turtleFetchMock.mockImplementationOnce(
