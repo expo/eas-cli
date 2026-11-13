@@ -428,13 +428,38 @@ describe('Datadog singleton', () => {
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
+  it('clears the deadline of an upload that finishes', async () => {
+    jest.useFakeTimers();
+    try {
+      turtleFetchMock.mockResolvedValueOnce({} as Response);
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      await Datadog.flushAsync();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('cancels the request of an upload that gets no response after 10 seconds', async () => {
     jest.useFakeTimers();
     try {
       turtleFetchMock.mockImplementationOnce(
         (_url, _method, { signal }) =>
           new Promise((_resolve, reject) => {
-            signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
+            // node-fetch 2 rejects an aborted request with a generic AbortError.
+            signal!.addEventListener(
+              'abort',
+              () =>
+                reject(
+                  Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' })
+                ),
+              { once: true }
+            );
           })
       );
       Datadog.setup({
