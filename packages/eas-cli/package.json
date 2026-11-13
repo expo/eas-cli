@@ -254,7 +254,7 @@
     },
     "update": {
       "node": {
-        "version": "22.23.4"
+        "version": "22.23.5"
       },
       "s3": {
         "templates": {
