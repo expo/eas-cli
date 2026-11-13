@@ -90,6 +90,7 @@ export async function tryClaimWarmIosSessionAsync({
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     const logSecrets = [claim.server.token];
     let logReader: DetachedProcessHandle | undefined;
+    let agentLogReader: DetachedProcessHandle | undefined;
     try {
       logReader = spawnDetached({
         command: '/usr/bin/tail',
@@ -126,10 +127,26 @@ export async function tryClaimWarmIosSessionAsync({
         if (session.tools) {
           logSecrets.push(session.tools.token);
         }
+        // The daemon has its own log file. Start after reading its identity so its token is
+        // redacted before any output is forwarded; do not replay pre-session diagnostics.
+        if (engine === 'agent-device' && !agentLogReader) {
+          try {
+            agentLogReader = spawnDetached({
+              command: '/usr/bin/tail',
+              args: ['-n', '0', '-F', path.join(claim.agentDeviceStateDir, 'daemon.log')],
+              env,
+              logger,
+              secrets: logSecrets,
+            });
+          } catch {
+            logger.warn('Could not forward agent-device daemon logs.');
+          }
+        }
       },
       process: {
         pid: claim.server.pid,
-        getOutput: () => logReader?.getOutput() ?? '',
+        getOutput: () =>
+          [logReader?.getOutput(), agentLogReader?.getOutput()].filter(Boolean).join('\n'),
         getExitError: () =>
           isProcessRunning(claim.server.pid) &&
           (!session.tools || isProcessRunning(session.tools.pid))
@@ -137,7 +154,14 @@ export async function tryClaimWarmIosSessionAsync({
             : new Error('A service of the warm Simulator session has exited.'),
         stopAsync: () =>
           (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
-            await logReader?.stopAsync();
+            const results = await Promise.allSettled([
+              logReader?.stopAsync(),
+              agentLogReader?.stopAsync(),
+            ]);
+            const failure = results.find(result => result.status === 'rejected');
+            if (failure?.status === 'rejected') {
+              throw failure.reason;
+            }
           })),
       },
     };
