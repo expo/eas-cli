@@ -260,9 +260,24 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
     })
   );
   expect(session?.process.getOutput()).toBe('server output');
+  session?.redactLogs?.(['adoption-secret']);
+  expect(jest.mocked(spawnDetached).mock.calls[0][0].secrets).toEqual([
+    'serve-token',
+    'adoption-secret',
+  ]);
   jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('cleanup failed'));
   await expect(session?.process.stopAsync()).rejects.toThrow('cleanup failed');
   expect(stopReader).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the claimed Simulator when its server log reader cannot start', async () => {
+  jest.mocked(spawnDetached).mockImplementation(() => {
+    throw new Error('tail unavailable');
+  });
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  expect(session?.server).toEqual({ pid: 10, port: 3200, token: 'serve-token' });
+  expect(logger.warn).toHaveBeenCalledWith('Could not forward warm Simulator server logs.');
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });
 
 it.each([false, true])(
