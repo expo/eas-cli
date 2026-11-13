@@ -78,9 +78,10 @@ export default class SimulatorDevices extends EasCommand {
         Object.fromEntries(
           platforms.map(platform => [
             platform,
-            profiles[platform].devices.map(({ identifier, displayName }) => ({
+            profiles[platform].devices.map(({ identifier, displayName, isDefault }) => ({
               identifier,
               displayName,
+              isDefault,
             })),
           ])
         )
@@ -89,9 +90,9 @@ export default class SimulatorDevices extends EasCommand {
     }
 
     const devices = platforms.flatMap(platform =>
-      profiles[platform].devices.map(({ identifier, displayName }) => ({
+      profiles[platform].devices.map(({ identifier, displayName, isDefault }) => ({
         platform,
-        displayName,
+        displayName: isDefault ? `${displayName} (default)` : displayName,
         flagValue: formatDeviceFlagValue(identifier),
       }))
     );

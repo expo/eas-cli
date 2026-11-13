@@ -216,12 +216,14 @@ export const DeviceRunSessionQuery = {
                     devices {
                       identifier
                       displayName
+                      isDefault
                     }
                   }
                   android {
                     devices {
                       identifier
                       displayName
+                      isDefault
                     }
                   }
                 }
