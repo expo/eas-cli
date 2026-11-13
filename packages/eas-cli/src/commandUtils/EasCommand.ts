@@ -27,6 +27,7 @@ import {
   CommandEvent,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
+import { markAsParentCommand } from '../analytics/parentCommand';
 import Log, { link } from '../log';
 import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
@@ -238,26 +239,33 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    this.analyticsInternal = await createAnalyticsAsync();
-    this.sessionManagerInternal = new SessionManager(this.analytics);
+    // id is assigned by oclif in constructor based on the filepath:
+    // commands/submit === submit, commands/build/list === build:list
+    const command = `eas ${this.id}`;
+    const { parentCommand, restoreParentCommand } = markAsParentCommand(command);
 
-    // this is needed for logEvent call below as it identifies the user in the analytics system
-    // if possible
-    const actor = await this.sessionManager.getUserAsync();
-    if (actor) {
-      Sentry.setUser({
-        id: actor.id,
-        username: getActorDisplayName(actor),
-      });
+    try {
+      this.analyticsInternal = await createAnalyticsAsync(parentCommand);
+      this.sessionManagerInternal = new SessionManager(this.analytics);
+
+      // this is needed for logEvent call below as it identifies the user in the analytics system
+      // if possible
+      const actor = await this.sessionManager.getUserAsync();
+      if (actor) {
+        Sentry.setUser({
+          id: actor.id,
+          username: getActorDisplayName(actor),
+        });
+      }
+
+      this.analytics.logEvent(CommandEvent.ACTION, { action: command });
+
+      return await this.runAsync();
+    } finally {
+      // Commands can run inside each other, for example `eas open` runs `eas browse`.
+      // The outer command is the parent command again after the inner one ends.
+      restoreParentCommand();
     }
-
-    this.analytics.logEvent(CommandEvent.ACTION, {
-      // id is assigned by oclif in constructor based on the filepath:
-      // commands/submit === submit, commands/build/list === build:list
-      action: `eas ${this.id}`,
-    });
-
-    return await this.runAsync();
   }
 
   // eslint-disable-next-line async-protect/async-suffix
