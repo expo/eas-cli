@@ -111,17 +111,15 @@ describe(SimulatorDevices, () => {
     expect(mockProfilesAsync).toHaveBeenCalledWith(graphqlClient);
     expect(mockLog).toHaveBeenCalledWith(
       [
-        'iOS',
-        '  iPhone 17',
-        '  iPhone 17 Pro',
-        '',
-        'Android',
-        '  medium_phone  Medium Phone',
-        '  pixel_9       Pixel 9',
+        'Platform  Device         --device value',
+        'iOS       iPhone 17      "iPhone 17"',
+        'iOS       iPhone 17 Pro  "iPhone 17 Pro"',
+        'Android   Medium Phone   medium_phone',
+        'Android   Pixel 9        pixel_9',
       ].join('\n')
     );
     expect(mockLog).toHaveBeenCalledWith(
-      'Pass a device to eas simulator:start with --platform and --device.'
+      'Start a session with: eas simulator:start --platform ios --device "iPhone 17"'
     );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
@@ -130,8 +128,28 @@ describe(SimulatorDevices, () => {
     await createCommand(['--platform', 'android']).runAsync();
 
     expect(mockLog).toHaveBeenCalledWith(
-      ['Android', '  medium_phone  Medium Phone', '  pixel_9       Pixel 9'].join('\n')
+      [
+        'Platform  Device        --device value',
+        'Android   Medium Phone  medium_phone',
+        'Android   Pixel 9       pixel_9',
+      ].join('\n')
     );
+    expect(mockLog).toHaveBeenCalledWith(
+      'Start a session with: eas simulator:start --platform android --device medium_phone'
+    );
+  });
+
+  it('says so when the service lists no devices', async () => {
+    mockProfilesAsync.mockResolvedValue({
+      ...profiles,
+      ios: { ...profiles.ios, devices: [] },
+      android: { ...profiles.android, devices: [] },
+    });
+
+    await createCommand([]).runAsync();
+
+    expect(mockLog).toHaveBeenCalledTimes(1);
+    expect(mockLog).toHaveBeenCalledWith('No simulator devices found.');
   });
 
   it('emits JSON for both platforms', async () => {

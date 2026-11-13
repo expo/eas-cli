@@ -63,11 +63,14 @@ import {
   simulatorRequestProperties,
 } from '../../simulator/requestAnalytics';
 import {
+  DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DeviceRunSessionPlatformFlagValue,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
@@ -88,13 +91,7 @@ const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
 } as const;
-const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
-type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
 const EGRESS_FLAG_VALUES = ['local'] as const;
-const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
-  android: AppPlatform.Android,
-  ios: AppPlatform.Ios,
-};
 
 export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', ...getSimulatorCommandAliases('start')];
@@ -131,7 +128,7 @@ With local egress, actions wait for the connection and require interactive mode.
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
-      options: PLATFORM_FLAG_VALUES,
+      options: DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
     })(),
     name: Flags.string({
       description:
@@ -144,7 +141,7 @@ With local egress, actions wait for the connection and require interactive mode.
     }),
     device: Flags.string({
       description:
-        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 17 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner. List the devices with eas simulator:devices.',
+        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 17 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner. eas simulator:devices lists the devices Expo suggests.',
     }),
     'system-image': Flags.string({
       description:
@@ -897,11 +894,11 @@ async function formatJobRunErrorsAsync(
 }
 
 async function resolvePlatformAsync(
-  platform: PlatformFlagValue | undefined,
+  platform: DeviceRunSessionPlatformFlagValue | undefined,
   nonInteractive: boolean
 ): Promise<AppPlatform> {
   if (platform) {
-    return APP_PLATFORM_BY_FLAG_VALUE[platform];
+    return DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE[platform];
   }
 
   if (nonInteractive) {
