@@ -251,7 +251,10 @@ export async function startNgrokTunnelAsync({
     for (let attempt = 1; ; attempt++) {
       try {
         return await openAsync({
-          // A retry starts a new agent session, so it does not reuse a session that failed.
+          // ERR_NGROK_802 is a server error while the endpoint binds on the shared agent session,
+          // so a retry connects a new session, which can reach a different ngrok server.
+          // @ngrok/ngrok 1.7.0 replaces its shared session but does not close the old one: the old
+          // session and its listeners stay connected until the process exits.
           forceNewSession: attempt > 1,
           timeoutMs: attempt === 1 ? FIRST_OPEN_TIMEOUT_MS : OPEN_TIMEOUT_MS,
         });
