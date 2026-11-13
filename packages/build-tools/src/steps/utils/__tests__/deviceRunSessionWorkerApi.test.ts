@@ -145,9 +145,11 @@ describe(DeviceRunSessionWorkerApi, () => {
           kind: 'screenshot',
           size: 12,
           metadata: { __eas_type: 'screenshot' },
+          idempotencyKey: 'idempotency-key',
         }),
       method: 'POST',
       route: 'artifact-upload-sessions',
+      headers: { 'Idempotency-Key': 'idempotency-key' },
       json: {
         name: 'Screenshot',
         filename: 'screenshot.png',
@@ -228,7 +230,7 @@ describe(DeviceRunSessionWorkerApi, () => {
     },
   ])(
     '$name calls $method /v2/device-run-session-worker/$route with the session token header',
-    async ({ call, method, route, json, data, expected }) => {
+    async ({ call, method, route, headers, json, data, expected }) => {
       jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data }));
 
       await expect(call(createApi())).resolves.toEqual(expected);
@@ -237,7 +239,7 @@ describe(DeviceRunSessionWorkerApi, () => {
       const [url, calledMethod, options] = jest.mocked(turtleFetch).mock.calls[0];
       expect(url).toBe(`https://api.expo.test/v2/device-run-session-worker/${route}`);
       expect(calledMethod).toBe(method);
-      expect(options.headers).toEqual({ [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN });
+      expect(options.headers).toEqual({ ...headers, [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN });
       expect(options.json).toEqual(json);
       expect(options).toEqual(expect.objectContaining({ retries: 0, shouldThrowOnNotOk: false }));
     }

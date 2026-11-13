@@ -5,14 +5,20 @@ import timers from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import {
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from '../deviceRunSessionArtifacts';
 import {
   listAgentDeviceArtifactsAsync,
   pollAgentDeviceArtifactsForUploadAsync,
   uploadAgentDeviceArtifactAsync,
 } from '../agentDeviceArtifacts';
 
-jest.mock('../deviceRunSessionArtifacts');
+jest.mock('../deviceRunSessionArtifacts', () => ({
+  ...jest.requireActual('../deviceRunSessionArtifacts'),
+  uploadDeviceRunSessionArtifactAsync: jest.fn(),
+}));
 jest.mock('../../../sentry');
 jest.mock('node-fetch');
 
@@ -163,6 +169,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
+      idempotencyKey: 'idempotency-key',
       logger,
       artifact: {
         id: 'artifact-id',
@@ -182,6 +189,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       kind: 'agent-device-test-report',
       size: data.length,
       openStream: expect.any(Function),
+      idempotencyKey: 'idempotency-key',
     });
   });
 
@@ -201,6 +209,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
+      idempotencyKey: 'idempotency-key',
       logger,
       artifact: {
         id: 'artifact-id',
@@ -236,6 +245,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
+      idempotencyKey: 'idempotency-key',
       logger,
       artifact: {
         id: 'artifact-id',
@@ -276,6 +286,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
+      idempotencyKey: 'idempotency-key',
       logger,
       artifact: { id: 'artifact-id', artifactType: 'screenshot', filename: 'shot.png' },
     });
@@ -305,6 +316,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
+      idempotencyKey: 'idempotency-key',
       logger: createLoggerMock(),
       artifact: { id: 'artifact-id', artifactType: 'screen-recording', filename: 'session.mp4' },
     });
@@ -627,7 +639,7 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
     expect(Sentry.capture).toHaveBeenCalledTimes(2);
   });
 
-  it('retries an artifact after a failed upload', async () => {
+  it('retries an artifact with its first idempotency key and gives each artifact its own key', async () => {
     const data = Buffer.from('artifact-data');
     const logger = createLoggerMock();
     const ctx = {} as unknown as CustomBuildContext;
@@ -635,18 +647,24 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
       id: 'artifact-id',
       filename: 'report.json',
     };
-    const listResponse = () => new Response(JSON.stringify({ artifacts: [artifact] }));
+    const otherArtifact = {
+      id: 'other-artifact-id',
+      filename: 'other.json',
+    };
+    const listResponse = () =>
+      new Response(JSON.stringify({ artifacts: [artifact, otherArtifact] }));
 
     jest
       .mocked(fetch)
       .mockResolvedValueOnce(listResponse())
+      .mockResolvedValueOnce(new Response(Readable.from([data])))
       .mockResolvedValueOnce(new Response(Readable.from([data])))
       .mockResolvedValueOnce(listResponse())
       .mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
       .mockRejectedValueOnce(new Error('upload failed'))
-      .mockImplementationOnce(async (_ctx, { openStream }) => {
+      .mockImplementation(async (_ctx, { openStream }) => {
         await readStreamAsync(openStream());
       });
 
@@ -658,12 +676,53 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
     });
 
     await flushPromisesAsync();
-    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(2);
 
     await jest.advanceTimersByTimeAsync(5_000);
     await flushPromisesAsync();
 
-    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(2);
+    const calls = jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mock.calls.map(([, { artifactId, idempotencyKey }]) => ({ artifactId, idempotencyKey }));
+    expect(calls.map(call => call.artifactId)).toEqual([
+      'artifact-id',
+      'other-artifact-id',
+      'artifact-id',
+    ]);
+    expect(calls[0].idempotencyKey).toEqual(expect.any(String));
+    expect(calls[2].idempotencyKey).toBe(calls[0].idempotencyKey);
+    expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
+  });
+
+  it('does not retry an artifact that www rejects', async () => {
+    const data = Buffer.from('artifact-data');
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+    const listResponse = () =>
+      new Response(JSON.stringify({ artifacts: [{ id: 'artifact-id', filename: 'report.json' }] }));
+
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(listResponse())
+      .mockResolvedValueOnce(new Response(Readable.from([data])))
+      .mockResolvedValueOnce(listResponse());
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockRejectedValueOnce(new DeviceRunSessionArtifactRejectedError('Rejected.'));
+
+    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger,
+    });
+
+    await flushPromisesAsync();
+    await jest.advanceTimersByTimeAsync(5_000);
+    await flushPromisesAsync();
+
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(3);
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(1);
   });
 
   it('stops polling when the daemon does not expose artifact inventory', async () => {
