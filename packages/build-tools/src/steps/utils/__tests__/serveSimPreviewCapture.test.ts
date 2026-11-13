@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { runServeSimActionAsync, runServeSimActionWithResultAsync } from '../serveSimActions';
+import { runServeSimActionWithResultAsync } from '../serveSimActions';
 import { createServeSimPreviewCapture } from '../serveSimPreviewCapture';
 
 jest.mock('../serveSimActions');
@@ -16,12 +16,12 @@ const options = { port: 1234, token: 'host-token', device: 'selected-udid', tmpd
 
 beforeEach(async () => {
   await mkdir(staging, { recursive: true });
-  jest.mocked(runServeSimActionAsync).mockReset();
+  jest.mocked(runServeSimActionWithResultAsync).mockReset();
 });
 
 it('captures the selected active display and removes only its own staging', async () => {
   await writeFile(path.join(staging, 'unrelated.png'), 'keep');
-  jest.mocked(runServeSimActionAsync).mockImplementation(async request => {
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
     expect(request).toEqual({
       port: 1234,
       token: 'host-token',
@@ -36,7 +36,7 @@ it('captures the selected active display and removes only its own staging', asyn
       drainAfterDispatch: true,
     });
     await writeFile(path.join(staging, request.params.fileName as string), png);
-    return;
+    return path.join(staging, request.params.fileName as string);
   });
   const capture = createServeSimPreviewCapture(options);
   await capture.captureAsync(destination, signal);
@@ -51,11 +51,11 @@ it('drains an already sent action before honoring abort and deleting its output'
     complete = resolve;
   });
   let staged!: string;
-  jest.mocked(runServeSimActionAsync).mockImplementation(async request => {
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
     staged = path.join(staging, request.params.fileName as string);
     await pending;
     await writeFile(staged, png);
-    return;
+    return path.join(staging, request.params.fileName as string);
   });
   const capture = createServeSimPreviewCapture(options);
   let settled = false;
@@ -80,7 +80,7 @@ it.each(['timed out', 'connection closed'])(
   'keeps a possibly writable file after %s until the host stops',
   async message => {
     let staged!: string;
-    jest.mocked(runServeSimActionAsync).mockImplementation(async request => {
+    jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
       staged = path.join(staging, request.params.fileName as string);
       await writeFile(staged, 'reservation');
       throw new Error(message);
@@ -98,7 +98,7 @@ it.each(['timed out', 'connection closed'])(
 it('attempts every owned cleanup when one file cannot be removed', async () => {
   let blocked!: string;
   let count = 0;
-  jest.mocked(runServeSimActionAsync).mockImplementation(async request => {
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
     const staged = path.join(staging, request.params.fileName as string);
     if (count++ === 0) {
       blocked = staged;
@@ -122,7 +122,7 @@ it('does not send a capture when already aborted', async () => {
   await expect(
     capture.captureAsync(destination, AbortSignal.abort(new Error('stopped')))
   ).rejects.toThrow('stopped');
-  expect(runServeSimActionAsync).not.toHaveBeenCalled();
+  expect(runServeSimActionWithResultAsync).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -148,6 +148,23 @@ it.each([
       timeoutMs: 30_000,
       signal,
     });
-    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+    expect(runServeSimActionWithResultAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'screenshot.capture' })
+    );
+  }
+);
+
+it.each(['/tmp/unowned.png', '../unowned.png', ''])(
+  'rejects an unowned returned path (%s)',
+  async returned => {
+    jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
+      await writeFile(path.join(staging, request.params.fileName as string), png);
+      return returned;
+    });
+    const capture = createServeSimPreviewCapture(options);
+    await expect(capture.captureAsync(destination, signal)).rejects.toThrow(
+      'unexpected screenshot path'
+    );
+    expect(await readdir(staging)).toEqual([]);
   }
 );
