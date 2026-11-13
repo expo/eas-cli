@@ -908,8 +908,8 @@ async function validateDeviceIdentifierAsync(
     return;
   }
 
-  const platformFlag = platform === AppPlatform.Ios ? 'ios' : 'android';
   const platformName = platform === AppPlatform.Ios ? 'iOS' : 'Android';
+  const platformFlag = platformName.toLowerCase() as DeviceRunSessionPlatformFlagValue;
   const profiles = await DeviceRunSessionQuery.profilesAsync(graphqlClient);
   const devices = profiles[platformFlag].devices;
   if (devices.some(({ identifier }) => identifier === deviceIdentifier)) {
