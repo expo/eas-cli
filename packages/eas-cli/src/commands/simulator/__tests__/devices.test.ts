@@ -40,11 +40,13 @@ const profiles: DeviceRunSessionProfilesQuery['deviceRunSessions']['profiles'] =
         __typename: 'IosDeviceRunSessionDevice',
         identifier: 'iPhone 17',
         displayName: 'iPhone 17',
+        isDefault: true,
       },
       {
         __typename: 'IosDeviceRunSessionDevice',
         identifier: 'iPhone 17 Pro',
         displayName: 'iPhone 17 Pro',
+        isDefault: false,
       },
     ],
   },
@@ -55,23 +57,25 @@ const profiles: DeviceRunSessionProfilesQuery['deviceRunSessions']['profiles'] =
         __typename: 'AndroidDeviceRunSessionDevice',
         identifier: 'medium_phone',
         displayName: 'Medium Phone',
+        isDefault: true,
       },
       {
         __typename: 'AndroidDeviceRunSessionDevice',
         identifier: 'pixel_9',
         displayName: 'Pixel 9',
+        isDefault: false,
       },
     ],
   },
 };
 
 const iosDevices = [
-  { identifier: 'iPhone 17', displayName: 'iPhone 17' },
-  { identifier: 'iPhone 17 Pro', displayName: 'iPhone 17 Pro' },
+  { identifier: 'iPhone 17', displayName: 'iPhone 17', isDefault: true },
+  { identifier: 'iPhone 17 Pro', displayName: 'iPhone 17 Pro', isDefault: false },
 ];
 const androidDevices = [
-  { identifier: 'medium_phone', displayName: 'Medium Phone' },
-  { identifier: 'pixel_9', displayName: 'Pixel 9' },
+  { identifier: 'medium_phone', displayName: 'Medium Phone', isDefault: true },
+  { identifier: 'pixel_9', displayName: 'Pixel 9', isDefault: false },
 ];
 
 function getMockOclifConfig(): Config {
@@ -111,11 +115,11 @@ describe(SimulatorDevices, () => {
     expect(mockProfilesAsync).toHaveBeenCalledWith(graphqlClient);
     expect(mockLog).toHaveBeenCalledWith(
       [
-        'Platform  Device         --device value',
-        'iOS       iPhone 17      "iPhone 17"',
-        'iOS       iPhone 17 Pro  "iPhone 17 Pro"',
-        'Android   Medium Phone   medium_phone',
-        'Android   Pixel 9        pixel_9',
+        'Platform  Device                  --device value',
+        'iOS       iPhone 17 (default)     "iPhone 17"',
+        'iOS       iPhone 17 Pro           "iPhone 17 Pro"',
+        'Android   Medium Phone (default)  medium_phone',
+        'Android   Pixel 9                 pixel_9',
       ].join('\n')
     );
     expect(mockLog).toHaveBeenCalledWith(
@@ -129,14 +133,34 @@ describe(SimulatorDevices, () => {
 
     expect(mockLog).toHaveBeenCalledWith(
       [
-        'Platform  Device        --device value',
-        'Android   Medium Phone  medium_phone',
-        'Android   Pixel 9       pixel_9',
+        'Platform  Device                  --device value',
+        'Android   Medium Phone (default)  medium_phone',
+        'Android   Pixel 9                 pixel_9',
       ].join('\n')
     );
     expect(mockLog).toHaveBeenCalledWith(
       'Start a session with: eas simulator:start --platform android --device medium_phone'
     );
+  });
+
+  it('uses the default flag from the API instead of the device name or list order', async () => {
+    mockProfilesAsync.mockResolvedValue({
+      ...profiles,
+      ios: {
+        ...profiles.ios,
+        devices: profiles.ios.devices.map(device => ({
+          ...device,
+          isDefault: device.identifier === 'iPhone 17 Pro',
+        })),
+      },
+    });
+
+    await createCommand(['--platform', 'ios']).runAsync();
+
+    const table = mockLog.mock.calls[0][0];
+    expect(table).toContain('iPhone 17 Pro (default)');
+    expect(table).not.toContain('iPhone 17 (default)');
+    expect(table).toContain('"iPhone 17 Pro"');
   });
 
   it('says so when the service lists no devices', async () => {
