@@ -585,6 +585,10 @@ it('bounds initial tunnel creation, does not retry a timed-out open, and retires
   resolveOpening(initial as never);
   await jest.advanceTimersByTimeAsync(0);
   expect(initial.close).toHaveBeenCalledTimes(1);
+  expect(logger.info).toHaveBeenCalledWith(
+    expect.objectContaining({ outcome: 'opened', elapsedMs: 19_000 }),
+    'ngrok tunnel open for web-preview-fixed.example.test opened after 19000 ms, after it timed out or was cancelled.'
+  );
 });
 
 it('keeps a first open that settles after the reopen time-out', async () => {
@@ -681,6 +685,19 @@ it('retries an initial open whose error carries the ngrok error code', async () 
   } finally {
     await tunnel.stopAsync();
   }
+});
+
+it('gives a retry the reopen time-out', async () => {
+  jest
+    .mocked(ngrok.forward)
+    .mockReset()
+    .mockRejectedValueOnce(new Error(ERR_802))
+    .mockReturnValueOnce(new Promise(() => {}));
+  const opening = startNgrokTunnelAsync(options);
+  const rejected = expect(opening).rejects.toThrow('Ngrok tunnel open timed out after 15000ms');
+  await jest.advanceTimersByTimeAsync(1_000 + 15_000);
+  await rejected;
+  expect(ngrok.forward).toHaveBeenCalledTimes(2);
 });
 
 it('fails after three rejected initial opens', async () => {

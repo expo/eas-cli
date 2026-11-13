@@ -14,8 +14,9 @@ const FAILURE_THRESHOLD = 3;
 const STOP_TIMEOUT_MS = 4_000;
 const OPEN_TIMEOUT_MS = 15_000;
 // @ngrok/ngrok runs one open at a time, so nothing can open again until a timed-out open
-// settles. The first open waits longer instead, and keeps a listener that arrives late.
-const INITIAL_OPEN_TIMEOUT_MS = OPEN_TIMEOUT_MS + STOP_TIMEOUT_MS;
+// settles. The first open waits longer instead, and keeps a listener that arrives late. Retries
+// use OPEN_TIMEOUT_MS, so all attempts fit in the 60-second preview opening bound.
+const FIRST_OPEN_TIMEOUT_MS = 19_000;
 const INITIAL_OPEN_ATTEMPTS = 3;
 const INITIAL_OPEN_RETRY_DELAY_MS = 1_000;
 /** ngrok error codes for failed control-plane requests that can succeed on a retry. */
@@ -51,7 +52,7 @@ export async function startNgrokTunnelAsync({
   signal?: AbortSignal;
   /**
    * Stops new attempts of the first open without cancelling the attempt in progress, so the
-   * caller can still wait for that attempt and close its listener.
+   * caller can still wait for that attempt and close its listener. The first attempt always starts.
    */
   retrySignal?: AbortSignal;
 }): Promise<NgrokTunnelHandle> {
@@ -183,6 +184,7 @@ export async function startNgrokTunnelAsync({
     if (pendingOpen) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
+    const startedAt = Date.now();
     let acquired: ngrok.Listener | undefined;
     let retirement: Promise<void> | undefined;
     const retireAcquired = () => {
@@ -209,13 +211,28 @@ export async function startNgrokTunnelAsync({
               pendingOpen = undefined;
             });
           pendingOpen = opening;
-          void opening
-            .then(() => {
+          // Records how long a timed-out or cancelled open takes to settle, to tune the time-out.
+          const logLateSettlement = (outcome: 'opened' | 'failed', err?: unknown) => {
+            const elapsedMs = Date.now() - startedAt;
+            logger.info(
+              { err, outcome, elapsedMs },
+              `ngrok tunnel open for ${domain} ${outcome} after ${elapsedMs} ms, after it timed out or was cancelled.`
+            );
+          };
+          void opening.then(
+            () => {
               if (openSignal.aborted) {
+                logLateSettlement('opened');
                 retireAcquired();
               }
-            })
-            .catch(() => releaseTarget());
+            },
+            err => {
+              if (openSignal.aborted) {
+                logLateSettlement('failed', err);
+              }
+              releaseTarget();
+            }
+          );
           const listener = await opening;
           openSignal.throwIfAborted();
           return listener;
@@ -236,7 +253,7 @@ export async function startNgrokTunnelAsync({
         return await openAsync({
           // A retry starts a new agent session, so it does not reuse a session that failed.
           forceNewSession: attempt > 1,
-          timeoutMs: INITIAL_OPEN_TIMEOUT_MS,
+          timeoutMs: attempt === 1 ? FIRST_OPEN_TIMEOUT_MS : OPEN_TIMEOUT_MS,
         });
       } catch (err) {
         // A cancelled startup fails with the caller's reason, so the caller can tell it from an error.
@@ -426,8 +443,8 @@ function isRetryableNgrokError(err: unknown): boolean {
 }
 
 /**
- * The ngrok error code of a failed open. @ngrok/ngrok sets `errorCode` from the message; the
- * message is parsed the same way when `errorCode` is missing.
+ * The ngrok error code of a failed open. @ngrok/ngrok sets `errorCode` from the message. When it is
+ * missing, the code is read from the message here.
  */
 function getNgrokErrorCode(err: unknown): string | null {
   if (!(err instanceof Error)) {
