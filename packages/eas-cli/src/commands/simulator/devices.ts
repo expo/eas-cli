@@ -9,33 +9,34 @@ import {
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { appPlatformDisplayNames } from '../../platform';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   getSimulatorCommandAliases,
   getSimulatorCommandHiddenAliases,
 } from '../../simulator/commandAliases';
+import {
+  DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
+  DeviceRunSessionPlatformFlagValue,
+} from '../../simulator/utils';
 
-const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
-type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const PLATFORM_ORDER: readonly DeviceRunSessionPlatformFlagValue[] = ['ios', 'android'];
 
-const PLATFORM_ORDER: readonly PlatformFlagValue[] = ['ios', 'android'];
-const PLATFORM_TITLES: Record<PlatformFlagValue, string> = {
-  ios: 'iOS',
-  android: 'Android',
-};
-
-type SimulatorDevice = { identifier: string; displayName: string };
+function formatDeviceFlagValue(identifier: string): string {
+  return /^[\w-]+$/.test(identifier) ? identifier : JSON.stringify(identifier);
+}
 
 export default class SimulatorDevices extends EasCommand {
   static override aliases = getSimulatorCommandAliases('devices');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('devices');
-  static override description = 'list the devices a remote simulator session can start';
+  static override description = 'list the devices Expo suggests for a remote simulator session';
 
   static override flags = {
     platform: Flags.option({
       char: 'p',
       description: 'Show the devices of one platform',
-      options: PLATFORM_FLAG_VALUES,
+      options: DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
     })(),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -71,32 +72,52 @@ export default class SimulatorDevices extends EasCommand {
     const platforms = PLATFORM_ORDER.filter(
       platform => !flags.platform || flags.platform === platform
     );
-    const devicesByPlatform = Object.fromEntries(
-      platforms.map(platform => [
-        platform,
-        profiles[platform].devices.map(
-          ({ identifier, displayName }): SimulatorDevice => ({ identifier, displayName })
-        ),
-      ])
-    ) as Partial<Record<PlatformFlagValue, SimulatorDevice[]>>;
 
     if (jsonFlag) {
-      printJsonOnlyOutput(devicesByPlatform);
+      printJsonOnlyOutput(
+        Object.fromEntries(
+          platforms.map(platform => [
+            platform,
+            profiles[platform].devices.map(({ identifier, displayName }) => ({
+              identifier,
+              displayName,
+            })),
+          ])
+        )
+      );
       return;
     }
 
-    const sections = platforms.map(platform => {
-      const devices = devicesByPlatform[platform] ?? [];
-      const width = Math.max(0, ...devices.map(({ identifier }) => identifier.length));
-      const lines = devices.map(({ identifier, displayName }) =>
-        identifier === displayName
-          ? `  ${identifier}`
-          : `  ${identifier.padEnd(width)}  ${chalk.dim(displayName)}`
-      );
-      return [chalk.bold(PLATFORM_TITLES[platform]), ...lines].join('\n');
-    });
-    Log.log(sections.join('\n\n'));
+    const devices = platforms.flatMap(platform =>
+      profiles[platform].devices.map(({ identifier, displayName }) => ({
+        platform,
+        displayName,
+        flagValue: formatDeviceFlagValue(identifier),
+      }))
+    );
+    if (devices.length === 0) {
+      Log.log('No simulator devices found.');
+      return;
+    }
+
+    const header = ['Platform', 'Device', '--device value'];
+    const rows = devices.map(({ platform, displayName, flagValue }) => [
+      appPlatformDisplayNames[DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE[platform]],
+      displayName,
+      flagValue,
+    ]);
+    const widths = header.map((title, column) =>
+      Math.max(title.length, ...rows.map(row => row[column].length))
+    );
+    const formatRow = (row: string[]): string =>
+      row
+        .map((cell, column) => cell.padEnd(widths[column]))
+        .join('  ')
+        .trimEnd();
+    Log.log([chalk.dim(formatRow(header)), ...rows.map(formatRow)].join('\n'));
     Log.newLine();
-    Log.log('Pass a device to eas simulator:start with --platform and --device.');
+    Log.log(
+      `Start a session with: eas simulator:start --platform ${devices[0].platform} --device ${devices[0].flagValue}`
+    );
   }
 }

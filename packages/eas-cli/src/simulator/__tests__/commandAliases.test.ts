@@ -1,5 +1,6 @@
 import SimulatorAvailability from '../../commands/simulator/availability';
 import SimulatorControl from '../../commands/simulator/control';
+import SimulatorDevices from '../../commands/simulator/devices';
 import SimulatorEgress from '../../commands/simulator/egress';
 import SimulatorEvents from '../../commands/simulator/events';
 import SimulatorExec from '../../commands/simulator/exec';
@@ -14,6 +15,7 @@ describe('simulator command aliases', () => {
   it.each([
     ['availability', SimulatorAvailability],
     ['control', SimulatorControl],
+    ['devices', SimulatorDevices],
     ['egress', SimulatorEgress],
     ['events', SimulatorEvents],
     ['exec', SimulatorExec],

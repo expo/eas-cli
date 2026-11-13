@@ -56,6 +56,17 @@ export const DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS = [
   ...new Set(Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES)),
 ];
 
+export const DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
+export type DeviceRunSessionPlatformFlagValue =
+  (typeof DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES)[number];
+export const DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE: Record<
+  DeviceRunSessionPlatformFlagValue,
+  AppPlatform
+> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
+
 // Every enum value behind a flag value, so filtering by web-preview-only also
 // matches sessions created with the legacy ServeSim type.
 export function deviceRunSessionTypesForFlagValue(value: string): DeviceRunSessionType[] {
