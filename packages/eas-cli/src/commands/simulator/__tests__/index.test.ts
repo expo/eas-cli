@@ -439,7 +439,7 @@ describe(Simulator, () => {
     });
 
     it.each([false, true])(
-      'prints normal ready output before importing, detached=%s',
+      'prints connection instructions only after imported setup succeeds, detached=%s',
       async detached => {
         config({ platform: 'ios' }, [{ action: 'tap', params: { x: 0.5, y: 0.5 } }]);
         const ready = makeDeviceRunSession({
@@ -460,8 +460,9 @@ describe(Simulator, () => {
             const output = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
             const preview = output.findIndex(line => line.includes(deviceRunSessionPreviewUrl));
             const importing = output.findIndex(line => line.includes('Importing 1 action from'));
-            expect(preview).toBeGreaterThanOrEqual(0);
-            expect(importing).toBeGreaterThan(preview);
+            expect(preview).toBe(-1);
+            expect(importing).toBeGreaterThanOrEqual(0);
+            expect(output.some(line => line.includes('Connection saved:'))).toBe(false);
             options.onProgress?.({ step: 1, total: 1, action: 'tap', status: 'running' });
             const result = { action: 'tap', output: '', file: null };
             options.onProgress?.({ step: 1, total: 1, action: 'tap', status: 'completed', result });
@@ -476,6 +477,17 @@ describe(Simulator, () => {
           simulatorDotenvPath,
           expect.stringContaining(`${EAS_SIMULATOR_SESSION_ID}='session-123'`)
         );
+        const output = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
+        const preview = output.findIndex(line => line.includes(deviceRunSessionPreviewUrl));
+        expect(preview).toBeGreaterThan(
+          output.findIndex(line => line.includes('Importing 1 action from'))
+        );
+        const instructionsCall = jest
+          .mocked(Log.log)
+          .mock.calls.findIndex(([line]) => String(line).includes(deviceRunSessionPreviewUrl));
+        expect(jest.mocked(Log.log).mock.invocationCallOrder[instructionsCall]).toBeGreaterThan(
+          jest.mocked(fs.writeFile).mock.invocationCallOrder[0]
+        );
         const spinners = jest.mocked(ora).mock.results.map(result => result.value);
         expect(
           spinners.some(spinner =>
@@ -485,7 +497,7 @@ describe(Simulator, () => {
       }
     );
 
-    it('identifies failed and skipped imported steps after printing the preview', async () => {
+    it('identifies failed and skipped imported steps without printing connection instructions', async () => {
       config({ platform: 'ios' }, [
         { action: 'appearance.get' },
         { action: 'tap' },
@@ -506,6 +518,8 @@ describe(Simulator, () => {
       ).rejects.toThrow('refused');
       expect(jest.mocked(Log.log)).toHaveBeenCalledWith('1 completed · 1 failed · 1 skipped');
       expect(jest.mocked(Log.log)).toHaveBeenCalledWith('  [3/3] clipboard.read skipped');
+      expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
+      expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Connection saved:'));
       const spinners = jest.mocked(ora).mock.results.map(result => result.value);
       expect(
         spinners.some(spinner =>
@@ -514,7 +528,7 @@ describe(Simulator, () => {
       ).toBe(true);
     });
 
-    it('prints imported text and saved files after the ready preview URL', async () => {
+    it('prints imported text and saved files before the final connection instructions', async () => {
       config(undefined, [{ action: 'appearance.get' }, { action: 'screenshot.capture' }]);
       jest
         .mocked(applyStartConfigAsync)
@@ -538,9 +552,24 @@ describe(Simulator, () => {
       const output = jest.mocked(Log.log).mock.calls.map(([line]) => String(line));
       const preview = output.findIndex(line => line.includes(deviceRunSessionPreviewUrl));
       expect(preview).toBeGreaterThanOrEqual(0);
-      expect(output.indexOf('dark')).toBeGreaterThan(preview);
-      expect(output.indexOf('Saved /test/screenshot.png')).toBeGreaterThan(preview);
+      expect(output.indexOf('dark')).toBeGreaterThanOrEqual(0);
+      expect(output.indexOf('dark')).toBeLessThan(preview);
+      expect(output.indexOf('Saved /test/screenshot.png')).toBeGreaterThanOrEqual(0);
+      expect(output.indexOf('Saved /test/screenshot.png')).toBeLessThan(preview);
     });
+
+    it.each(['app.install', 'app.launch', 'url.open'])(
+      'does not suggest app setup when imported %s already requested it',
+      async action => {
+        config({ platform: 'ios' }, [{ action }]);
+
+        await createCommand(['--import', configPath, '--non-interactive']).command.runAsync();
+
+        expect(applyStartConfigAsync).toHaveBeenCalledTimes(1);
+        expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+        expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
+      }
+    );
 
     it('preserves the setup error when the stopped session dotenv cannot be cleaned up', async () => {
       config(undefined, [{ action: 'appearance.get' }]);
@@ -1521,16 +1550,106 @@ describe(Simulator, () => {
     );
     expect(Log.withTick).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith(
-      [
-        '🔑 Run the following to use agent-device with the simulator:',
-        '',
-        'eas simulator:exec npx agent-device <command>',
-        '',
-        '🌐 Open the following URL in your browser to preview the simulator:',
-        '',
-        deviceRunSessionPreviewUrl,
-      ].join('\n')
+      `Connection saved: ${simulatorDotenvPath} (session: session-123).`
     );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining(`Run the following commands from ${projectDir}:`)
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:exec npx agent-device <command>')
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:control app.install ./MyApp.app --id session-123')
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:control app.launch com.example.app --id session-123')
+    );
+  });
+
+  it.each([
+    ['--build-id', 'build-123'],
+    ['--build-fingerprint', 'fingerprint-123'],
+    ['--application-archive-url', 'https://example.test/app.tar.gz'],
+    ['--expo-go'],
+  ])('does not suggest installing an app when %s already requested one', async (...source) => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', ...source]);
+
+    await command.runAsync();
+
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('No app was requested.'));
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('app.install ./MyApp.app'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining(deviceRunSessionPreviewUrl));
+  });
+
+  it('prints exports instead of exec instructions when saving the ready connection fails', async () => {
+    jest
+      .mocked(fs.writeFile)
+      .mockResolvedValueOnce(undefined as never)
+      .mockRejectedValueOnce(new Error('read-only filesystem') as never);
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Session session-123 is ready, but its connection settings could not be saved to ${simulatorDotenvPath}.`
+      )
+    );
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining('read-only filesystem'));
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:get --id session-123')
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining("export AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'")
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining("export AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'")
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('eas simulator:exec'));
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Connection saved:'));
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('reports a saved connection when the ready write succeeds after the initial write fails', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValueOnce(new Error('temporary write failure') as never);
+
+    await createCommand(['--platform', 'ios', '--non-interactive']).command.runAsync();
+
+    expect(fs.writeFile).toHaveBeenCalledTimes(2);
+    expect(Log.warn).not.toHaveBeenCalled();
+    expect(Log.log).toHaveBeenCalledWith(
+      `Connection saved: ${simulatorDotenvPath} (session: session-123).`
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('eas simulator:exec'));
+  });
+
+  it('warns once on JSON save failure and still returns one complete session object', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue(new Error('private-write-error') as never);
+
+    await createCommand(['--platform', 'ios', '--json']).command.runAsync();
+
+    expect(fs.writeFile).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining(simulatorDotenvPath));
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Use the connection settings in the JSON output.')
+    );
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining('private-write-error'));
+    expect(Log.log).not.toHaveBeenCalled();
+    expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'session-123',
+        remoteConfig: expect.objectContaining({
+          agentDeviceRemoteSessionUrl: 'https://agent.example.com',
+          agentDeviceRemoteSessionToken: 'token-123',
+        }),
+      })
+    );
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it('writes the Appium environment and capabilities to the simulator dotenv', async () => {
@@ -1848,7 +1967,7 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 
-  it('resets .env.eas-simulator when the interactive wait observes the session end', async () => {
+  it('shows the saved file before polling and resets it when the interactive session ends', async () => {
     mockByIdAsync
       .mockResolvedValueOnce(makeDeviceRunSession())
       .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
@@ -1856,6 +1975,13 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
+    const creationSpinner = mockOra.mock.results[0]?.value;
+    expect(creationSpinner.succeed).toHaveBeenCalledWith(
+      `Simulator session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${deviceRunSessionUrl}`
+    );
+    expect(creationSpinner.succeed.mock.invocationCallOrder[0]).toBeLessThan(
+      mockByIdAsync.mock.invocationCallOrder[0]
+    );
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
@@ -3391,16 +3517,50 @@ describe(Simulator, () => {
     }
   );
 
-  it('warns but continues when the dotenv file cannot be written', async () => {
-    jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);
+  it('warns once without filesystem details when both dotenv writes fail', async () => {
+    const privateError = 'Cannot save AGENT_DEVICE_DAEMON_AUTH_TOKEN=private-token';
+    jest.mocked(fs.writeFile).mockRejectedValue(new Error(privateError) as never);
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
 
-    expect(Log.warn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}`
-      )
+    expect(fs.writeFile).toHaveBeenCalledTimes(2);
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining(simulatorDotenvPath));
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Session session-123 is ready'));
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining(privateError));
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining('private-token'));
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Connection saved:'));
+    expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
+      `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
+    );
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('uses explicit session commands when preview-only connection settings cannot be saved', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue(new Error('disk full') as never);
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type: DeviceRunSessionType.WebPreviewOnly,
+        remoteConfig: {
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+          previewUrl: 'https://preview.example.test',
+        },
+      })
+    );
+    await createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      'web-preview-only',
+      '--non-interactive',
+    ]).command.runAsync();
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Pass --id session-123'));
+    expect(Log.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('Use the exported settings below')
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('app.install ./MyApp.app --id session-123')
     );
   });
 
@@ -3571,13 +3731,15 @@ describe(Simulator, () => {
     expect(exitSpy).toHaveBeenCalledWith(130);
   });
 
-  it('stringifies a non-Error dotenv write failure', async () => {
-    jest.mocked(fs.writeFile).mockRejectedValue('disk full' as never);
+  it('does not expose a non-Error dotenv write failure', async () => {
+    jest.mocked(fs.writeFile).mockRejectedValue('private-write-failure' as never);
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
 
-    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('disk full'));
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining(simulatorDotenvPath));
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining('private-write-failure'));
   });
 
   it('stringifies a non-Error poll failure while the session is running', async () => {

@@ -277,7 +277,7 @@ function getControllerEnvironmentVariables(
   }
 }
 
-type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
+export type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
 type PreviewLinkOptions = {
   privatePreviewUrl?: string;
@@ -287,6 +287,13 @@ type PreviewLinkOptions = {
   /** Origins the session allows to call the preview host API; the embed URL is printed for them. */
   corsOrigins?: readonly string[];
 };
+
+type RemoteSessionInstructionsOptions = LocalEgressOptions &
+  PreviewLinkOptions & {
+    projectDir?: string;
+    sessionId?: string;
+    appRequested?: boolean;
+  };
 
 export type PreviewAccessOrigins = Pick<PreviewLinkOptions, 'frameAncestors' | 'corsOrigins'>;
 
@@ -469,18 +476,29 @@ export function formatRemoteSessionInstructions(
     publicLink,
     frameAncestors = [],
     corsOrigins = [],
-  }: LocalEgressOptions & PreviewLinkOptions = {}
+    projectDir,
+    sessionId,
+    appRequested,
+  }: RemoteSessionInstructionsOptions = {}
 ): string {
-  const instructions = [
+  const lines: string[] = [];
+  const usesSavedEnvironment =
+    remoteConfig.__typename === 'AgentDeviceRunSessionRemoteConfig' ||
+    remoteConfig.__typename === 'AppiumRunSessionRemoteConfig';
+  if (configType === 'dotenv' && projectDir && usesSavedEnvironment) {
+    lines.push(`Run the following commands from ${projectDir}:`, '');
+  }
+  lines.push(
     formatControllerInstructions(remoteConfig, configType, {
       privatePreviewUrl,
       publicLink,
     }),
     ...formatEmbedInstructions(remoteConfig, { frameAncestors, corsOrigins }),
-  ].join('\n');
+    ...formatAppSetupInstructions(remoteConfig, { appRequested, platform, sessionId })
+  );
   const egress = getLocalEgressConfig(remoteConfig, egressAllow, platform);
   if (!egress) {
-    return instructions;
+    return lines.join('\n');
   }
   const egressCommand =
     configType === 'env' ? 'eas simulator:egress --config-type env' : 'eas simulator:egress';
@@ -493,31 +511,70 @@ export function formatRemoteSessionInstructions(
         `section of the session page lists what was refused${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`
       : 'Connections that bypass the proxy are refused inside the simulator. The Logs section of the ' +
         `session page lists what was refused and which library tried${sessionUrl ? `: ${link(sessionUrl)}` : '.'}`;
-  return [
-    instructions,
+  lines.push(
     '',
     summary,
     guardNotice,
     ...formatLoopbackForwardNotice(
       getLoopbackForwardPlan(egress.allow, egress.port, egress.platform)
-    ),
-    // In interactive mode the client starts in this terminal once the session is
-    // ready and stops with it, so there is nothing for the reader to run.
-    ...(egressClientRunsInline
-      ? []
-      : [
-          ...(configType === 'env'
-            ? Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
-                ([key, value]) => `export ${key}='${value}'`
-              )
-            : []),
-          'Run the egress client to connect the tunnel:',
-          '',
-          egressCommand,
-          '',
-          'Keep it running for the life of the session.',
-        ]),
-  ].join('\n');
+    )
+  );
+  // In interactive mode the client starts in this terminal once the session is
+  // ready and stops with it, so there is nothing for the reader to run.
+  if (!egressClientRunsInline) {
+    if (configType === 'env') {
+      lines.push(
+        ...Object.entries(getLocalEgressEnvironmentVariables(egress)).map(
+          ([key, value]) => `export ${key}='${value}'`
+        )
+      );
+    }
+    lines.push(
+      'Run the egress client to connect the tunnel:',
+      '',
+      egressCommand,
+      '',
+      'Keep it running for the life of the session.'
+    );
+  }
+  return lines.join('\n');
+}
+
+function formatAppSetupInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  {
+    appRequested,
+    platform,
+    sessionId,
+  }: Pick<RemoteSessionInstructionsOptions, 'appRequested' | 'platform' | 'sessionId'>
+): string[] {
+  if (appRequested !== false) {
+    return [];
+  }
+  let guidance: string;
+  switch (remoteConfig.__typename) {
+    case 'ArgentRunSessionRemoteConfig':
+      guidance = 'Use Argent to install and open your app.';
+      break;
+    case 'AgentDeviceRunSessionRemoteConfig':
+      guidance = 'Use agent-device to install and open your app.';
+      break;
+    case 'AppiumRunSessionRemoteConfig':
+      guidance = 'Use your Appium client to install and launch your app.';
+      break;
+    default:
+      guidance = 'Install and open your app to see it in the preview.';
+  }
+  const lines = ['', `No app was requested. ${guidance}`];
+  if (platform === AppPlatform.Ios && sessionId) {
+    lines.push(
+      'You can also install an iOS Simulator build and launch it with:',
+      '',
+      `eas simulator:control app.install ./MyApp.app --id ${sessionId}`,
+      `eas simulator:control app.launch com.example.app --id ${sessionId}`
+    );
+  }
+  return lines;
 }
 
 function formatControllerInstructions(

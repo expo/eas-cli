@@ -793,6 +793,106 @@ const controllerConfigs: DeviceRunSessionRemoteConfig[] = [
   },
 ];
 
+describe('session-specific startup instructions', () => {
+  it.each([agentDeviceConfig, iosAppiumConfig])(
+    'names the project directory for $__typename commands that load saved settings',
+    config => {
+      const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+        projectDir: '/test/my app',
+        sessionId: 'selected-session',
+        platform: AppPlatform.Ios,
+        appRequested: false,
+      });
+
+      expect(instructions).toContain('Run the following commands from /test/my app:');
+      expect(instructions).toContain('eas simulator:exec');
+      expect(instructions).toContain('app.install ./MyApp.app --id selected-session');
+      expect(instructions).toContain('app.launch com.example.app --id selected-session');
+    }
+  );
+
+  it.each(controllerConfigs)(
+    'does not claim an app is missing for $__typename without request context',
+    config => {
+      expect(formatRemoteSessionInstructions(config, 'dotenv')).not.toContain(
+        'No app was requested.'
+      );
+      expect(
+        formatRemoteSessionInstructions(config, 'dotenv', { appRequested: true })
+      ).not.toContain('No app was requested.');
+    }
+  );
+
+  it.each([
+    { config: agentDeviceConfig, guidance: 'Use agent-device to install and open your app.' },
+    { config: iosAppiumConfig, guidance: 'Use your Appium client to install and launch your app.' },
+    {
+      config: {
+        __typename: 'ArgentRunSessionRemoteConfig',
+        toolsUrl: 'https://argent.example.test',
+      } as const,
+      guidance: 'Use Argent to install and open your app.',
+    },
+    {
+      config: {
+        __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+        previewUrl: 'https://preview.example.test',
+      } as const,
+      guidance: 'Install and open your app to see it in the preview.',
+    },
+  ])(
+    'explains how to continue with $config.__typename when no app was requested',
+    ({ config, guidance }) => {
+      const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+        sessionId: 'selected-session',
+        platform: AppPlatform.Ios,
+        appRequested: false,
+      });
+
+      expect(instructions).toContain(`No app was requested. ${guidance}`);
+      expect(instructions).toContain(
+        'eas simulator:control app.install ./MyApp.app --id selected-session'
+      );
+      expect(instructions).toContain(
+        'eas simulator:control app.launch com.example.app --id selected-session'
+      );
+    }
+  );
+
+  it.each(controllerConfigs)(
+    'does not suggest iOS-only control commands for Android $__typename',
+    config => {
+      const instructions = formatRemoteSessionInstructions(config, 'dotenv', {
+        sessionId: 'android-session',
+        platform: AppPlatform.Android,
+        appRequested: false,
+      });
+
+      expect(instructions).toContain('No app was requested.');
+      expect(instructions).not.toContain('eas simulator:control app.install');
+      expect(instructions).not.toContain('eas simulator:control app.launch');
+      expect(instructions).not.toContain('iOS Simulator build');
+    }
+  );
+
+  it('prints exports without project-dependent exec instructions in env mode', () => {
+    const instructions = formatRemoteSessionInstructions(agentDeviceConfig, 'env', {
+      projectDir: '/test/project',
+      sessionId: 'selected-session',
+      platform: AppPlatform.Ios,
+      appRequested: false,
+    });
+
+    expect(instructions).toContain(
+      "export AGENT_DEVICE_DAEMON_BASE_URL='https://agent-device.example.test'"
+    );
+    expect(instructions).toContain("export AGENT_DEVICE_DAEMON_AUTH_TOKEN='daemon-token'");
+    expect(instructions).not.toContain('eas simulator:exec');
+    expect(instructions).not.toContain('Run the following commands from');
+    expect(instructions).toContain('app.install ./MyApp.app --id selected-session');
+  });
+});
+
 describe.each(controllerConfigs)('$__typename local egress', remoteConfig => {
   const egress = {
     egressUrl: 'https://egress.example.test',

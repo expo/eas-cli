@@ -49,6 +49,7 @@ import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
+  getSimulatorEnvFilePath,
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
@@ -69,6 +70,7 @@ import {
   DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
+  RemoteSessionInstructionsConfigType,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
   getLocalEgressConfig,
@@ -402,6 +404,17 @@ With local egress, actions wait for the connection and require interactive mode.
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
+    const saveConnectionToFile = flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv;
+    const deferConnectionOutput = jsonFlag || !!imported.config?.actions?.length;
+    const appSourceRequested = !!(
+      buildId ||
+      buildFingerprint ||
+      applicationArchiveUrlFromFlag ||
+      expoGoSdkVersion
+    );
+    const appActionRequested = !!imported.config?.actions?.some(({ action }) =>
+      ['app.install', 'app.launch', 'url.open'].includes(action)
+    );
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -497,11 +510,11 @@ With local egress, actions wait for the connection and require interactive mode.
         deviceRunSessionId
       );
       sessionInterrupt = registerSessionInterrupt(deviceRunSessionId);
+      // Save the ID for cancellation while the controller is still starting.
+      // Report a save failure only after trying to save the ready connection.
       const simulatorEnvWritten =
-        !jsonFlag &&
-        !imported.config?.actions?.length &&
-        flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
-          ? await writeSimulatorEnvSafelyAsync(projectDir, {
+        !deferConnectionOutput && saveConnectionToFile
+          ? await tryWriteSimulatorEnvAsync(projectDir, {
               [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
             })
           : false;
@@ -637,17 +650,66 @@ With local egress, actions wait for the connection and require interactive mode.
         });
       }
     };
-    const writeReadySimulatorEnvAsync = async (): Promise<void> => {
-      if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
-        await writeSimulatorEnvSafelyAsync(projectDir, {
-          ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
-          [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
-        });
+    const remoteEnvironment = getRemoteSessionEnvironmentVariables(remoteConfig, {
+      egressAllow,
+      platform,
+    });
+    const prepareConnectionOutputAsync = async (): Promise<RemoteSessionInstructionsConfigType> => {
+      if (!saveConnectionToFile) {
+        return 'env';
+      }
+      const saved = await tryWriteSimulatorEnvAsync(projectDir, {
+        ...remoteEnvironment,
+        [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+      });
+      if (saved) {
+        return 'dotenv';
+      }
+
+      let recovery = `Pass --id ${deviceRunSessionId} when running simulator commands.`;
+      if (jsonFlag) {
+        recovery = 'Use the connection settings in the JSON output.';
+      } else if (Object.keys(remoteEnvironment).length > 0) {
+        recovery = 'Use the exported settings below in this shell.';
+      }
+      Log.warn(
+        `Session ${deviceRunSessionId} is ready, but its connection settings could not be saved to ${getSimulatorEnvFilePath(projectDir)}. ${recovery} Run eas simulator:get --id ${deviceRunSessionId} to retrieve its connection settings later.`
+      );
+      return 'env';
+    };
+    const logReadyInstructions = (configType: RemoteSessionInstructionsConfigType): void => {
+      Log.newLine();
+      if (configType === 'dotenv') {
+        Log.log(
+          `Connection saved: ${getSimulatorEnvFilePath(projectDir)} (session: ${deviceRunSessionId}).`
+        );
+      }
+      Log.log(
+        formatRemoteSessionInstructions(remoteConfig, configType, {
+          egressAllow,
+          egressClientRunsInline: !nonInteractive,
+          sessionUrl: deviceRunSessionUrl,
+          privatePreviewUrl: deviceRunSessionPreviewUrl,
+          publicLink: flags['public-link'],
+          frameAncestors,
+          corsOrigins,
+          platform,
+          projectDir,
+          sessionId: deviceRunSessionId,
+          appRequested: appSourceRequested || appActionRequested,
+        })
+      );
+      Log.newLine();
+      if (nonInteractive) {
+        Log.log(
+          `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+        );
       }
     };
     try {
-      if (!jsonFlag && !imported.config?.actions?.length) {
-        await writeReadySimulatorEnvAsync();
+      let connectionOutputType: RemoteSessionInstructionsConfigType = 'env';
+      if (!deferConnectionOutput) {
+        connectionOutputType = await prepareConnectionOutputAsync();
       }
 
       if (sessionInterrupt.signal.aborted && !egressError) {
@@ -661,26 +723,8 @@ With local egress, actions wait for the connection and require interactive mode.
         return;
       }
 
-      if (!jsonFlag) {
-        Log.newLine();
-        Log.log(
-          formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
-            egressAllow,
-            egressClientRunsInline: !nonInteractive,
-            sessionUrl: deviceRunSessionUrl,
-            privatePreviewUrl: deviceRunSessionPreviewUrl,
-            publicLink: flags['public-link'],
-            frameAncestors,
-            corsOrigins,
-            platform,
-          })
-        );
-        Log.newLine();
-        if (nonInteractive) {
-          Log.log(
-            `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
-          );
-        }
+      if (!deferConnectionOutput) {
+        logReadyInstructions(connectionOutputType);
       }
 
       let setup:
@@ -825,9 +869,9 @@ With local egress, actions wait for the connection and require interactive mode.
         }
       }
 
-      if (jsonFlag || imported.config?.actions?.length) {
+      if (deferConnectionOutput) {
         // Keep the previous session's saved credentials until setup succeeds.
-        await writeReadySimulatorEnvAsync();
+        connectionOutputType = await prepareConnectionOutputAsync();
         if (sessionInterrupt.signal.aborted) {
           await stopDeviceRunSessionAfterInterruptAsync({
             graphqlClient,
@@ -837,6 +881,9 @@ With local egress, actions wait for the connection and require interactive mode.
             sessionInterrupt,
           });
           return;
+        }
+        if (!jsonFlag) {
+          logReadyInstructions(connectionOutputType);
         }
       }
       if (jsonFlag) {
@@ -920,19 +967,16 @@ async function resolvePlatformAsync(
   return selectedPlatform;
 }
 
-async function writeSimulatorEnvSafelyAsync(
+async function tryWriteSimulatorEnvAsync(
   projectDir: string,
   environmentVariables: Record<string, string>
 ): Promise<boolean> {
   try {
     await writeSimulatorEnvAsync(projectDir, environmentVariables);
     return true;
-  } catch (err) {
-    Log.warn(
-      `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
+  } catch {
+    // The caller reports one failure after the ready connection has been tried.
+    // Filesystem errors can contain the values being saved, so do not print them.
     return false;
   }
 }
