@@ -1,18 +1,27 @@
 import { Env, SystemError } from '@expo/eas-build-job';
 import downloadFile from '@expo/downloader';
 import { bunyan } from '@expo/logger';
-import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import spawn, { SpawnResult } from '@expo/turtle-spawn';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 
 import { getProxiedDownloadUrl } from './download';
-import { isChildProcessAlive, killProcessGroup } from './processes';
+import { isProcessRunning } from './processes';
 import { sleepAsync } from './retry';
 import { BuildContext } from '../context';
 
 const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
+const BLOCKED_TUNNEL_REASONS = new Set([
+  'agent_refused',
+  'auth_refused',
+  'proof_refused',
+  'relay_key_changed',
+  'relay_unsupported',
+]);
+const SESSION_ID_JSON_FIELD = /"sessionId"\s*:\s*"([^"]+)"/g;
 
 export function resolveUptermGcsObjectName(
   platform: NodeJS.Platform = process.platform,
@@ -32,9 +41,7 @@ export function resolveUptermGcsObjectName(
 const UPTERM_GCS_BASE_URL = 'https://storage.googleapis.com/turtle-v2/upterm';
 const UPTERM_DOWNLOAD_TIMEOUT_MS = 60_000;
 const UPTERM_KEEPALIVE_SLEEP_SECONDS = 6 * 60 * 60;
-const CONNECTION_POLL_INTERVAL_MS = 500;
 const CONNECTION_STARTUP_TIMEOUT_MS = 60_000;
-const PROCESS_EXIT_TIMEOUT_MS = 5_000;
 const CLIENT_COUNT_READ_ATTEMPTS = 4;
 const CLIENT_COUNT_READ_RETRY_MS = 500;
 
@@ -43,61 +50,47 @@ export type SshConnectionConfig = {
   secret: string;
 };
 
+export type UptermSessionStatus =
+  | { state: 'ready' | 'reconnecting'; connectedClientCount: number }
+  | { state: 'gone'; reason: string };
+
 export type UptermHost = {
   connectionConfig: SshConnectionConfig;
-  getConnectedClientCountAsync: () => Promise<number>;
-  isAlive: () => boolean;
-  redialAsync: () => Promise<SshConnectionConfig>;
+  startedReconnecting: boolean;
+  readStatusAsync: () => Promise<UptermSessionStatus>;
   stopAsync: () => Promise<void>;
 };
 
-const UptermSessionJsonZ = z.object({
+const UptermStartedJsonZ = z.object({
   sessionId: z.string().min(1),
-  clientCount: z.number().optional(),
+  adminSocket: z.string().min(1),
+  pid: z.number().int().positive(),
+  status: z.enum(['ready', 'reconnecting']),
 });
-type UptermSessionJson = z.infer<typeof UptermSessionJsonZ>;
+
+const UptermCurrentSessionJsonZ = z.object({
+  guestCount: z.number(),
+  status: z.string(),
+  tunnelReason: z.string().optional(),
+});
 
 /**
- * Strip upterm session secrets out of text before it reaches a log or an error message. upterm
- * prints the session id as the userinfo of the connect line it advertises
- * (`upterm proxy ws(s)://<sessionId>@host`) and repeats it bare as the ssh destination on the
- * same line. Control characters are dropped first so they cannot split a token mid-match. The
- * loop lifts the id out of the proxy URL and removes every occurrence of it; the final replace
- * blanks userinfo in any other URL as a catch-all.
+ * Strip upterm session secrets out of text before it reaches a log or an error message. The
+ * session id is the secret: any id in a `sessionId` field of upterm's JSON output is removed
+ * everywhere. Control characters are dropped first so they cannot split a token mid-match.
  */
 export function redactConnectionSecrets(text: string): string {
   let redacted = text.replace(CONTROL_CHARACTERS, '');
-  for (const [, token] of redacted.matchAll(/upterm proxy wss?:\/\/([^@\s]+)@/g)) {
-    redacted = redacted.split(token).join('<redacted>');
+  for (const [, id] of redacted.matchAll(SESSION_ID_JSON_FIELD)) {
+    redacted = redacted.split(id).join('<redacted>');
   }
-  return redacted.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/gi, '$1<redacted>@');
+  return redacted;
 }
 
-export function redactSpawnErrorForLog(err: unknown): unknown {
-  if (!err || typeof err !== 'object') {
-    return err;
-  }
-  const spawnErr = err as { message?: unknown; stdout?: unknown; stderr?: unknown };
-  return {
-    ...spawnErr,
-    ...(typeof spawnErr.message === 'string'
-      ? { message: redactConnectionSecrets(spawnErr.message) }
-      : {}),
-    ...(typeof spawnErr.stdout === 'string'
-      ? { stdout: redactConnectionSecrets(spawnErr.stdout) }
-      : {}),
-    ...(typeof spawnErr.stderr === 'string'
-      ? { stderr: redactConnectionSecrets(spawnErr.stderr) }
-      : {}),
-  };
-}
-
-export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<string> {
-  try {
-    await spawn('upterm', ['version'], { stdio: 'pipe', env });
-    return 'upterm';
-  } catch {}
-
+export async function resolveUptermAsync(
+  env: Env,
+  logger: bunyan
+): Promise<{ uptermPath: string; downloadDir: string }> {
   const objectName = resolveUptermGcsObjectName();
   const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-upterm-'));
   const uptermPath = path.join(downloadDir, objectName);
@@ -115,7 +108,7 @@ export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<
   if (proxiedUrl) {
     try {
       await downloadAsync(proxiedUrl);
-      return uptermPath;
+      return { uptermPath, downloadDir };
     } catch (err) {
       logger.debug(
         { err },
@@ -130,61 +123,60 @@ export async function resolveUptermPathAsync(env: Env, logger: bunyan): Promise<
   } catch (err) {
     await fs.rm(downloadDir, { recursive: true, force: true }).catch(() => {});
     throw new SystemError(
-      `The upterm SSH client was not on PATH and could not be downloaded from ${directUrl}. ${
+      `The upterm SSH client could not be downloaded from ${directUrl}. ${
         err instanceof Error ? err.message : String(err)
       }`
     );
   }
-  return uptermPath;
+  return { uptermPath, downloadDir };
 }
 
-async function findAdminSocketPathAsync(uptermSocketDir: string): Promise<string | null> {
-  // Use this dial's own admin socket, not upterm's default, which can still point at a previous
-  // dial's session after a redial and break client-count reads.
-  const entries = await fs.readdir(uptermSocketDir).catch(() => [] as string[]);
-  const socketName = entries.find(entry => entry.endsWith('.sock'));
-  return socketName ? path.join(uptermSocketDir, socketName) : null;
-}
-
-async function readCurrentSessionJsonAsync(
-  uptermPath: string,
-  adminSocketPath: string
-): Promise<UptermSessionJson | null> {
+function parseJson(text: string): unknown {
   try {
-    const result = await spawn(
-      uptermPath,
-      ['session', 'current', '--admin-socket', adminSocketPath, '--output', 'json'],
-      { stdio: 'pipe' }
-    );
-    const parsed = UptermSessionJsonZ.safeParse(JSON.parse(result.stdout));
-    return parsed.success ? parsed.data : null;
+    return JSON.parse(text);
   } catch {
-    return null;
+    return undefined;
   }
 }
 
-async function waitForConnectionConfigAsync(
+function spawnOutput(err: unknown): string {
+  const { stdout, stderr } = err as Partial<SpawnResult>;
+  return redactConnectionSecrets(`${stderr ?? ''}${stdout ?? ''}`);
+}
+
+async function readCurrentSessionStatusAsync(
   uptermPath: string,
-  uptermSocketDir: string,
-  getHostOutput: () => string
-): Promise<SshConnectionConfig> {
-  const deadline = Date.now() + CONNECTION_STARTUP_TIMEOUT_MS;
-  for (;;) {
-    const adminSocketPath = await findAdminSocketPathAsync(uptermSocketDir);
-    if (adminSocketPath) {
-      const session = await readCurrentSessionJsonAsync(uptermPath, adminSocketPath);
-      if (session) {
-        return { type: 'upterm-v1', secret: session.sessionId };
+  adminSocketPath: string,
+  env: Env
+): Promise<UptermSessionStatus | null> {
+  let stdout: string;
+  try {
+    ({ stdout } = await spawn(
+      uptermPath,
+      ['session', 'current', '--admin-socket', adminSocketPath, '--output', 'json'],
+      { stdio: 'pipe', env }
+    ));
+  } catch {
+    return null;
+  }
+  const parsed = UptermCurrentSessionJsonZ.safeParse(parseJson(stdout));
+  if (!parsed.success) {
+    return null;
+  }
+  const { status, guestCount, tunnelReason } = parsed.data;
+  switch (status) {
+    case 'reconnecting':
+      if (tunnelReason && BLOCKED_TUNNEL_REASONS.has(tunnelReason)) {
+        return { state: 'gone', reason: `${status} (${tunnelReason})` };
       }
-    }
-    if (Date.now() >= deadline) {
-      throw new SystemError(
-        `The upterm client did not register with the relay within ${
-          CONNECTION_STARTUP_TIMEOUT_MS / 1_000
-        }s. Output:\n${redactConnectionSecrets(getHostOutput())}`
-      );
-    }
-    await sleepAsync(CONNECTION_POLL_INTERVAL_MS);
+      return { state: status, connectedClientCount: guestCount };
+    case 'ready':
+      return { state: status, connectedClientCount: guestCount };
+    case 'disconnected':
+    case 'ending':
+      return { state: 'gone', reason: tunnelReason ? `${status} (${tunnelReason})` : status };
+    default:
+      return null;
   }
 }
 
@@ -192,12 +184,13 @@ export async function startUptermHostAsync(
   ctx: BuildContext,
   { relayServerUrl }: { relayServerUrl: string }
 ): Promise<UptermHost> {
-  const uptermPath = await resolveUptermPathAsync(ctx.env, ctx.logger);
+  const { uptermPath, downloadDir } = await resolveUptermAsync(ctx.env, ctx.logger);
 
   const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-ssh-'));
   const hostKeyPath = path.join(stateDir, 'id_host');
   const forceCommandPath = path.join(stateDir, 'join.sh');
-  const uptermSocketDir = path.join(stateDir, 'upterm');
+  const sessionName = `eas-${randomBytes(4).toString('hex').slice(0, 7)}`;
+  const env: Env = { ...ctx.env, XDG_RUNTIME_DIR: stateDir };
 
   await spawn('ssh-keygen', ['-t', 'ed25519', '-N', '', '-f', hostKeyPath, '-q'], {
     logger: ctx.logger,
@@ -205,35 +198,81 @@ export async function startUptermHostAsync(
   const quotedBuildDirectory = `'${ctx.buildDirectory.replaceAll("'", "'\\''")}'`;
   await fs.writeFile(
     forceCommandPath,
-    `#!/usr/bin/env bash\ncd -- ${quotedBuildDirectory}\nexec bash -l\n`,
+    `#!/usr/bin/env bash\ncd -- ${quotedBuildDirectory}\nif [ -n "$SSH_ORIGINAL_COMMAND" ]; then\n  exec bash -lc "$SSH_ORIGINAL_COMMAND"\nfi\nexec bash -l\n`,
     { mode: 0o755 }
   );
 
-  let currentProcess: SpawnPromise<SpawnResult> | null = null;
-
-  const stopCurrentProcessAsync = async (): Promise<void> => {
-    const previousProcess = currentProcess;
-    currentProcess = null;
-    if (!previousProcess) {
-      return;
+  const stopAsync = async (): Promise<void> => {
+    try {
+      await spawn(uptermPath, ['session', 'stop', sessionName], { stdio: 'pipe', env });
+    } catch (err) {
+      throw new SystemError(`Failed to stop the upterm session. Output:\n${spawnOutput(err)}`);
+    } finally {
+      await fs.rm(stateDir, { recursive: true, force: true });
+      await fs.rm(downloadDir, { recursive: true, force: true });
     }
-    killProcessGroup(previousProcess.child);
-    await Promise.race([
-      previousProcess.catch(() => {}),
-      sleepAsync(PROCESS_EXIT_TIMEOUT_MS).then(() => {
-        ctx.logger.debug('The previous upterm host process did not exit in time.');
-      }),
-    ]);
   };
 
-  const getConnectedClientCountAsync = async (): Promise<number> => {
+  let started: z.infer<typeof UptermStartedJsonZ>;
+  try {
+    ctx.logger.debug('Connecting to the SSH relay.');
+    let stdout: string;
+    try {
+      // --force-command is what each connecting SSH client runs: the client's command, or a login
+      // shell. The `sleep` after `--` is the session's own command, which keeps it up while nobody
+      // is connected.
+      ({ stdout } = await spawn(
+        uptermPath,
+        [
+          'host',
+          '--server',
+          relayServerUrl,
+          '--accept',
+          '--skip-host-key-check',
+          '-i',
+          hostKeyPath,
+          '--force-command',
+          forceCommandPath,
+          '--detach',
+          '--name',
+          sessionName,
+          '--output',
+          'json',
+          '--',
+          'bash',
+          '-lc',
+          `sleep ${UPTERM_KEEPALIVE_SLEEP_SECONDS}`,
+        ],
+        { env, stdio: ['ignore', 'pipe', 'pipe'], timeout: CONNECTION_STARTUP_TIMEOUT_MS }
+      ));
+    } catch (err) {
+      const failure = (err as Partial<SpawnResult>).signal
+        ? `did not register with the relay within ${CONNECTION_STARTUP_TIMEOUT_MS / 1_000}s`
+        : 'could not register with the relay';
+      throw new SystemError(`The upterm client ${failure}. Output:\n${spawnOutput(err)}`);
+    }
+    const parsed = UptermStartedJsonZ.safeParse(parseJson(stdout));
+    if (!parsed.success) {
+      throw new SystemError(
+        `The upterm client did not report a usable session. Output:\n${redactConnectionSecrets(
+          stdout
+        )}`
+      );
+    }
+    started = parsed.data;
+  } catch (err) {
+    await stopAsync().catch(() => {});
+    throw err;
+  }
+
+  const readStatusAsync = async (): Promise<UptermSessionStatus> => {
     for (let attempt = 1; attempt <= CLIENT_COUNT_READ_ATTEMPTS; attempt++) {
-      const adminSocketPath = await findAdminSocketPathAsync(uptermSocketDir);
-      const session = adminSocketPath
-        ? await readCurrentSessionJsonAsync(uptermPath, adminSocketPath)
-        : null;
-      if (session && typeof session.clientCount === 'number') {
-        return session.clientCount;
+      const status = await readCurrentSessionStatusAsync(uptermPath, started.adminSocket, env);
+      if (status) {
+        return status;
+      }
+      if (!isProcessRunning(started.pid)) {
+        return { state: 'gone', reason: 'the upterm session process exited' };
       }
       if (attempt < CLIENT_COUNT_READ_ATTEMPTS) {
         await sleepAsync(CLIENT_COUNT_READ_RETRY_MS);
@@ -244,79 +283,10 @@ export async function startUptermHostAsync(
     });
   };
 
-  const dialAsync = async (): Promise<SshConnectionConfig> => {
-    await stopCurrentProcessAsync();
-    await fs.rm(uptermSocketDir, { recursive: true, force: true }).catch(err => {
-      ctx.logger.debug({ err }, 'Failed to clear the previous SSH socket directory.');
-    });
-
-    ctx.logger.debug('Connecting to the SSH relay.');
-    // --force-command is what each connecting SSH client runs (a login shell). The `sleep` after
-    // `--` is the host-side process that keeps `upterm host` up while nobody is connected.
-    const uptermProcess = spawn(
-      uptermPath,
-      [
-        'host',
-        '--server',
-        relayServerUrl,
-        '--accept',
-        '--skip-host-key-check',
-        '-i',
-        hostKeyPath,
-        '--force-command',
-        forceCommandPath,
-        '--',
-        'bash',
-        '-lc',
-        `sleep ${UPTERM_KEEPALIVE_SLEEP_SECONDS}`,
-      ],
-      {
-        // upterm puts its admin socket under XDG_RUNTIME_DIR; point it at our state dir so we can
-        // find it for `session current` and clean it up on stop/redial.
-        env: { ...ctx.env, XDG_RUNTIME_DIR: stateDir },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: true,
-      }
-    );
-    uptermProcess.catch(err =>
-      ctx.logger.debug({ err: redactSpawnErrorForLog(err) }, 'The upterm host process exited.')
-    );
-    uptermProcess.child.unref();
-    currentProcess = uptermProcess;
-
-    let output = '';
-    const appendChunk = (chunk: Buffer | string): void => {
-      output += chunk.toString();
-    };
-    uptermProcess.child.stdout?.on('data', appendChunk);
-    uptermProcess.child.stderr?.on('data', appendChunk);
-
-    return await waitForConnectionConfigAsync(uptermPath, uptermSocketDir, () => output);
-  };
-
-  const stopAsync = async (): Promise<void> => {
-    await stopCurrentProcessAsync();
-    await fs.rm(stateDir, { recursive: true, force: true });
-  };
-
-  let connectionConfig: SshConnectionConfig;
-  try {
-    connectionConfig = await dialAsync();
-  } catch (err) {
-    await stopAsync();
-    throw err;
-  }
-
   return {
-    get connectionConfig() {
-      return connectionConfig;
-    },
-    getConnectedClientCountAsync,
-    isAlive: () => currentProcess != null && isChildProcessAlive(currentProcess.child),
-    redialAsync: async () => {
-      connectionConfig = await dialAsync();
-      return connectionConfig;
-    },
+    connectionConfig: { type: 'upterm-v1', secret: started.sessionId },
+    startedReconnecting: started.status === 'reconnecting',
+    readStatusAsync,
     stopAsync,
   };
 }

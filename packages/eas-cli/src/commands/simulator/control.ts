@@ -59,7 +59,7 @@ import { formatMilliseconds } from '../../utils/timer';
 export default class SimulatorControl extends EasCommand {
   static override aliases = getSimulatorCommandAliases('control');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('control');
-  static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
+  static override description = `control a remote iOS simulator session on EAS
 
 Run without an action to list available actions. Use <action> --help for usage.
 

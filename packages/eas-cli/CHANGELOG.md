@@ -1,5 +1,27 @@
 # eas-cli
 
+## 27.9.0
+
+### Minor Changes
+
+- Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
+## 27.8.0
+
+### Minor Changes
+
+- Tell accounts without EAS Simulator access that it is available on the Starter, Production, and Enterprise plans and link to the billing page, instead of pointing at the waitlist. `simulator:availability --json` now returns `billingUrl` instead of `waitlistUrl`. ([#4866](https://github.com/expo/eas-cli/pull/4866) by [@szdziedzic](https://github.com/szdziedzic))
+
+### Patch Changes
+
+- Remove the "Android emulator support is still in development" warning from `eas simulator`. ([#4870](https://github.com/expo/eas-cli/pull/4870) by [@szdziedzic](https://github.com/szdziedzic))
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+- Package local Simulator app bundles for upload when the host supports gzip tar archives, and reject unsupported IPA and ZIP installs before uploading. ([#4684](https://github.com/expo/eas-cli/pull/4684) by [@gwdp](https://github.com/gwdp))
+
+  Fix packaging stalls for app bundles containing hard links and clean temporary archives when interrupted. Local app directories and `.tar.gz`/`.tgz` files require a host advertising archive support.
+
+- Remove the `[EXPERIMENTAL]` label from `eas simulator` commands, except `eas simulator:egress` and the `--egress` flag. ([#4869](https://github.com/expo/eas-cli/pull/4869) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## 27.7.2
 
 ### Patch Changes

@@ -2,6 +2,36 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.9.0](https://github.com/expo/eas-cli/releases/tag/v27.9.0) - 2026-11-12
+
+### 🎉 New features
+
+- [eas-cli] Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [27.8.0](https://github.com/expo/eas-cli/releases/tag/v27.8.0) - 2026-11-12
+
+### 🎉 New features
+
+- [eas-cli] Tell accounts without EAS Simulator access that it is available on the Starter, Production, and Enterprise plans and link to the billing page, instead of pointing at the waitlist. `simulator:availability --json` now returns `billingUrl` instead of `waitlistUrl`. ([#4866](https://github.com/expo/eas-cli/pull/4866) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- [build-tools] Point expo-device-hub at the scrcpy server copy in the `turtle-v2` bucket in Android device sessions, so a failed GitHub release download no longer fails the session. expo-device-hub falls back to GitHub when the copy is missing. ([#4848](https://github.com/expo/eas-cli/pull/4848) by [@sjkim-expo](https://github.com/sjkim-expo))
+- [build-tools] Fix black iOS session preview artifacts on multi-display Simulators by capturing the active display through serve-sim. ([#4777](https://github.com/expo/eas-cli/pull/4777) by [@gwdp](https://github.com/gwdp))
+
+  Skip automatic previews on older serve-sim versions that cannot exclude them from idle activity.
+
+- [build-tools] Report flow tags with the Maestro test results of jobs that run `maestro-runner`. The tags are read from the runner's `report.json`. ([#4853](https://github.com/expo/eas-cli/pull/4853) by [@hSATAC](https://github.com/hSATAC))
+- [build-tools] Send the session preview size to `preview-upload-session` and refresh it when the size changes. ([#4864](https://github.com/expo/eas-cli/pull/4864) by [@hirbod](https://github.com/hirbod))
+- [eas-cli] Remove the "Android emulator support is still in development" warning from `eas simulator`. ([#4870](https://github.com/expo/eas-cli/pull/4870) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Send the width, height and source of simulator session screenshots (manual, agent-device and Argent, including Argent screenshot diffs) as artifact metadata, read from the image header. ([#4858](https://github.com/expo/eas-cli/pull/4858) by [@hirbod](https://github.com/hirbod))
+- [eas-cli][build-tools][eas-build-job] Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+- [eas-cli] Package local Simulator app bundles for upload when the host supports gzip tar archives, and reject unsupported IPA and ZIP installs before uploading. ([#4684](https://github.com/expo/eas-cli/pull/4684) by [@gwdp](https://github.com/gwdp))
+
+  Fix packaging stalls for app bundles containing hard links and clean temporary archives when interrupted. Local app directories and `.tar.gz`/`.tgz` files require a host advertising archive support.
+
+- [eas-cli] Remove the `[EXPERIMENTAL]` label from `eas simulator` commands, except `eas simulator:egress` and the `--egress` flag. ([#4869](https://github.com/expo/eas-cli/pull/4869) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [27.7.2](https://github.com/expo/eas-cli/releases/tag/v27.7.2) - 2026-11-10
 
 ### 🐛 Bug fixes
