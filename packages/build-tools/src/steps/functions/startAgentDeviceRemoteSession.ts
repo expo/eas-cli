@@ -213,6 +213,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       authtoken: ngrokAuthtoken,
       healthCheck: { path: '/health' },
       logger: taskLogger,
+      signal: tasks.signal,
     });
     tasks.signal.throwIfAborted();
     taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);

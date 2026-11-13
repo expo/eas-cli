@@ -328,6 +328,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             authtoken: ngrokAuthtoken,
             healthCheck: { path: '/status' },
             logger,
+            signal: startupSignal,
           });
 
           // The preview host uses the same device selected for Appium.

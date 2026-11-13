@@ -170,6 +170,7 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
             baseDomain: ngrokTunnelDomain,
             authtoken: ngrokAuthtoken,
             logger,
+            signal: startupSignal,
           }),
           startupSignal,
           async listener => await listener?.stopAsync(),

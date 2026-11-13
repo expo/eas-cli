@@ -856,6 +856,73 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
+it('does not retry a rejected preview tunnel open after finishing', async () => {
+  const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
+  const forwardCalls = jest.mocked(ngrok.forward).mock.calls.length;
+  const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+  jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+  const opening = host.openPreviewAsync();
+  const finishing = host.finishAsync();
+  tunnel.reject(
+    new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+  );
+  await expect(opening).rejects.toThrow('ERR_NGROK_802');
+  await finishing;
+  expect(jest.mocked(ngrok.forward).mock.calls.length).toBe(forwardCalls + 1);
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.stringContaining('; retrying.')
+  );
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('does not retry a rejected preview tunnel open after startup fails', async () => {
+  jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+  const forwardCalls = jest.mocked(ngrok.forward).mock.calls.length;
+  jest
+    .mocked(ngrok.forward)
+    .mockRejectedValueOnce(
+      new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+    );
+  const startGate = deferred<void>();
+  const startupError = new Error('startup failure');
+  const startAsync = jest.fn(async () => {
+    await startGate.promise;
+    throw startupError;
+  });
+  const outcome = startDeviceSessionHostAsync(
+    ctx,
+    {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      preview: { baseDomain, authtoken },
+      env,
+      logger,
+      timeoutMs: 30_000,
+    },
+    {
+      port: 3200,
+      turnArgs: Promise.resolve([]),
+      requiresPreviewRetirement: true,
+      startAsync,
+      stopAsync: stopServer,
+    }
+  ).catch(error => error);
+  const retrying = () =>
+    jest
+      .mocked(logger.warn)
+      .mock.calls.some(([, message]) => String(message).endsWith('; retrying.'));
+  for (let i = 0; i < 50 && !retrying(); i++) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  expect(retrying()).toBe(true);
+  startGate.resolve();
+  await jest.advanceTimersByTimeAsync(5_000);
+  expect(await outcome).toBe(startupError);
+  expect(jest.mocked(ngrok.forward).mock.calls.length).toBe(forwardCalls + 1);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
