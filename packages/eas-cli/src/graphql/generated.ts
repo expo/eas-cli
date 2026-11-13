@@ -11216,6 +11216,7 @@ export type StatuspageService = {
 /** Name of a service monitored by Expo status page. */
 export enum StatuspageServiceName {
   EasBuild = 'EAS_BUILD',
+  EasSimulator = 'EAS_SIMULATOR',
   EasSubmit = 'EAS_SUBMIT',
   EasUpdate = 'EAS_UPDATE',
   EasWorkflows = 'EAS_WORKFLOWS',

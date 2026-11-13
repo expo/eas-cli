@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import glob from 'fast-glob';
 import fs from 'fs-extra';
@@ -9,7 +10,6 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { SourceMapSourceInput, SourceMapSourceType, UploadSessionType } from '../graphql/generated';
 import Log from '../log';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
-import { formatBytes } from '../utils/files';
 import { getTmpDirectory } from '../utils/paths';
 import { createProgressTracker } from '../utils/progress';
 

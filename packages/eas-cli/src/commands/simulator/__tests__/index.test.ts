@@ -17,6 +17,7 @@ import {
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
+  StatuspageServiceName,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
@@ -37,6 +38,7 @@ import { applyStartConfigAsync } from '../../../simulator/startSetup';
 import { ControlConfigExecutionError } from '../../../simulator/controlConfig';
 import * as promiseUtils from '../../../utils/promise';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -71,6 +73,7 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../utils/json');
+jest.mock('../../../utils/statuspageService');
 jest.mock('../../../utils/promise', () => ({
   ...jest.requireActual('../../../utils/promise'),
   sleepAsync: jest.fn().mockResolvedValue(undefined),
@@ -1040,18 +1043,35 @@ describe(Simulator, () => {
     });
   });
 
-  it('fails with the waitlist link without creating a session when the account is gated', async () => {
+  it('fails with the upgrade link without creating a session when the account is gated', async () => {
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
 
     await expect(command.runAsync()).rejects.toThrow(
-      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
-        'Join the waitlist to get access: https://expo.dev/services/simulators'
+      "EAS Simulator isn't enabled for testuser. It's available on the Starter, Production, and Enterprise plans.\n" +
+        'Upgrade, or update billing if a payment is past due: https://expo.dev/accounts/testuser/settings/billing\n' +
+        'If your account is on an annual Enterprise plan, contact your Expo account executive.'
     );
     expect(mockAvailabilityByAppIdAsync).toHaveBeenCalledWith(graphqlClient, 'project-123');
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
     expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(maybeWarnAboutEasOutagesAsync).not.toHaveBeenCalled();
+  });
+
+  it('warns about EAS Simulator and EAS Workflows outages before creating the session', async () => {
+    mockCreateDeviceRunSessionAsync.mockImplementationOnce(async () => {
+      expect(maybeWarnAboutEasOutagesAsync).toHaveBeenCalledWith(graphqlClient, [
+        StatuspageServiceName.EasSimulator,
+        StatuspageServiceName.EasWorkflows,
+      ]);
+      return makeCreatedDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledTimes(1);
   });
 
   it('skips the gate check for Expo admins on a gated account', async () => {
@@ -2267,19 +2287,6 @@ describe(Simulator, () => {
       expect.objectContaining({
         applicationArchiveUrl: 'https://example.test/builds/app.apk',
       })
-    );
-  });
-
-  it('warns that Android emulator support is still in development before creating a session', async () => {
-    const { command } = createCommand(['--platform', 'android', '--non-interactive']);
-
-    await command.runAsync();
-
-    expect(Log.warn).toHaveBeenCalledWith(
-      'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
-    );
-    expect(jest.mocked(Log.warn).mock.invocationCallOrder[0]).toBeLessThan(
-      mockCreateDeviceRunSessionAsync.mock.invocationCallOrder[0]
     );
   });
 

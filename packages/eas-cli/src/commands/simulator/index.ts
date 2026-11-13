@@ -23,6 +23,7 @@ import {
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
+  StatuspageServiceName,
 } from '../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
@@ -77,6 +78,7 @@ import {
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 // Allow the cold-cache client download (up to 60s) and a further minute to connect.
 const EGRESS_SETUP_TIMEOUT_MS = 120_000;
@@ -103,7 +105,7 @@ export default class Simulator extends EasCommand {
     ...SIMULATOR_HIDDEN_TOPIC_ALIASES,
     ...getSimulatorCommandHiddenAliases('start'),
   ];
-  static override description = `[EXPERIMENTAL] start a remote simulator session on EAS
+  static override description = `start a remote simulator session on EAS
 
 Preview links require sign-in by default.
 
@@ -231,7 +233,7 @@ With local egress, actions wait for the connection and require interactive mode.
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
+        '[EXPERIMENTAL] With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
@@ -295,7 +297,7 @@ With local egress, actions wait for the connection and require interactive mode.
     });
 
     // The server would reject the session anyway, but check the gate first so gated
-    // accounts get the waitlist link instead of a generic permission error. Expo admins
+    // accounts get the upgrade link instead of a generic permission error. Expo admins
     // skip the check so they can work on any account and let the server decide.
     if (!actor.isExpoAdmin) {
       const { accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
@@ -419,12 +421,6 @@ With local egress, actions wait for the connection and require interactive mode.
       );
     }
 
-    if (platform === AppPlatform.Android) {
-      Log.warn(
-        'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
-      );
-      Log.newLine();
-    }
     // Only a web-preview-only session runs the expo-device-hub version from --package-version.
     if (
       experimentalEmulatorCaptureVersion &&
@@ -450,6 +446,12 @@ With local egress, actions wait for the connection and require interactive mode.
       );
       Log.newLine();
     }
+
+    // Same services as the outage banner on the simulator pages of the website.
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [
+      StatuspageServiceName.EasSimulator,
+      StatuspageServiceName.EasWorkflows,
+    ]);
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;

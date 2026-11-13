@@ -53,8 +53,7 @@ interface SimulatorLogsSnapshot {
 export default class SimulatorLogs extends EasCommand {
   static override aliases = getSimulatorCommandAliases('logs');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('logs');
-  static override description =
-    '[EXPERIMENTAL] show buffered logs from a remote iOS simulator session';
+  static override description = 'show buffered logs from a remote iOS simulator session';
 
   static override examples = [
     '<%= config.bin %> simulator:logs --follow',

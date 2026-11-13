@@ -59,7 +59,7 @@ import { formatMilliseconds } from '../../utils/timer';
 export default class SimulatorControl extends EasCommand {
   static override aliases = getSimulatorCommandAliases('control');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('control');
-  static override description = `[EXPERIMENTAL] control a remote iOS simulator session on EAS
+  static override description = `control a remote iOS simulator session on EAS
 
 Run without an action to list available actions. Use <action> --help for usage.
 
@@ -88,7 +88,7 @@ Existing output files are overwritten. When saving to a directory, an existing f
     '$ eas simulator:control --import ./simulator-control.json',
     '$ eas simulator:control hardwareKeyboard.set off',
     '$ eas simulator:control permissions.set grant camera com.example.app',
-    '$ eas simulator:control app.install ./MyApp.ipa',
+    '$ eas simulator:control app.install ./MyApp.app',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png',
     '$ eas simulator:control screenshot.capture --output ./screenshot.png --id <session-id>',
   ];
@@ -478,7 +478,16 @@ Existing output files are overwritten. When saving to a directory, an existing f
     let output: string;
     let savedFile: string | null;
     try {
-      ({ output, file: savedFile } = await executeControlActionAsync(connection, plan));
+      ({ output, file: savedFile } = await executeControlActionAsync(connection, plan, {
+        onProgress: phase => {
+          spinner.text =
+            phase === 'packaging'
+              ? 'Packaging app'
+              : phase === 'uploading'
+                ? `Uploading ${plan.localFile!.path}`
+                : `Running ${action} on simulator session ${session.id}`;
+        },
+      }));
       spinner.succeed(`Ran ${action} on simulator session ${session.id}`);
     } catch (err) {
       spinner.fail(`Failed to run ${action} on simulator session ${session.id}`);

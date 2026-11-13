@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { type FSWatcher, createReadStream, watch } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm, rmdir, stat } from 'node:fs/promises';
@@ -7,7 +8,6 @@ import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
