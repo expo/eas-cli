@@ -41,6 +41,7 @@ import {
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
 import {
+  type ServeSimActionResult,
   runServeSimActionAsync,
   runServeSimActionWithResultAsync,
   stageServeSimAppAsync,
@@ -173,9 +174,11 @@ beforeEach(() => {
   jest
     .mocked(runServeSimActionWithResultAsync)
     .mockReset()
-    .mockResolvedValue(
-      JSON.stringify({ 'screenshot.capture': { properties: { automation: { type: 'boolean' } } } })
-    );
+    .mockResolvedValue({
+      stdout: JSON.stringify({
+        'screenshot.capture': { properties: { automation: { type: 'boolean' } } },
+      }),
+    });
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -1518,13 +1521,12 @@ it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
         .mocked(runServeSimActionWithResultAsync)
         .mockRejectedValueOnce(new Error('unknown action'));
     } else {
-      jest
-        .mocked(runServeSimActionWithResultAsync)
-        .mockResolvedValueOnce(
+      jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce({
+        stdout:
           failure === 'invalid catalog'
             ? 'invalid JSON'
-            : JSON.stringify({ 'screenshot.capture': { properties: {} } })
-        );
+            : JSON.stringify({ 'screenshot.capture': { properties: {} } }),
+      });
     }
     const host = await startDeviceSessionHostAsync(ctx, {
       runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -1546,7 +1548,7 @@ it('cancels catalog inspection during shutdown without sending a thumbnail captu
   let inspectionSignal: AbortSignal | undefined;
   jest.mocked(runServeSimActionWithResultAsync).mockImplementationOnce(async ({ signal }) => {
     inspectionSignal = signal;
-    return await new Promise<string>((_resolve, reject) => {
+    return await new Promise<ServeSimActionResult>((_resolve, reject) => {
       signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
     });
   });

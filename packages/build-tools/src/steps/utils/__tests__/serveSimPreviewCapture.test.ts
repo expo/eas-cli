@@ -36,12 +36,31 @@ it('captures the selected active display and removes only its own staging', asyn
       drainAfterDispatch: true,
     });
     await writeFile(path.join(staging, request.params.fileName as string), png);
-    return path.join(staging, request.params.fileName as string);
+    return { stdout: path.join(staging, request.params.fileName as string) };
   });
   const capture = createServeSimPreviewCapture(options);
-  await capture.captureAsync(destination, signal);
+  await expect(capture.captureAsync(destination, signal)).resolves.toEqual({});
   expect(await readFile(destination)).toEqual(png);
   expect(await readdir(staging)).toEqual(['unrelated.png']);
+});
+
+it.each([
+  [{ width: 2556, height: 1179, displayRotation: 'landscape-left' }, 'landscape-left'],
+  [{ width: 1179, height: 2556, displayRotation: null }, undefined],
+  [{ displayRotation: 'sideways' }, undefined],
+  ['not metadata', undefined],
+  [undefined, undefined],
+])('returns only a known display rotation from the reply (%j)', async (metadata, expected) => {
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
+    const staged = path.join(staging, request.params.fileName as string);
+    await writeFile(staged, png);
+    return { stdout: staged, metadata };
+  });
+  const capture = createServeSimPreviewCapture(options);
+  await expect(capture.captureAsync(destination, signal)).resolves.toEqual(
+    expected ? { displayRotation: expected } : {}
+  );
+  expect(await readFile(destination)).toEqual(png);
 });
 
 it('drains an already sent action before honoring abort and deleting its output', async () => {
@@ -55,7 +74,7 @@ it('drains an already sent action before honoring abort and deleting its output'
     staged = path.join(staging, request.params.fileName as string);
     await pending;
     await writeFile(staged, png);
-    return path.join(staging, request.params.fileName as string);
+    return { stdout: path.join(staging, request.params.fileName as string) };
   });
   const capture = createServeSimPreviewCapture(options);
   let settled = false;
@@ -137,7 +156,9 @@ it.each([
 ])(
   'checks the catalog automation field before enabling captures (%j)',
   async (catalog, supported) => {
-    jest.mocked(runServeSimActionWithResultAsync).mockResolvedValueOnce(JSON.stringify(catalog));
+    jest
+      .mocked(runServeSimActionWithResultAsync)
+      .mockResolvedValueOnce({ stdout: JSON.stringify(catalog) });
     const capture = createServeSimPreviewCapture(options);
     await expect(capture.isSupportedAsync(signal)).resolves.toBe(supported);
     expect(runServeSimActionWithResultAsync).toHaveBeenCalledWith({
@@ -159,7 +180,7 @@ it.each(['/tmp/unowned.png', '../unowned.png', ''])(
   async returned => {
     jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
       await writeFile(path.join(staging, request.params.fileName as string), png);
-      return returned;
+      return { stdout: returned };
     });
     const capture = createServeSimPreviewCapture(options);
     await expect(capture.captureAsync(destination, signal)).rejects.toThrow(

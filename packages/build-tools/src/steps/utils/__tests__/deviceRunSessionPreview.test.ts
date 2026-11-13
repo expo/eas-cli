@@ -12,6 +12,7 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import * as processes from '../../../utils/processes';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
+  type DeviceRunSessionPreviewCapture,
   captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
@@ -64,14 +65,14 @@ function uploadSessionResponse(): InstanceType<typeof Response> {
 
 describe(startDeviceRunSessionPreview, () => {
   const image = Buffer.from('webp-image');
-  let captureAsync: jest.Mock<Promise<Buffer>, [AbortSignal]>;
+  let captureAsync: jest.Mock<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>;
   let logger: bunyan;
   let ctx: CustomBuildContext;
   let preview: ReturnType<typeof startDeviceRunSessionPreview> | undefined;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    captureAsync = jest.fn().mockResolvedValue(image);
+    captureAsync = jest.fn().mockResolvedValue({ image });
     jest
       .mocked(turtleFetch)
       .mockReset()
@@ -174,7 +175,7 @@ describe(startDeviceRunSessionPreview, () => {
   });
 
   it('does not upload a capture that finishes after shutdown', async () => {
-    let finish!: (image: Buffer) => void;
+    let finish!: (capture: DeviceRunSessionPreviewCapture) => void;
     captureAsync.mockImplementation(
       () =>
         new Promise(resolve => {
@@ -183,7 +184,7 @@ describe(startDeviceRunSessionPreview, () => {
     );
     const handle = start();
     const stopping = handle.stopAsync();
-    finish(image);
+    finish({ image });
     await stopping;
     expect(turtleFetch).not.toHaveBeenCalled();
   });
@@ -217,7 +218,7 @@ describe('session preview upload session from the worker API', () => {
     preview = startDeviceRunSessionPreview({
       ctx,
       deviceRunSessionId: 'session-id',
-      captureAsync: async () => Buffer.from('webp-image'),
+      captureAsync: async () => ({ image: Buffer.from('webp-image') }),
       logger,
     });
     return preview;
@@ -250,10 +251,10 @@ describe('session preview upload session from the worker API', () => {
 
   it('sends the preview size and refreshes it only when the size changes', async () => {
     const captureAsync = jest
-      .fn<Promise<Buffer>, [AbortSignal]>()
-      .mockResolvedValueOnce(webpPreview(148, 320))
-      .mockResolvedValueOnce(webpPreview(148, 320))
-      .mockResolvedValue(webpPreview(320, 148));
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: webpPreview(148, 320) })
+      .mockResolvedValueOnce({ image: webpPreview(148, 320) })
+      .mockResolvedValue({ image: webpPreview(320, 148) });
     preview = startDeviceRunSessionPreview({
       ctx: createCtx(),
       deviceRunSessionId: 'session-id',
@@ -272,11 +273,45 @@ describe('session preview upload session from the worker API', () => {
     );
   });
 
+  it('sends the display rotation and refreshes it when only the rotation changes', async () => {
+    const captureAsync = jest
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: webpPreview(148, 320), displayRotation: 'portrait' })
+      .mockResolvedValueOnce({ image: webpPreview(148, 320), displayRotation: 'portrait' })
+      .mockResolvedValueOnce({
+        image: webpPreview(148, 320),
+        displayRotation: 'portrait-upside-down',
+      })
+      .mockResolvedValue({ image: webpPreview(148, 320) });
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(240_000);
+    expect(captureAsync).toHaveBeenCalledTimes(5);
+    expect(fetch).toHaveBeenCalledTimes(5);
+    // An unconfirmed rotation replaces the stored one, which may no longer match the image.
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', width: 148, height: 320, displayRotation: 'portrait' } },
+      {
+        metadata: {
+          source: 'preview',
+          width: 148,
+          height: 320,
+          displayRotation: 'portrait-upside-down',
+        },
+      },
+      { metadata: { source: 'preview', width: 148, height: 320 } },
+    ]);
+  });
+
   it('keeps the stored size when the upload of a resized preview fails', async () => {
     const captureAsync = jest
-      .fn<Promise<Buffer>, [AbortSignal]>()
-      .mockResolvedValueOnce(webpPreview(148, 320))
-      .mockResolvedValue(webpPreview(320, 148));
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: webpPreview(148, 320) })
+      .mockResolvedValue({ image: webpPreview(320, 148) });
     jest
       .mocked(fetch)
       .mockResolvedValueOnce(new Response('', { status: 200 }))
@@ -297,10 +332,10 @@ describe('session preview upload session from the worker API', () => {
 
   it('sends the size again after a failed size refresh', async () => {
     const captureAsync = jest
-      .fn<Promise<Buffer>, [AbortSignal]>()
-      .mockResolvedValueOnce(webpPreview(148, 320))
-      .mockResolvedValueOnce(webpPreview(320, 148))
-      .mockResolvedValue(webpPreview(148, 320));
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: webpPreview(148, 320) })
+      .mockResolvedValueOnce({ image: webpPreview(320, 148) })
+      .mockResolvedValue({ image: webpPreview(148, 320) });
     jest
       .mocked(turtleFetch)
       .mockImplementationOnce(async () => uploadSessionResponse())
@@ -318,6 +353,45 @@ describe('session preview upload session from the worker API', () => {
       { metadata: { source: 'preview', width: 148, height: 320 } },
     ]);
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('finishes the metadata refresh for an uploaded preview when the session stops', async () => {
+    const captureAsync = jest
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: webpPreview(148, 320), displayRotation: 'portrait' })
+      .mockResolvedValue({ image: webpPreview(320, 148), displayRotation: 'landscape-left' });
+    let refreshSignal: AbortSignal | undefined;
+    let stopping: Promise<void> | undefined;
+    jest
+      .mocked(turtleFetch)
+      .mockImplementationOnce(async () => uploadSessionResponse())
+      .mockImplementationOnce(async (_url, _method, options) => {
+        refreshSignal = options.signal as AbortSignal;
+        stopping = preview!.stopAsync();
+        return uploadSessionResponse();
+      });
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(60_000);
+    await stopping;
+    expect(refreshSignal?.aborted).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', width: 148, height: 320, displayRotation: 'portrait' } },
+      {
+        metadata: {
+          source: 'preview',
+          width: 320,
+          height: 148,
+          displayRotation: 'landscape-left',
+        },
+      },
+    ]);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('logs a failure and uploads nothing when the job has no device run session token', async () => {
@@ -435,11 +509,17 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
           captureIosScreenshotAsync: async (file, signal) => {
             signal.throwIfAborted();
             await writeFile(file, Uint8Array.from(png));
+            return { displayRotation: 'landscape-right' };
           },
           env: {},
           signal: new AbortController().signal,
         })
-      ).toEqual(webp);
+      ).toEqual(
+        // adb screencap reports no rotation; serve-sim's capture does.
+        runtimePlatform === BuildRuntimePlatform.DARWIN
+          ? { image: webp, displayRotation: 'landscape-right' }
+          : { image: webp }
+      );
       expect(
         (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
       ).toEqual([]);
