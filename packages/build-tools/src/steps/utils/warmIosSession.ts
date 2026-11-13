@@ -2,12 +2,17 @@ import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import semver from 'semver';
 import { z } from 'zod';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from './localEgress';
-import { type DetachedProcessHandle, isProcessRunning } from './remoteDeviceRunSession';
+import {
+  type DetachedProcessHandle,
+  isProcessRunning,
+  spawnDetached,
+} from './remoteDeviceRunSession';
 
 const ServiceSchema = z.object({ pid: z.number(), port: z.number(), token: z.string() });
 const PackageVersionSchema = z.string().refine(version => semver.valid(version) !== null);
@@ -33,6 +38,7 @@ export type WarmIosSession = z.infer<typeof ClaimSchema> & {
   /** Runs after adoption: the launcher prepares the selected tool for the adopted device. */
   prepareToolsAsync(signal?: AbortSignal): Promise<void>;
   process: DetachedProcessHandle;
+  redactLogs?(secrets: string[]): void;
 };
 
 /**
@@ -82,9 +88,23 @@ export async function tryClaimWarmIosSessionAsync({
       throw new Error('The warm tool does not match the requested package version.');
     }
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
+    const logSecrets = [claim.server.token];
+    let logReader: DetachedProcessHandle | undefined;
+    try {
+      logReader = spawnDetached({
+        command: '/usr/bin/tail',
+        args: ['-n', '0', '-F', path.join(env.HOME ?? os.homedir(), 'Library/Logs/vm-tools.log')],
+        env,
+        logger,
+        secrets: logSecrets,
+      });
+    } catch {
+      logger.warn('Could not forward warm Simulator server logs.');
+    }
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
       ...claim,
+      redactLogs: secrets => logSecrets.push(...secrets),
       async prepareToolsAsync(prepareSignal = signal) {
         const prepared = ClaimSchema.pick({ preinstalledExpoGo: true })
           .extend({ tools: ServiceSchema.optional() })
@@ -103,16 +123,22 @@ export async function tryClaimWarmIosSessionAsync({
         } else if (engine === 'argent') {
           session.tools = ServiceSchema.parse(prepared.tools);
         }
+        if (session.tools) {
+          logSecrets.push(session.tools.token);
+        }
       },
       process: {
         pid: claim.server.pid,
-        getOutput: () => '',
+        getOutput: () => logReader?.getOutput() ?? '',
         getExitError: () =>
           isProcessRunning(claim.server.pid) &&
           (!session.tools || isProcessRunning(session.tools.pid))
             ? undefined
             : new Error('A service of the warm Simulator session has exited.'),
-        stopAsync: () => (stopping ??= stopWarmSimulatorAsync(env)),
+        stopAsync: () =>
+          (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
+            await logReader?.stopAsync();
+          })),
       },
     };
     return session;

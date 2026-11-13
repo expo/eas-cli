@@ -38,7 +38,8 @@ export function createWarmDeviceSessionServer(
     },
     requiresPreviewRetirement: true,
     stopAsync,
-    async startAsync({ command, args, env, signal }) {
+    async startAsync({ command, args, env, signal, secrets }) {
+      warm.redactLogs?.(secrets);
       try {
         // serve-sim starts this job's recording when it adopts the device.
         const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({

@@ -5,10 +5,15 @@ import path from 'node:path';
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
+import { spawnDetached } from '../remoteDeviceRunSession';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('../../../utils/warmSimulator');
 jest.mock('../localEgress');
+jest.mock('../remoteDeviceRunSession', () => ({
+  ...jest.requireActual('../remoteDeviceRunSession'),
+  spawnDetached: jest.fn(),
+}));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const env = { EAS_USE_WARM_SIMULATOR: '1' };
@@ -232,4 +237,30 @@ it('preserves exact build metadata through job resolution and warm claim', async
   ).resolves.toBe('warm');
   expect(run).toHaveBeenCalledTimes(1);
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('forwards only new warm server output and stops the reader when warm cleanup fails', async () => {
+  const stopReader = jest.fn().mockResolvedValue(undefined);
+  jest.mocked(spawnDetached).mockReturnValue({
+    pid: 99,
+    getOutput: () => 'server output',
+    getExitError: () => undefined,
+    stopAsync: stopReader,
+  });
+  const session = await tryClaimWarmIosSessionAsync({
+    engine: 'serve-sim',
+    env: { ...env, HOME: '/Users/expo' },
+    logger,
+  });
+  expect(spawnDetached).toHaveBeenCalledWith(
+    expect.objectContaining({
+      command: '/usr/bin/tail',
+      args: ['-n', '0', '-F', '/Users/expo/Library/Logs/vm-tools.log'],
+      secrets: ['serve-token'],
+    })
+  );
+  expect(session?.process.getOutput()).toBe('server output');
+  jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('cleanup failed'));
+  await expect(session?.process.stopAsync()).rejects.toThrow('cleanup failed');
+  expect(stopReader).toHaveBeenCalledTimes(1);
 });
