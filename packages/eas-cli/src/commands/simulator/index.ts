@@ -48,6 +48,8 @@ import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/fra
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
+  EAS_SIMULATOR_SESSION_STATUS,
+  EAS_SIMULATOR_SESSION_STATUS_STARTING,
   SIMULATOR_DOTENV_FILE_NAME,
   getSimulatorEnvFilePath,
   loadSimulatorEnvAsync,
@@ -503,6 +505,8 @@ With local egress, actions wait for the connection and require interactive mode.
         !imported.config?.actions?.length &&
         flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
           ? await writeSimulatorEnvSafelyAsync(projectDir, {
+              // Before the session ID; see EAS_SIMULATOR_SESSION_STATUS.
+              [EAS_SIMULATOR_SESSION_STATUS]: EAS_SIMULATOR_SESSION_STATUS_STARTING,
               [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
             })
           : false;
@@ -638,13 +642,14 @@ With local egress, actions wait for the connection and require interactive mode.
         });
       }
     };
-    const writeReadySimulatorEnvAsync = async (): Promise<void> => {
-      if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
-        await writeSimulatorEnvSafelyAsync(projectDir, {
-          ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
-          [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
-        });
+    const writeReadySimulatorEnvAsync = async (): Promise<boolean> => {
+      if (flags['out-config-type'] !== OUT_CONFIG_TYPE_VALUES.Dotenv) {
+        return false;
       }
+      return await writeSimulatorEnvSafelyAsync(projectDir, {
+        ...getRemoteSessionEnvironmentVariables(remoteConfig, { egressAllow, platform }),
+        [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+      });
     };
     try {
       if (!jsonFlag && !imported.config?.actions?.length) {
@@ -826,9 +831,13 @@ With local egress, actions wait for the connection and require interactive mode.
         }
       }
 
+      let simulatorEnvWritten = false;
       if (jsonFlag || imported.config?.actions?.length) {
         // Keep the previous session's saved credentials until setup succeeds.
-        await writeReadySimulatorEnvAsync();
+        simulatorEnvWritten = await writeReadySimulatorEnvAsync();
+        if (simulatorEnvWritten && !jsonFlag) {
+          Log.log(`Saved the session configuration to ${getSimulatorEnvFilePath(projectDir)}`);
+        }
         if (sessionInterrupt.signal.aborted) {
           await stopDeviceRunSessionAfterInterruptAsync({
             graphqlClient,
@@ -847,6 +856,9 @@ With local egress, actions wait for the connection and require interactive mode.
           name,
           type: flags.type,
           deviceRunSessionUrl,
+          ...(simulatorEnvWritten
+            ? { simulatorEnvFilePath: getSimulatorEnvFilePath(projectDir) }
+            : {}),
           ...(setup ? { setup } : {}),
           remoteConfig: sanitizeRemoteConfigForJson(
             remoteConfig,
@@ -930,7 +942,7 @@ async function writeSimulatorEnvSafelyAsync(
     return true;
   } catch (err) {
     Log.warn(
-      `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}: ${
+      `Failed to write simulator environment variables to ${getSimulatorEnvFilePath(projectDir)}: ${
         err instanceof Error ? err.message : String(err)
       }`
     );

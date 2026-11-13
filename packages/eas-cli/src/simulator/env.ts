@@ -7,6 +7,11 @@ import Log from '../log';
 
 export const SIMULATOR_DOTENV_FILE_NAME = '.env.eas-simulator';
 export const EAS_SIMULATOR_SESSION_ID = 'EAS_SIMULATOR_SESSION_ID';
+// "starting" until the session is ready. `eas simulator:exec` refuses to run while it is set,
+// because the file does not hold the session's connection variables yet. Write it before
+// EAS_SIMULATOR_SESSION_ID so that a reader which sees the session ID also sees the status.
+export const EAS_SIMULATOR_SESSION_STATUS = 'EAS_SIMULATOR_SESSION_STATUS';
+export const EAS_SIMULATOR_SESSION_STATUS_STARTING = 'starting';
 // Written for sessions started with `--egress local`; read by `eas simulator:egress`.
 export const EAS_SIMULATOR_EGRESS_URL = 'EAS_SIMULATOR_EGRESS_URL';
 export const EAS_SIMULATOR_EGRESS_TOKEN = 'EAS_SIMULATOR_EGRESS_TOKEN';
@@ -41,34 +46,43 @@ export async function readSimulatorEnvAsync(
 
 export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
   loadProjectEnv(projectDir, { silent: true });
-  const simulatorEnv = await readSimulatorEnvAsync(projectDir);
-  if (simulatorEnv?.[EAS_SIMULATOR_SESSION_ID] || simulatorEnv?.[EAS_SIMULATOR_EGRESS_URL]) {
-    // loadEnvFiles never replaces existing variables, even with force: true.
-    // Keep this session's credentials and destination policy together rather
-    // than combining them with values exported for an older session.
-    for (const key of [
-      EAS_SIMULATOR_SESSION_ID,
-      'AGENT_DEVICE_DAEMON_BASE_URL',
-      'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
-      'ARGENT_TOOLS_URL',
-      'ARGENT_AUTH_TOKEN',
-      'APPIUM_URL',
-      'APPIUM_CAPS',
-      EAS_SIMULATOR_EGRESS_URL,
-      EAS_SIMULATOR_EGRESS_TOKEN,
-      EAS_SIMULATOR_EGRESS_FINGERPRINT,
-      EAS_SIMULATOR_EGRESS_PORT,
-      EAS_SIMULATOR_EGRESS_PLATFORM,
-    ]) {
-      if (simulatorEnv[key] === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = simulatorEnv[key];
-      }
-    }
-    process.env[EAS_SIMULATOR_EGRESS_ALLOW] = simulatorEnv[EAS_SIMULATOR_EGRESS_ALLOW] ?? '';
-  }
+  applySimulatorEnv(await readSimulatorEnvAsync(projectDir));
   loadEnvFiles([getSimulatorEnvFilePath(projectDir)], { force: true });
+}
+
+/**
+ * Sets the session variables from the simulator dotenv file in process.env, and removes the
+ * session variables that the file does not have.
+ */
+export function applySimulatorEnv(simulatorEnv: Record<string, string> | null): void {
+  if (!simulatorEnv?.[EAS_SIMULATOR_SESSION_ID] && !simulatorEnv?.[EAS_SIMULATOR_EGRESS_URL]) {
+    return;
+  }
+  // loadEnvFiles never replaces existing variables, even with force: true.
+  // Keep this session's credentials and destination policy together rather
+  // than combining them with values exported for an older session.
+  for (const key of [
+    EAS_SIMULATOR_SESSION_ID,
+    EAS_SIMULATOR_SESSION_STATUS,
+    'AGENT_DEVICE_DAEMON_BASE_URL',
+    'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
+    'ARGENT_TOOLS_URL',
+    'ARGENT_AUTH_TOKEN',
+    'APPIUM_URL',
+    'APPIUM_CAPS',
+    EAS_SIMULATOR_EGRESS_URL,
+    EAS_SIMULATOR_EGRESS_TOKEN,
+    EAS_SIMULATOR_EGRESS_FINGERPRINT,
+    EAS_SIMULATOR_EGRESS_PORT,
+    EAS_SIMULATOR_EGRESS_PLATFORM,
+  ]) {
+    if (simulatorEnv[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = simulatorEnv[key];
+    }
+  }
+  process.env[EAS_SIMULATOR_EGRESS_ALLOW] = simulatorEnv[EAS_SIMULATOR_EGRESS_ALLOW] ?? '';
 }
 
 export async function writeSimulatorEnvAsync(

@@ -28,6 +28,7 @@ import { promptAsync } from '../../../prompts';
 import { runLocalEgressAsync } from '../../../simulator/egress';
 import {
   EAS_SIMULATOR_SESSION_ID,
+  EAS_SIMULATOR_SESSION_STATUS,
   SIMULATOR_DOTENV_FILE_HEADER,
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
@@ -424,6 +425,7 @@ describe(Simulator, () => {
       expect(printJsonOnlyOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'session-123',
+          simulatorEnvFilePath: simulatorDotenvPath,
           setup: {
             config: configPath,
             results: [{ action: 'appearance.set', output: { value: 'dark' }, file: null }],
@@ -540,6 +542,7 @@ describe(Simulator, () => {
       expect(preview).toBeGreaterThanOrEqual(0);
       expect(output.indexOf('dark')).toBeGreaterThan(preview);
       expect(output.indexOf('Saved /test/screenshot.png')).toBeGreaterThan(preview);
+      expect(output).toContain(`Saved the session configuration to ${simulatorDotenvPath}`);
     });
 
     it('preserves the setup error when the stopped session dotenv cannot be cleaned up', async () => {
@@ -1503,7 +1506,9 @@ describe(Simulator, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
+      SIMULATOR_DOTENV_FILE_HEADER +
+        `${EAS_SIMULATOR_SESSION_STATUS}='starting'\n` +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
@@ -1618,7 +1623,9 @@ describe(Simulator, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
+      SIMULATOR_DOTENV_FILE_HEADER +
+        `${EAS_SIMULATOR_SESSION_STATUS}='starting'\n` +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
@@ -3173,7 +3180,28 @@ describe(Simulator, () => {
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
+      expect.objectContaining({
+        id: 'session-123',
+        deviceRunSessionUrl,
+        simulatorEnvFilePath: simulatorDotenvPath,
+      })
+    );
+  });
+
+  it('omits the dotenv file path from JSON output when it does not write the file', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--json',
+      '--out-config-type',
+      'env',
+    ]);
+    await command.runAsync();
+
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.not.objectContaining({ simulatorEnvFilePath: expect.anything() })
     );
   });
 
@@ -3399,7 +3427,7 @@ describe(Simulator, () => {
 
     expect(Log.warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}`
+        `Failed to write simulator environment variables to ${simulatorDotenvPath}: disk full`
       )
     );
   });

@@ -1,21 +1,21 @@
+import { loadProjectEnv } from '@expo/env';
 import spawnAsync from '@expo/spawn-async';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EAS_SIMULATOR_SESSION_ID,
+  EAS_SIMULATOR_SESSION_STATUS,
+  EAS_SIMULATOR_SESSION_STATUS_STARTING,
   SIMULATOR_DOTENV_FILE_NAME,
+  applySimulatorEnv,
   getSimulatorEnvFilePath,
-  loadSimulatorEnvAsync,
   readSimulatorEnvAsync,
 } from '../../simulator/env';
 import {
   getSimulatorCommandAliases,
   getSimulatorCommandHiddenAliases,
 } from '../../simulator/commandAliases';
-
-const PACKAGE_RUNNERS = new Set(['npx', 'bunx', 'bun', 'pnpm', 'pnpx', 'yarn', 'npm']);
-const PACKAGE_RUNNER_SUBCOMMANDS = new Set(['exec', 'dlx', 'x']);
 
 export default class SimulatorExec extends EasCommand {
   static override aliases = getSimulatorCommandAliases('exec');
@@ -42,25 +42,29 @@ export default class SimulatorExec extends EasCommand {
     const { projectDir } = await this.getContextAsync(SimulatorExec, {
       nonInteractive: true,
     });
+    // Read the file once and use this snapshot for both the checks and the environment, so that a
+    // concurrent `eas simulator:stop` or `eas simulator:start` cannot change it between the two.
     const simulatorEnv = await readSimulatorEnvAsync(projectDir);
     const simulatorEnvFilePath = getSimulatorEnvFilePath(projectDir);
-    // Without the session's connection variables, tools such as agent-device fall back to
-    // devices on this machine. Fail instead of running the command against a local device.
-    if (!simulatorEnv?.[EAS_SIMULATOR_SESSION_ID]) {
-      throw new Error(
-        `No simulator session found in ${simulatorEnvFilePath}. ` +
-          `eas simulator:exec reads ${SIMULATOR_DOTENV_FILE_NAME} from the project directory (the nearest directory with a package.json). ` +
-          'Run `eas simulator:start` from this project, or run this command from the project where you started the session.'
-      );
+    // Without the session's connection variables, tools such as agent-device fall back to devices
+    // on this machine. Fail instead of running the command against a local device.
+    const sessionId = simulatorEnv?.[EAS_SIMULATOR_SESSION_ID];
+    if (!simulatorEnv || !sessionId) {
+      throw new Error(await getNoSessionErrorMessageAsync(projectDir));
     }
-    if (isAgentDeviceCommand(command, args) && !simulatorEnv.AGENT_DEVICE_DAEMON_BASE_URL) {
+    if (simulatorEnv[EAS_SIMULATOR_SESSION_STATUS] === EAS_SIMULATOR_SESSION_STATUS_STARTING) {
       throw new Error(
-        `Simulator session ${simulatorEnv[EAS_SIMULATOR_SESSION_ID]} in ${simulatorEnvFilePath} has no agent-device connection. ` +
-          'Wait until `eas simulator:start` reports that the session is ready, or start a session with `--type agent-device`.'
+        `Simulator session ${sessionId} in ${simulatorEnvFilePath} is still starting. ` +
+          'Wait until `eas simulator:start` reports that the session is ready, then run this command again.'
       );
     }
 
-    await loadSimulatorEnvAsync(projectDir);
+    loadProjectEnv(projectDir, { silent: true });
+    applySimulatorEnv(simulatorEnv);
+    for (const [key, value] of Object.entries(simulatorEnv)) {
+      // Like loadEnvFiles: keep values that are already set, without reading the file again.
+      process.env[key] ??= value;
+    }
 
     this.isRunningSubprocess = true;
     await spawnAsync(command, args, {
@@ -79,21 +83,35 @@ export default class SimulatorExec extends EasCommand {
   }
 }
 
-/**
- * Whether the command runs agent-device, directly (`agent-device`, `./node_modules/.bin/agent-device`)
- * or through a package runner (`npx agent-device@latest`, `bunx agent-device`, `pnpm dlx agent-device`).
- */
-export function isAgentDeviceCommand(command: string, args: string[]): boolean {
-  if (isAgentDeviceExecutable(command)) {
-    return true;
+async function getNoSessionErrorMessageAsync(projectDir: string): Promise<string> {
+  const lines = [
+    `No simulator session found in ${getSimulatorEnvFilePath(projectDir)}. ` +
+      `eas simulator:exec reads ${SIMULATOR_DOTENV_FILE_NAME} from the project directory, which is the nearest directory with a package.json.`,
+  ];
+  const parentSessionDir = await findParentDirWithSessionAsync(projectDir);
+  if (parentSessionDir) {
+    lines.push(
+      `${getSimulatorEnvFilePath(parentSessionDir)} has a simulator session. To use it, run this command from ${parentSessionDir}.`
+    );
   }
-  if (!PACKAGE_RUNNERS.has(path.basename(command))) {
-    return false;
-  }
-  const packageArg = args.find(arg => !arg.startsWith('-') && !PACKAGE_RUNNER_SUBCOMMANDS.has(arg));
-  return packageArg !== undefined && isAgentDeviceExecutable(packageArg);
+  lines.push(
+    'To start a session for this project, run `eas simulator:start` from this directory.',
+    `A session started with \`--out-config-type env\` does not write ${SIMULATOR_DOTENV_FILE_NAME}. For that session, run the command without eas simulator:exec.`
+  );
+  return lines.join('\n');
 }
 
-function isAgentDeviceExecutable(value: string): boolean {
-  return /^agent-device(@[^/\\]+)?$/.test(path.basename(value));
+async function findParentDirWithSessionAsync(projectDir: string): Promise<string | null> {
+  let dir = projectDir;
+  while (dir !== path.dirname(dir)) {
+    dir = path.dirname(dir);
+    try {
+      if ((await readSimulatorEnvAsync(dir))?.[EAS_SIMULATOR_SESSION_ID]) {
+        return dir;
+      }
+    } catch {
+      // The hint is optional. An unreadable file in a parent directory must not hide the error.
+    }
+  }
+  return null;
 }
