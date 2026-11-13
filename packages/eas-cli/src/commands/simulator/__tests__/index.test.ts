@@ -2834,6 +2834,34 @@ describe(Simulator, () => {
 
     await expect(command.runAsync()).rejects.toThrow(/errored before the .* session was ready/);
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    // The file must not keep saying that the session is starting.
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('keeps the dotenv file when it cannot confirm that a session which errored before it was ready stopped', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValue(new Error('network failed'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/errored before the .* session was ready/);
+    expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original error when it cannot clean up the dotenv file of a session that errored before it was ready', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+    mockResetSimulatorEnvAsync.mockRejectedValue(new Error('read-only file system'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(/errored before the .* session was ready/);
+    expect(Log.warn).toHaveBeenCalledWith(
+      `The session stopped, but ${simulatorDotenvPath} could not be cleaned up: read-only file system`
+    );
   });
 
   it('throws when the turtle job run finishes before the session is ready', async () => {
@@ -3172,6 +3200,7 @@ describe(Simulator, () => {
 
     await expect(command.runAsync()).rejects.toThrow(/Timed out after \d+s waiting for/);
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalled();
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
   it('prints JSON only and skips the human-readable output with --json', async () => {

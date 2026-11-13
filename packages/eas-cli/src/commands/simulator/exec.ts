@@ -55,7 +55,8 @@ export default class SimulatorExec extends EasCommand {
     if (simulatorEnv[EAS_SIMULATOR_SESSION_STATUS] === EAS_SIMULATOR_SESSION_STATUS_STARTING) {
       throw new Error(
         `Simulator session ${sessionId} in ${simulatorEnvFilePath} is still starting. ` +
-          'Wait until `eas simulator:start` reports that the session is ready, then run this command again.'
+          'Wait until `eas simulator:start` reports that the session is ready, then run this command again. ' +
+          'If `eas simulator:start` is no longer running, start a new session with `eas simulator:start`.'
       );
     }
 

@@ -582,7 +582,9 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      if (await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId)) {
+        await resetUnreadySimulatorEnvAsync(projectDir, deviceRunSessionId);
+      }
       sessionInterrupt.dispose();
       throw err;
     }
@@ -600,7 +602,9 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      if (await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId)) {
+        await resetUnreadySimulatorEnvAsync(projectDir, deviceRunSessionId);
+      }
       sessionInterrupt.dispose();
       throw new Error(
         `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
@@ -835,9 +839,6 @@ With local egress, actions wait for the connection and require interactive mode.
       if (jsonFlag || imported.config?.actions?.length) {
         // Keep the previous session's saved credentials until setup succeeds.
         simulatorEnvWritten = await writeReadySimulatorEnvAsync();
-        if (simulatorEnvWritten && !jsonFlag) {
-          Log.log(`Saved the session configuration to ${getSimulatorEnvFilePath(projectDir)}`);
-        }
         if (sessionInterrupt.signal.aborted) {
           await stopDeviceRunSessionAfterInterruptAsync({
             graphqlClient,
@@ -847,6 +848,9 @@ With local egress, actions wait for the connection and require interactive mode.
             sessionInterrupt,
           });
           return;
+        }
+        if (simulatorEnvWritten && !jsonFlag) {
+          Log.log(`Saved the session configuration to ${getSimulatorEnvFilePath(projectDir)}`);
         }
       }
       if (jsonFlag) {
@@ -1114,6 +1118,26 @@ async function stopDeviceRunSessionCreatedAfterCancelAsync(
   } else {
     spinner.fail(
       `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+  }
+}
+
+/**
+ * Clears the dotenv file of a session that stopped before it was ready, so that
+ * `eas simulator:exec` does not report the session as still starting. A failure only warns, so
+ * that the caller can still throw the error that stopped the session.
+ */
+async function resetUnreadySimulatorEnvAsync(
+  projectDir: string,
+  deviceRunSessionId: string
+): Promise<void> {
+  try {
+    await resetSimulatorEnvAsync(projectDir, deviceRunSessionId);
+  } catch (error) {
+    Log.warn(
+      `The session stopped, but ${getSimulatorEnvFilePath(projectDir)} could not be cleaned up: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     );
   }
 }
