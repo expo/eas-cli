@@ -267,7 +267,7 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
 
 it('forwards new agent-device daemon logs with its token redacted and stops both readers', async () => {
   const stopServerReader = jest.fn().mockRejectedValue(new Error('server reader failed'));
-  const stopDaemonReader = jest.fn().mockResolvedValue(undefined);
+  const stopDaemonReader = jest.fn().mockRejectedValue(new Error('daemon reader failed'));
   jest
     .mocked(spawnDetached)
     .mockReturnValueOnce({
@@ -299,6 +299,7 @@ it('forwards new agent-device daemon logs with its token redacted and stops both
   await expect(session!.process.stopAsync()).resolves.toBeUndefined();
   expect(stopServerReader).toHaveBeenCalledTimes(1);
   expect(stopDaemonReader).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith('Could not stop forwarding agent-device daemon logs.');
   await expect(session!.process.stopAsync()).resolves.toBeUndefined();
   expect(stopDaemonReader).toHaveBeenCalledTimes(1);
 });
