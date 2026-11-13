@@ -155,6 +155,42 @@ describe(loadSimulatorEnvAsync, () => {
     expect(process.env.EAS_SIMULATOR_ENV_TEST_UNRELATED).toBe('keep-this');
   });
 
+  it('does not complete an endpoint-only file with another connection token', async () => {
+    await realFs.writeFile(
+      getSimulatorEnvFilePath(projectDir),
+      "AGENT_DEVICE_DAEMON_BASE_URL='https://session-b.example.test'\n"
+    );
+    await loadSimulatorEnvAsync(projectDir);
+    expect(process.env.AGENT_DEVICE_DAEMON_BASE_URL).toBe('https://session-b.example.test');
+    expect(process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN).toBeUndefined();
+    expect(process.env[EAS_SIMULATOR_SESSION_ID]).toBeUndefined();
+    expect(process.env[EAS_SIMULATOR_EGRESS_URL]).toBeUndefined();
+    expect(process.env.EAS_SIMULATOR_ENV_TEST_UNRELATED).toBe('keep-this');
+  });
+
+  it('does not treat an empty saved session ID as permission to inherit another connection', async () => {
+    await realFs.writeFile(getSimulatorEnvFilePath(projectDir), `${EAS_SIMULATOR_SESSION_ID}=''\n`);
+    await loadSimulatorEnvAsync(projectDir);
+    expect(process.env[EAS_SIMULATOR_SESSION_ID]).toBe('');
+    expect(process.env.AGENT_DEVICE_DAEMON_BASE_URL).toBeUndefined();
+    expect(process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN).toBeUndefined();
+  });
+
+  it.each(['', 'localhost:3000'])(
+    'does not reuse exported credentials for an allow-only file (%j)',
+    async allow => {
+      await realFs.writeFile(
+        getSimulatorEnvFilePath(projectDir),
+        `${EAS_SIMULATOR_EGRESS_ALLOW}='${allow}'\n`
+      );
+      await loadSimulatorEnvAsync(projectDir);
+      expect(process.env[EAS_SIMULATOR_SESSION_ID]).toBeUndefined();
+      expect(process.env.AGENT_DEVICE_DAEMON_BASE_URL).toBeUndefined();
+      expect(process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN).toBeUndefined();
+      expect(process.env[EAS_SIMULATOR_EGRESS_ALLOW]).toBe(allow);
+    }
+  );
+
   it('replaces an inherited agent session with an Appium session without mixing controls', async () => {
     const capabilities = JSON.stringify({ platformName: 'iOS' });
     await realFs.writeFile(

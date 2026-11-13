@@ -23,30 +23,33 @@ export function getSimulatorEnvFilePath(projectDir: string): string {
   return path.join(projectDir, SIMULATOR_DOTENV_FILE_NAME);
 }
 
+const SIMULATOR_CONNECTION_VARIABLES = [
+  EAS_SIMULATOR_SESSION_ID,
+  'AGENT_DEVICE_DAEMON_BASE_URL',
+  'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
+  'ARGENT_TOOLS_URL',
+  'ARGENT_AUTH_TOKEN',
+  'APPIUM_URL',
+  'APPIUM_CAPS',
+  EAS_SIMULATOR_EGRESS_URL,
+  EAS_SIMULATOR_EGRESS_TOKEN,
+  EAS_SIMULATOR_EGRESS_FINGERPRINT,
+  EAS_SIMULATOR_EGRESS_PORT,
+  EAS_SIMULATOR_EGRESS_PLATFORM,
+  EAS_SIMULATOR_EGRESS_ALLOW,
+] as const;
+
 export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
 
   loadProjectEnv(projectDir, { silent: true });
   try {
     const simulatorEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
-    if (simulatorEnv[EAS_SIMULATOR_SESSION_ID] || simulatorEnv[EAS_SIMULATOR_EGRESS_URL]) {
+    if (SIMULATOR_CONNECTION_VARIABLES.some(key => Object.hasOwn(simulatorEnv, key))) {
       // loadEnvFiles never replaces existing variables, even with force: true.
       // Keep this session's credentials and destination policy together rather
       // than combining them with values exported for an older session.
-      for (const key of [
-        EAS_SIMULATOR_SESSION_ID,
-        'AGENT_DEVICE_DAEMON_BASE_URL',
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
-        'ARGENT_TOOLS_URL',
-        'ARGENT_AUTH_TOKEN',
-        'APPIUM_URL',
-        'APPIUM_CAPS',
-        EAS_SIMULATOR_EGRESS_URL,
-        EAS_SIMULATOR_EGRESS_TOKEN,
-        EAS_SIMULATOR_EGRESS_FINGERPRINT,
-        EAS_SIMULATOR_EGRESS_PORT,
-        EAS_SIMULATOR_EGRESS_PLATFORM,
-      ]) {
+      for (const key of SIMULATOR_CONNECTION_VARIABLES) {
         if (simulatorEnv[key] === undefined) {
           delete process.env[key];
         } else {
