@@ -2,6 +2,25 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.10.0](https://github.com/expo/eas-cli/releases/tag/v27.10.0) - 2026-11-13
+
+### 🎉 New features
+
+- [build-tools] Add the experimental `experimental_emulator_capture_version` input to `eas/start_android_emulator`. The Android Emulator then preloads that version of the `expo-emulator-capture` agent and uses the lavapipe renderer, and later steps start expo-device-hub with the emulator capture on. When the agent cannot install, the emulator starts as before. Only web preview sessions support the capture for now, so other session types fail with an error when the input is set. ([#4827](https://github.com/expo/eas-cli/pull/4827) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Add `eas simulator:devices` to list the devices Expo suggests for a simulator session. ([#4879](https://github.com/expo/eas-cli/pull/4879) by [@brentvatne](https://github.com/brentvatne))
+
+### 🐛 Bug fixes
+
+- [build-tools] Retry the first ngrok tunnel open of a device run session up to two times when ngrok rejects it with ERR_NGROK_802. The first open now waits 19 seconds instead of 15, so a tunnel that opens late is kept instead of closed. Startup can be cancelled during the retries, and a preview tunnel stops retrying when its session host finishes. ([#4874](https://github.com/expo/eas-cli/pull/4874) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Include the parent CLI command in telemetry to distinguish nested commands from direct usage. ([#4876](https://github.com/expo/eas-cli/pull/4876) by [@davidmokos](https://github.com/davidmokos))
+- [build-tools] Run worker SSH sessions as detached upterm sessions that reconnect on their own under the same session ID, and stop them with `upterm session stop`. ([#4857](https://github.com/expo/eas-cli/pull/4857) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [build-tools] Run the command a client passes with `eas workflow:ssh <id> <command>` in worker SSH sessions, in the build directory. ([#4863](https://github.com/expo/eas-cli/pull/4863) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [build-tools] Always download upterm for worker SSH sessions instead of using an `upterm` found on `PATH`. ([#4859](https://github.com/expo/eas-cli/pull/4859) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### 🧹 Chores
+
+- [eas-cli][build-tools] Bump Node.js to 22.23.5 to fix the CVEs in the [November 2026 Node.js security releases](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases). ([#4889](https://github.com/expo/eas-cli/pull/4889) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ## [27.9.0](https://github.com/expo/eas-cli/releases/tag/v27.9.0) - 2026-11-12
 
 ### 🎉 New features

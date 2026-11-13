@@ -1,5 +1,18 @@
 # @expo/build-tools
 
+## 27.10.0
+
+### Minor Changes
+
+- Add the experimental `experimental_emulator_capture_version` input to `eas/start_android_emulator`. The Android Emulator then preloads that version of the `expo-emulator-capture` agent and uses the lavapipe renderer, and later steps start expo-device-hub with the emulator capture on. When the agent cannot install, the emulator starts as before. Only web preview sessions support the capture for now, so other session types fail with an error when the input is set. ([#4827](https://github.com/expo/eas-cli/pull/4827) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+
+### Patch Changes
+
+- Retry the first ngrok tunnel open of a device run session up to two times when ngrok rejects it with ERR_NGROK_802. The first open now waits 19 seconds instead of 15, so a tunnel that opens late is kept instead of closed. Startup can be cancelled during the retries, and a preview tunnel stops retrying when its session host finishes. ([#4874](https://github.com/expo/eas-cli/pull/4874) by [@szdziedzic](https://github.com/szdziedzic))
+- Run worker SSH sessions as detached upterm sessions that reconnect on their own under the same session ID, and stop them with `upterm session stop`. ([#4857](https://github.com/expo/eas-cli/pull/4857) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Run the command a client passes with `eas workflow:ssh <id> <command>` in worker SSH sessions, in the build directory. ([#4863](https://github.com/expo/eas-cli/pull/4863) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Always download upterm for worker SSH sessions instead of using an `upterm` found on `PATH`. ([#4859](https://github.com/expo/eas-cli/pull/4859) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.9.0
 
 No changes in this release.

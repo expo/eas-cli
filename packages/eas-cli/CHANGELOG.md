@@ -1,5 +1,15 @@
 # eas-cli
 
+## 27.10.0
+
+### Minor Changes
+
+- Add `eas simulator:devices` to list the devices Expo suggests for a simulator session. ([#4879](https://github.com/expo/eas-cli/pull/4879) by [@brentvatne](https://github.com/brentvatne))
+
+### Patch Changes
+
+- Include the parent CLI command in telemetry to distinguish nested commands from direct usage. ([#4876](https://github.com/expo/eas-cli/pull/4876) by [@davidmokos](https://github.com/davidmokos))
+
 ## 27.9.0
 
 ### Minor Changes
