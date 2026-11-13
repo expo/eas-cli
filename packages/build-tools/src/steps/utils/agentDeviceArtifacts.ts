@@ -12,7 +12,10 @@ import { z } from 'zod';
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
-import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
+import {
+  DisplayRotationSchema,
+  createScreenshotMetadataAsync,
+} from './deviceRunSessionScreenshotMetadata';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const AGENT_DEVICE_ARTIFACT_CLEANUP_TIMEOUT_MS = 30_000;
@@ -21,11 +24,8 @@ const AgentDeviceArtifactSchema = z.object({
   id: z.string(),
   artifactType: z.string().nullish(),
   filename: z.string(),
-  // Display rotation of a screenshot. An unknown value is dropped so it cannot block the upload.
-  displayRotation: z
-    .enum(['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right'])
-    .nullish()
-    .catch(undefined),
+  // Display rotation of a screenshot.
+  displayRotation: DisplayRotationSchema,
 });
 const AgentDeviceArtifactsListResponseSchema = z.object({
   artifacts: z.array(AgentDeviceArtifactSchema),

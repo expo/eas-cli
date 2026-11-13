@@ -387,7 +387,7 @@ describe('with a device run session token', () => {
     const preview = startDeviceRunSessionPreview({
       ctx,
       deviceRunSessionId: 'drs-id',
-      captureAsync: async () => Buffer.from('webp'),
+      captureAsync: async () => ({ image: Buffer.from('webp') }),
       logger,
     });
     await waitForCallAsync(jest.mocked(fetch));
@@ -633,7 +633,7 @@ describe('without a device run session token', () => {
     const preview = startDeviceRunSessionPreview({
       ctx,
       deviceRunSessionId: 'drs-id',
-      captureAsync: async () => Buffer.from('webp'),
+      captureAsync: async () => ({ image: Buffer.from('webp') }),
       logger,
     });
     await waitForCallAsync(jest.mocked(logger.warn));

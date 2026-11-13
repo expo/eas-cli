@@ -36,6 +36,12 @@ export async function runServeSimActionAsync(
   await runServeSimActionWithResultAsync(options);
 }
 
+export type ServeSimActionResult = {
+  stdout: string;
+  /** Untrusted; serve-sim sends it with successful screenshot captures. */
+  metadata?: unknown;
+};
+
 export async function runServeSimActionWithResultAsync({
   port,
   token,
@@ -53,13 +59,13 @@ export async function runServeSimActionWithResultAsync({
   signal?: AbortSignal;
   /** Abort before dispatch; once sent, wait for its reply or deadline because exec-ws cannot cancel it. */
   drainAfterDispatch?: boolean;
-}): Promise<string> {
+}): Promise<ServeSimActionResult> {
   signal?.throwIfAborted();
-  return await new Promise<string>((resolve, reject) => {
+  return await new Promise<ServeSimActionResult>((resolve, reject) => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/exec-ws`, [`serve-sim.token.${token}`]);
     let settled = false;
     let sent = false;
-    const finish = (error?: unknown, stdout = '') => {
+    const finish = (error?: unknown, result: ServeSimActionResult = { stdout: '' }) => {
       if (settled) {
         return;
       }
@@ -70,7 +76,7 @@ export async function runServeSimActionWithResultAsync({
       if (error) {
         reject(error);
       } else {
-        resolve(stdout);
+        resolve(result);
       }
     };
     const aborted = () => {
@@ -107,7 +113,10 @@ export async function runServeSimActionWithResultAsync({
             : new SystemError(
                 `serve-sim ${action} failed: ${(typeof reply.error === 'string' && reply.error) || (typeof reply.stderr === 'string' && reply.stderr) || 'invalid response'}`
               ),
-          typeof reply.stdout === 'string' ? reply.stdout : ''
+          {
+            stdout: typeof reply.stdout === 'string' ? reply.stdout : '',
+            metadata: reply.metadata,
+          }
         );
       }
     });
