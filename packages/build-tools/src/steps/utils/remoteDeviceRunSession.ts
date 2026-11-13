@@ -649,11 +649,13 @@ export async function stopDetachedProcessAsync(
 }
 
 /**
- * Teardown options for an ngrok tunnel's `stopAsync`. The stop first makes the tunnel's local proxy
- * drop every connection, so a listener that does not close in time cannot reach the session. The
- * worker process exits after the job, and this closes the process's ngrok sessions.
+ * Teardown options for the stop of a tool tunnel (agent-device, Appium, or Argent) at the end of a
+ * session. The stop first makes the tunnel's local proxy drop every connection (see
+ * `startNgrokTunnelAsync`), so a listener that does not close in time cannot reach the session. The
+ * worker process exits after the job, and this closes the process's ngrok sessions. The warm-host
+ * preview tunnel does not use these options: its retirement still fails the session.
  */
-export const NGROK_TUNNEL_TEARDOWN_OPTIONS = { failsSession: false } as const;
+export const TOOL_TUNNEL_TEARDOWN_OPTIONS = { failsSession: false } as const;
 
 /** A named task that `finishRemoteSessionAsync` waits for when a remote session ends. */
 export type RemoteSessionTeardown = [

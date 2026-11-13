@@ -29,7 +29,7 @@ import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
-  NGROK_TUNNEL_TEARDOWN_OPTIONS,
+  TOOL_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -243,7 +243,7 @@ describe(finishRemoteSessionAsync, () => {
         logger,
         sessionFailed: false,
         teardown: [
-          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
           ['Appium server', Promise.resolve()],
         ],
       })
@@ -268,7 +268,7 @@ describe(finishRemoteSessionAsync, () => {
         logger,
         sessionFailed: false,
         teardown: [
-          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
           ['Appium server', Promise.reject(serverError)],
         ],
       })
@@ -290,7 +290,7 @@ describe(finishRemoteSessionAsync, () => {
         logger,
         sessionFailed: true,
         teardown: [
-          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
           ['Appium server', Promise.reject(serverError)],
           ['session host', undefined],
         ],

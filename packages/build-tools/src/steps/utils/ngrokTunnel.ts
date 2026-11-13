@@ -27,7 +27,7 @@ export type NgrokTunnelHandle = {
   subdomainId: string;
   /**
    * Stops the tunnel. The local proxy drops every connection at once; then the listeners close.
-   * Rejects when the listeners do not close within the stop time-out.
+   * Rejects when the stop does not complete within the stop time-out.
    */
   stopAsync: () => Promise<void>;
 };
@@ -65,6 +65,8 @@ export async function startNgrokTunnelAsync({
   const controller = new AbortController();
   const { signal } = controller;
   const sockets = new Set<Socket>();
+  // After an abort, this proxy drops every connection, even while an ngrok listener is still open.
+  // Session teardown relies on this (TOOL_TUNNEL_TEARDOWN_OPTIONS), so keep it when changing this.
   const target = createServer({ allowHalfOpen: true }, client => {
     if (signal.aborted) {
       client.destroy();

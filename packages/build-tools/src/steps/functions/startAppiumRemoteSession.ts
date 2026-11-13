@@ -52,7 +52,7 @@ import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
   DeviceRunSessionStoppedError,
-  NGROK_TUNNEL_TEARDOWN_OPTIONS,
+  TOOL_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -417,7 +417,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             logger,
             sessionFailed,
             teardown: [
-              ['Appium tunnel', appiumTunnel?.stopAsync(), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+              ['Appium tunnel', appiumTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],
               ['Appium server', appiumTeardown],
               [
                 'session host',

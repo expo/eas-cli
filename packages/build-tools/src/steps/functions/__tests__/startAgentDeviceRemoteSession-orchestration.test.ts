@@ -933,6 +933,21 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       await expect(session).rejects.toBe(failed);
     });
 
+    it('reports a startup Stop when only the agent-device tunnel cannot stop', async () => {
+      const stopped = new DeviceRunSessionStoppedError('stopped during startup');
+      let tasks!: StartupTasks;
+      const session = startSession(startup => {
+        tasks = startup;
+        return { booted: Promise.resolve(), ready: tasks.untilAborted(new Promise(() => {})) };
+      });
+      session.catch(() => {});
+      await flushAsync();
+      mockTunnelStopAsync.mockRejectedValueOnce(new Error('tunnel stop timed out'));
+      tasks.abort(stopped);
+      await expect(session).rejects.toBe(stopped);
+      expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
+    });
+
     it('retires startup monitoring after reporting and before lifetime waiting', async () => {
       const retired = deferred();
       const retiring = jest.fn(() => retired.promise);
