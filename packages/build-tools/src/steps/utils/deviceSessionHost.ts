@@ -608,6 +608,9 @@ async function startDeviceSessionHostInternalAsync(
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
   const previewRetirementErrors: unknown[] = [];
+  // Stops new attempts to open the preview tunnel when the host finishes. An attempt in progress
+  // continues, so preview retirement still waits for it and closes its listener.
+  const previewRetryController = new AbortController();
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
@@ -635,6 +638,7 @@ async function startDeviceSessionHostInternalAsync(
         authtoken: preview.authtoken,
         healthCheck: { path: isAndroid ? '/readyz' : '/healthz' },
         logger,
+        retrySignal: previewRetryController.signal,
       });
       if (finishTask) {
         await withDeviceRunSessionTimeoutAsync(
@@ -799,6 +803,7 @@ async function startDeviceSessionHostInternalAsync(
     startup.abort(error);
     // Mark the opening tunnel as retired; its late-open path closes it.
     finishTask = Promise.resolve();
+    previewRetryController.abort();
     await Promise.allSettled([simulatorSetup, retirePreviewAsync()]);
     let hostStopped = true;
     try {
@@ -826,6 +831,7 @@ async function startDeviceSessionHostInternalAsync(
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
       return (finishTask ??= (async () => {
+        previewRetryController.abort();
         const previewRetirement = retirePreviewAsync();
         if (server.requiresPreviewRetirement) {
           // Confirm the tunnel is closed before stop, so the next session cannot reach this one.

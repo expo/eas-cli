@@ -856,6 +856,23 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
+it('does not retry a rejected preview tunnel open after finishing', async () => {
+  const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
+  const forwardCalls = jest.mocked(ngrok.forward).mock.calls.length;
+  const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+  jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+  const opening = host.openPreviewAsync();
+  const finishing = host.finishAsync();
+  tunnel.reject(
+    new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+  );
+  await expect(opening).rejects.toThrow('ERR_NGROK_802');
+  await finishing;
+  expect(jest.mocked(ngrok.forward).mock.calls.length).toBe(forwardCalls + 1);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
 it('keeps cleanup and upload best-effort when tunnel close and finalization fail', async () => {
   jest.mocked(spawnDetached).mockImplementationOnce(options => {
     directories.push(options.args[options.args.indexOf('--android-recording-directory') + 1]);
