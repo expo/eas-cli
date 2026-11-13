@@ -616,6 +616,8 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       });
       expect(mockedAndroidUtils.findFreeConsolePortAsync).not.toHaveBeenCalled();
       expect(step.globalCtx.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
+      // The session step still rejects session types without the capture.
+      expect(step.globalCtx.env.EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION).toBe('0.1.0');
     });
 
     it('installs nothing without the input', async () => {
@@ -626,6 +628,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect(mockedInstall).not.toHaveBeenCalled();
       expect(mockedAndroidUtils.findFreeConsolePortAsync).not.toHaveBeenCalled();
       expect(step.globalCtx.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
+      expect(step.globalCtx.env.EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION).toBeUndefined();
     });
 
     it('rejects the capture for more than one emulator before it starts one', async () => {

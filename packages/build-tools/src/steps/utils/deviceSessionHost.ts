@@ -42,6 +42,7 @@ import {
 } from './remoteDeviceRunSession';
 import { LOCAL_EGRESS_PROXY_HOST, readLocalEgressHandoffAsync } from './localEgress';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import { EMULATOR_CAPTURE_REQUESTED_ENV } from './emulatorCapture';
 import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
@@ -417,6 +418,11 @@ export type DeviceSessionHostOptions = {
   onStartupError?: (error: unknown) => void;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
+  /**
+   * This session type runs an expo-device-hub that can use the experimental emulator capture.
+   * Only web preview sets it; the host rejects a capture request from any other session type.
+   */
+  emulatorCapture?: boolean;
 } & ServeSimLaunchOptions;
 
 export type DeviceSessionServerLaunch = {
@@ -530,6 +536,7 @@ async function startDeviceSessionHostInternalAsync(
     networkCaptureFields = [],
     bootEnv = {},
     preview,
+    emulatorCapture = false,
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
   artifactLogger: bunyan,
@@ -537,6 +544,15 @@ async function startDeviceSessionHostInternalAsync(
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
+  const requestedEmulatorCapture = env[EMULATOR_CAPTURE_REQUESTED_ENV];
+  if (isAndroid && requestedEmulatorCapture && !emulatorCapture) {
+    // Other session types run the latest expo-device-hub, which ignores the capture, so the
+    // session would start without the capture that it asked for.
+    throw new UserError(
+      'EAS_EMULATOR_CAPTURE_UNSUPPORTED_SESSION',
+      `The experimental emulator capture (expo-emulator-capture@${requestedEmulatorCapture}) works only in web preview sessions for now. Remove experimental_emulator_capture_version from eas/start_android_emulator, or start a web preview session.`
+    );
+  }
   if (
     Object.keys(bootEnv).length > 0 &&
     (runtimePlatform !== BuildRuntimePlatform.DARWIN || !iosSimulatorUdid)

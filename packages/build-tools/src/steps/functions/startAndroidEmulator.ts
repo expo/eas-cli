@@ -26,6 +26,7 @@ import { resolveAndroidEmulatorLocalEgressAsync } from '../utils/androidLocalEgr
 import { ALL_ANDROID_EMULATOR_LOG_SOURCES } from '../../utils/androidEmulatorLogSources';
 import { getAndroidEmulatorLogCapture } from '../utils/androidEmulatorLogs';
 import {
+  EMULATOR_CAPTURE_REQUESTED_ENV,
   installEmulatorCaptureAsync,
   parseExperimentalEmulatorCaptureVersionInput,
 } from '../utils/emulatorCapture';
@@ -113,6 +114,14 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         runtimePlatform: global.runtimePlatform,
         fallback: ALL_ANDROID_EMULATOR_LOG_SOURCES,
       });
+      if (emulatorCaptureVersion) {
+        // Marks the request for the session step, which rejects session types that cannot use
+        // the capture. The mark does not depend on the install, so the rejection does not either.
+        global.updateEnv({
+          ...global.env,
+          [EMULATOR_CAPTURE_REQUESTED_ENV]: emulatorCaptureVersion,
+        });
+      }
       const emulatorCaptureLibrary = emulatorCaptureVersion
         ? await installEmulatorCaptureAsync({ version: emulatorCaptureVersion, env, logger })
         : undefined;

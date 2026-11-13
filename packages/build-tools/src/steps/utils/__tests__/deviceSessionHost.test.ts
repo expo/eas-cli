@@ -1134,6 +1134,23 @@ it('keeps the experimental emulator capture off in expo-device-hub by default', 
   await host.finishAsync();
 });
 
+it('rejects an emulator capture request in a session type without the capture', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: { ...env, EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION: '0.1.0' },
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    })
+  ).rejects.toThrow(
+    'The experimental emulator capture (expo-emulator-capture@0.1.0) works only in web preview sessions for now.'
+  );
+  expect(spawnDetached).not.toHaveBeenCalled();
+  expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+});
+
 it('passes the emulator capture that the emulator start turned on to expo-device-hub', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     preview: { baseDomain, authtoken },
@@ -1142,10 +1159,12 @@ it('passes the emulator capture that the emulator start turned on to expo-device
       ...env,
       EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
       EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/package/libexpo_emulator_capture.so',
+      EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION: '0.1.0',
     },
     logger,
     separateLogPhase: true,
     timeoutMs: 10_000,
+    emulatorCapture: true,
   });
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.env).toMatchObject({

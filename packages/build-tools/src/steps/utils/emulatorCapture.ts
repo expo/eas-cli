@@ -13,6 +13,12 @@ import { installIsolatedNpmPackageAsync } from '../../utils/installIsolatedNpmPa
 // no change in build-tools or in the backend, while the package keeps its library at this path.
 
 const PACKAGE_NAME = 'expo-emulator-capture';
+/**
+ * `eas/start_android_emulator` sets this job env variable to the requested agent version. The
+ * session host rejects it in every session type except web preview, the only one that runs an
+ * expo-device-hub version that can use the capture for now.
+ */
+export const EMULATOR_CAPTURE_REQUESTED_ENV = 'EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION';
 const LINUX_AGENT_LIBRARY = path.join(
   'node_modules',
   PACKAGE_NAME,

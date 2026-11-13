@@ -238,6 +238,14 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
+  it('lets the session host use the experimental emulator capture', async () => {
+    await runAsync(BuildRuntimePlatform.LINUX);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ emulatorCapture: true })
+    );
+  });
+
   it('uses preview activity to reset the configured idle timeout', async () => {
     await runAsync(BuildRuntimePlatform.DARWIN, { max_idle_time_minutes: { value: 5 } });
     const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
@@ -508,6 +516,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
           }
         : {}),
       packageVersion: '1.2.3',
+      emulatorCapture: true,
       disableShare: false,
       frameAncestors: [],
       corsOrigins: [],
