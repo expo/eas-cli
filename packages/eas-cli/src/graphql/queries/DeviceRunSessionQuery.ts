@@ -11,6 +11,8 @@ import {
   DeviceRunSessionFilterInput,
   DeviceRunSessionJobRunErrorsByIdQuery,
   DeviceRunSessionJobRunErrorsByIdQueryVariables,
+  DeviceRunSessionProfilesQuery,
+  DeviceRunSessionProfilesQueryVariables,
   DeviceRunSessionsByAppIdQuery,
   DeviceRunSessionsByAppIdQueryVariables,
 } from '../generated';
@@ -199,6 +201,39 @@ export const DeviceRunSessionQuery = {
         .toPromise()
     );
     return data.deviceRunSessions.byId;
+  },
+  async profilesAsync(
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<DeviceRunSessionProfilesQuery['deviceRunSessions']['profiles']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<DeviceRunSessionProfilesQuery, DeviceRunSessionProfilesQueryVariables>(
+          gql`
+            query DeviceRunSessionProfilesQuery {
+              deviceRunSessions {
+                profiles {
+                  ios {
+                    devices {
+                      identifier
+                      displayName
+                    }
+                  }
+                  android {
+                    devices {
+                      identifier
+                      displayName
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          {},
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSessions.profiles;
   },
   async listByAppIdAsync(
     graphqlClient: ExpoGraphqlClient,

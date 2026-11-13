@@ -16432,6 +16432,11 @@ export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSes
         | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewApiUrl?: string | null, previewUrl: string, previewToken?: string | null }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
+export type DeviceRunSessionProfilesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DeviceRunSessionProfilesQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', profiles: { __typename?: 'DeviceRunSessionProfiles', ios: { __typename?: 'IosDeviceRunSessionProfiles', devices: Array<{ __typename?: 'IosDeviceRunSessionDevice', identifier: string, displayName: string }> }, android: { __typename?: 'AndroidDeviceRunSessionProfiles', devices: Array<{ __typename?: 'AndroidDeviceRunSessionDevice', identifier: string, displayName: string }> } } } };
+
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
