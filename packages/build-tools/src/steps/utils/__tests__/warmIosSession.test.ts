@@ -307,3 +307,29 @@ it('forwards warm Argent console output with prepared and adoption credentials r
     })
   );
 });
+
+it.each([false, true])(
+  'does not replace Simulator cleanup with a reader error (cleanup fails: %s)',
+  async cleanupFails => {
+    const stopReader = jest.fn().mockRejectedValue(new Error('reader drain failed'));
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 99,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopReader,
+    });
+    if (cleanupFails) {
+      jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('Simulator cleanup failed'));
+    }
+    const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+    if (cleanupFails) {
+      await expect(session!.process.stopAsync()).rejects.toThrow('Simulator cleanup failed');
+    } else {
+      await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+    }
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Could not stop forwarding warm Simulator server logs.'
+    );
+    expect(stopReader).toHaveBeenCalledTimes(1);
+  }
+);
