@@ -137,7 +137,11 @@ export async function tryClaimWarmIosSessionAsync({
             : new Error('A service of the warm Simulator session has exited.'),
         stopAsync: () =>
           (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
-            await logReader?.stopAsync();
+            try {
+              await logReader?.stopAsync();
+            } catch {
+              logger.warn('Could not stop forwarding warm Simulator server logs.');
+            }
           })),
       },
     };
