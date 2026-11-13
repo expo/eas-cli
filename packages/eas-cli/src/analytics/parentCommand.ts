@@ -9,16 +9,16 @@ export function markAsParentCommand(command: string): {
   parentCommand: string | null;
   restoreParentCommand: () => void;
 } {
-  const inheritedCommand = process.env.EXPO_PARENT_COMMAND;
-  process.env.EXPO_PARENT_COMMAND = command;
+  const inheritedCommand = process.env.__EXPO_PARENT_COMMAND;
+  process.env.__EXPO_PARENT_COMMAND = command;
 
   return {
     parentCommand: inheritedCommand || null,
     restoreParentCommand: () => {
       if (inheritedCommand === undefined) {
-        delete process.env.EXPO_PARENT_COMMAND;
+        delete process.env.__EXPO_PARENT_COMMAND;
       } else {
-        process.env.EXPO_PARENT_COMMAND = inheritedCommand;
+        process.env.__EXPO_PARENT_COMMAND = inheritedCommand;
       }
     },
   };

@@ -1,12 +1,12 @@
 import { markAsParentCommand } from '../parentCommand';
 
-const originalParentCommand = process.env.EXPO_PARENT_COMMAND;
+const originalParentCommand = process.env.__EXPO_PARENT_COMMAND;
 
 function setInheritedCommand(inheritedCommand: string | undefined): void {
   if (inheritedCommand === undefined) {
-    delete process.env.EXPO_PARENT_COMMAND;
+    delete process.env.__EXPO_PARENT_COMMAND;
   } else {
-    process.env.EXPO_PARENT_COMMAND = inheritedCommand;
+    process.env.__EXPO_PARENT_COMMAND = inheritedCommand;
   }
 }
 
@@ -35,9 +35,9 @@ it.each([undefined, '', 'expo run:ios'])(
     setInheritedCommand(inheritedCommand);
 
     const { restoreParentCommand } = markAsParentCommand('eas build');
-    expect(process.env.EXPO_PARENT_COMMAND).toBe('eas build');
+    expect(process.env.__EXPO_PARENT_COMMAND).toBe('eas build');
 
     restoreParentCommand();
-    expect(process.env.EXPO_PARENT_COMMAND).toBe(inheritedCommand);
+    expect(process.env.__EXPO_PARENT_COMMAND).toBe(inheritedCommand);
   }
 );
