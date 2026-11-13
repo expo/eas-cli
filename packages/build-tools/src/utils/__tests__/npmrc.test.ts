@@ -1,5 +1,6 @@
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
+import os from 'os';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { NpmrcAuthTokenLine, NpmrcTemplate } from '../../templates/npmrc';
@@ -62,7 +63,7 @@ describe(setUpNpmrcAsync, () => {
     expect(spawn).toHaveBeenCalledWith(
       'npm',
       ['config', 'get', 'userconfig'],
-      expect.objectContaining({ cwd: projectTargetDirectory, env })
+      expect.objectContaining({ cwd: os.homedir(), env })
     );
     expect(await vol.promises.readFile(`${homeDirectory}/npm/npmrc`, 'utf8')).toBe(
       `\n${NpmrcAuthTokenLine}\n`

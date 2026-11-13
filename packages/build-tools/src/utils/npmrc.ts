@@ -1,6 +1,7 @@
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
+import os from 'os';
 import path from 'path';
 
 import { findPackagerRootDir } from './packageManager';
@@ -24,20 +25,22 @@ export async function setUpNpmrcAsync({
   logger.info('We detected that you set the NPM_TOKEN environment variable');
   // pnpm 10.34.2+ and 11.5.3+ ignore ${NPM_TOKEN} placeholders in a project-level .npmrc but expand them in ~/.npmrc
   if (env.EAS_BUILD_RUNNER === 'eas-build') {
-    await addNpmTokenToUserNpmrcAsync(workingDirectory, env, logger);
+    await addNpmTokenToUserNpmrcAsync(env, logger);
   } else {
     await createProjectNpmrcIfNotExistsAsync(projectTargetDirectory, logger);
   }
 }
 
 async function addNpmTokenToUserNpmrcAsync(
-  workingDirectory: string,
   env: Record<string, string | undefined>,
   logger: bunyan
 ): Promise<void> {
+  // Run npm outside the project: npm 11 checks the project's package.json devEngines
+  // before any command, so a pnpm/yarn project with onFail "error" would make even
+  // `npm config get userconfig` exit 1. The user config location does not depend on it.
   const userNpmrcPath = (
     await spawn('npm', ['config', 'get', 'userconfig'], {
-      cwd: findPackagerRootDir(workingDirectory),
+      cwd: os.homedir(),
       env,
       stdio: 'pipe',
     })
