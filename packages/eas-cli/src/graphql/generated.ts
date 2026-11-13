@@ -6658,6 +6658,8 @@ export type CreateAndConfigureRepositoryInput = {
 export type CreateAndroidDeviceRunSessionInput = {
   /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). Defaults to "medium_phone". */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /** Experimental. npm version or dist-tag of expo-emulator-capture that the Android emulator preloads (e.g. "0.1.0" or "canary"). */
+  experimentalEmulatorCaptureVersion?: InputMaybe<Scalars['String']['input']>;
   /**
    * Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to
    * ["emulator-output"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain

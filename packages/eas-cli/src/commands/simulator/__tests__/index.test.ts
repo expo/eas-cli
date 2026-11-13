@@ -2040,6 +2040,122 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('android');
   });
 
+  it('forwards --experimental-emulator-capture-version in the Android create options', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--type',
+      'web-preview-only',
+      '--package-version',
+      '0.22.0-canary-20261106-c8cd772',
+      '--experimental-emulator-capture-version',
+      '  0.1.0-canary-20261106-c8cd772  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        packageVersion: '0.22.0-canary-20261106-c8cd772',
+        android: { experimentalEmulatorCaptureVersion: '0.1.0-canary-20261106-c8cd772' },
+      })
+    );
+    expect(Log.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('The emulator capture needs an expo-device-hub version')
+    );
+  });
+
+  it.each([
+    ['without --package-version', ['--type', 'web-preview-only']],
+    ['for a session type that runs the latest expo-device-hub', ['--package-version', '1.2.3']],
+  ])('warns about the expo-device-hub version %s', async (_description, args) => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--experimental-emulator-capture-version',
+      'canary',
+      ...args,
+    ]);
+    await command.runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      'The emulator capture needs an expo-device-hub version that supports it. This session uses the latest expo-device-hub release. To select another version, use --type web-preview-only with --package-version.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ android: { experimentalEmulatorCaptureVersion: 'canary' } })
+    );
+  });
+
+  it('sends --experimental-emulator-capture-version with --device and --system-image in one android object', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--device',
+      'pixel_9',
+      '--system-image',
+      'system-images;android-36;google_apis;x86_64',
+      '--experimental-emulator-capture-version',
+      'canary',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        android: {
+          deviceIdentifier: 'pixel_9',
+          systemImagePackage: 'system-images;android-36;google_apis;x86_64',
+          experimentalEmulatorCaptureVersion: 'canary',
+        },
+      })
+    );
+  });
+
+  it('omits a blank --experimental-emulator-capture-version', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--experimental-emulator-capture-version',
+      '  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('android');
+  });
+
+  it('rejects --experimental-emulator-capture-version for iOS before creating a session', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--experimental-emulator-capture-version',
+      '0.1.0',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--experimental-emulator-capture-version is only supported with --platform android.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects an --experimental-emulator-capture-version that is not an npm version or tag', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--experimental-emulator-capture-version',
+      '^0.1.0',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('rejects --system-image for iOS before creating a session', async () => {
     const { command } = createCommand([
       '--platform',

@@ -95,6 +95,8 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
 };
+// An npm version or dist-tag, as build-tools checks it before it installs the package.
+const EMULATOR_CAPTURE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$/;
 
 export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', ...getSimulatorCommandAliases('start')];
@@ -149,6 +151,11 @@ With local egress, actions wait for the connection and require interactive mode.
     'system-image': Flags.string({
       description:
         'Android SDK system image package to use for the emulator (e.g. "system-images;android-35-ext15;google_apis_playstore;x86_64"). Defaults to a system image chosen by the runner. Only supported with --platform android.',
+    }),
+    'experimental-emulator-capture-version': Flags.string({
+      description:
+        'Experimental. Version of expo-emulator-capture that the Android emulator preloads: an exact version such as "0.1.0-canary-20261106-c8cd772", or a dist-tag such as "canary". It is not checked against the session\'s expo-device-hub version, so a version that the Hub does not support can break the stream. expo-device-hub then streams the emulator screen from it, if that version supports the capture. Only supported with --platform android.',
+      hidden: true,
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
@@ -308,6 +315,8 @@ With local egress, actions wait for the connection and require interactive mode.
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const systemImagePackage = flags['system-image']?.trim() || undefined;
+    const experimentalEmulatorCaptureVersion =
+      flags['experimental-emulator-capture-version']?.trim() || undefined;
     const logSources = flags['log-source'];
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
@@ -321,6 +330,14 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
+    }
+    if (
+      experimentalEmulatorCaptureVersion &&
+      !EMULATOR_CAPTURE_VERSION_PATTERN.test(experimentalEmulatorCaptureVersion)
+    ) {
+      throw new EasCommandError(
+        '--experimental-emulator-capture-version must be an npm version or dist-tag of expo-emulator-capture, for example 0.1.0-canary-20261106-c8cd772 or canary.'
+      );
     }
     if (
       (launchArgs?.length || openUrl) &&
@@ -363,6 +380,11 @@ With local egress, actions wait for the connection and require interactive mode.
     if (systemImagePackage && platform !== AppPlatform.Android) {
       throw new EasCommandError('--system-image is only supported with --platform android.');
     }
+    if (experimentalEmulatorCaptureVersion && platform !== AppPlatform.Android) {
+      throw new EasCommandError(
+        '--experimental-emulator-capture-version is only supported with --platform android.'
+      );
+    }
     let egressAllow: string[] = [];
     try {
       egressAllow = parseEgressAllowList(flags['egress-allow'] ?? []);
@@ -399,6 +421,19 @@ With local egress, actions wait for the connection and require interactive mode.
       );
     }
 
+    // Only a web-preview-only session runs the expo-device-hub version from --package-version.
+    if (
+      experimentalEmulatorCaptureVersion &&
+      !(
+        flags.type === DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.WebPreviewOnly] &&
+        flags['package-version']
+      )
+    ) {
+      Log.warn(
+        'The emulator capture needs an expo-device-hub version that supports it. This session uses the latest expo-device-hub release. To select another version, use --type web-preview-only with --package-version.'
+      );
+      Log.newLine();
+    }
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
@@ -439,6 +474,7 @@ With local egress, actions wait for the connection and require interactive mode.
         ...(deviceIdentifier ? { deviceIdentifier } : {}),
         ...(systemImagePackage ? { systemImagePackage } : {}),
         ...(logSources ? { logSources } : {}),
+        ...(experimentalEmulatorCaptureVersion ? { experimentalEmulatorCaptureVersion } : {}),
       };
       const platformInput =
         platform === AppPlatform.Ios

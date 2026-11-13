@@ -47555,6 +47555,18 @@
             "deprecationReason": null
           },
           {
+            "name": "experimentalEmulatorCaptureVersion",
+            "description": "Experimental. npm version or dist-tag of expo-emulator-capture that the Android emulator preloads (e.g. \"0.1.0\" or \"canary\").",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "systemImagePackage",
             "description": "Android SDK system image package to use for the emulator (e.g.\n\"system-images;android-35;google_apis;x86_64\").",
             "type": {
