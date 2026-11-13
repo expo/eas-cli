@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
+import { createProcessOutput } from '../processOutput';
 import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
@@ -263,4 +264,46 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
   jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('cleanup failed'));
   await expect(session?.process.stopAsync()).rejects.toThrow('cleanup failed');
   expect(stopReader).toHaveBeenCalledTimes(1);
+});
+
+it('forwards warm Argent console output with prepared and adoption credentials redacted', async () => {
+  let output: ReturnType<typeof createProcessOutput> | undefined;
+  const stopReader = jest.fn(async () => {
+    output!.stderr.append('Argent stopped argent-token');
+    output!.finish();
+  });
+  jest.mocked(spawnDetached).mockImplementation(({ secrets }) => {
+    output = createProcessOutput(logger, secrets);
+    return {
+      pid: 99,
+      getOutput: output.getOutput,
+      getExitError: () => undefined,
+      stopAsync: stopReader,
+    };
+  });
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockImplementation(async ([command]) =>
+      JSON.stringify(
+        command === 'claim' ? claim : { tools: { pid: 30, port: 3201, token: 'argent-token' } }
+      )
+    );
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'argent', env, logger });
+  session!.redactLogs!(['adoption-secret']);
+  await session!.prepareToolsAsync();
+  output!.stdout.append('Argent diagnostic serve-token argent-token adoption-secret\n');
+  expect(session!.process.getOutput()).toBe('Argent diagnostic [REDACTED] [REDACTED] [REDACTED]\n');
+  await session!.process.stopAsync();
+  expect(session!.process.getOutput()).toContain('Argent stopped [REDACTED]');
+  expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toMatch(
+    /serve-token|argent-token|adoption-secret/
+  );
+  expect(stopReader).toHaveBeenCalledTimes(1);
+  // The shared console reader must not also tail Argent's structured-event file.
+  expect(spawnDetached).toHaveBeenCalledTimes(1);
+  expect(spawnDetached).toHaveBeenCalledWith(
+    expect.objectContaining({
+      args: ['-n', '0', '-F', expect.stringContaining('Library/Logs/vm-tools.log')],
+    })
+  );
 });
