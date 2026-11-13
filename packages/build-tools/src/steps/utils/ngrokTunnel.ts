@@ -6,8 +6,12 @@ import { once } from 'node:events';
 import { type AddressInfo, type Socket, createConnection, createServer } from 'node:net';
 import { clearTimeout, setTimeout } from 'node:timers';
 
+import { Datadog } from '../../datadog';
 import { turtleFetch } from '../../utils/turtleFetch';
-import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  DeviceRunSessionTimeoutError,
+  withDeviceRunSessionTimeoutAsync,
+} from './deviceRunSessionTimeout';
 
 const PROBE_INTERVAL_MS = 15_000;
 const FAILURE_THRESHOLD = 3;
@@ -21,6 +25,11 @@ const INITIAL_OPEN_ATTEMPTS = 3;
 const INITIAL_OPEN_RETRY_DELAY_MS = 1_000;
 /** ngrok error codes for failed control-plane requests that can succeed on a retry. */
 const RETRYABLE_NGROK_ERROR_CODES = new Set(['ERR_NGROK_802']);
+/**
+ * Metrics for tunnel opens and stops. The worker sends them through www, which adds the
+ * `expo.www.` prefix. Every metric has a `tunnel` tag with the subdomain prefix.
+ */
+const METRIC_PREFIX = 'eas.device_run_session.ngrok_tunnel';
 
 export type NgrokTunnelHandle = {
   url: string;
@@ -58,6 +67,9 @@ export async function startNgrokTunnelAsync({
 }): Promise<NgrokTunnelHandle> {
   startupSignal?.throwIfAborted();
   const domain = `${subdomainPrefix}-${subdomainId}.${baseDomain}`;
+  function reportMetric(name: string, value: number, tags: Record<string, string>): void {
+    Datadog.distribution(`${METRIC_PREFIX}.${name}`, value, { tunnel: subdomainPrefix, ...tags });
+  }
   const controller = new AbortController();
   const { signal } = controller;
   const sockets = new Set<Socket>();
@@ -178,13 +190,27 @@ export async function startNgrokTunnelAsync({
    * process-wide lock, so a new open cannot start until the pending one settles.
    */
   async function openAsync({
+    kind,
     forceNewSession = false,
     timeoutMs = OPEN_TIMEOUT_MS,
-  }: { forceNewSession?: boolean; timeoutMs?: number } = {}): Promise<ngrok.Listener> {
+  }: {
+    /** The `kind` tag of the open metric: the first open with its attempt number, or a reopen. */
+    kind: string;
+    forceNewSession?: boolean;
+    timeoutMs?: number;
+  }): Promise<ngrok.Listener> {
     if (pendingOpen) {
       throw new SystemError(`A previous ngrok tunnel open for ${domain} is still pending.`);
     }
     const startedAt = Date.now();
+    // One `open` metric for each attempt, with the time until it settled, timed out, or was cancelled.
+    const reportOpen = (outcome: string, err?: unknown) => {
+      reportMetric('open', Date.now() - startedAt, {
+        kind,
+        outcome,
+        error_code: getNgrokErrorCode(err) ?? 'none',
+      });
+    };
     let acquired: ngrok.Listener | undefined;
     let retirement: Promise<void> | undefined;
     const retireAcquired = () => {
@@ -193,7 +219,7 @@ export async function startNgrokTunnelAsync({
       }
     };
     try {
-      return await withDeviceRunSessionTimeoutAsync(
+      const listener = await withDeviceRunSessionTimeoutAsync(
         { name: 'Ngrok tunnel open', timeoutMs, signal },
         async openSignal => {
           openSignal.throwIfAborted();
@@ -214,6 +240,11 @@ export async function startNgrokTunnelAsync({
           // Records how long a timed-out or cancelled open takes to settle, to tune the time-out.
           const logLateSettlement = (outcome: 'opened' | 'failed', err?: unknown) => {
             const elapsedMs = Date.now() - startedAt;
+            reportMetric('late_open', elapsedMs, {
+              kind,
+              outcome,
+              error_code: getNgrokErrorCode(err) ?? 'none',
+            });
             logger.info(
               { err, outcome, elapsedMs },
               `ngrok tunnel open for ${domain} ${outcome} after ${elapsedMs} ms, after it timed out or was cancelled.`
@@ -238,7 +269,18 @@ export async function startNgrokTunnelAsync({
           return listener;
         }
       );
+      reportOpen('opened');
+      return listener;
     } catch (err) {
+      // A stop or a cancelled startup aborts the tunnel's signal; the open's own time-out does not.
+      reportOpen(
+        signal.aborted
+          ? 'cancelled'
+          : err instanceof DeviceRunSessionTimeoutError
+            ? 'timed_out'
+            : 'failed',
+        err
+      );
       retireAcquired();
       throw err;
     }
@@ -247,10 +289,13 @@ export async function startNgrokTunnelAsync({
   // ngrok sometimes rejects an open because a control-plane request failed (for example
   // ERR_NGROK_802), so a rejected first open is retried before the session fails. A timed-out
   // open is not retried: it still holds the ngrok lock, so a retry would only wait behind it.
+  let initialAttempts = 0;
   async function openInitialAsync(): Promise<ngrok.Listener> {
     for (let attempt = 1; ; attempt++) {
+      initialAttempts = attempt;
       try {
         return await openAsync({
+          kind: `initial_${attempt}`,
           // ERR_NGROK_802 is a server error while the endpoint binds on the shared agent session,
           // so a retry connects a new session, which can reach a different ngrok server.
           // @ngrok/ngrok 1.7.0 replaces its shared session but does not close the old one: the old
@@ -300,7 +345,13 @@ export async function startNgrokTunnelAsync({
       currentListener = undefined;
       throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
     }
+    // The value is the number of open attempts, so a startup saved by a retry has a value above 1.
+    reportMetric('startup', initialAttempts, { outcome: 'started', error_code: 'none' });
   } catch (error) {
+    reportMetric('startup', initialAttempts, {
+      outcome: signal.aborted ? 'cancelled' : 'failed',
+      error_code: getNgrokErrorCode(error) ?? 'none',
+    });
     controller.abort();
     releaseTarget();
     throw error;
@@ -389,7 +440,7 @@ export async function startNgrokTunnelAsync({
       }
       attempts++;
       try {
-        const reopened = await openAsync({ forceNewSession: true });
+        const reopened = await openAsync({ kind: 'reopen', forceNewSession: true });
         if (reopened.url() !== url) {
           await closeAsync(reopened, signal);
           throw new SystemError(
@@ -423,18 +474,27 @@ export async function startNgrokTunnelAsync({
     stopAsync: () =>
       (stopTask ??= (async () => {
         controller.abort();
-        await withDeviceRunSessionTimeoutAsync(
-          { name: `Ngrok tunnel ${domain} stop`, timeoutMs: STOP_TIMEOUT_MS },
-          async stopSignal => {
-            await supervision;
-            if (currentListener) {
-              retiredListeners.add(currentListener);
-              currentListener = undefined;
+        const stopStartedAt = Date.now();
+        try {
+          await withDeviceRunSessionTimeoutAsync(
+            { name: `Ngrok tunnel ${domain} stop`, timeoutMs: STOP_TIMEOUT_MS },
+            async stopSignal => {
+              await supervision;
+              if (currentListener) {
+                retiredListeners.add(currentListener);
+                currentListener = undefined;
+              }
+              await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
+              await retireListenersAsync(stopSignal);
             }
-            await Promise.all([pendingOpen?.catch(() => {}), retireListenersAsync(stopSignal)]);
-            await retireListenersAsync(stopSignal);
-          }
-        );
+          );
+        } catch (err) {
+          reportMetric('stop', Date.now() - stopStartedAt, {
+            outcome: err instanceof DeviceRunSessionTimeoutError ? 'timed_out' : 'failed',
+          });
+          throw err;
+        }
+        reportMetric('stop', Date.now() - stopStartedAt, { outcome: 'stopped' });
         releaseTarget();
       })()),
   };
