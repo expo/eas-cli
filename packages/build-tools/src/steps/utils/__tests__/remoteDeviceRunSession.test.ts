@@ -29,6 +29,7 @@ import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
+  NGROK_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -38,6 +39,7 @@ import {
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  finishRemoteSessionAsync,
   parseCorsOriginsInput,
   parseFrameAncestorsInput,
   parseServeSimLaunchInputs,
@@ -225,6 +227,89 @@ function createStatusCtxMock(
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(finishRemoteSessionAsync, () => {
+  const tunnelError = new Error('tunnel stop timed out');
+  const serverError = new Error('server stop failed');
+
+  beforeEach(() => {
+    jest.mocked(Sentry).capture.mockReset();
+  });
+
+  it('does not fail a successful session when only a tunnel cannot stop', async () => {
+    const logger = { warn: jest.fn() } as unknown as bunyan;
+    await expect(
+      finishRemoteSessionAsync({
+        logger,
+        sessionFailed: false,
+        teardown: [
+          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium server', Promise.resolve()],
+        ],
+      })
+    ).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: tunnelError },
+      'Could not stop the Appium tunnel during remote session teardown.'
+    );
+    expect(jest.mocked(Sentry).capture.mock.calls).toEqual([
+      [
+        'Could not stop the Appium tunnel after the remote session ended',
+        tunnelError,
+        { level: 'warning' },
+      ],
+    ]);
+  });
+
+  it('fails a successful session with the first failure that fails the session', async () => {
+    const logger = { warn: jest.fn() } as unknown as bunyan;
+    await expect(
+      finishRemoteSessionAsync({
+        logger,
+        sessionFailed: false,
+        teardown: [
+          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium server', Promise.reject(serverError)],
+        ],
+      })
+    ).rejects.toBe(serverError);
+    expect(logger.warn).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(Sentry).capture.mock.calls).toEqual([
+      [
+        'Could not stop the Appium tunnel after the remote session ended',
+        tunnelError,
+        { level: 'warning' },
+      ],
+    ]);
+  });
+
+  it('reports every teardown failure to Sentry when the session failed', async () => {
+    const logger = { warn: jest.fn() } as unknown as bunyan;
+    await expect(
+      finishRemoteSessionAsync({
+        logger,
+        sessionFailed: true,
+        teardown: [
+          ['Appium tunnel', Promise.reject(tunnelError), NGROK_TUNNEL_TEARDOWN_OPTIONS],
+          ['Appium server', Promise.reject(serverError)],
+          ['session host', undefined],
+        ],
+      })
+    ).resolves.toBeUndefined();
+    expect(jest.mocked(Sentry).capture.mock.calls).toEqual([
+      [
+        'Could not stop the Appium tunnel after the remote session failed',
+        tunnelError,
+        { level: 'warning' },
+      ],
+      [
+        'Could not stop the Appium server after the remote session failed',
+        serverError,
+        { level: 'warning' },
+      ],
+    ]);
+  });
+});
 
 describe(createIosSessionStartupInputProviders, () => {
   it('declares optional inputs so existing workflows do not opt into owned startup', () => {

@@ -44,6 +44,7 @@ import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../u
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
   DeviceRunSessionStoppedError,
+  NGROK_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -482,7 +483,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             logger,
             sessionFailed,
             teardown: [
-              ['Argent tunnel', toolsTunnel?.stopAsync()],
+              ['Argent tunnel', toolsTunnel?.stopAsync(), NGROK_TUNNEL_TEARDOWN_OPTIONS],
               ['Argent tool-server', toolTeardown],
               [
                 'session host',

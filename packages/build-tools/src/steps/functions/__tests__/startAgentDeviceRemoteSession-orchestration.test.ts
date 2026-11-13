@@ -201,6 +201,21 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
     expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('does not fail a session when only the agent-device tunnel cannot stop', async () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    const tunnelError = new Error('Ngrok tunnel stop timed out after 4000ms.');
+    mockTunnelStopAsync.mockRejectedValueOnce(tunnelError);
+
+    await expect(runAsync(logger, BuildRuntimePlatform.LINUX)).resolves.toBeUndefined();
+
+    expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
+    expect(mockDaemonStopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: tunnelError },
+      'Could not stop the agent-device tunnel during remote session teardown.'
+    );
+  });
+
   it('uses the warm daemon after adoption and starts no daemon of its own', async () => {
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
     const warmServer = { port: 3200 } as never;

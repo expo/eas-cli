@@ -25,6 +25,10 @@ const RETRYABLE_NGROK_ERROR_CODES = new Set(['ERR_NGROK_802']);
 export type NgrokTunnelHandle = {
   url: string;
   subdomainId: string;
+  /**
+   * Stops the tunnel. The local proxy drops every connection at once; then the listeners close.
+   * Rejects when the listeners do not close within the stop time-out.
+   */
   stopAsync: () => Promise<void>;
 };
 
