@@ -1,7 +1,7 @@
 import { ArchiveSourceType, BuildTrigger, StaticWorkflowInterpolationContextZ } from '../common';
 import { Generic } from '../generic';
 
-function createContext() {
+function createContext(eventType: 'new_error' | 'error_occurrence' = 'new_error') {
   return {
     after: {},
     needs: {},
@@ -16,7 +16,7 @@ function createContext() {
     observe: {
       event: {
         id: '123e4567-e89b-42d3-a456-426614174001',
-        type: 'new_error' as const,
+        type: eventType,
         occurredAt: '2026-10-29T12:00:00.000Z',
         appId: '123e4567-e89b-42d3-a456-426614174000',
         fingerprint: { value: 'error-fingerprint', version: 'v1' },
@@ -31,23 +31,36 @@ function createContext() {
 }
 
 describe('Observe workflow context', () => {
-  it('preserves the event when validating a generic job', () => {
+  it.each(['new_error', 'error_occurrence'] as const)(
+    'preserves %s events when validating a generic job',
+    eventType => {
+      const context = createContext(eventType);
+      const job = {
+        projectArchive: { type: ArchiveSourceType.GIT, gitCommitHash: 'abc123', gitRef: null },
+        steps: [{ run: 'echo "${{ observe.event.exception.message }}"', shell: 'sh' }],
+        secrets: { robotAccessToken: 'token', environmentSecrets: [] },
+        expoDevUrl: context.workflow.url,
+        builderEnvironment: { image: 'ubuntu', env: {} },
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        appId: context.app.id,
+        initiatingUserId: '123e4567-e89b-42d3-a456-426614174002',
+        workflowInterpolationContext: context,
+      };
+
+      const parsed = Generic.JobZ.parse(job);
+
+      expect(parsed.workflowInterpolationContext).toEqual(context);
+    }
+  );
+
+  it('rejects unknown Observe event types', () => {
     const context = createContext();
-    const job = {
-      projectArchive: { type: ArchiveSourceType.GIT, gitCommitHash: 'abc123', gitRef: null },
-      steps: [{ run: 'echo "${{ observe.event.exception.message }}"', shell: 'sh' }],
-      secrets: { robotAccessToken: 'token', environmentSecrets: [] },
-      expoDevUrl: context.workflow.url,
-      builderEnvironment: { image: 'ubuntu', env: {} },
-      triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
-      appId: context.app.id,
-      initiatingUserId: '123e4567-e89b-42d3-a456-426614174002',
-      workflowInterpolationContext: context,
-    };
-
-    const parsed = Generic.JobZ.parse(job);
-
-    expect(parsed.workflowInterpolationContext).toEqual(context);
+    expect(
+      StaticWorkflowInterpolationContextZ.safeParse({
+        ...context,
+        observe: { event: { ...context.observe.event, type: 'unknown' } },
+      }).success
+    ).toBe(false);
   });
 
   it('accepts nullable event metadata and an omitted device OS', () => {
