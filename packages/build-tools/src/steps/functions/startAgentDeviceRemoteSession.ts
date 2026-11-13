@@ -125,7 +125,8 @@ export async function runAgentDeviceRemoteSessionAsync(
     device:
       | {
           booted: Promise<unknown>;
-          ready: Promise<unknown>;
+          /** Resolves with the identifier of the app it installed, if any. */
+          ready: Promise<string | void>;
         }
       | {
           iosSimulatorUdid: string;
@@ -243,6 +244,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     const [
       { port: daemonPort, token: daemonToken, remoteSessionUrl: agentDeviceRemoteSessionUrl },
       webPreview,
+      installedApplicationIdentifier,
     ] = await Promise.all([agentDeviceStartup, sessionHostStartup, deviceReady]).catch(
       (err: unknown) => {
         // Also aborts for a `device.ready` that does not come from `tasks.run`.
@@ -252,6 +254,11 @@ export async function runAgentDeviceRemoteSessionAsync(
     );
     tasks.signal.throwIfAborted();
     logger.info(tasks.summary());
+    // Reported so clients can attach to the app of a session with no build record, like an
+    // `application_archive_url` one. The session host already launched the iOS app.
+    const applicationIdentifier = hostBootedDevice?.application
+      ? (await tasks.untilAborted(hostBootedDevice.application))?.launchAppIdentifier
+      : installedApplicationIdentifier;
 
     const sessionStart = await uploadRemoteSessionConfigWithLocalEgressAsync({
       env,
@@ -264,6 +271,7 @@ export async function runAgentDeviceRemoteSessionAsync(
         webPreviewUrl: webPreview.previewPageUrl,
         previewApiUrl: webPreview.apiUrl,
         ...(webPreview.previewToken ? { webPreviewToken: webPreview.previewToken } : {}),
+        ...(applicationIdentifier ? { applicationIdentifier } : {}),
       },
       logger,
     });
