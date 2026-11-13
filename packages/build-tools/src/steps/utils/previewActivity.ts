@@ -11,7 +11,8 @@ export type PreviewActivityServer = 'serve-sim' | 'expo-device-hub';
 export type PreviewActivityPolling = {
   /**
    * When a new input log entry (input or host action, not stream traffic) was first seen. Reports
-   * now while the log is unreadable but the server is up, so an unobservable session stays active.
+   * now while a read fails for a reason other than a refused connection or a device-unavailable
+   * answer, so an unobservable session stays active.
    */
   getLastActivityObservedAt: () => Date | undefined;
   stopAsync: () => Promise<void>;
@@ -100,12 +101,11 @@ export function startPreviewActivityPolling({
   let pending: Promise<void> = Promise.resolve();
 
   const pollAsync = async (): Promise<void> => {
-    const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
     try {
       const { latestEventId, latestEventAt, replaying, replayStartedAt } = await readInputLogAsync({
         port,
         token,
-        signal: AbortSignal.any([controller.signal, timeoutSignal]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)]),
       });
       eventLogUnavailable = false;
       const eventKey =
@@ -126,17 +126,15 @@ export function startPreviewActivityPolling({
         return;
       }
       // Only a down server or device, which receives no input either, keeps the last observation.
-      // expo-device-hub answers only after the emulator's capture starts, and input waits on the
-      // same start, so a read that times out there means the device takes no input either.
-      const serverOrDeviceDown =
-        isServerDownError(err) || (server === 'expo-device-hub' && timeoutSignal.aborted);
-      eventLogUnavailable = !serverOrDeviceDown;
+      // A timeout proves neither: expo-device-hub holds the read while it changes the capture
+      // source, and the open preview keeps taking input meanwhile.
+      eventLogUnavailable = !isServerDownError(err);
       if (eventLogUnavailable && !didWarnUnavailable) {
         didWarnUnavailable = true;
         logger.warn(
           { err },
           `Could not read the ${server} input log. Preview input cannot be observed, so the ` +
-            'idle timeout does not stop this session.'
+            'idle timeout does not stop this session while the log cannot be read.'
         );
       } else if (!eventLogUnavailable && !didWarnDown) {
         didWarnDown = true;

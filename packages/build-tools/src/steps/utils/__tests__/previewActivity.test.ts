@@ -394,40 +394,56 @@ describe(startPreviewActivityPolling, () => {
     }
   });
 
-  it('keeps the last observation while an expo-device-hub read times out', async () => {
-    events = [{ id: 1 }];
-    let hang = false;
-    server.removeAllListeners('request');
-    server.on('request', (req, res) => {
-      requests.push({ url: req.url });
-      if (hang) {
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ events, replaying: false, replayStartedAt: null }));
-    });
-    const polling = startPreviewActivityPolling({
-      server: 'expo-device-hub',
-      port,
-      token,
-      logger: createLoggerMock(),
-      pollIntervalMs: 10,
-      requestTimeoutMs: 100,
-    });
-    try {
-      while (polling.getLastActivityObservedAt() === undefined) {
-        await new Promise(resolve => setTimeout(resolve, 5));
-      }
-      const observedAt = polling.getLastActivityObservedAt();
+  it.each([
+    ['before its headers', 'headers'],
+    ['after its headers', 'body'],
+  ] as const)(
+    'reports current activity while an expo-device-hub read times out %s',
+    async (_, stall) => {
+      events = [{ id: 1 }];
+      let stalled = false;
+      server.removeAllListeners('request');
+      server.on('request', (req, res) => {
+        requests.push({ url: req.url });
+        if (stalled && stall === 'headers') {
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (stalled) {
+          res.write('{"events":[');
+          return;
+        }
+        res.end(JSON.stringify({ events, replaying: false, replayStartedAt: null }));
+      });
+      const logger = createLoggerMock();
+      const polling = startPreviewActivityPolling({
+        server: 'expo-device-hub',
+        port,
+        token,
+        logger,
+        pollIntervalMs: 10,
+        requestTimeoutMs: 100,
+      });
+      try {
+        while (polling.getLastActivityObservedAt() === undefined) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        const observedAt = polling.getLastActivityObservedAt();
 
-      hang = true;
-      await waitForRequestsAsync(requests.length + 3);
-      expect(polling.getLastActivityObservedAt()).toBe(observedAt);
-    } finally {
-      await polling.stopAsync();
-      server.closeAllConnections();
+        stalled = true;
+        // The next request starts only after the stalled read times out.
+        await waitForRequestsAsync(requests.length + 2);
+        const reportedAt = polling.getLastActivityObservedAt();
+        expect(reportedAt).not.toBe(observedAt);
+        expect(jest.mocked(logger.warn).mock.calls[0][1]).toContain(
+          'idle timeout does not stop this session'
+        );
+      } finally {
+        await polling.stopAsync();
+        server.closeAllConnections();
+      }
     }
-  });
+  );
 
   it('warns about an unreadable log after an earlier device outage', async () => {
     const logger = createLoggerMock();
