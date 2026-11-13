@@ -10,6 +10,7 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { z } from 'zod';
+import { randomInt } from 'node:crypto';
 import fs from 'node:fs';
 import { createServer } from 'node:net';
 import path from 'node:path';
@@ -949,21 +950,59 @@ export function describeServeSimLaunch({
   return `serve-sim will launch ${launchAppIdentifier}${withArguments}${thenOpen}.`;
 }
 
+// Below the ephemeral ranges of Linux (32768-60999) and macOS (49152-65535). The caller releases the
+// port before a session server binds it. Another listen(0) or an outgoing connection in the VM can
+// take a released ephemeral port in that gap, and the server then fails with "already in use".
+export const SESSION_PORT_RANGE = { min: 20_000, max: 32_000 } as const;
+const SESSION_PORT_ATTEMPTS = 20;
+// Ports already returned in this process. Two callers can each get a port before either binds it,
+// so a port is not returned twice.
+const returnedSessionPorts = new Set<number>();
+
+/** Returns a port on 127.0.0.1 that is free now. The caller binds it later. */
 export async function findAvailablePortAsync(): Promise<number> {
+  for (let attempt = 0; attempt < SESSION_PORT_ATTEMPTS; attempt++) {
+    const candidate = randomInt(SESSION_PORT_RANGE.min, SESSION_PORT_RANGE.max);
+    if (returnedSessionPorts.has(candidate)) {
+      continue;
+    }
+    const port = await tryListenOnPortAsync(candidate);
+    // Checked again, because a call that overlaps this one can return the same port meanwhile.
+    if (port !== null && !returnedSessionPorts.has(port)) {
+      returnedSessionPorts.add(port);
+      return port;
+    }
+  }
+  for (let attempt = 0; attempt < SESSION_PORT_ATTEMPTS; attempt++) {
+    const port = await tryListenOnPortAsync(0);
+    if (port !== null && !returnedSessionPorts.has(port)) {
+      returnedSessionPorts.add(port);
+      return port;
+    }
+  }
+  throw new SystemError('Could not allocate a local port for the web preview.');
+}
+
+/** Returns null if the port is in use. Port 0 returns the port that the system picked. */
+async function tryListenOnPortAsync(port: number): Promise<number | null> {
   const server = createServer();
   server.unref();
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', () => resolve());
+    });
+  } catch (error) {
+    if (port !== 0 && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+      return null;
+    }
+    throw error;
+  }
   const address = server.address();
   await new Promise<void>((resolve, reject) => {
     server.close(err => (err ? reject(err) : resolve()));
   });
-  if (!address || typeof address === 'string') {
-    throw new SystemError('Could not allocate a local port for the web preview.');
-  }
-  return address.port;
+  return address && typeof address !== 'string' ? address.port : null;
 }
 
 export { type NgrokTunnelHandle, startNgrokTunnelAsync } from './ngrokTunnel';
