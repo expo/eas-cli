@@ -269,14 +269,12 @@ it.each([false, true])(
   'does not replace Simulator cleanup with a reader error (cleanup fails: %s)',
   async cleanupFails => {
     const stopReader = jest.fn().mockRejectedValue(new Error('reader drain failed'));
-    jest
-      .mocked(spawnDetached)
-      .mockReturnValue({
-        pid: 99,
-        getOutput: () => '',
-        getExitError: () => undefined,
-        stopAsync: stopReader,
-      });
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 99,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopReader,
+    });
     if (cleanupFails) {
       jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('Simulator cleanup failed'));
     }
