@@ -1,8 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { copyFile, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { z } from 'zod';
 
+import {
+  type CapturedDisplayRotation,
+  DisplayRotationSchema,
+} from './deviceRunSessionScreenshotMetadata';
 import { runServeSimActionWithResultAsync } from './serveSimActions';
+
+// serve-sim sends `displayRotation: null` when it could not confirm the rotation for the image.
+const ScreenshotReplyMetadataSchema = z
+  .object({ displayRotation: DisplayRotationSchema })
+  .nullish()
+  .catch(undefined);
 
 export function createServeSimPreviewCapture({
   port,
@@ -18,7 +29,7 @@ export function createServeSimPreviewCapture({
   const ownedFiles = new Set<string>();
   return {
     async isSupportedAsync(signal: AbortSignal): Promise<boolean> {
-      const result = await runServeSimActionWithResultAsync({
+      const { stdout } = await runServeSimActionWithResultAsync({
         port,
         token,
         action: 'actions.describe',
@@ -28,10 +39,10 @@ export function createServeSimPreviewCapture({
       });
       const catalog: {
         'screenshot.capture'?: { properties?: { automation?: { type?: unknown } } };
-      } | null = JSON.parse(result);
+      } | null = JSON.parse(stdout);
       return catalog?.['screenshot.capture']?.properties?.automation?.type === 'boolean';
     },
-    async captureAsync(destination: string, signal: AbortSignal): Promise<void> {
+    async captureAsync(destination: string, signal: AbortSignal): Promise<CapturedDisplayRotation> {
       signal.throwIfAborted();
       const fileName = `serve-sim-screenshot-preview-${randomUUID()}.png`;
       const staged = path.join(tmpdir, 'serve-sim-screenshots', fileName);
@@ -49,7 +60,7 @@ export function createServeSimPreviewCapture({
       });
       try {
         signal.throwIfAborted();
-        const captured = result.trim();
+        const captured = result.stdout.trim();
         // serve-sim stages under its resolved temp dir, and on macOS $TMPDIR is behind a symlink
         // (/var -> /private/var). Accept the file this capture requested in either spelling.
         const resolvedStaged = path.join(
@@ -64,6 +75,10 @@ export function createServeSimPreviewCapture({
           throw new Error('serve-sim returned an unexpected screenshot path.');
         }
         await copyFile(captured, destination);
+        const displayRotation = ScreenshotReplyMetadataSchema.parse(
+          result.metadata
+        )?.displayRotation;
+        return displayRotation ? { displayRotation } : {};
       } finally {
         await rm(staged, { force: true });
         ownedFiles.delete(staged);

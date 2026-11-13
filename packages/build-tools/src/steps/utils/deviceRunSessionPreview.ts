@@ -12,6 +12,8 @@ import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadContentWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { killProcessGroup } from '../../utils/processes';
 import {
+  type CapturedDisplayRotation,
+  type DisplayRotation,
   type ImageSize,
   type ScreenshotMetadata,
   readImageSize,
@@ -23,6 +25,18 @@ const PREVIEW_MAX_DIMENSION = 320;
 const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 
+export type DeviceRunSessionPreviewCapture = { image: Buffer } & CapturedDisplayRotation;
+
+type PreviewMetadata = { size?: ImageSize } & CapturedDisplayRotation;
+
+function isSamePreviewMetadata(a: PreviewMetadata, b: PreviewMetadata | undefined): boolean {
+  return (
+    a.size?.width === b?.size?.width &&
+    a.size?.height === b?.size?.height &&
+    a.displayRotation === b?.displayRotation
+  );
+}
+
 export function startDeviceRunSessionPreview({
   ctx,
   captureAsync,
@@ -30,29 +44,30 @@ export function startDeviceRunSessionPreview({
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
-  captureAsync: (signal: AbortSignal) => Promise<Buffer>;
+  captureAsync: (signal: AbortSignal) => Promise<DeviceRunSessionPreviewCapture>;
   logger: bunyan;
 }): { stopAsync: () => Promise<void> } {
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
   let uploadSession: { url: string; headers: Record<string, string> } | undefined;
-  let storedSize: ImageSize | undefined;
+  let storedMetadata: PreviewMetadata | undefined;
   let pending: Promise<void>;
 
   const uploadAsync = async (): Promise<void> => {
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]);
+    const deadline = AbortSignal.timeout(60_000);
+    const signal = AbortSignal.any([controller.signal, deadline]);
     try {
-      const image = await captureAsync(signal);
+      const { image, displayRotation } = await captureAsync(signal);
       if (controller.signal.aborted) {
         return;
       }
       if (image.length === 0 || image.length > MAX_PREVIEW_SIZE_BYTES) {
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
-      const size = readImageSize(image);
+      const metadata: PreviewMetadata = { size: readImageSize(image), displayRotation };
       if (!uploadSession) {
-        uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
-        storedSize = size;
+        uploadSession = await createPreviewUploadSessionAsync(ctx, metadata, signal);
+        storedMetadata = metadata;
       }
       if (controller.signal.aborted) {
         return;
@@ -61,16 +76,14 @@ export function startDeviceRunSessionPreview({
         { signedUrl: uploadSession, content: image },
         { signal, retries: 0, stallTimeoutMs: 30_000 }
       );
-      if (
-        controller.signal.aborted ||
-        !size ||
-        (size.width === storedSize?.width && size.height === storedSize.height)
-      ) {
+      // The upload session stores the metadata, so a new one updates it for this image. A stop
+      // does not cancel this, so the last preview keeps metadata that matches it.
+      if (!metadata.size || isSamePreviewMetadata(metadata, storedMetadata)) {
         return;
       }
-      storedSize = undefined;
-      uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
-      storedSize = size;
+      storedMetadata = undefined;
+      uploadSession = await createPreviewUploadSessionAsync(ctx, metadata, deadline);
+      storedMetadata = metadata;
     } catch (err) {
       if (!controller.signal.aborted) {
         logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');
@@ -97,12 +110,11 @@ export function startDeviceRunSessionPreview({
 
 async function createPreviewUploadSessionAsync(
   ctx: CustomBuildContext,
-  size: ImageSize | undefined,
+  { size, displayRotation }: PreviewMetadata,
   signal: AbortSignal
 ): Promise<{ url: string; headers: Record<string, string> }> {
-  const metadata: ScreenshotMetadata | undefined = size
-    ? { source: 'preview', ...size }
-    : undefined;
+  const metadata: ScreenshotMetadata | undefined =
+    size || displayRotation ? { source: 'preview', ...size, displayRotation } : undefined;
   return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync(
     { metadata },
     { signal }
@@ -170,27 +182,37 @@ export async function captureDeviceRunSessionPreviewAsync({
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
-  captureIosScreenshotAsync?: (file: string, signal: AbortSignal) => Promise<void>;
-}): Promise<Buffer> {
+  captureIosScreenshotAsync?: IosScreenshotCapture;
+}): Promise<DeviceRunSessionPreviewCapture> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
     const options = { env, signal, timeout: 30_000, stdio: 'pipe' as const };
     const preview = path.join(directory, 'preview.webp');
+    let displayRotation: DisplayRotation | undefined;
     if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
       if (!captureIosScreenshotAsync) {
         throw new Error(
           'Cannot capture the iOS session preview: serve-sim screenshot capture is not configured.'
         );
       }
-      await captureIosPreviewAsync({ captureIosScreenshotAsync, directory, preview, options });
+      ({ displayRotation } = await captureIosPreviewAsync({
+        captureIosScreenshotAsync,
+        directory,
+        preview,
+        options,
+      }));
     } else {
+      // adb screencap reports no rotation.
       await captureAndroidPreviewAsync({ device, directory, preview, options });
     }
-    return await readFile(preview);
+    const image = await readFile(preview);
+    return { image, displayRotation };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 }
+
+type IosScreenshotCapture = (file: string, signal: AbortSignal) => Promise<CapturedDisplayRotation>;
 
 type CaptureOptions = {
   env: BuildStepEnv;
@@ -205,17 +227,18 @@ async function captureIosPreviewAsync({
   preview,
   options,
 }: {
-  captureIosScreenshotAsync: (file: string, signal: AbortSignal) => Promise<void>;
+  captureIosScreenshotAsync: IosScreenshotCapture;
   directory: string;
   preview: string;
   options: CaptureOptions;
-}): Promise<void> {
+}): Promise<CapturedDisplayRotation> {
   const screenshot = path.join(directory, 'screen.png');
   const resized = path.join(directory, 'resized.png');
-  await captureIosScreenshotAsync(screenshot, options.signal);
+  const captured = await captureIosScreenshotAsync(screenshot, options.signal);
   options.signal.throwIfAborted();
   await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
   await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
+  return captured;
 }
 
 async function captureAndroidPreviewAsync({
