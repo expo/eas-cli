@@ -296,10 +296,10 @@ it('forwards new agent-device daemon logs with its token redacted and stops both
     })
   );
   expect(session!.process.getOutput()).toBe('server output\ndaemon output');
-  await expect(session!.process.stopAsync()).rejects.toThrow('server reader failed');
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
   expect(stopServerReader).toHaveBeenCalledTimes(1);
   expect(stopDaemonReader).toHaveBeenCalledTimes(1);
-  await expect(session!.process.stopAsync()).rejects.toThrow('server reader failed');
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
   expect(stopDaemonReader).toHaveBeenCalledTimes(1);
 });
 
@@ -318,3 +318,28 @@ it('keeps a prepared agent-device session when its daemon log reader cannot star
   expect(logger.warn).toHaveBeenCalledWith('Could not forward agent-device daemon logs.');
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });
+it.each([false, true])(
+  'does not replace Simulator cleanup with a reader error (cleanup fails: %s)',
+  async cleanupFails => {
+    const stopReader = jest.fn().mockRejectedValue(new Error('reader drain failed'));
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 99,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopReader,
+    });
+    if (cleanupFails) {
+      jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('Simulator cleanup failed'));
+    }
+    const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+    if (cleanupFails) {
+      await expect(session!.process.stopAsync()).rejects.toThrow('Simulator cleanup failed');
+    } else {
+      await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+    }
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Could not stop forwarding warm Simulator server logs.'
+    );
+    expect(stopReader).toHaveBeenCalledTimes(1);
+  }
+);

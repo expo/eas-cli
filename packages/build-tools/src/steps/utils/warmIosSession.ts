@@ -158,9 +158,14 @@ export async function tryClaimWarmIosSessionAsync({
               logReader?.stopAsync(),
               agentLogReader?.stopAsync(),
             ]);
-            const failure = results.find(result => result.status === 'rejected');
-            if (failure?.status === 'rejected') {
-              throw failure.reason;
+            for (const [index, result] of results.entries()) {
+              if (result.status === 'rejected') {
+                logger.warn(
+                  index === 0
+                    ? 'Could not stop forwarding warm Simulator server logs.'
+                    : 'Could not stop forwarding agent-device daemon logs.'
+                );
+              }
             }
           })),
       },
