@@ -426,3 +426,23 @@ it('keeps warm Argent console output in the controller step and serve-sim in pre
   }
   expect([...outputs.keys()]).toEqual(['/logs/serve-sim.log', '/logs/argent.log']);
 });
+
+it('keeps an older warm Argent launcher without forwarding mixed console output', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockImplementation(async ([command]) =>
+      JSON.stringify(
+        command === 'claim'
+          ? { ...claim, argentLogPath: undefined }
+          : { tools: { pid: 30, port: 3201, token: 'argent-token' } }
+      )
+    );
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'argent', env, logger });
+  await session!.prepareToolsAsync();
+  expect(session!.tools?.port).toBe(3201);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'The warm launcher does not provide a separate controller log.'
+  );
+  expect(spawnDetached).not.toHaveBeenCalled();
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
