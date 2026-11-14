@@ -307,6 +307,31 @@ describe('session preview upload session from the worker API', () => {
     ]);
   });
 
+  it('refreshes the display rotation when the preview size cannot be read', async () => {
+    const captureAsync = jest
+      .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
+      .mockResolvedValueOnce({ image: Buffer.from('webp-image'), displayRotation: 'portrait' })
+      .mockResolvedValueOnce({
+        image: Buffer.from('webp-image'),
+        displayRotation: 'landscape-left',
+      })
+      .mockResolvedValue({ image: Buffer.from('webp-image') });
+    preview = startDeviceRunSessionPreview({
+      ctx: createCtx(),
+      deviceRunSessionId: 'session-id',
+      captureAsync,
+      logger,
+    });
+    await jest.advanceTimersByTimeAsync(120_000);
+    expect(captureAsync).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    // With nothing known, a new upload session would not change the stored metadata.
+    expect(jest.mocked(turtleFetch).mock.calls.map(([, , options]) => options.json)).toEqual([
+      { metadata: { source: 'preview', displayRotation: 'portrait' } },
+      { metadata: { source: 'preview', displayRotation: 'landscape-left' } },
+    ]);
+  });
+
   it('keeps the stored size when the upload of a resized preview fails', async () => {
     const captureAsync = jest
       .fn<Promise<DeviceRunSessionPreviewCapture>, [AbortSignal]>()
