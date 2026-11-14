@@ -60,6 +60,7 @@ it('does not report ready until its owned server answers the authenticated tools
   await started;
   expect(commands.start).toHaveBeenCalledWith('bunx', expect.arrayContaining(['server', 'start']), {
     detached: true,
+    logPath: expect.stringContaining('Library/Logs/expo-simulator-startup/argent.log'),
   });
   expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:3201/tools', {
     headers: { Authorization: 'Bearer fixture-token' },

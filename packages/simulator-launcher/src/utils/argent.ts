@@ -19,6 +19,8 @@ const ArgentStateSchema = z.object({
   token: z.string().min(1),
 });
 const ToolsSchema = z.object({ tools: z.array(z.unknown()) });
+export const getArgentLogPath = (): string =>
+  path.join(os.homedir(), 'Library/Logs/expo-simulator-startup/argent.log');
 
 export function createArgentTool(onUnexpectedExit: (error: unknown) => void): WarmTool {
   process.env.ARGENT_EVENT_LOG ||= path.join(os.homedir(), '.argent/tool-server-events.jsonl');
@@ -66,7 +68,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           '--idle-timeout',
           '0',
         ],
-        { detached: true }
+        { detached: true, logPath: getArgentLogPath() }
       );
       const server = serverProcess;
       let ready = false;
