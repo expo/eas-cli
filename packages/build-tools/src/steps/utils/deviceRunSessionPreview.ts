@@ -29,6 +29,11 @@ export type DeviceRunSessionPreviewCapture = { image: Buffer } & CapturedDisplay
 
 type PreviewMetadata = { size?: ImageSize } & CapturedDisplayRotation;
 
+/** The server keeps its stored metadata when a new upload session sends none. */
+function hasPreviewMetadata({ size, displayRotation }: PreviewMetadata): boolean {
+  return !!size || !!displayRotation;
+}
+
 function isSamePreviewMetadata(a: PreviewMetadata, b: PreviewMetadata | undefined): boolean {
   return (
     a.size?.width === b?.size?.width &&
@@ -78,7 +83,7 @@ export function startDeviceRunSessionPreview({
       );
       // The upload session stores the metadata, so a new one updates it for this image. A stop
       // does not cancel this, so the last preview keeps metadata that matches it.
-      if (!metadata.size || isSamePreviewMetadata(metadata, storedMetadata)) {
+      if (!hasPreviewMetadata(metadata) || isSamePreviewMetadata(metadata, storedMetadata)) {
         return;
       }
       storedMetadata = undefined;
@@ -113,8 +118,9 @@ async function createPreviewUploadSessionAsync(
   { size, displayRotation }: PreviewMetadata,
   signal: AbortSignal
 ): Promise<{ url: string; headers: Record<string, string> }> {
-  const metadata: ScreenshotMetadata | undefined =
-    size || displayRotation ? { source: 'preview', ...size, displayRotation } : undefined;
+  const metadata: ScreenshotMetadata | undefined = hasPreviewMetadata({ size, displayRotation })
+    ? { source: 'preview', ...size, displayRotation }
+    : undefined;
   return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync(
     { metadata },
     { signal }
