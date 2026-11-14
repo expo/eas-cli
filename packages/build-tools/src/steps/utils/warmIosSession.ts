@@ -2,7 +2,6 @@ import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -24,6 +23,7 @@ const ClaimSchema = z.object({
   server: ServiceSchema,
   agentDeviceStateDir: z.string(),
   argentEventLogPath: z.string(),
+  serveSimLogPath: z.string().optional(),
   preinstalledExpoGo: z
     .object({ bundleIdentifier: z.string(), shortVersion: z.string(), version: z.string() })
     .optional(),
@@ -39,6 +39,7 @@ export type WarmIosSession = z.infer<typeof ClaimSchema> & {
   prepareToolsAsync(signal?: AbortSignal): Promise<void>;
   process: DetachedProcessHandle;
   redactLogs?(secrets: string[]): void;
+  forwardServerLogs?(logger: bunyan): void;
 };
 
 /**
@@ -91,21 +92,32 @@ export async function tryClaimWarmIosSessionAsync({
     const logSecrets = [claim.server.token];
     let logReader: DetachedProcessHandle | undefined;
     let agentLogReader: DetachedProcessHandle | undefined;
-    try {
-      logReader = spawnDetached({
-        command: '/usr/bin/tail',
-        args: ['-n', '0', '-F', path.join(env.HOME ?? os.homedir(), 'Library/Logs/vm-tools.log')],
-        env,
-        logger,
-        secrets: logSecrets,
-      });
-    } catch {
-      logger.warn('Could not forward warm Simulator server logs.');
-    }
+    let serverLogLogger = logger;
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
       ...claim,
       redactLogs: secrets => logSecrets.push(...secrets),
+      forwardServerLogs(previewLogger) {
+        if (logReader) {
+          return;
+        }
+        serverLogLogger = previewLogger;
+        if (!claim.serveSimLogPath) {
+          previewLogger.warn('The warm launcher does not provide a separate Simulator server log.');
+          return;
+        }
+        try {
+          logReader = spawnDetached({
+            command: '/usr/bin/tail',
+            args: ['-n', '0', '-F', claim.serveSimLogPath],
+            env,
+            logger: previewLogger,
+            secrets: logSecrets,
+          });
+        } catch {
+          previewLogger.warn('Could not forward warm Simulator server logs.');
+        }
+      },
       async prepareToolsAsync(prepareSignal = signal) {
         const prepared = ClaimSchema.pick({ preinstalledExpoGo: true })
           .extend({ tools: ServiceSchema.optional() })
@@ -160,7 +172,7 @@ export async function tryClaimWarmIosSessionAsync({
             ]);
             for (const [index, result] of results.entries()) {
               if (result.status === 'rejected') {
-                logger.warn(
+                (index === 0 ? serverLogLogger : logger).warn(
                   index === 0
                     ? 'Could not stop forwarding warm Simulator server logs.'
                     : 'Could not stop forwarding agent-device daemon logs.'

@@ -9,6 +9,8 @@ import { type ChildProcessHandle, commands, isProcessOwnedByServiceAsync } from 
 import { type WarmServer } from './state';
 
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
+export const getServeSimLogPath = (): string =>
+  path.join(os.homedir(), 'Library/Logs/expo-simulator-startup/serve-sim.log');
 // The job needs the token from this file; /readyz itself is not token-gated.
 const ServeSimStateSchema = z.object({
   pid: z.number().int().min(2),
@@ -51,7 +53,7 @@ export function startServeSim(
       '--quiet',
     ],
     // The orphan owns boot, device selection and its native children for this VM's job.
-    { detached: true }
+    { detached: true, logPath: getServeSimLogPath() }
   );
 }
 
