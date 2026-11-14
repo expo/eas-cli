@@ -73,7 +73,9 @@ export async function waitForServeSimReadyAsync(
   void server.resultPromise.then(markExited, markExited);
   const throwIfExited = (): void => {
     if (exited || server.child.exitCode != null || server.child.signalCode != null) {
-      throw new Error(`serve-sim exited before ${udid} became ready.`);
+      throw new Error(
+        `serve-sim exited before ${udid} became ready. Console log: ${getServeSimLogPath()}`
+      );
     }
   };
   const stateDirectory = process.env.SERVE_SIM_STATE_DIR || path.join(os.tmpdir(), 'serve-sim');
@@ -83,7 +85,9 @@ export async function waitForServeSimReadyAsync(
     signal.throwIfAborted();
     throwIfExited();
     if (Date.now() >= deadline) {
-      throw new Error(`Timed out waiting for serve-sim on ${udid} to become ready.`);
+      throw new Error(
+        `Timed out waiting for serve-sim on ${udid} to become ready. Console log: ${getServeSimLogPath()}`
+      );
     }
     const state = await fs
       .readFile(stateFile, 'utf8')

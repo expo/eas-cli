@@ -6,7 +6,7 @@ import {
   commands,
   isProcessOwnedByServiceAsync,
 } from '../utils/processes';
-import { waitForServeSimReadyAsync } from '../utils/serveSim';
+import { getServeSimLogPath, waitForServeSimReadyAsync } from '../utils/serveSim';
 import { deferred, until } from './helpers';
 
 jest.mock('node:fs/promises');
@@ -65,6 +65,7 @@ it('rejects the launch exiting during a successful readiness response without wa
   Object.assign(child, { exitCode: 1 });
   response.resolve(new Response(JSON.stringify({ status: 'ready', device: 'PHONE' })));
   await expect(waiting).rejects.toThrow('serve-sim exited before PHONE became ready');
+  await expect(waiting).rejects.toThrow(`Console log: ${getServeSimLogPath()}`);
 });
 
 it('does not probe a state file without a process identity', async () => {
