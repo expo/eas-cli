@@ -4,7 +4,6 @@ import path from 'node:path';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
-import { createProcessOutput } from '../processOutput';
 import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
 import { spawnDetached } from '../remoteDeviceRunSession';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
@@ -17,6 +16,7 @@ jest.mock('../remoteDeviceRunSession', () => ({
 }));
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const env = { EAS_USE_WARM_SIMULATOR: '1' };
 const claim = {
   status: 'claimed',
@@ -24,6 +24,7 @@ const claim = {
   server: { pid: 10, port: 3200, token: 'serve-token', url: 'http://127.0.0.1:3200' },
   agentDeviceStateDir: '/agent',
   argentEventLogPath: '/argent/events',
+  serveSimLogPath: '/logs/serve-sim.log',
   preinstalledExpoGo: { bundleIdentifier: 'host.exp.Exponent', shortVersion: '2.0', version: '1' },
 };
 
@@ -253,10 +254,13 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
     env: { ...env, HOME: '/Users/expo' },
     logger,
   });
+  expect(spawnDetached).not.toHaveBeenCalled();
+  session?.forwardServerLogs?.(previewLogger);
   expect(spawnDetached).toHaveBeenCalledWith(
     expect.objectContaining({
+      logger: previewLogger,
       command: '/usr/bin/tail',
-      args: ['-n', '0', '-F', '/Users/expo/Library/Logs/vm-tools.log'],
+      args: ['-n', '0', '-F', '/logs/serve-sim.log'],
       secrets: ['serve-token'],
     })
   );
@@ -271,13 +275,68 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
   expect(stopReader).toHaveBeenCalledTimes(1);
 });
 
+it('forwards new agent-device daemon logs with its token redacted and stops both readers', async () => {
+  const stopServerReader = jest.fn().mockRejectedValue(new Error('server reader failed'));
+  const stopDaemonReader = jest.fn().mockRejectedValue(new Error('daemon reader failed'));
+  jest
+    .mocked(spawnDetached)
+    .mockReturnValueOnce({
+      pid: 99,
+      getOutput: () => 'server output',
+      getExitError: () => undefined,
+      stopAsync: stopServerReader,
+    })
+    .mockReturnValueOnce({
+      pid: 100,
+      getOutput: () => 'daemon output',
+      getExitError: () => undefined,
+      stopAsync: stopDaemonReader,
+    });
+  jest
+    .spyOn(fs, 'readFile')
+    .mockResolvedValue(JSON.stringify({ pid: 20, httpPort: 4310, token: 'agent-token' }));
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'agent-device', env, logger });
+  session?.forwardServerLogs?.(previewLogger);
+  expect(spawnDetached).toHaveBeenCalledTimes(1);
+  await session!.prepareToolsAsync();
+  expect(spawnDetached).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      command: '/usr/bin/tail',
+      args: ['-n', '0', '-F', '/agent/daemon.log'],
+      logger,
+      secrets: ['serve-token', 'agent-token'],
+    })
+  );
+  expect(session!.process.getOutput()).toBe('server output\ndaemon output');
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+  expect(stopServerReader).toHaveBeenCalledTimes(1);
+  expect(stopDaemonReader).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith('Could not stop forwarding agent-device daemon logs.');
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+  expect(stopDaemonReader).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a prepared agent-device session when its daemon log reader cannot start', async () => {
+  jest
+    .spyOn(fs, 'readFile')
+    .mockResolvedValue(JSON.stringify({ pid: 20, httpPort: 4310, token: 'agent-token' }));
+  jest.mocked(spawnDetached).mockImplementationOnce(() => {
+    throw new Error('tail unavailable');
+  });
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'agent-device', env, logger });
+  await expect(session!.prepareToolsAsync()).resolves.toBeUndefined();
+  expect(logger.warn).toHaveBeenCalledWith('Could not forward agent-device daemon logs.');
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
 it('keeps the claimed Simulator when its server log reader cannot start', async () => {
   jest.mocked(spawnDetached).mockImplementation(() => {
     throw new Error('tail unavailable');
   });
   const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  session?.forwardServerLogs?.(previewLogger);
   expect(session?.server).toEqual({ pid: 10, port: 3200, token: 'serve-token' });
-  expect(logger.warn).toHaveBeenCalledWith('Could not forward warm Simulator server logs.');
+  expect(previewLogger.warn).toHaveBeenCalledWith('Could not forward warm Simulator server logs.');
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });
 
@@ -295,56 +354,29 @@ it.each([false, true])(
       jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('Simulator cleanup failed'));
     }
     const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+    session?.forwardServerLogs?.(previewLogger);
     if (cleanupFails) {
       await expect(session!.process.stopAsync()).rejects.toThrow('Simulator cleanup failed');
     } else {
       await expect(session!.process.stopAsync()).resolves.toBeUndefined();
     }
-    expect(logger.warn).toHaveBeenCalledWith(
+    expect(previewLogger.warn).toHaveBeenCalledWith(
       'Could not stop forwarding warm Simulator server logs.'
     );
     expect(stopReader).toHaveBeenCalledTimes(1);
   }
 );
 
-it('forwards warm Argent console output with prepared and adoption credentials redacted', async () => {
-  let output: ReturnType<typeof createProcessOutput> | undefined;
-  const stopReader = jest.fn(async () => {
-    output!.stderr.append('Argent stopped argent-token');
-    output!.finish();
-  });
-  jest.mocked(spawnDetached).mockImplementation(({ secrets }) => {
-    output = createProcessOutput(logger, secrets);
-    return {
-      pid: 99,
-      getOutput: output.getOutput,
-      getExitError: () => undefined,
-      stopAsync: stopReader,
-    };
-  });
+it('adopts an older launcher without forwarding its mixed console log', async () => {
   jest
     .mocked(runSimulatorLauncherAsync)
-    .mockImplementation(async ([command]) =>
-      JSON.stringify(
-        command === 'claim' ? claim : { tools: { pid: 30, port: 3201, token: 'argent-token' } }
-      )
-    );
-  const session = await tryClaimWarmIosSessionAsync({ engine: 'argent', env, logger });
-  session!.redactLogs!(['adoption-secret']);
-  await session!.prepareToolsAsync();
-  output!.stdout.append('Argent diagnostic serve-token argent-token adoption-secret\n');
-  expect(session!.process.getOutput()).toBe('Argent diagnostic [REDACTED] [REDACTED] [REDACTED]\n');
-  await session!.process.stopAsync();
-  expect(session!.process.getOutput()).toContain('Argent stopped [REDACTED]');
-  expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toMatch(
-    /serve-token|argent-token|adoption-secret/
+    .mockResolvedValue(JSON.stringify({ ...claim, serveSimLogPath: undefined }));
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  expect(session).toBeDefined();
+  session!.forwardServerLogs!(previewLogger);
+  expect(previewLogger.warn).toHaveBeenCalledWith(
+    'The warm launcher does not provide a separate Simulator server log.'
   );
-  expect(stopReader).toHaveBeenCalledTimes(1);
-  // The shared console reader must not also tail Argent's structured-event file.
-  expect(spawnDetached).toHaveBeenCalledTimes(1);
-  expect(spawnDetached).toHaveBeenCalledWith(
-    expect.objectContaining({
-      args: ['-n', '0', '-F', expect.stringContaining('Library/Logs/vm-tools.log')],
-    })
-  );
+  expect(spawnDetached).not.toHaveBeenCalled();
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });
