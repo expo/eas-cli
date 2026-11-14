@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { copyFile, rm } from 'node:fs/promises';
+import { copyFile, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 import { runServeSimActionWithResultAsync } from './serveSimActions';
@@ -50,7 +50,17 @@ export function createServeSimPreviewCapture({
       try {
         signal.throwIfAborted();
         const captured = result.trim();
-        if (!path.isAbsolute(captured) || path.normalize(captured) !== staged) {
+        // serve-sim stages under its resolved temp dir, and on macOS $TMPDIR is behind a symlink
+        // (/var -> /private/var). Accept the file this capture requested in either spelling.
+        const resolvedStaged = path.join(
+          await realpath(tmpdir).catch(() => tmpdir),
+          'serve-sim-screenshots',
+          fileName
+        );
+        if (
+          !path.isAbsolute(captured) ||
+          ![staged, resolvedStaged].includes(path.normalize(captured))
+        ) {
           throw new Error('serve-sim returned an unexpected screenshot path.');
         }
         await copyFile(captured, destination);

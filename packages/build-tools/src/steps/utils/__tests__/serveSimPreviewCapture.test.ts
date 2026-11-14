@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -168,3 +168,21 @@ it.each(['/tmp/unowned.png', '../unowned.png', ''])(
     expect(await readdir(staging)).toEqual([]);
   }
 );
+
+it('accepts the resolved staging path when the temp dir is behind a symlink', async () => {
+  const real = await mkdtemp(path.join(os.tmpdir(), 'host-tmp-real-'));
+  const link = `${real}-link`;
+  await symlink(real, link);
+  // serve-sim resolves its temp dir before it returns the staged path.
+  const resolvedStaging = path.join(await realpath(real), 'serve-sim-screenshots');
+  await mkdir(resolvedStaging, { recursive: true });
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
+    const returned = path.join(resolvedStaging, request.params.fileName as string);
+    await writeFile(returned, png);
+    return returned;
+  });
+  const capture = createServeSimPreviewCapture({ ...options, tmpdir: link });
+  await capture.captureAsync(destination, signal);
+  expect(await readFile(destination)).toEqual(png);
+  expect(await readdir(resolvedStaging)).toEqual([]);
+});
