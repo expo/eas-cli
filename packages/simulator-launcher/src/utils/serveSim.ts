@@ -9,6 +9,8 @@ import { type ChildProcessHandle, commands, isProcessOwnedByServiceAsync } from 
 import { type WarmServer } from './state';
 
 const SERVE_SIM_READY_TIMEOUT_MS = 120_000;
+export const getServeSimLogPath = (): string =>
+  path.join(os.homedir(), 'Library/Logs/expo-simulator-startup/serve-sim.log');
 // The job needs the token from this file; /readyz itself is not token-gated.
 const ServeSimStateSchema = z.object({
   pid: z.number().int().min(2),
@@ -51,7 +53,7 @@ export function startServeSim(
       '--quiet',
     ],
     // The orphan owns boot, device selection and its native children for this VM's job.
-    { detached: true }
+    { detached: true, logPath: getServeSimLogPath() }
   );
 }
 
@@ -71,7 +73,9 @@ export async function waitForServeSimReadyAsync(
   void server.resultPromise.then(markExited, markExited);
   const throwIfExited = (): void => {
     if (exited || server.child.exitCode != null || server.child.signalCode != null) {
-      throw new Error(`serve-sim exited before ${udid} became ready.`);
+      throw new Error(
+        `serve-sim exited before ${udid} became ready. Console log: ${getServeSimLogPath()}`
+      );
     }
   };
   const stateDirectory = process.env.SERVE_SIM_STATE_DIR || path.join(os.tmpdir(), 'serve-sim');
@@ -81,7 +85,9 @@ export async function waitForServeSimReadyAsync(
     signal.throwIfAborted();
     throwIfExited();
     if (Date.now() >= deadline) {
-      throw new Error(`Timed out waiting for serve-sim on ${udid} to become ready.`);
+      throw new Error(
+        `Timed out waiting for serve-sim on ${udid} to become ready. Console log: ${getServeSimLogPath()}`
+      );
     }
     const state = await fs
       .readFile(stateFile, 'utf8')

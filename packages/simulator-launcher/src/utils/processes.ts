@@ -1,4 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 export type ChildProcessHandle = {
@@ -17,18 +19,49 @@ export const commands = {
       signal,
       captureStdout = false,
       detached = false,
+      logPath,
     }: {
       signal?: AbortSignal;
       captureStdout?: boolean;
       /** Lead a new process group so cleanup can stop children that respawn. */
       detached?: boolean;
+      /** Private console output for a service that a worker adopts later. */
+      logPath?: string;
     } = {}
   ): ChildProcessHandle {
-    const child = spawn(file, args, {
-      stdio: captureStdout ? ['ignore', 'pipe', 'inherit'] : 'inherit',
-      signal,
-      detached,
-    });
+    let logFd: number | undefined;
+    let child: ChildProcess;
+    try {
+      if (logPath) {
+        if (captureStdout) {
+          throw new Error('A command cannot capture stdout and write a service log.');
+        }
+        fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o700 });
+        logFd = fs.openSync(
+          logPath,
+          fs.constants.O_WRONLY |
+            fs.constants.O_CREAT |
+            fs.constants.O_APPEND |
+            fs.constants.O_NOFOLLOW,
+          0o600
+        );
+        fs.fchmodSync(logFd, 0o600);
+      }
+      child = spawn(file, args, {
+        stdio:
+          logFd === undefined
+            ? captureStdout
+              ? ['ignore', 'pipe', 'inherit']
+              : 'inherit'
+            : ['ignore', logFd, logFd],
+        signal,
+        detached,
+      });
+    } finally {
+      if (logFd !== undefined) {
+        fs.closeSync(logFd);
+      }
+    }
     let stdout = '';
     let error: Error | undefined;
     let closeDrainTimer: NodeJS.Timeout | undefined;

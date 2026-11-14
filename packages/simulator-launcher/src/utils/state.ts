@@ -49,6 +49,7 @@ export const WarmSessionInfoSchema = z.object({
   controllerStartTime: NonBlankStringSchema,
   agentDeviceStateDir: NonBlankStringSchema,
   argentEventLogPath: NonBlankStringSchema,
+  serveSimLogPath: NonBlankStringSchema.optional(),
 });
 export const LauncherStateSchema = WarmSessionInfoSchema.partial().extend({
   bootUuid: NonBlankStringSchema,
