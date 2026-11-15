@@ -39,6 +39,18 @@ export default class Log {
     Log.consoleLog(...Log.withTextColor(args, chalk.red));
   }
 
+  public static errorToStderr(...args: any[]): void {
+    Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
+    console.error(...Log.withTextColor(args, chalk.stderr.red));
+  }
+
+  public static warnToStderr(...args: any[]): void {
+    Log.updateIsLastLineNewLine(args);
+    // eslint-disable-next-line no-console
+    console.error(...Log.withTextColor(args, chalk.stderr.yellow));
+  }
+
   public static warn(...args: any[]): void {
     Log.consoleLog(...Log.withTextColor(args, chalk.yellow));
   }

@@ -25,6 +25,7 @@ import {
   EasBuildProjectArchiveUploadError,
   EasBuildResourceClassNotAvailableInFreeTierError,
   EasBuildTooManyPendingBuildsError,
+  EasBuildUnauthorizedError,
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
@@ -33,11 +34,6 @@ import {
   getFreeTierLimitCheckoutExperiment,
   maybeOfferFreeTierLimitCheckoutAsync,
 } from './freeTierLimitCheckout';
-import {
-  FreeTierLimitAgentGuidanceExperiment,
-  getFreeTierLimitAgentGuidanceExperiment,
-  maybeAppendFreeTierLimitAgentGuidanceAsync,
-} from './freeTierLimitGuidance';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import {
@@ -47,6 +43,7 @@ import {
   logSourceForBuild,
 } from './logs';
 import { collectMetadataAsync } from './metadata';
+import { resolveJobExpoTokenRole } from './utils/expoTokenRole';
 import { printDeprecationWarnings } from './utils/printBuildInfo';
 import {
   LocalFile,
@@ -130,6 +127,7 @@ function resolveBuildParamsInput<T extends Platform>(
     resourceClass: ctx.resourceClass,
     sdkVersion: metadata.sdkVersion,
     reactNativeVersion: metadata.reactNativeVersion,
+    expoTokenRole: resolveJobExpoTokenRole(ctx.buildProfile),
   };
 }
 
@@ -233,7 +231,6 @@ export async function prepareBuildRequestForPlatformAsync<
           error,
           job.platform,
           ctx.accountName,
-          getFreeTierLimitAgentGuidanceExperiment(ctx),
           getFreeTierLimitCheckoutExperiment(ctx)
         );
       }
@@ -260,7 +257,6 @@ export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
   accountName?: string,
-  freeTierLimitAgentGuidanceExperiment?: FreeTierLimitAgentGuidanceExperiment,
   freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
 ): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
@@ -280,11 +276,7 @@ export async function handleBuildRequestErrorAsync(
     if (!isFreeTierLimitError) {
       throw new ErrorClass(message);
     }
-    const limitMessage = await maybeAppendFreeTierLimitAgentGuidanceAsync(
-      `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`,
-      platform,
-      freeTierLimitAgentGuidanceExperiment
-    );
+    const limitMessage = `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`;
     const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
       limitMessage,
       freeTierLimitCheckoutExperiment
@@ -299,6 +291,17 @@ export async function handleBuildRequestErrorAsync(
   } else if (graphQLErrorCode === 'EAS_BUILD_TOO_MANY_PENDING_BUILDS') {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
+    );
+  } else if (graphQLErrorCode === 'UNAUTHORIZED') {
+    const requestId = graphQLErrors[0]?.extensions?.requestId;
+    throw new EasBuildUnauthorizedError(
+      `${graphQLErrors[0]?.message}${requestId ? `\nRequest ID: ${requestId}` : ''}\n\nRun ${chalk.bold(
+        'eas whoami'
+      )} to check the user you are logged in as and your permission grant. Run ${chalk.bold(
+        'eas login'
+      )} to change the user or permission grant.\n\nIf your build profile in eas.json uses ${chalk.bold(
+        'permissions.account.role'
+      )}, it may mean your credentials do not grant the requested role.`
     );
   } else if (Array.isArray(error?.graphQLErrors)) {
     const errorDetails = formatBuildRequestErrorDetails(error, graphQLErrors);

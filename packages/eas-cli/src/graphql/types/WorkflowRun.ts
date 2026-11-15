@@ -22,6 +22,7 @@ export const WorkflowRunFragmentNode = gql`
     triggeringSchedule
     createdAt
     updatedAt
+    finalizedAt
     errors {
       title
       message

@@ -53,7 +53,7 @@ jest.mock('../../steps/utils/android/gradleConfig', () => ({
   injectCredentialsGradleConfig: jest.fn(),
 }));
 jest.mock('../../utils/artifacts', () => ({
-  uploadApplicationArchive: jest.fn(),
+  uploadApplicationArchive: jest.fn(async () => []),
 }));
 jest.mock('../../utils/expoUpdates', () => ({
   configureExpoUpdatesIfInstalledAsync: jest.fn(),

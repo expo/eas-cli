@@ -1,6 +1,5 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import turtleSpawn from '@expo/turtle-spawn';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs/promises';
@@ -13,6 +12,7 @@ import { type AgentCli, type AgentInvocation, type AgentLogMessage } from './age
 import { CLAUDE_CODE_CLI, prepareClaudeCodeAsync } from './agents/claude';
 import { CODEX_CLI, prepareCodexAsync } from './agents/codex';
 import { Sentry } from '../../sentry';
+import { installIsolatedNpmPackageAsync } from '../../utils/installIsolatedNpmPackageAsync';
 import { killProcessGroup } from '../../utils/processes';
 
 export type AgentKind = 'claude-code' | 'codex';
@@ -76,17 +76,13 @@ export async function runAgentAsync({
     const { packageSpec, bin, formatOutputLine } = AGENT_CLIS[agentKind];
     logger.info(`Installing ${packageSpec}.`);
     try {
-      await turtleSpawn(
-        'npm',
-        [
-          'install',
-          ...['--prefix', cliDirectory],
-          ...['--no-save', '--package-lock=false', '--no-audit', '--no-fund'],
-          ...(npmCacheUrl ? ['--registry', npmCacheUrl] : []),
-          packageSpec,
-        ],
-        { env: minimalEnv, signal }
-      );
+      await installIsolatedNpmPackageAsync({
+        packageSpec,
+        directory: cliDirectory,
+        npmCacheUrl,
+        pathEnv,
+        signal,
+      });
     } catch (error) {
       signal.throwIfAborted();
       throw new SystemError(

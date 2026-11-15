@@ -56,10 +56,10 @@ class RemoteLoggerStream extends Writable {
     return null;
   }
 
-  public async init(): Promise<string> {
+  public async init(): Promise<void> {
     this.fileHandle = await fs.open(this.temporaryLogsPath, 'w+', 0o660);
     this.flushInterval = setInterval(() => this.flush(), this.options.uploadIntervalMs);
-    return (await this.flush(true)) as string;
+    await this.flush(true);
   }
 
   public async cleanUp(): Promise<void> {
@@ -121,17 +121,18 @@ class RemoteLoggerStream extends Writable {
     }
   }
 
-  private async flush(force = false): Promise<string | void> {
+  private async flush(force = false): Promise<void> {
     if (force || this.hasChangesToUpload) {
       if (this.uploadingPromise) {
         await this.uploadingPromise;
-        return await this.flush(force);
+        await this.flush(force);
+        return;
       }
-      return await this.flushInternal();
+      await this.flushInternal();
     }
   }
 
-  private async flushInternal(): Promise<string | void> {
+  private async flushInternal(): Promise<void> {
     await this.safeWriteToFile();
 
     let resolveFn: PromiseResolveFn;
@@ -139,21 +140,17 @@ class RemoteLoggerStream extends Writable {
     this.uploadingPromise = new Promise(res => {
       resolveFn = res;
     });
-    return await this.upload()
-      .then(result => {
-        return result;
-      })
+    await this.upload()
       .catch(err => {
         this.logger.error({ err }, 'Failed to upload logs file');
       })
-      .then(result => {
+      .then(() => {
         this.uploadingPromise = undefined;
         resolveFn();
-        return result;
       });
   }
 
-  private async upload(): Promise<string | void> {
+  private async upload(): Promise<void> {
     if (!this.uploadMethod) {
       return;
     }
@@ -165,7 +162,7 @@ class RemoteLoggerStream extends Writable {
       );
     };
 
-    return await uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl: this.uploadMethod.signedUrl,
       srcGeneratorAsync,
     });

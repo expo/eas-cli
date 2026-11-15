@@ -11,9 +11,14 @@ import {
   formatSimulatorUnavailableMessage,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 export default class SimulatorAvailability extends EasCommand {
-  static override aliases = ['sim:availability'];
+  static override aliases = getSimulatorCommandAliases('availability');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('availability');
   static override description =
     '[EXPERIMENTAL] check whether EAS Simulator is enabled for the current project account';
 

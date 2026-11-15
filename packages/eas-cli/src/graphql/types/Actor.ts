@@ -24,6 +24,9 @@ export const MeActorFragmentNode = gql`
     }
     ... on PartnerActor {
       username
+      primaryAccount {
+        id
+      }
     }
     featureGates
     isExpoAdmin

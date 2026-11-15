@@ -142,6 +142,17 @@ RSpec.describe ExpoCocoaPodsProxy do
       downloader.download_file(path.to_s)
     end
 
+    it 'fetches Sonatype snapshot artifacts via proxy' do
+      path = Pathname.new('some/fake/path')
+      url = 'https://central.sonatype.com/repository/maven-snapshots/com/facebook/react/react-native-artifacts/0.82.0-SNAPSHOT/maven-metadata.xml'
+      opts = {}
+      downloader = Pod::Downloader::Http.new(path, url, opts)
+
+      expect(downloader).to receive(:download_file_via_proxy).once {}
+
+      downloader.download_file(path.to_s)
+    end
+
     it 'does not proxy when url doesn\'t match an allowlist regex' do
       path = Pathname.new('some/fake/path')
       url = 'https://not-github.com/expo/test-repo/archive/main.tar.gz'

@@ -5,12 +5,12 @@ import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   DEVICE_RUN_SESSION_TOKEN_HEADER,
   DeviceRunSessionWorkerApi,
-  DeviceRunSessionWorkerApiError,
   getDeviceRunSessionWorkerApi,
   requireDeviceRunSessionWorkerApi,
 } from '../deviceRunSessionWorkerApi';
 
 jest.mock('../../../utils/turtleFetch');
+jest.unmock('node-fetch');
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 type Response = InstanceType<typeof Response>;
@@ -52,23 +52,6 @@ describe(getDeviceRunSessionWorkerApi, () => {
     const api = getDeviceRunSessionWorkerApi({
       env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN, __API_SERVER_URL: 'https://other.expo.test' },
       expoApiV2BaseUrl: BASE_URL,
-    } as unknown as CustomBuildContext);
-
-    await api!.getSessionAsync();
-
-    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      'https://api.expo.test/v2/device-run-session-worker/session',
-      'GET',
-      expect.anything()
-    );
-  });
-
-  it('derives the API v2 base URL from __API_SERVER_URL when the context has none', async () => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'in-progress' } }));
-    const api = getDeviceRunSessionWorkerApi({
-      env: { EAS_DEVICE_RUN_SESSION_TOKEN: TOKEN, __API_SERVER_URL: 'https://api.expo.test' },
     } as unknown as CustomBuildContext);
 
     await api!.getSessionAsync();
@@ -262,102 +245,8 @@ describe(DeviceRunSessionWorkerApi, () => {
   it('rejects an application response without the build field', async () => {
     jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { platform: 'ios' } }));
 
-    await expect(createApi().getApplicationAsync()).rejects.toThrow(
+    await expect(createApi().getApplicationAsync({ retries: 3 })).rejects.toThrow(
       'GET /v2/device-run-session-worker/application returned an unexpected response'
-    );
-  });
-
-  it('passes the signal, timeout, and retries to the request', async () => {
-    jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data: { iceServers: [] } }));
-    const controller = new AbortController();
-
-    await createApi().fetchTurnIceServersAsync({
-      signal: controller.signal,
-      timeoutMs: 5000,
-      retries: 1,
-    });
-
-    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
-      expect.any(String),
-      'POST',
-      expect.objectContaining({ signal: controller.signal, timeout: 5000, retries: 1 })
-    );
-  });
-
-  it('reports the API v2 error message and status without the token', async () => {
-    jest.mocked(turtleFetch).mockResolvedValueOnce(
-      jsonResponse(
-        {
-          errors: [
-            {
-              code: 'UNAUTHORIZED_ERROR',
-              message: 'This device run session no longer accepts worker requests.',
-            },
-          ],
-        },
-        403
-      )
-    );
-
-    const error = await createApi()
-      .stopAsync()
-      .catch(err => err);
-
-    expect(error).toBeInstanceOf(DeviceRunSessionWorkerApiError);
-    expect(error.status).toBe(403);
-    expect(error.message).toBe(
-      'POST /v2/device-run-session-worker/stop failed with status 403: This device run session no longer accepts worker requests.'
-    );
-    expect(error.message).not.toContain(TOKEN);
-  });
-
-  it('reports the status text when the error response is not an API v2 error', async () => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(
-        new Response('<html>bad gateway</html>', { status: 502, statusText: 'Bad Gateway' })
-      );
-
-    const error = await createApi()
-      .getSessionAsync()
-      .catch(err => err);
-
-    expect(error).toBeInstanceOf(DeviceRunSessionWorkerApiError);
-    expect(error.status).toBe(502);
-    expect(error.message).toBe(
-      'GET /v2/device-run-session-worker/session failed with status 502: Bad Gateway'
-    );
-  });
-
-  it('reports a request that failed before www responded', async () => {
-    const reason = new Error('socket hang up');
-    jest.mocked(turtleFetch).mockRejectedValueOnce(reason);
-
-    const error = await createApi()
-      .getSessionAsync()
-      .catch(err => err);
-
-    expect(error).toBeInstanceOf(DeviceRunSessionWorkerApiError);
-    expect(error.status).toBeUndefined();
-    expect(error.cause).toBe(reason);
-    expect(error.message).toContain('failed before www responded: socket hang up');
-  });
-
-  it('rejects a response that does not match the route contract', async () => {
-    jest
-      .mocked(turtleFetch)
-      .mockResolvedValueOnce(jsonResponse({ data: { id: 'drs-id', status: 'STOPPED' } }));
-
-    await expect(createApi().getSessionAsync()).rejects.toThrow(
-      'GET /v2/device-run-session-worker/session returned an unexpected response'
-    );
-  });
-
-  it('rejects a successful response that is not JSON', async () => {
-    jest.mocked(turtleFetch).mockResolvedValueOnce(new Response('ok', { status: 200 }));
-
-    await expect(createApi().getSessionAsync()).rejects.toThrow(
-      'GET /v2/device-run-session-worker/session returned a response that is not JSON.'
     );
   });
 });

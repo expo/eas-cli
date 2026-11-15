@@ -1,5 +1,99 @@
 # @expo/build-tools
 
+## 27.5.0
+
+### Patch Changes
+
+- Stop an agent-device session that is still starting up when it is stopped. ([#4666](https://github.com/expo/eas-cli/pull/4666) by [@gwdp](https://github.com/gwdp))
+- Stop an Appium session that is still starting up when it is stopped. ([#4668](https://github.com/expo/eas-cli/pull/4668) by [@gwdp](https://github.com/gwdp))
+  Report temporary-directory cleanup failures when Stop interrupts Appium installation.
+- Stop an Argent session that is still starting up when it is stopped. ([#4667](https://github.com/expo/eas-cli/pull/4667) by [@gwdp](https://github.com/gwdp))
+- Use the sandbox worker token for sandbox jobs when www provides one, and keep Expo credentials out of the commands of those jobs. ([#4807](https://github.com/expo/eas-cli/pull/4807) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Stop a web-preview session that is still starting up when it is stopped. ([#4669](https://github.com/expo/eas-cli/pull/4669) by [@gwdp](https://github.com/gwdp))
+
+## 27.4.1
+
+### Patch Changes
+
+- Wait for a starting warm Simulator launcher before claiming its session, instead of falling back to a cold start. ([#4810](https://github.com/expo/eas-cli/pull/4810) by [@gwdp](https://github.com/gwdp))
+
+## 27.4.0
+
+### Minor Changes
+
+- Add `eas/start_warm_appium_remote_session`, which runs the Appium session on the warm Simulator, or starts cold. An `appium` claim stops the unused tools first, so WDA does not share the Simulator with the agent-device runner. ([#4735](https://github.com/expo/eas-cli/pull/4735) by [@gwdp](https://github.com/gwdp))
+- Add warm iOS session steps (`eas/start_warm_serve_sim_remote_session`, `eas/start_warm_agent_device_session`, `eas/start_warm_argent_remote_session`). They run the existing session on the warm Simulator, or start cold. `eas/start_agent_device_session` also accepts `install_app_path` and `launch_app_identifier`. ([#4723](https://github.com/expo/eas-cli/pull/4723) by [@gwdp](https://github.com/gwdp))
+- Update the app version and build number from the final application archive, so the build shows the values the native build resolved. ([#3499](https://github.com/expo/eas-cli/pull/3499) by [@kadikraman](https://github.com/kadikraman))
+
+### Patch Changes
+
+- Upload the final agent-device session artifacts before stopping the daemon, including sessions that reuse a warm Simulator. ([#4750](https://github.com/expo/eas-cli/pull/4750) by [@gwdp](https://github.com/gwdp))
+- Add internal helpers that claim the warm Simulator through the launcher and adopt it on the warm serve-sim. Skip the Expo Go install when the warm Simulator already has the same Expo Go version. ([#4724](https://github.com/expo/eas-cli/pull/4724) by [@gwdp](https://github.com/gwdp))
+- Recover warm Simulator recordings when their MP4 exists before the shutdown manifest is ready. ([#4789](https://github.com/expo/eas-cli/pull/4789) by [@gwdp](https://github.com/gwdp))
+
+## 27.3.0
+
+### Patch Changes
+
+- Stop warmup in the background for jobs that do not use the warm Simulator, so job setup does not wait for it. Before build-tools boots or clones a Simulator, it waits until the launcher's state file records that cleanup finished, and fails if cleanup does not finish in time. ([#4721](https://github.com/expo/eas-cli/pull/4721) by [@gwdp](https://github.com/gwdp))
+- Recover unhealthy device-session tunnels without changing their URLs and block further traffic when shutdown starts, even if ngrok cleanup times out. ([#4526](https://github.com/expo/eas-cli/pull/4526) by [@gwdp](https://github.com/gwdp))
+- Stop sending the SSH host when registering an SSH session. ([#4784](https://github.com/expo/eas-cli/pull/4784) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.2.0
+
+### Minor Changes
+
+- Use single-device previews when the session already has a valid device ID. ([#4733](https://github.com/expo/eas-cli/pull/4733) by [@gwdp](https://github.com/gwdp))
+
+### Patch Changes
+
+- Explain missing background task identifiers reported by App Store Connect. ([#3465](https://github.com/expo/eas-cli/pull/3465) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain App Store Connect NOT_AUTHORIZED responses in the shared API client. ([#3462](https://github.com/expo/eas-cli/pull/3462) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain App Store Connect UNEXPECTED_ERROR responses in the shared API client. ([#3467](https://github.com/expo/eas-cli/pull/3467) by [@sjchmiela](https://github.com/sjchmiela))
+- Explain missing app icons reported by App Store Connect, including codes 90022 and 90023, while preserving Apple’s validation details. ([#3466](https://github.com/expo/eas-cli/pull/3466) by [@sjchmiela](https://github.com/sjchmiela))
+- List failed Google Play commit attempts in order, including network failures, when the outcome is uncertain. ([#4660](https://github.com/expo/eas-cli/pull/4660) by [@sjchmiela](https://github.com/sjchmiela))
+- Fix a five-minute cleanup delay when a device session is canceled during startup and its screen recorder fails before connecting. ([#4761](https://github.com/expo/eas-cli/pull/4761) by [@gwdp](https://github.com/gwdp))
+- Handle TURN requests for a stopped device session without reporting a warning. ([#4762](https://github.com/expo/eas-cli/pull/4762) by [@gwdp](https://github.com/gwdp))
+- Preserve indented and incomplete Xcode compiler errors in formatted build logs, including the final diagnostic when logging stops. ([#4365](https://github.com/expo/eas-cli/pull/4365) by [@sjchmiela](https://github.com/sjchmiela))
+
+## 27.1.0
+
+### Patch Changes
+
+- Explain App Store Connect error 90189 as a duplicate build number. ([#3461](https://github.com/expo/eas-cli/pull/3461) by [@sjchmiela](https://github.com/sjchmiela))
+- Put the `NPM_TOKEN` registry credential in the builder's npm user config on EAS Build (`~/.npmrc`, or the file `NPM_CONFIG_USERCONFIG` names), where pnpm 10.34.2+ and 11.5.3+ still expand `${NPM_TOKEN}` (they ignore it in a project-level `.npmrc`). Explain what to change when the project's pnpm version needs a newer Node.js than the build runs, including when eas.json sets `node` or `pnpm`. ([#4729](https://github.com/expo/eas-cli/pull/4729) by [@hSATAC](https://github.com/hSATAC))
+- Install `@expo/repack-app` for the `eas/repack` step with npm in a sandbox that sees only `PATH` and its own `HOME`, so the build machine's npm and Yarn configuration cannot break the install, fetch it through the EAS npm cache when the job uses one, and show the installer output in the build log. The step no longer looks the version up separately before installing. When the npm cache fails, the install retries against the public registry like the project install does; the `eas/run_agent` agent CLI install shares the same helper and gains the same retry. ([#4728](https://github.com/expo/eas-cli/pull/4728) by [@hSATAC](https://github.com/hSATAC))
+
+## 27.0.0
+
+### Patch Changes
+
+- Keep the launched app open when an Appium iOS session starts. ([#4699](https://github.com/expo/eas-cli/pull/4699) by [@gwdp](https://github.com/gwdp))
+- Run Appium through the prepared Full Disk Access helper when available on macOS. ([#4622](https://github.com/expo/eas-cli/pull/4622) by [@gwdp](https://github.com/gwdp))
+- Identify the build or application archive when a download fails, and explain when the archive is no longer available. ([#4703](https://github.com/expo/eas-cli/pull/4703) by [@gwdp](https://github.com/gwdp))
+- Run apsd setup in the background without delaying iOS app launch or preview readiness. ([#4706](https://github.com/expo/eas-cli/pull/4706) by [@gwdp](https://github.com/gwdp))
+- Handle a device session stopped during startup as normal cleanup instead of reporting a startup error. ([#4716](https://github.com/expo/eas-cli/pull/4716) by [@gwdp](https://github.com/gwdp))
+- Support idle timeouts for iOS web-preview-only sessions, resetting the timer when preview input arrives. ([#4731](https://github.com/expo/eas-cli/pull/4731) by [@gwdp](https://github.com/gwdp))
+
+## 26.0.0
+
+### Major Changes
+
+- Remove legacy artifact type exports and route workflow uploads through workflow storage without file-type categories. Preserve workflow uploads and Maestro reports. ([#4719](https://github.com/expo/eas-cli/pull/4719) by [@sjchmiela](https://github.com/sjchmiela))
+
+### Minor Changes
+
+- Stop sandboxes after an optional maximum duration measured from readiness. ([#4702](https://github.com/expo/eas-cli/pull/4702) by [@sjchmiela](https://github.com/sjchmiela))
+- Unify signed URL uploading to a single implementation and use it everywhere. ([#4712](https://github.com/expo/eas-cli/pull/4712) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### Patch Changes
+
+- Default Android emulators to 4 GiB of RAM to reduce ADB disconnects during large transfers. Retain the 2 GiB default for API 34 and below outside interactive device sessions, and preserve explicit emulator configuration overrides. ([#4727](https://github.com/expo/eas-cli/pull/4727) by [@sjchmiela](https://github.com/sjchmiela))
+- Export `validateAndroidLaunchOptions` and `quoteAndroidShellCommand` from `@expo/eas-build-job`, so Android launch arguments can be checked for NUL characters and length before a simulator session starts, and check them before the emulator boots in agent-device sessions. ([#4696](https://github.com/expo/eas-cli/pull/4696) by [@brentvatne](https://github.com/brentvatne))
+- Retry transient failures when reporting that a device run session has started. ([#4680](https://github.com/expo/eas-cli/pull/4680) by [@gwdp](https://github.com/gwdp))
+- Retry the build lookup and the archive download of `eas/download_build` on transient failures, and name the failure cause in the build log. ([#4690](https://github.com/expo/eas-cli/pull/4690) by [@hSATAC](https://github.com/hSATAC))
+- Stop printing workflow hook parsing messages in build logs: native builds showed them under an "Unknown build phase" group, and custom builds warned about unknown hook keys and hooks on steps that never run. ([#4717](https://github.com/expo/eas-cli/pull/4717) by [@hSATAC](https://github.com/hSATAC))
+
 ## 25.3.0
 
 ### Minor Changes

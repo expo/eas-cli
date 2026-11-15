@@ -5,6 +5,7 @@ import {
   Hook,
   findAndUploadXcodeBuildLogsAsync,
   getDeviceRunSessionTokenFromEnvironmentSecrets,
+  getSandboxWorkerTokenFromEnvironmentSecrets,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
@@ -286,6 +287,9 @@ export default class BuildService {
       const deviceRunSessionToken = getDeviceRunSessionTokenFromEnvironmentSecrets(
         job.secrets?.environmentSecrets
       );
+      const sandboxWorkerToken = getSandboxWorkerTokenFromEnvironmentSecrets(
+        job.secrets?.environmentSecrets
+      );
       if (!job.platform && deviceRunSessionToken) {
         // A device run session job reports metrics with its session token, which names the
         // session and its job run, so it does not need the account-wide robot access token.
@@ -293,6 +297,12 @@ export default class BuildService {
           expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
           deviceRunSessionToken,
           target: { kind: 'deviceRunSession' },
+        });
+      } else if (!job.platform && sandboxWorkerToken) {
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          sandboxWorkerToken,
+          target: { kind: 'sandbox' },
         });
       } else if (robotAccessToken) {
         Datadog.setup({

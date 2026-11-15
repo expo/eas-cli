@@ -1,6 +1,7 @@
 import { BuildMode, BuildPhase, Platform, Workflow, errors } from '@expo/eas-build-job';
 
 import { ErrorHandler, XCODE_BUILD_PHASE } from './errors.types';
+import { pnpmUnsupportedNodeVersionErrorHandler } from './pnpmUnsupportedNodeVersionError';
 
 import UserError = errors.UserError;
 
@@ -211,6 +212,7 @@ You are seeing this error because either:
       return undefined;
     },
   },
+  pnpmUnsupportedNodeVersionErrorHandler,
   {
     platform: Platform.IOS,
     phase: XCODE_BUILD_PHASE,

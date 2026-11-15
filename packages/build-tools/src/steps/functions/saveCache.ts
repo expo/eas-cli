@@ -11,6 +11,7 @@ import path from 'path';
 import * as tar from 'tar';
 import z from 'zod';
 
+import { uploadWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { formatBytes } from '../../utils/artifacts';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { getCacheVersion } from '../utils/cache';
@@ -161,16 +162,13 @@ export async function uploadCacheAsync({
 
   logger.info(`Uploading cache...`);
 
-  const uploadResponse = await retryOnDNSFailure(fetch)(new URL(url), {
-    method: 'PUT',
-    headers,
-    body: fs.createReadStream(archivePath),
-  });
-  if (!uploadResponse.ok) {
-    throw new Error(
-      `Unexpected response from cache server (${uploadResponse.status}): ${uploadResponse.statusText}`
-    );
-  }
+  await uploadWithSignedUrl(
+    {
+      signedUrl: { url, headers },
+      srcGeneratorAsync: async () => fs.createReadStream(archivePath),
+    },
+    { retries: 3, retryIntervalMs: 100 }
+  );
   logger.info(`Uploaded cache archive to ${archivePath} (${formatBytes(size)}).`);
 }
 
@@ -226,16 +224,13 @@ export async function uploadPublicCacheAsync({
 
   logger.info(`Uploading public cache...`);
 
-  const uploadResponse = await retryOnDNSFailure(fetch)(new URL(url), {
-    method: 'PUT',
-    headers,
-    body: fs.createReadStream(archivePath),
-  });
-  if (!uploadResponse.ok) {
-    throw new Error(
-      `Unexpected response from cache server (${uploadResponse.status}): ${uploadResponse.statusText}`
-    );
-  }
+  await uploadWithSignedUrl(
+    {
+      signedUrl: { url, headers },
+      srcGeneratorAsync: async () => fs.createReadStream(archivePath),
+    },
+    { retries: 3, retryIntervalMs: 100 }
+  );
   logger.info(`Uploaded cache archive to ${archivePath} (${formatBytes(size)}).`);
 }
 

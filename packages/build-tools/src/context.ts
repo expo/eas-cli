@@ -3,14 +3,13 @@ import {
   BuildPhase,
   BuildPhaseResult,
   Env,
+  type EnvironmentSecret,
   EnvironmentSecretType,
-  GenericArtifactType,
   Job,
   LogMarker,
   ManagedArtifactType,
   Metadata,
   errors,
-  isGenericArtifact,
 } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
 import { bunyan } from '@expo/logger';
@@ -20,6 +19,7 @@ import path from 'path';
 
 import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
 import { Datadog } from './datadog';
+import { SANDBOX_WORKER_TOKEN_ENV } from './steps/utils/sandboxWorkerApi';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
@@ -42,7 +42,7 @@ export type ArtifactToUpload =
       paths: string[];
     }
   | {
-      type: GenericArtifactType;
+      type: null;
       name: string;
       paths: string[];
       metadata?: Record<string, unknown>;
@@ -241,7 +241,7 @@ export class BuildContext<TJob extends Job = Job> {
     logger: bunyan;
   }): Promise<{ artifactId: string | null }> {
     const result = await this._uploadArtifact({ artifact, logger });
-    if (result.filename && !isGenericArtifact(artifact)) {
+    if (result.filename && artifact.type !== null) {
       this.artifacts[artifact.type] = result.filename;
     }
     return { artifactId: result.artifactId ?? null };
@@ -410,7 +410,7 @@ export class BuildContext<TJob extends Job = Job> {
     const environmentSecretsDirectory = path.join(this.workingdir, 'eas-environment-secrets');
 
     const environmentSecrets: Record<string, string> = {};
-    for (const { name, type, value } of job.secrets.environmentSecrets) {
+    for (const { name, type, value } of job.secrets.environmentSecrets.filter(isJobSecret)) {
       if (type === EnvironmentSecretType.STRING) {
         environmentSecrets[name] = value;
       } else {
@@ -423,4 +423,10 @@ export class BuildContext<TJob extends Job = Job> {
     }
     return environmentSecrets;
   }
+}
+
+const EXCLUDED_JOB_SECRET_NAMES: ReadonlySet<string> = new Set([SANDBOX_WORKER_TOKEN_ENV]);
+
+function isJobSecret({ name }: EnvironmentSecret): boolean {
+  return !EXCLUDED_JOB_SECRET_NAMES.has(name);
 }

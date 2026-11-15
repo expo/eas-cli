@@ -1,9 +1,4 @@
-import {
-  GenericArtifactType,
-  Job,
-  ManagedArtifactType,
-  isGenericArtifact,
-} from '@expo/eas-build-job';
+import { Job, ManagedArtifactType } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepInput,
@@ -33,7 +28,12 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
           ManagedArtifactType.APPLICATION_ARCHIVE,
           ManagedArtifactType.BUILD_ARTIFACTS,
           ...Object.keys(artifactTypeInputToManagedArtifactType),
-          ...Object.values(GenericArtifactType),
+          // Keep accepting these legacy artifact types for compatibility.
+          'android-apk',
+          'android-aab',
+          'ios-simulator-app',
+          'ios-ipa',
+          'other',
         ],
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -126,12 +126,13 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         paths: artifactPaths,
         name: (inputs.name.value || inputs.key.value) as string,
       };
-      const artifact = isGenericArtifact(artifactSpec)
-        ? {
-            ...artifactSpec,
-            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
-          }
-        : artifactSpec;
+      const artifact =
+        artifactSpec.type === null
+          ? {
+              ...artifactSpec,
+              metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+            }
+          : artifactSpec;
 
       try {
         const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
@@ -141,7 +142,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         }
       } catch (error) {
         if (inputs.ignore_error.value) {
-          logger.error({ err: error }, `Failed to upload ${artifact.type}. Ignoring error.`);
+          logger.error({ err: error }, 'Failed to upload artifact. Ignoring error.');
           // Ignoring error.
           return;
         }
@@ -158,7 +159,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
  * values. This makes sure we support all:
  * - kebab-case managed artifact types (the original)
  * - snake-caps-case managed artifact types (the mistake)
- * - generic artifact types.
+ * - workflow artifact types.
  */
 function parseArtifactTypeInput({
   inputValue,
@@ -166,19 +167,15 @@ function parseArtifactTypeInput({
 }: {
   inputValue: string;
   platform: Job['platform'];
-}): GenericArtifactType | ManagedArtifactType {
+}): ManagedArtifactType | null {
   if (!inputValue) {
     // In build jobs the default artifact type is application-archive.
-    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : GenericArtifactType.OTHER;
+    return platform ? ManagedArtifactType.APPLICATION_ARCHIVE : null;
   }
 
-  // Step's allowedValues ensures input is either
-  // a key of artifactTypeInputToManagedArtifactType
-  // or a value of an artifact type.
-  const translatedManagedArtifactType = artifactTypeInputToManagedArtifactType[inputValue];
-  if (translatedManagedArtifactType) {
-    return translatedManagedArtifactType;
-  }
-
-  return inputValue as GenericArtifactType | ManagedArtifactType;
+  return (
+    artifactTypeInputToManagedArtifactType[inputValue] ??
+    Object.values(ManagedArtifactType).find(type => type === inputValue) ??
+    null
+  );
 }

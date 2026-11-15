@@ -2,6 +2,7 @@ import {
   ArchiveSourceType,
   BuildMode,
   BuildTrigger,
+  EnvironmentSecretType,
   ErrorCode,
   Job,
   Platform,
@@ -12,6 +13,7 @@ import spawn from '@expo/turtle-spawn';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import fetch, { Response } from 'node-fetch';
+import { Readable } from 'stream';
 import { setTimeout } from 'timers/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -111,6 +113,73 @@ describe('projectSources', () => {
           ...ctx.job.projectArchive,
           repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
         },
+      })
+    );
+  });
+
+  it('fetches a sandbox project source from the sandbox worker router with only the worker token', async () => {
+    const gitCommitHash = randomBytes(20).toString('hex');
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: 'refs/heads/main',
+          gitCommitHash,
+        },
+        secrets: {
+          robotAccessToken: 'sandbox-worker-token',
+          environmentSecrets: [
+            {
+              name: 'EAS_SANDBOX_WORKER_TOKEN',
+              type: EnvironmentSecretType.STRING,
+              value: 'sandbox-worker-token',
+            },
+          ],
+        },
+      } as unknown as Job,
+      {
+        env: {
+          __API_SERVER_URL: 'https://api.expo.dev',
+          EAS_BUILD_ID: randomUUID(),
+          EAS_BUILD_RUNNER: 'eas-build',
+        },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+    const fetchMock = jest.mocked(fetch);
+    fetchMock.mockImplementation(
+      async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            data: {
+              gitRef: 'refs/heads/main',
+              gitCommitHash,
+              repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
+              type: ArchiveSourceType.GIT,
+            },
+          }),
+        }) as Response
+    );
+
+    await prepareProjectSourcesAsync(ctx, ctx.buildDirectory);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.expo.dev/v2/sandbox-worker/project-archive',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'expo-sandbox-worker-token': 'sandbox-worker-token' },
+      })
+    );
+    expect(shallowCloneRepositoryAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archiveSource: expect.objectContaining({
+          repositoryUrl: 'https://x-access-token:qwerty@github.com/expo/eas-cli.git',
+        }),
       })
     );
   });
@@ -390,7 +459,13 @@ describe('projectSources', () => {
       ctx.graphqlClient.mutation = mockGraphqlMutation as any;
 
       const fetchMock = jest.mocked(fetch);
-      fetchMock.mockImplementation(async () => ({ ok: true }) as Response);
+      let uploadedBody = '';
+      fetchMock.mockImplementation(async (_url, request) => {
+        for await (const chunk of request!.body as Readable) {
+          uploadedBody += chunk;
+        }
+        return { ok: true } as Response;
+      });
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: ctx.job.projectArchive }),
@@ -414,10 +489,14 @@ describe('projectSources', () => {
         'https://storage.example.com/upload',
         expect.objectContaining({
           method: 'PUT',
-          headers: { 'x-custom-header': 'value' },
-          body: '{"archiveContent":["project/README.md","project/package.json"]}',
+          headers: {
+            'x-custom-header': 'value',
+            'content-length': '63',
+            'content-type': 'text/plain;charset=UTF-8',
+          },
         })
       );
+      expect(uploadedBody).toBe('{"archiveContent":["project/README.md","project/package.json"]}');
 
       // Verify build metadata was updated
       expect(mockGraphqlMutation).toHaveBeenNthCalledWith(

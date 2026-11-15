@@ -80,9 +80,12 @@ export class XcodeBuildLogger {
           this.logger.info(data.toString());
         }
       });
-      await this.logReaderPromise;
-
-      this.logger.info(formatter.getBuildSummary());
+      try {
+        await this.logReaderPromise;
+      } finally {
+        // flush() interrupts tail, but the formatter may still hold a final compiler diagnostic.
+        this.logger.info(formatter.getBuildSummary());
+      }
     } catch (err: any) {
       if (!this.flushing) {
         this.loggerError = err;

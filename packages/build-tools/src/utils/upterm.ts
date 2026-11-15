@@ -37,11 +37,9 @@ const CONNECTION_STARTUP_TIMEOUT_MS = 60_000;
 const PROCESS_EXIT_TIMEOUT_MS = 5_000;
 const CLIENT_COUNT_READ_ATTEMPTS = 4;
 const CLIENT_COUNT_READ_RETRY_MS = 500;
-const DEFAULT_SSH_PORT = '22';
 
 export type SshConnectionConfig = {
   type: 'upterm-v1';
-  host: string;
   secret: string;
 };
 
@@ -55,29 +53,9 @@ export type UptermHost = {
 
 const UptermSessionJsonZ = z.object({
   sessionId: z.string().min(1),
-  host: z.string().min(1),
   clientCount: z.number().optional(),
 });
 type UptermSessionJson = z.infer<typeof UptermSessionJsonZ>;
-
-export function connectionConfigFromUptermSession(
-  parsed: Pick<UptermSessionJson, 'sessionId' | 'host'>
-): SshConnectionConfig | null {
-  let host = parsed.host;
-  if (host.includes('://')) {
-    let url: URL;
-    try {
-      url = new URL(host);
-    } catch {
-      return null;
-    }
-    host = url.port && url.port !== DEFAULT_SSH_PORT ? `${url.hostname}:${url.port}` : url.hostname;
-  }
-  if (!host) {
-    return null;
-  }
-  return { type: 'upterm-v1', host, secret: parsed.sessionId };
-}
 
 /**
  * Strip upterm session secrets out of text before it reaches a log or an error message. upterm
@@ -196,10 +174,7 @@ async function waitForConnectionConfigAsync(
     if (adminSocketPath) {
       const session = await readCurrentSessionJsonAsync(uptermPath, adminSocketPath);
       if (session) {
-        const connectionConfig = connectionConfigFromUptermSession(session);
-        if (connectionConfig) {
-          return connectionConfig;
-        }
+        return { type: 'upterm-v1', secret: session.sessionId };
       }
     }
     if (Date.now() >= deadline) {

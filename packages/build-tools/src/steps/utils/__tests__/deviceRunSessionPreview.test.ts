@@ -18,7 +18,14 @@ import {
 } from '../deviceRunSessionPreview';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 
-jest.mock('node-fetch');
+jest.mock('node-fetch', () => {
+  const actual = jest.requireActual('node-fetch');
+  return {
+    __esModule: true,
+    ...actual,
+    default: jest.fn(),
+  };
+});
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/turtleFetch');
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
@@ -87,8 +94,8 @@ describe(startDeviceRunSessionPreview, () => {
       'https://uploads.expo.test/preview',
       expect.objectContaining({
         method: 'PUT',
-        body: image,
-        headers: { 'content-type': 'image/webp' },
+        body: expect.any(Readable),
+        headers: { 'content-type': 'image/webp', 'content-length': String(image.length) },
       })
     );
     await jest.advanceTimersByTimeAsync(59_999);
@@ -130,9 +137,7 @@ describe(startDeviceRunSessionPreview, () => {
     await jest.advanceTimersByTimeAsync(0);
     expect(logger.warn).toHaveBeenCalledTimes(1);
     const [fields] = jest.mocked(logger.warn).mock.calls[0] as unknown as [{ err: Error }];
-    expect(fields.err.message).toBe(
-      'Session preview upload request failed (name: FetchError, type: request-timeout).'
-    );
+    expect(fields.err.message).toBe('Signed URL upload failed: network error.');
     expect(JSON.stringify(jest.mocked(logger.warn).mock.calls)).not.toContain('uploads.expo.test');
   });
 

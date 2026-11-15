@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 
 import { fetchAndProcessLogsFromJobAsync, logSourceForWorkflowJob } from './logs';
 import { WorkflowJobResult, WorkflowRunResult, WorkflowTriggerType } from './types';
+import { getWorkflowRunUrl } from '../../build/utils/url';
 import {
   WorkflowJobStatus,
   WorkflowRunByIdQuery,
@@ -15,7 +16,7 @@ import { choicesFromJobLogs, stepLogTail } from '../logs/format';
 import { JobLogs } from '../logs/types';
 import { LogsWatcher } from '../logs/watcher';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
-import Log from '../../log';
+import Log, { link } from '../../log';
 import { ora, updateSpinnerText } from '../../ora';
 import { Choice } from '../../prompts';
 import formatFields from '../../utils/formatFields';
@@ -81,7 +82,7 @@ export function choiceFromWorkflowJob(job: WorkflowJobResult, index: number): Ch
 
 export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
   return runs.map(run => {
-    const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
+    const finishedAt = isWorkflowRunFinal(run.status) ? (run.finalizedAt ?? null) : null;
     const { triggerType, trigger } = computeTriggerInfoForWorkflowRun(run);
     return {
       id: run.id,
@@ -131,6 +132,20 @@ function isJobCompleted(status: WorkflowJobStatus): boolean {
     case WorkflowJobStatus.InProgress:
     case WorkflowJobStatus.ActionRequired:
     case WorkflowJobStatus.PendingCancel:
+      return false;
+  }
+}
+
+function isWorkflowRunFinal(status: WorkflowRunStatus): boolean {
+  switch (status) {
+    case WorkflowRunStatus.Success:
+    case WorkflowRunStatus.Failure:
+    case WorkflowRunStatus.Canceled:
+      return true;
+    case WorkflowRunStatus.New:
+    case WorkflowRunStatus.Waiting:
+    case WorkflowRunStatus.InProgress:
+    case WorkflowRunStatus.ActionRequired:
       return false;
   }
 }
@@ -255,13 +270,12 @@ export async function showWorkflowStatusAsync(
 ): Promise<WorkflowRunByIdQuery['workflowRuns']['byId']> {
   Log.log('Waiting for workflow run to complete. You can press Ctrl+C to exit.');
 
+  const waitingToStartPrefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
   const spinner = ora({
     stream: spinnerUsesStdErr ? process.stderr : process.stdout,
     text: '',
   }).start();
-  updateSpinnerText(spinner, {
-    prefixText: chalk`{bold.yellow Workflow run is waiting to start:}`,
-  });
+  updateSpinnerText(spinner, { prefixText: waitingToStartPrefixText });
 
   const watcher = new LogsWatcher(
     () => createRealtimeLogsClient(graphqlClient),
@@ -283,7 +297,27 @@ export async function showWorkflowStatusAsync(
 
         switch (workflowRun.status) {
           case WorkflowRunStatus.New:
+            // A queued run returns to NEW once its concurrency group frees up.
+            updateSpinnerText(spinner, { prefixText: waitingToStartPrefixText });
             break;
+          case WorkflowRunStatus.Waiting: {
+            const {
+              blockingWorkflowRun,
+              workflow: { app },
+            } = workflowRun;
+            // The blocking run is in the same app: concurrency groups are app-scoped.
+            const actionRequiredSuffix =
+              blockingWorkflowRun?.status === WorkflowRunStatus.ActionRequired
+                ? ` — it needs your action first: ${link(getWorkflowRunUrl(app.ownerAccount.name, app.slug, blockingWorkflowRun.id))}`
+                : '';
+            const reason = blockingWorkflowRun
+              ? `Waiting for ${blockingWorkflowRun.name}${actionRequiredSuffix}`
+              : 'Waiting for its concurrency group';
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.yellow Workflow run is queued:} ${reason}`,
+            });
+            break;
+          }
           case WorkflowRunStatus.InProgress: {
             updateSpinnerText(spinner, {
               prefixText: chalk`{bold.green Workflow run is in progress:}`,

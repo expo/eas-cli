@@ -800,6 +800,85 @@ test('Android-specific resourceClass', async () => {
   ).resolves.not.toThrow();
 });
 
+test('valid eas.json with permissions.account.role', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        permissions: { account: { role: 'release_manager' } },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+  const androidProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.ANDROID,
+    'production'
+  );
+
+  expect(iosProfile.permissions).toEqual({ account: { role: 'release_manager' } });
+  expect(androidProfile.permissions).toEqual({ account: { role: 'release_manager' } });
+});
+
+test('permissions.account.role is inherited from the extended profile', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: {
+        permissions: { account: { role: 'runner' } },
+      },
+      production: {
+        extends: 'base',
+      },
+      preview: {
+        extends: 'base',
+        permissions: { account: { role: 'developer' } },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const productionProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.IOS,
+    'production'
+  );
+  const previewProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'preview');
+
+  expect(productionProfile.permissions).toEqual({ account: { role: 'runner' } });
+  expect(previewProfile.permissions).toEqual({ account: { role: 'developer' } });
+});
+
+test('invalid permissions.account.role', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        permissions: { account: { role: 'admin' } },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).rejects.toThrowError(/build.production.permissions.account.role.*must be one of/);
+});
+
+test('permissions without account.role', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        permissions: { account: {} },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).rejects.toThrowError(/build.production.permissions.account.role.*is required/);
+});
+
 test('build profile with platform-specific custom build config', async () => {
   await fs.writeJson('/project/eas.json', {
     build: {

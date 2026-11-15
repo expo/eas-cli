@@ -187,6 +187,69 @@ describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {
     expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledTimes(1);
   });
 
+  it(`keeps already linked capability identifiers when linking another one`, async () => {
+    const Apple = require('@expo/apple-utils');
+    mockCapabilities(Apple);
+    const bundleId = {
+      context: {},
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const result = await syncCapabilityIdentifiersForEntitlementsAsync(bundleId, {
+      'com.apple.security.application-groups': ['group.expo', 'group.bacon'],
+    });
+
+    expect(result).toStrictEqual({
+      created: ['group.bacon'],
+      linked: ['group.bacon'],
+    });
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledTimes(1);
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenLastCalledWith([
+      {
+        capabilityType: 'APP_GROUPS',
+        option: 'ON',
+        relationships: {
+          appGroups: ['XXX-group-1', 'XXX-group-2'],
+        },
+      },
+    ]);
+  });
+
+  it(`keeps already linked capability identifiers when linking an existing unlinked one`, async () => {
+    const Apple = require('@expo/apple-utils');
+    mockCapabilities(Apple);
+    Apple.AppGroup.getAsync.mockResolvedValue([
+      mockItems.appGroup.expo,
+      { id: 'XXX-group-2', attributes: { identifier: 'group.bacon' } },
+    ]);
+    const bundleId = {
+      context: {},
+      updateBundleIdCapabilityAsync: jest.fn(),
+      id: 'XXX',
+    } as any;
+
+    const result = await syncCapabilityIdentifiersForEntitlementsAsync(bundleId, {
+      'com.apple.security.application-groups': ['group.expo', 'group.bacon'],
+    });
+
+    expect(result).toStrictEqual({
+      created: [],
+      linked: ['group.bacon'],
+    });
+    expect(Apple.AppGroup.createAsync).not.toHaveBeenCalled();
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenCalledTimes(1);
+    expect(bundleId.updateBundleIdCapabilityAsync).toHaveBeenLastCalledWith([
+      {
+        capabilityType: 'APP_GROUPS',
+        option: 'ON',
+        relationships: {
+          appGroups: ['XXX-group-1', 'XXX-group-2'],
+        },
+      },
+    ]);
+  });
+
   it(`doesn't perform duplicate CapabilityModel.getAsync calls`, async () => {
     const Apple = require('@expo/apple-utils');
     mockCapabilities(Apple);

@@ -112,6 +112,7 @@ describe(ObserveSession, () => {
       metadata: null,
       hasMoreMetricEvents: false,
       hasMoreLogEvents: false,
+      hasMoreSpans: false,
     });
     mockFetchSessionMetricCandidatesAsync.mockResolvedValue([]);
     mockFetchSessionLogCandidatesAsync.mockResolvedValue([]);

@@ -7,6 +7,7 @@ import Log from '../../log';
 import { confirmAsync, promptAsync } from '../../prompts';
 import SessionManager from '../../user/SessionManager';
 import { getActorDisplayName } from '../../user/User';
+import { logAccountPermissions } from '../../user/accountPermissions';
 import {
   isDeviceLoginFailure,
   resumeDeviceLoginAsync,
@@ -77,6 +78,13 @@ export default class AccountLogin extends EasCommand {
 
     if (actor && !resume) {
       Log.warn(`You are already logged in as ${chalk.bold(getActorDisplayName(actor))}.`);
+      const { hasLimitedAccount } = logAccountPermissions(actor);
+      if (hasLimitedAccount) {
+        Log.newLine();
+        Log.log(
+          'The permissions granted during authentication limit your access to some accounts. Log in again and change the permission grant.'
+        );
+      }
 
       const shouldContinue =
         nonInteractive ||

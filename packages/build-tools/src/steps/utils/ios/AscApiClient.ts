@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import * as jose from 'jose';
@@ -617,6 +617,24 @@ export class AscApiClient {
       );
       if (parsedAscErrorResponse.ok) {
         const errors = parsedAscErrorResponse.value.errors.map(ascError => {
+          if (response.status === 401 && ascError.code === 'NOT_AUTHORIZED') {
+            return new UserError(
+              'EAS_ASC_INVALID_AUTH',
+              'App Store Connect rejected the API authentication credentials. ' +
+                'Check that the API key is active and belongs to the correct App Store Connect account. ' +
+                'If the key is stored in EAS credentials, replace or reconfigure it. ' +
+                'For a local key, check `key_id` and `key`, and `issuer_id` for a team key. Then try again.',
+              { cause: ascError, docsUrl: 'https://docs.expo.dev/submit/ios/' }
+            );
+          }
+          if (response.status === 500 && ascError.code === 'UNEXPECTED_ERROR') {
+            return new SystemError(
+              'App Store Connect returned an unexpected server error. ' +
+                'Check Apple’s service status at https://developer.apple.com/system-status/ and verify whether the requested operation completed in App Store Connect before trying again. ' +
+                'If the error continues, try again later or contact Apple Developer Support.',
+              { cause: ascError, trackingCode: 'EAS_ASC_SERVER_ERROR' }
+            );
+          }
           if (ascError.code === 'FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED') {
             return new UserError(
               'EAS_ASC_REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED',

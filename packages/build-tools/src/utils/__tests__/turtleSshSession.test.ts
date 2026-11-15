@@ -76,11 +76,7 @@ describe(getSshRelayServerUrl, () => {
 });
 
 describe(startSshSessionAsync, () => {
-  const config1: SshConnectionConfig = {
-    type: 'upterm-v1',
-    host: 'relay.expo.dev',
-    secret: 'secret-1',
-  };
+  const config1: SshConnectionConfig = { type: 'upterm-v1', secret: 'secret-1' };
   const config2: SshConnectionConfig = { ...config1, secret: 'secret-2' };
   const target = { type: 'JOB_RUN', id: 'jr-1' } as const;
 
@@ -133,7 +129,7 @@ describe(startSshSessionAsync, () => {
 
     expect(mutation).toHaveBeenCalledWith(expect.anything(), {
       target: { type: 'JOB_RUN', id: 'jr-1' },
-      connectionConfig: { ...config1, reconnecting: false, type: 'UPTERM_V1' },
+      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-1', reconnecting: false },
       sessionSettings: { idleTimeoutSeconds: 900 },
     });
     expect(idleTimeoutSeconds).toBe(900);
@@ -155,7 +151,7 @@ describe(startSshSessionAsync, () => {
 
     expect(mutation).toHaveBeenCalledWith(expect.anything(), {
       target: { type: 'BUILD', id: 'b-1' },
-      connectionConfig: { ...config1, reconnecting: false, type: 'UPTERM_V1' },
+      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-1', reconnecting: false },
       sessionSettings: { idleTimeoutSeconds: 900 },
     });
   });
@@ -242,7 +238,7 @@ describe(startSshSessionAsync, () => {
     );
     expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
       target: { type: 'JOB_RUN', id: 'jr-1' },
-      connectionConfig: { ...config2, reconnecting: false, type: 'UPTERM_V1' },
+      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-2', reconnecting: false },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });
   });
@@ -298,7 +294,7 @@ describe(startSshSessionAsync, () => {
     expect(host.redialAsync).toHaveBeenCalledTimes(1);
     expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
       target: { type: 'JOB_RUN', id: 'jr-1' },
-      connectionConfig: { ...config2, reconnecting: false, type: 'UPTERM_V1' },
+      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-2', reconnecting: false },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });
   });

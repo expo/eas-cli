@@ -18,6 +18,12 @@ import {
   AppObserveNavigationRoute,
   AppObservePlatform,
   AppObserveReleasesInput,
+  AppObserveSpan,
+  AppObserveSpanListFilter,
+  AppObserveSpanListOrderBy,
+  AppObserveSpanName,
+  AppObserveSpanNamesInput,
+  AppObserveTrace,
   AppObserveUserEvent,
   AppObserveUserEventListFilter,
   AppObserveUserEventListOrderBy,
@@ -31,6 +37,7 @@ import {
   AppObserveErrorGroupFragmentNode,
   AppObserveErrorOccurrenceFragmentNode,
   AppObserveMetricFragmentNode,
+  AppObserveSpanFragmentNode,
   AppObserveUserEventFragmentNode,
 } from '../types/Observe';
 
@@ -222,6 +229,10 @@ type AppObserveSessionEventsQuery = {
             pageInfo: PageInfo;
             edges: Array<{ node: AppObserveSessionLog }>;
           };
+          spans: {
+            pageInfo: PageInfo;
+            edges: Array<{ node: AppObserveSpan }>;
+          };
         };
       };
     };
@@ -234,6 +245,68 @@ type AppObserveSessionEventsQueryVariables = {
   first?: number;
   metricsOrderBy?: AppObserveMetricsListOrderBy;
   logsOrderBy?: AppObserveLogsOrderBy;
+  spansOrderBy?: AppObserveSpanListOrderBy;
+};
+
+type AppObserveSpanListQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        traces: {
+          spans: {
+            pageInfo: PageInfo;
+            edges: Array<{
+              cursor: string;
+              node: AppObserveSpan;
+            }>;
+          };
+        };
+      };
+    };
+  };
+};
+
+type AppObserveSpanListQueryVariables = {
+  appId: string;
+  filter: AppObserveSpanListFilter;
+  first?: number;
+  after?: string;
+  orderBy?: AppObserveSpanListOrderBy;
+};
+
+type AppObserveSpanNamesQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        traces: {
+          names: {
+            isTruncated: boolean;
+            names: AppObserveSpanName[];
+          };
+        };
+      };
+    };
+  };
+};
+
+type AppObserveSpanNamesQueryVariables = {
+  appId: string;
+  input: AppObserveSpanNamesInput;
+};
+
+type AppObserveTraceByIdQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        traces: {
+          trace: AppObserveTrace | null;
+        };
+      };
+    };
+  };
 };
 
 type AppObserveMetricByIdQuery = {
@@ -645,8 +718,10 @@ export const ObserveQuery = {
   ): Promise<{
     metrics: AppObserveMetric[];
     logs: AppObserveSessionLog[];
+    spans: AppObserveSpan[];
     metricsPageInfo: PageInfo;
     logsPageInfo: PageInfo;
+    spansPageInfo: PageInfo;
   }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -658,6 +733,7 @@ export const ObserveQuery = {
               $first: Int
               $metricsOrderBy: AppObserveMetricsListOrderBy
               $logsOrderBy: AppObserveLogsOrderBy
+              $spansOrderBy: AppObserveSpanListOrderBy
             ) {
               app {
                 byId(appId: $appId) {
@@ -697,6 +773,19 @@ export const ObserveQuery = {
                           }
                         }
                       }
+                      spans(first: $first, orderBy: $spansOrderBy) {
+                        pageInfo {
+                          hasNextPage
+                          hasPreviousPage
+                          endCursor
+                        }
+                        edges {
+                          node {
+                            id
+                            ...AppObserveSpanFragment
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -705,19 +794,148 @@ export const ObserveQuery = {
             ${print(AppObserveMetricFragmentNode)}
             ${print(AppObserveUserEventFragmentNode)}
             ${print(AppObserveErrorFragmentNode)}
+            ${print(AppObserveSpanFragmentNode)}
           `,
           variables
         )
         .toPromise()
     );
 
-    const { metrics, logs } = data.app.byId.observe.session;
+    const { metrics, logs, spans } = data.app.byId.observe.session;
     return {
       metrics: metrics.edges.map(edge => edge.node),
       logs: logs.edges.map(edge => edge.node),
+      spans: spans.edges.map(edge => edge.node),
       metricsPageInfo: metrics.pageInfo,
       logsPageInfo: logs.pageInfo,
+      spansPageInfo: spans.pageInfo,
     };
+  },
+
+  async spanListAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveSpanListQueryVariables
+  ): Promise<{ spans: AppObserveSpan[]; pageInfo: PageInfo }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveSpanListQuery, AppObserveSpanListQueryVariables>(
+          gql`
+            query AppObserveSpanList(
+              $appId: String!
+              $filter: AppObserveSpanListFilter!
+              $first: Int
+              $after: String
+              $orderBy: AppObserveSpanListOrderBy
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    traces {
+                      spans(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+                        pageInfo {
+                          hasNextPage
+                          hasPreviousPage
+                          endCursor
+                        }
+                        edges {
+                          cursor
+                          node {
+                            id
+                            ...AppObserveSpanFragment
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveSpanFragmentNode)}
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    const { edges, pageInfo } = data.app.byId.observe.traces.spans;
+    return {
+      spans: edges.map(edge => edge.node),
+      pageInfo,
+    };
+  },
+
+  async spanNamesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveSpanNamesQueryVariables
+  ): Promise<{ names: AppObserveSpanName[]; isTruncated: boolean }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveSpanNamesQuery, AppObserveSpanNamesQueryVariables>(
+          gql`
+            query AppObserveSpanNames($appId: String!, $input: AppObserveSpanNamesInput!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    traces {
+                      names(input: $input) {
+                        isTruncated
+                        names {
+                          name
+                          kind
+                          count
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.traces.names;
+  },
+
+  async traceByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, id }: AppObserveByIdQueryVariables
+  ): Promise<AppObserveTrace | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveTraceByIdQuery, AppObserveByIdQueryVariables>(
+          gql`
+            query AppObserveTraceById($appId: String!, $id: ID!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    traces {
+                      trace(id: $id) {
+                        id
+                        isTruncated
+                        spans {
+                          id
+                          ...AppObserveSpanFragment
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveSpanFragmentNode)}
+          `,
+          { appId, id }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.traces.trace ?? null;
   },
 
   async metricByIdAsync(

@@ -127,7 +127,8 @@ export async function findProjectDirAndVerifyProjectSetupAsync({
 } = {}): Promise<string> {
   const projectDir = await findProjectRootAsync({ cwd });
   await applyCliConfigAsync(projectDir);
-  if (!ranEnsureEasCliIsNotInDependencies) {
+  // The notice is advice for a person. Programs that run eas-cli read stderr for its errors.
+  if (!ranEnsureEasCliIsNotInDependencies && process.stderr.isTTY) {
     ranEnsureEasCliIsNotInDependencies = true;
     await ensureEasCliIsNotInDependenciesAsync(projectDir);
   }

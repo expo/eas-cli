@@ -24,6 +24,10 @@ import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureLockfileExistsAsync } from './validateLockfile';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
+import {
+  getFreeTierNearLimitAgentUpdatesTipExperiment,
+  maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync,
+} from './freeTierNearLimitAgentUpdatesTip';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
@@ -119,7 +123,7 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
-  envOverride,
+  evaluatedConfig,
   experimentation,
   authenticationInfo,
 }: {
@@ -131,7 +135,7 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
-  envOverride?: Env;
+  evaluatedConfig?: { env: Env; exp: ExpoConfig; projectId: string };
   /** Enables the Free plan limit experiments on the build request error path. */
   experimentation?: LazyExperimentationClient;
   /** Lets the Free plan limit checkout experiment create a checkout session. */
@@ -139,6 +143,7 @@ export async function runBuildAndSubmitAsync({
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
+  builds?: MaybeBuildFragment[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
@@ -224,15 +229,15 @@ export async function runBuildAndSubmitAsync({
   for (const buildProfile of buildProfiles) {
     const platform = toAppPlatform(buildProfile.platform);
 
-    const { env } = !envOverride
-      ? await evaluateConfigWithEnvVarsAsync({
-          buildProfile: buildProfile.profile,
-          buildProfileName: buildProfile.profileName,
-          graphqlClient,
-          getProjectConfig: getDynamicPrivateProjectConfigAsync,
-          opts: { env: buildProfile.profile.env },
-        })
-      : { env: envOverride };
+    const { env, exp, projectId } =
+      evaluatedConfig ??
+      (await evaluateConfigWithEnvVarsAsync({
+        buildProfile: buildProfile.profile,
+        buildProfileName: buildProfile.profileName,
+        graphqlClient,
+        getProjectConfig: getDynamicPrivateProjectConfigAsync,
+        opts: { env: buildProfile.profile.env },
+      }));
 
     const { build: maybeBuild, buildCtx } = await prepareAndStartBuildAsync({
       projectDir,
@@ -244,7 +249,8 @@ export async function runBuildAndSubmitAsync({
       graphqlClient,
       analytics,
       vcsClient,
-      getDynamicPrivateProjectConfigAsync,
+      exp,
+      projectId,
       customBuildConfigMetadata: customBuildConfigMetadataByPlatform[platform],
       env,
       easJsonAccessor,
@@ -338,6 +344,10 @@ export async function runBuildAndSubmitAsync({
   if (!flags.json) {
     printBuildResults(builds);
   }
+  await maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
+    builds,
+    getFreeTierNearLimitAgentUpdatesTipExperiment(buildCtxByPlatform, { json: flags.json })
+  );
 
   const haveAllBuildsFailedOrCanceled = builds.every(
     build =>
@@ -371,6 +381,7 @@ export async function runBuildAndSubmitAsync({
   return {
     buildIds: startedBuilds.map(({ build }) => build.id),
     buildProfiles,
+    builds,
   };
 }
 
@@ -384,7 +395,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient,
   analytics,
   vcsClient,
-  getDynamicPrivateProjectConfigAsync,
+  exp,
+  projectId,
   customBuildConfigMetadata,
   env,
   easJsonAccessor,
@@ -400,7 +412,8 @@ async function prepareAndStartBuildAsync({
   graphqlClient: ExpoGraphqlClient;
   analytics: Analytics;
   vcsClient: Client;
-  getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
+  exp: ExpoConfig;
+  projectId: string;
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   easJsonAccessor: EasJsonAccessor;
   env: Env;
@@ -423,7 +436,8 @@ async function prepareAndStartBuildAsync({
     graphqlClient,
     analytics,
     vcsClient,
-    getDynamicPrivateProjectConfigAsync,
+    exp,
+    projectId,
     customBuildConfigMetadata,
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,

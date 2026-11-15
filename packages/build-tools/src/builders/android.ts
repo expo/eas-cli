@@ -18,6 +18,10 @@ import { prebuildAsync } from '../common/prebuild';
 import { JobHooksRef, setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import {
+  extractAndroidVersionAsync,
+  updateResolvedVersionAsync,
+} from '../steps/functions/updateResolvedVersion';
+import {
   cacheStatsAsync,
   restoreCcacheAsync,
   restoreGradleCacheAsync,
@@ -220,11 +224,30 @@ async function buildInnerAsync(
   });
 
   await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
-    await uploadApplicationArchive(ctx, {
+    const [archivePath] = await uploadApplicationArchive(ctx, {
       patternOrPath: resolveArtifactPath(ctx.job),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
+    const buildId = ctx.env.EAS_BUILD_ID;
+    if (!archivePath || !buildId) {
+      return;
+    }
+    try {
+      const { appVersion, appBuildVersion } = await extractAndroidVersionAsync(archivePath);
+      if (appVersion || appBuildVersion) {
+        await updateResolvedVersionAsync(ctx.graphqlClient, buildId, {
+          appVersion,
+          appBuildVersion,
+        });
+        ctx.logger.info(
+          `Updated resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
+        );
+      }
+    } catch (err: any) {
+      Sentry.capture('Failed to update resolved version', err);
+      ctx.logger.warn({ err }, 'Failed to update resolved version (non-fatal)');
+    }
   });
 
   if (shouldUploadEmbeddedBundle(ctx)) {
