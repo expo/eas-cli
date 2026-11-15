@@ -9,7 +9,6 @@ import {
   SystemError,
 } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import { type Client } from '@urql/core';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import WebSocket from 'ws';
 
@@ -17,6 +16,7 @@ import {
   type SandboxDaemonCommandImplementations,
   createSandboxCommandImplementations,
 } from './sandboxCommandImplementations';
+import { type SandboxWorkerApi } from './sandboxWorkerApi';
 
 export interface SandboxDaemonOptions {
   credential: string;
@@ -26,8 +26,7 @@ export interface SandboxDaemonOptions {
   signal?: AbortSignal;
   workingDirectory: string;
   env: NodeJS.ProcessEnv;
-  graphqlClient: Client;
-  sandboxId: string;
+  workerApi: SandboxWorkerApi;
 }
 
 export interface SandboxDaemon {
@@ -49,8 +48,7 @@ export async function startSandboxDaemonAsync(
       workingDirectory: options.workingDirectory,
       env: options.env,
       signal: abortController.signal,
-      graphqlClient: options.graphqlClient,
-      sandboxId: options.sandboxId,
+      workerApi: options.workerApi,
       logger: options.logger,
     });
   const connected = new Promise<void>((resolve, reject) => {

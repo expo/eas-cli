@@ -3,6 +3,7 @@ import {
   BuildPhase,
   BuildPhaseResult,
   Env,
+  type EnvironmentSecret,
   EnvironmentSecretType,
   Job,
   LogMarker,
@@ -18,6 +19,7 @@ import path from 'path';
 
 import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
 import { Datadog } from './datadog';
+import { SANDBOX_WORKER_TOKEN_ENV } from './steps/utils/sandboxWorkerApi';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
@@ -408,7 +410,7 @@ export class BuildContext<TJob extends Job = Job> {
     const environmentSecretsDirectory = path.join(this.workingdir, 'eas-environment-secrets');
 
     const environmentSecrets: Record<string, string> = {};
-    for (const { name, type, value } of job.secrets.environmentSecrets) {
+    for (const { name, type, value } of job.secrets.environmentSecrets.filter(isJobSecret)) {
       if (type === EnvironmentSecretType.STRING) {
         environmentSecrets[name] = value;
       } else {
@@ -421,4 +423,10 @@ export class BuildContext<TJob extends Job = Job> {
     }
     return environmentSecrets;
   }
+}
+
+const EXCLUDED_JOB_SECRET_NAMES: ReadonlySet<string> = new Set([SANDBOX_WORKER_TOKEN_ENV]);
+
+function isJobSecret({ name }: EnvironmentSecret): boolean {
+  return !EXCLUDED_JOB_SECRET_NAMES.has(name);
 }

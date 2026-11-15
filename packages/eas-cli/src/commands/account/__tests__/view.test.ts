@@ -19,6 +19,16 @@ function account(
   return { id: `${name}-id`, name, viewerUserPermission2: { permissions, effectivePermissions } };
 }
 
+function personalAccount(
+  permissions: Permission[],
+  effectivePermissions: Permission[] = permissions
+): Actor['accounts'][number] {
+  return {
+    ...account('jane', permissions, effectivePermissions),
+    ownerUserActor: { id: 'user-id', username: 'jane' },
+  };
+}
+
 function userActor(accounts: Actor['accounts']): Actor {
   return {
     __typename: 'User',
@@ -46,14 +56,14 @@ beforeEach(() => {
 });
 
 it('does not list accounts when only the unlimited personal account exists', async () => {
-  const lines = await runAsync(userActor([account('jane', ownerPermissions)]));
+  const lines = await runAsync(userActor([personalAccount(ownerPermissions)]));
   expect(lines).toEqual([chalk.green('jane'), 'jane@example.com']);
 });
 
 it('lists the role on each account', async () => {
   const lines = await runAsync(
     userActor([
-      account('jane', ownerPermissions),
+      personalAccount(ownerPermissions),
       account('acme', getMockViewerUserPermission(Role.Developer).permissions),
       account('other', [Permission.Admin, Permission.View]),
     ])
@@ -64,7 +74,7 @@ it('lists the role on each account', async () => {
 });
 
 it('lists the personal account when the credentials limit it', async () => {
-  const lines = await runAsync(userActor([account('jane', ownerPermissions, [Permission.View])]));
+  const lines = await runAsync(userActor([personalAccount(ownerPermissions, [Permission.View])]));
   expect(lines).toContain(
     `• jane (Role: Owner, ${chalk.yellow('limited to Viewer by the current credentials')})`
   );
@@ -78,7 +88,7 @@ it('lists the personal account when the credentials limit it', async () => {
 it('shows the effective permissions when they do not match a role', async () => {
   const lines = await runAsync(
     userActor([
-      account('jane', ownerPermissions),
+      personalAccount(ownerPermissions),
       account('acme', getMockViewerUserPermission(Role.Admin).permissions, [
         Permission.Publish,
         Permission.View,

@@ -130,6 +130,35 @@ describe(createEasBuildBuildFunctionGroup, () => {
       );
     });
 
+    it.each([
+      ['Android without credentials', { platform: Platform.ANDROID }],
+      ['Android with credentials', { platform: Platform.ANDROID, buildCredentials: { test: {} } }],
+      ['iOS simulator', { platform: Platform.IOS, simulator: true }],
+      ['iOS with credentials', { platform: Platform.IOS, buildCredentials: { test: {} } }],
+    ])('wires the uploaded archive path into the update step (%s)', (_label, overrides) => {
+      const buildToolsContext = createMockBuildToolsContext(overrides);
+      const functionGroup = createEasBuildBuildFunctionGroup(buildToolsContext);
+      const globalCtx = createGlobalContextMock({ logger: createMockLogger() });
+
+      const steps = functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx);
+
+      const updateStep = steps.find(s => s.displayName === 'Update resolved version');
+      const archivePathInput = updateStep?.inputs?.find(
+        input => input.id === 'application_archive_path'
+      );
+      expect(updateStep).toBeDefined();
+      expect(archivePathInput?.rawValue).toBe(
+        '${ steps.find_and_upload_build_artifacts.application_archive_path }'
+      );
+
+      // The step ID must be assigned explicitly: an auto-generated ID makes the input
+      // interpolation throw "Step ... does not exist" before the function body runs.
+      const uploadStepIndex = steps.findIndex(s => s.id === 'find_and_upload_build_artifacts');
+      expect(uploadStepIndex).toBeGreaterThan(-1);
+      expect(steps[uploadStepIndex].displayName).toBe('Find and upload build artifacts');
+      expect(uploadStepIndex).toBeLessThan(steps.indexOf(updateStep!));
+    });
+
     it('composes working directory with installPods step-level ./ios dir (iOS)', () => {
       const buildToolsContext = createMockBuildToolsContext({
         platform: Platform.IOS,

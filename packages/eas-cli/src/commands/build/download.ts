@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, formatBytes } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -20,7 +20,6 @@ import {
   downloadAndMaybeExtractAppAsync,
   downloadFileWithProgressTrackerAsync,
 } from '../../utils/download';
-import { formatBytes } from '../../utils/files';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { getEasBuildRunCacheDirectoryPath } from '../../utils/paths';
 

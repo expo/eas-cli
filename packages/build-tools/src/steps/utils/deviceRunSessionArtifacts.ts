@@ -11,7 +11,7 @@ import {
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
-type ArtifactMetadata = {
+export type ArtifactMetadata = {
   deviceRunSessionId: string;
   artifactId: string;
   name: string;

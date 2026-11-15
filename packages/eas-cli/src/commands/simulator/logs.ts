@@ -26,6 +26,10 @@ import {
   stripTerminalControlCharacters,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 // serve-sim keeps sending heartbeats while its log source restarts, so the stream alone cannot show a failure.
 const LOG_SOURCE_HEALTH_CHECK_INTERVAL_MS = 10_000;
@@ -47,9 +51,9 @@ interface SimulatorLogsSnapshot {
 }
 
 export default class SimulatorLogs extends EasCommand {
-  static override aliases = ['sim:logs'];
-  static override description =
-    '[EXPERIMENTAL] show buffered logs from a remote iOS simulator session';
+  static override aliases = getSimulatorCommandAliases('logs');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('logs');
+  static override description = 'show buffered logs from a remote iOS simulator session';
 
   static override examples = [
     '<%= config.bin %> simulator:logs --follow',

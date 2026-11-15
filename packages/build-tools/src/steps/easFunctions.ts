@@ -33,6 +33,7 @@ import { createSubmitToGooglePlayBuildFunction } from './functions/submitToGoogl
 import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
+import { createUpdateResolvedVersionBuildFunction } from './functions/updateResolvedVersion';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -61,6 +62,7 @@ import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/sta
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
+import { createCollectAndroidEmulatorLogsBuildFunction } from './functions/collectAndroidEmulatorLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
@@ -111,8 +113,11 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
     createStartAgentDeviceSessionBuildFunction(ctx),
+    createStartAgentDeviceSessionBuildFunction(ctx, { warm: true }),
     createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartArgentRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAppiumRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
@@ -121,9 +126,11 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartWebPreviewRemoteSessionBuildFunction(ctx),
+    createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
     createCollectServeSimLogsBuildFunction(ctx),
+    createCollectAndroidEmulatorLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
@@ -154,6 +161,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     functions.push(
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
+        createUpdateResolvedVersionBuildFunction(ctx),
         createUploadEmbeddedBundleBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),

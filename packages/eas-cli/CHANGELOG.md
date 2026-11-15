@@ -1,5 +1,115 @@
 # eas-cli
 
+## 27.10.0
+
+### Minor Changes
+
+- Add `eas simulator:devices` to list the devices Expo suggests for a simulator session. ([#4879](https://github.com/expo/eas-cli/pull/4879) by [@brentvatne](https://github.com/brentvatne))
+
+### Patch Changes
+
+- Include the parent CLI command in telemetry to distinguish nested commands from direct usage. ([#4876](https://github.com/expo/eas-cli/pull/4876) by [@davidmokos](https://github.com/davidmokos))
+
+## 27.9.0
+
+### Minor Changes
+
+- Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
+## 27.8.0
+
+### Minor Changes
+
+- Tell accounts without EAS Simulator access that it is available on the Starter, Production, and Enterprise plans and link to the billing page, instead of pointing at the waitlist. `simulator:availability --json` now returns `billingUrl` instead of `waitlistUrl`. ([#4866](https://github.com/expo/eas-cli/pull/4866) by [@szdziedzic](https://github.com/szdziedzic))
+
+### Patch Changes
+
+- Remove the "Android emulator support is still in development" warning from `eas simulator`. ([#4870](https://github.com/expo/eas-cli/pull/4870) by [@szdziedzic](https://github.com/szdziedzic))
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+- Package local Simulator app bundles for upload when the host supports gzip tar archives, and reject unsupported IPA and ZIP installs before uploading. ([#4684](https://github.com/expo/eas-cli/pull/4684) by [@gwdp](https://github.com/gwdp))
+
+  Fix packaging stalls for app bundles containing hard links and clean temporary archives when interrupted. Local app directories and `.tar.gz`/`.tgz` files require a host advertising archive support.
+
+- Remove the `[EXPERIMENTAL]` label from `eas simulator` commands, except `eas simulator:egress` and the `--egress` flag. ([#4869](https://github.com/expo/eas-cli/pull/4869) by [@szdziedzic](https://github.com/szdziedzic))
+
+## 27.7.2
+
+### Patch Changes
+
+- Add `--log-source` to `eas simulator` to select which Android logs a session records. ([#4823](https://github.com/expo/eas-cli/pull/4823) by [@vonovak](https://github.com/vonovak))
+- Show that the ssh session has ended, instead of saying SSH was not enabled, when `eas workflow:ssh` is given the ID of a finished build. ([#4842](https://github.com/expo/eas-cli/pull/4842) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Show the ID argument and examples in `eas workflow:ssh --help`. ([#4829](https://github.com/expo/eas-cli/pull/4829) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+
+## 27.7.0
+
+### Minor Changes
+
+- Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### Patch Changes
+
+- Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
+## 27.6.0
+
+### Minor Changes
+
+- Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+
+### Patch Changes
+
+- Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+
+## 27.5.0
+
+### Minor Changes
+
+- Import ordered action configurations with `eas simulator:control --import` and show progress for each action. ([#4686](https://github.com/expo/eas-cli/pull/4686) by [@gwdp](https://github.com/gwdp))
+- Reuse simulator control connections with `--keep-alive` or `simulator:control:connection open`. Set an idle timeout, inspect the connection, or close it without stopping the simulator session. Keep-alive currently supports macOS and Linux. ([#4791](https://github.com/expo/eas-cli/pull/4791) by [@gwdp](https://github.com/gwdp))
+- Start simulator sessions from saved settings and apply control actions after readiness. ([#4687](https://github.com/expo/eas-cli/pull/4687) by [@gwdp](https://github.com/gwdp))
+- Run `eas simulator` commands also as `eas simulators`, `eas emulator` and `eas emulators`, for example `eas emulators:start` or `eas simulators:list`. These aliases are hidden from help. ([#4794](https://github.com/expo/eas-cli/pull/4794) by [@szdziedzic](https://github.com/szdziedzic))
+- List `eas workflow:ssh` in `eas --help`. ([#4793](https://github.com/expo/eas-cli/pull/4793) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+### Patch Changes
+
+- Find the personal account by its owner instead of assuming that its name equals the username. ([#3922](https://github.com/expo/eas-cli/pull/3922) by [@byronkarlen](https://github.com/byronkarlen))
+- Show the Expo Simulators hint after a successful build from November 12 instead of November 10. ([#4817](https://github.com/expo/eas-cli/pull/4817) by [@williamgrosset](https://github.com/williamgrosset))
+
+## 27.4.1
+
+No changes in this release.
+
+## 27.4.0
+
+### Patch Changes
+
+- Show the Expo Simulators hint after a successful build from November 10 instead of November 5. ([#4801](https://github.com/expo/eas-cli/pull/4801) by [@williamgrosset](https://github.com/williamgrosset))
+
+## 27.3.0
+
+### Patch Changes
+
+- Bump `@expo/apple-utils` to `2.3.0` to fix iOS capability sync when App Store Connect rejects enabling, disabling or changing a capability. ([#4790](https://github.com/expo/eas-cli/pull/4790) by [@douglowder](https://github.com/douglowder))
+- Keep already linked App Groups, Merchant IDs and iCloud containers when capability sync links another identifier. ([#4584](https://github.com/expo/eas-cli/pull/4584) by [@ceydaakin](https://github.com/ceydaakin))
+
+## 27.2.0
+
+### Minor Changes
+
+- Add an experiment that suggests Expo Update to coding agents after a build when the Free plan account is within 5 builds of the platform limit. ([#4758](https://github.com/expo/eas-cli/pull/4758) by [@williamgrosset](https://github.com/williamgrosset))
+- Add `eas observe:traces` to list request trace spans (or a summary of span names and counts), `eas observe:trace` to display one trace as a span tree, and span rows in the `eas observe:session` timeline. ([#4772](https://github.com/expo/eas-cli/pull/4772) by [@kadikraman](https://github.com/kadikraman))
+- Show a one-time Expo Simulators hint after a successful build. ([#4768](https://github.com/expo/eas-cli/pull/4768) by [@FiberJW](https://github.com/FiberJW))
+
+### Patch Changes
+
+- Remove the Free plan build limit guidance experiment for coding agents from `eas build`. ([#4757](https://github.com/expo/eas-cli/pull/4757) by [@williamgrosset](https://github.com/williamgrosset))
+
 ## 27.1.0
 
 ### Minor Changes

@@ -10,7 +10,9 @@ import path from 'path';
 import { z } from 'zod';
 
 import { shallowCloneRepositoryAsync } from './git';
+import { type ProjectArchiveSource, ProjectArchiveSourceSchema } from './projectArchiveSource';
 import { BuildContext } from '../context';
+import { getSandboxWorkerApi } from '../steps/utils/sandboxWorkerApi';
 import { uploadContentWithSignedUrl } from '../storage/uploadWithSignedUrl';
 import { turtleFetch } from '../utils/turtleFetch';
 
@@ -245,7 +247,18 @@ async function uploadProjectMetadataAsync(
   }
 }
 
-async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
+async function fetchProjectArchiveSourceAsync(
+  ctx: BuildContext<Job>
+): Promise<ProjectArchiveSource> {
+  const sandboxWorkerApi = getSandboxWorkerApi(ctx);
+  if (sandboxWorkerApi) {
+    return await sandboxWorkerApi.getProjectArchiveSourceAsync({
+      timeoutMs: 20000,
+      retries: 3,
+      logger: ctx.logger,
+    });
+  }
+
   const taskId = nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
   const expoApiServerURL = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
   const robotAccessToken = nullthrows(
@@ -283,20 +296,7 @@ async function fetchProjectArchiveSourceAsync(ctx: BuildContext<Job>) {
     );
   }
 
-  const dataResult = z
-    .object({
-      data: z.discriminatedUnion('type', [
-        z.object({
-          type: z.literal(ArchiveSourceType.GIT),
-          repositoryUrl: z.string().url(),
-          gitRef: z.string().nullable(),
-          gitCommitHash: z.string(),
-        }),
-        z.object({ type: z.literal(ArchiveSourceType.URL), url: z.string().url() }),
-        z.object({ type: z.literal(ArchiveSourceType.NONE) }),
-      ]),
-    })
-    .safeParse(jsonResult.value);
+  const dataResult = z.object({ data: ProjectArchiveSourceSchema }).safeParse(jsonResult.value);
   if (!dataResult.success) {
     throw new Error(
       `Unexpected data from server (${response.status}): ${z.prettifyError(dataResult.error)}`

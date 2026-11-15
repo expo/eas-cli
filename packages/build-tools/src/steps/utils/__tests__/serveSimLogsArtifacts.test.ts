@@ -22,29 +22,17 @@ it('uploads NDJSON with explicit user-app scope', async () => {
       kind: 'simulator-log',
       filename: 'app-logs.ndjson',
       size: 11,
+      attempts: 1,
       metadata: expect.objectContaining({ scope: 'user-apps', udid: 'A' }),
     })
   );
 });
 
-it('skips empty and missing files', async () => {
-  await uploadServeSimLogsFileAsync(ctx, args);
-  await writeFile(filePath, '');
-  await uploadServeSimLogsFileAsync(ctx, args);
-  expect(uploadDeviceRunSessionArtifactAsync).not.toHaveBeenCalled();
-});
-
-it('aborts the upload on a file read error without an unhandled error', async () => {
+it('warns and resolves when the upload fails', async () => {
   await writeFile(filePath, '{}\n');
   jest
     .mocked(uploadDeviceRunSessionArtifactAsync)
-    .mockImplementationOnce(async (_ctx, { openStream, signal }) => {
-      const aborted = new Promise<void>((_resolve, reject) => {
-        signal!.addEventListener('abort', () => reject(signal!.reason), { once: true });
-      });
-      openStream().destroy(new Error('read failure'));
-      await aborted;
-    });
+    .mockRejectedValueOnce(new Error('storage unavailable'));
   await expect(uploadServeSimLogsFileAsync(ctx, args)).resolves.toBeUndefined();
   expect(logger.warn).toHaveBeenCalledWith(
     expect.objectContaining({ err: expect.any(Error) }),

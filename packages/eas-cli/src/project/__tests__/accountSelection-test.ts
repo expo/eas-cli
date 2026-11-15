@@ -114,6 +114,44 @@ describe(getAccountChoices, () => {
     });
   });
 
+  it('identifies the personal account by id when its name differs from the username', () => {
+    const renamedActor = {
+      ...userActor,
+      accounts: userActor.accounts.map(account =>
+        account.id === 'account-id-personal' ? { ...account, name: 'jane-personal' } : account
+      ),
+    } as Actor;
+
+    const choices = getAccountChoices(renamedActor);
+
+    expect(choices.map(choice => choice.title)).toEqual(['jane-personal', 'bob', 'acme']);
+    expect(choices[0].description).toEqual('(Personal)');
+  });
+
+  it('lists the primary account of a partner actor as personal', () => {
+    const partnerActor = {
+      __typename: 'PartnerActor',
+      id: 'partner-actor-id',
+      username: 'partner-user',
+      primaryAccount: { id: 'account-id-partner' },
+      accounts: [
+        {
+          id: 'account-id-partner',
+          name: 'partner-user',
+          ownerUserActor: null,
+          viewerUserPermission2: getMockViewerUserPermission(Role.Owner),
+        },
+      ],
+      isExpoAdmin: false,
+      featureGates: {},
+    } as Actor;
+
+    const choices = getAccountChoices(partnerActor);
+
+    expect(choices.map(choice => choice.title)).toEqual(['partner-user']);
+    expect(choices[0].description).toEqual('(Personal)');
+  });
+
   it('lists accounts without personal/team/organization annotations for robots', () => {
     const choices = getAccountChoices(robotActor);
 

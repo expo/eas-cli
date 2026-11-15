@@ -215,9 +215,10 @@ export const WorkflowJobSshQuery = {
       throw error;
     }
     const build = data.builds.byId;
+    const jobCompleted = FINAL_BUILD_STATUSES.has(build.status);
     return {
-      sshRequested: build.sshSession !== null,
-      jobCompleted: FINAL_BUILD_STATUSES.has(build.status),
+      sshRequested: build.sshSession !== null || jobCompleted,
+      jobCompleted,
       session: build.sshSession,
     };
   },

@@ -54,6 +54,23 @@ it('downloads the driver-matched Simulator runner and retains its XCTest framewo
   ).toBe(true);
 });
 
+it('uses the runner of a prepared Appium home without a download', async () => {
+  await fs.promises.mkdir(runner, { recursive: true });
+  await expect(preparePreinstalledWdaAsync({ ...options, prepared: true })).resolves.toEqual({
+    'appium:usePreinstalledWDA': true,
+    'appium:prebuiltWDAPath': runner,
+  });
+  await expect(
+    preparePreinstalledWdaAsync({
+      ...options,
+      prepared: true,
+      runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-16-4',
+    })
+  ).resolves.toEqual({});
+  expect(spawn).not.toHaveBeenCalled();
+  expect(fs.existsSync(runner)).toBe(true);
+});
+
 it.each([
   undefined,
   'com.apple.CoreSimulator.SimRuntime.iOS-16-4',

@@ -36,7 +36,7 @@ const SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS =
 const SERVE_SIM_FINISH_TIMEOUT_MS =
   SERVE_SIM_CONTROL_REQUEST_TIMEOUT_MS + SERVE_SIM_LEASE_FINALIZE_TIMEOUT_MS;
 const SERVE_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
-const SERVE_SIM_RECORDING_STARTED = 'serve-sim:recording-started';
+const SERVE_SIM_RECORDING_STARTED_LINE = /(?:^|\n)serve-sim:recording-started\r?\n/;
 // The serve-sim package the session host started; every recorder runs `record-video` from it.
 let serveSimPackageSpec: string | null = null;
 
@@ -57,11 +57,19 @@ type ActiveIosSimulatorRecording = IosSimulatorRecording & {
   hasExited: () => boolean;
 };
 
+type AdoptedIosSimulatorRecording = {
+  udid: string;
+  serverToken: string;
+  collectAsync(): Promise<void>;
+};
+
 type IosSimulatorRecordingSession = {
   env: Env;
   logger: bunyan;
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
+  adoptedRecordings: Map<string, AdoptedIosSimulatorRecording>;
+  runtimeDisplayNames: Map<string, string>;
   completedRecordings: IosSimulatorRecording[];
   recordingFailureCounts: Map<IosSimulatorUuid, number>;
   /** Failed attempts for the whole session; unlike recordingFailureCounts, never reset. */
@@ -81,6 +89,52 @@ export namespace IosSimulatorRecordingUtils {
     serveSimPackageSpec ??= packageSpec;
   }
 
+  /**
+   * Reserves this job's recording output before warm serve-sim adoption, which starts the
+   * recording. The poller skips that device, so it never starts a second recorder.
+   */
+  export async function prepareAdoptedRecordingAsync({
+    udid,
+    deviceName,
+    serverToken,
+  }: {
+    udid: string;
+    deviceName: string;
+    serverToken: string;
+  }): Promise<{ output: string; recordingId: string } | undefined> {
+    const session = activeIosSimulatorRecordingSession;
+    if (!session) {
+      return undefined;
+    }
+    udid = udid.toUpperCase();
+    const recordingId = randomUUID();
+    const output = path.join(session.recordingsRootDirectory, recordingId);
+    const startedAt = new Date();
+    await mkdir(output, { recursive: true });
+    session.adoptedRecordings.set(recordingId, {
+      udid,
+      serverToken,
+      async collectAsync() {
+        // Keep real footage eligible for the manifest wait if serve-sim shutdown was unconfirmed.
+        // The uploader preserves the manifest's partial or failed status.
+        await access(path.join(output, 'session.json')).catch(() =>
+          access(path.join(output, 'recording.mp4'))
+        );
+        session.completedRecordings.push({
+          id: recordingId,
+          udid: udid as IosSimulatorUuid,
+          deviceName,
+          runtimeDisplayName: session.runtimeDisplayNames.get(udid) ?? 'Unknown iOS runtime',
+          outputDirectory: output,
+          startedAt,
+          getOutput: () => '',
+          hasStarted: () => true,
+        });
+      },
+    });
+    return { output, recordingId };
+  }
+
   export async function startAsync({ env, logger }: { env: Env; logger: bunyan }): Promise<void> {
     if (activeIosSimulatorRecordingSession) {
       logger.info('iOS Simulator screen recording polling is already running.');
@@ -95,6 +149,8 @@ export namespace IosSimulatorRecordingUtils {
       logger,
       recordingsRootDirectory,
       activeRecordings: new Map(),
+      adoptedRecordings: new Map(),
+      runtimeDisplayNames: new Map(),
       completedRecordings: [],
       recordingFailureCounts: new Map(),
       failedAttemptCounts: new Map(),
@@ -190,6 +246,17 @@ export namespace IosSimulatorRecordingUtils {
       })
     );
 
+    await Promise.all(
+      [...session.adoptedRecordings.values()].map(recording =>
+        recording.collectAsync().catch(err => {
+          logger.warn(
+            { err },
+            'Could not collect the warm Simulator video recording after shutdown.'
+          );
+        })
+      )
+    );
+
     const completedRecordings = [...session.completedRecordings].sort(
       (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
     );
@@ -243,6 +310,9 @@ async function pollIosSimulatorRecordingsAsync(
         break;
       }
       listDevicesErrorCount = 0;
+      for (const device of bootedDevices) {
+        session.runtimeDisplayNames.set(device.udid.toUpperCase(), device.runtimeDisplayName);
+      }
       const readyServers = new Map(
         (await readServeSimServersAsync(SERVE_SIM_STATE_DIR)).flatMap(server =>
           server.token ? [[server.udid, server.token] as const] : []
@@ -262,7 +332,14 @@ async function pollIosSimulatorRecordingsAsync(
       for (const device of bootedDevices) {
         const token = readyServers.get(device.udid);
         const packageSpec = serveSimPackageSpec;
-        if (!token || !packageSpec) {
+        if (
+          !token ||
+          !packageSpec ||
+          [...session.adoptedRecordings.values()].some(
+            recording =>
+              recording.udid === device.udid.toUpperCase() && recording.serverToken === token
+          )
+        ) {
           continue;
         }
         if (session.serveBearerTokens.get(device.udid) !== token) {
@@ -507,14 +584,19 @@ function captureProcessOutput(recordingProcess: ChildProcess): {
 } {
   let output = '';
   let started = false;
-  const appendChunk = (chunk: Buffer | string): void => {
-    output = `${output}${chunk.toString()}`;
-    if (output.includes(SERVE_SIM_RECORDING_STARTED)) {
-      started = true;
-    }
-    output = output.slice(-16_384);
+  const captureStreamOutput = (stream: ChildProcess['stdout']): void => {
+    let streamOutput = '';
+    stream?.on('data', (chunk: Buffer | string) => {
+      const text = chunk.toString();
+      output = `${output}${text}`.slice(-16_384);
+      streamOutput = `${streamOutput}${text}`;
+      if (SERVE_SIM_RECORDING_STARTED_LINE.test(streamOutput)) {
+        started = true;
+      }
+      streamOutput = streamOutput.slice(-16_384);
+    });
   };
-  recordingProcess.stdout?.on('data', appendChunk);
-  recordingProcess.stderr?.on('data', appendChunk);
+  captureStreamOutput(recordingProcess.stdout);
+  captureStreamOutput(recordingProcess.stderr);
   return { getOutput: () => output, hasStarted: () => started };
 }

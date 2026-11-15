@@ -1,9 +1,7 @@
 import { type bunyan } from '@expo/logger';
-import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 export async function uploadServeSimLogsFileAsync(
   ctx: CustomBuildContext,
@@ -22,21 +20,22 @@ export async function uploadServeSimLogsFileAsync(
   }
 ): Promise<void> {
   try {
-    const { size } = await stat(filePath);
-    if (size === 0) {
-      return;
-    }
-    const fileController = new AbortController();
-    await uploadDeviceRunSessionArtifactAsync(ctx, {
-      deviceRunSessionId,
-      artifactId: `simulator-log-${udid}`,
-      name: `App logs (${udid.slice(0, 8)})`,
-      filename: 'app-logs.ndjson',
-      kind: 'simulator-log',
-      metadata: { __eas_type: 'simulator-log', udid, scope: 'user-apps', source: 'serve-sim/logs' },
-      size,
-      openStream: () => createReadStream(filePath).on('error', err => fileController.abort(err)),
-      signal: AbortSignal.any([fileController.signal, ...(signal ? [signal] : [])]),
+    await uploadDeviceRunSessionFileAsync(ctx, {
+      filePath,
+      describe: () => ({
+        deviceRunSessionId,
+        artifactId: `simulator-log-${udid}`,
+        name: `App logs (${udid.slice(0, 8)})`,
+        filename: 'app-logs.ndjson',
+        kind: 'simulator-log',
+        metadata: {
+          __eas_type: 'simulator-log',
+          udid,
+          scope: 'user-apps',
+          source: 'serve-sim/logs',
+        },
+      }),
+      signal,
     });
   } catch (err) {
     logger.warn(

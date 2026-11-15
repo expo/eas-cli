@@ -1,21 +1,11 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { ArchiveSourceType, SystemError, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import { graphql } from 'gql.tada';
 
+import { stripRepositoryCredentialsAsync } from '../../common/git';
 import { CustomBuildContext } from '../../customBuildContext';
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import { withLogPhaseAsync } from '../../utils/logPhase';
 import { startSandboxDaemonAsync } from '../utils/sandboxDaemon';
-
-const MARK_SANDBOX_READY_MUTATION = graphql(`
-  mutation MarkSandboxReady($sandboxId: ID!) {
-    sandbox {
-      markSandboxReady(sandboxId: $sandboxId) {
-        id
-      }
-    }
-  }
-`);
+import { requireSandboxWorkerApi } from '../utils/sandboxWorkerApi';
 
 const RECONNECT_DELAY_MS = 1_000;
 const AWAIT_SANDBOX_STEP_NAME = 'Await sandbox completion';
@@ -39,16 +29,11 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }),
     ],
     fn: async (stepCtx, { inputs, signal, env }) => {
-      // The daemon needs this credential, but shell commands do not.
-      const { __EAS_SANDBOX_MCP_TOKEN: sandboxToken, ...commandEnv } = env;
-      if (!sandboxToken) {
-        throw new SystemError('__EAS_SANDBOX_MCP_TOKEN is required to start the sandbox daemon.');
-      }
+      const workerApi = requireSandboxWorkerApi(ctx);
       const mcpServerUrl = ctx.mcpServerUrl;
       if (!mcpServerUrl) {
         throw new SystemError('MCP server URL is required to start the sandbox daemon.');
       }
-      const sandboxId = String(inputs.sandbox_id.value);
       const maxDurationSeconds = inputs.max_duration_seconds?.value;
       if (
         maxDurationSeconds !== undefined &&
@@ -61,21 +46,35 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
           `Invalid sandbox maximum duration: ${String(maxDurationSeconds)}. Provide a finite number greater than zero, or omit max_duration_seconds.`
         );
       }
+      if (ctx.job.projectArchive.type === ArchiveSourceType.GIT) {
+        // Scripts and commands inside the sandbox could read the token from .git/config.
+        await stripRepositoryCredentialsAsync({
+          repositoryDirectory: stepCtx.global.wasCheckedOut()
+            ? ctx.projectTargetDirectory
+            : ctx.projectSourceDirectory,
+        });
+      }
+
       const daemon = await startSandboxDaemonAsync({
-        credential: sandboxToken,
+        credential: workerApi.token,
         serverUrl: mcpServerUrl,
         reconnectDelayMs: RECONNECT_DELAY_MS,
         logger: stepCtx.logger,
         signal,
         workingDirectory: stepCtx.workingDirectory,
-        env: commandEnv,
-        graphqlClient: ctx.graphqlClient,
-        sandboxId,
+        env,
+        workerApi,
       });
       try {
         await daemon.ready;
         signal?.throwIfAborted();
-        await markSandboxReadyAsync(ctx, sandboxId, signal);
+        await workerApi.markReadyAsync({ signal }).catch((error: unknown) => {
+          signal?.throwIfAborted();
+          throw new SystemError(
+            `Failed to mark sandbox ${String(inputs.sandbox_id.value)} as ready.`,
+            { cause: error }
+          );
+        });
         signal?.throwIfAborted();
         stepCtx.logger.info('Sandbox daemon started.');
 
@@ -101,23 +100,6 @@ export function createStartSandboxBuildFunction(ctx: CustomBuildContext): BuildF
       }
     },
   });
-}
-
-export async function markSandboxReadyAsync(
-  ctx: CustomBuildContext,
-  sandboxId: string,
-  signal?: AbortSignal
-): Promise<void> {
-  signal?.throwIfAborted();
-  const result = await ctx.graphqlClient
-    .mutation(MARK_SANDBOX_READY_MUTATION, { sandboxId }, graphqlAbortContext(signal))
-    .toPromise();
-  signal?.throwIfAborted();
-  if (result.error) {
-    throw new SystemError(`Failed to mark sandbox ${sandboxId} as ready.`, {
-      cause: result.error,
-    });
-  }
 }
 
 async function waitForCompletionAsync(signal: AbortSignal): Promise<void> {

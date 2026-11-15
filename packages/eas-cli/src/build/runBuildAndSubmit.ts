@@ -24,6 +24,10 @@ import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureLockfileExistsAsync } from './validateLockfile';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
+import {
+  getFreeTierNearLimitAgentUpdatesTipExperiment,
+  maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync,
+} from './freeTierNearLimitAgentUpdatesTip';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
@@ -139,6 +143,7 @@ export async function runBuildAndSubmitAsync({
 }): Promise<{
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
+  builds?: MaybeBuildFragment[];
 }> {
   await vcsClient.ensureRepoExistsAsync();
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
@@ -339,6 +344,10 @@ export async function runBuildAndSubmitAsync({
   if (!flags.json) {
     printBuildResults(builds);
   }
+  await maybeSuggestEASUpdateToAgentNearFreeTierLimitAsync(
+    builds,
+    getFreeTierNearLimitAgentUpdatesTipExperiment(buildCtxByPlatform, { json: flags.json })
+  );
 
   const haveAllBuildsFailedOrCanceled = builds.every(
     build =>
@@ -372,6 +381,7 @@ export async function runBuildAndSubmitAsync({
   return {
     buildIds: startedBuilds.map(({ build }) => build.id),
     buildProfiles,
+    builds,
   };
 }
 

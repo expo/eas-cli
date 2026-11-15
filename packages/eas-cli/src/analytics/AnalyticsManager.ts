@@ -70,6 +70,8 @@ export enum BuildEvent {
   BUILD_REQUEST_SUCCESS = 'build cli build request success',
   BUILD_REQUEST_FAIL = 'build cli build request fail',
   FREE_TIER_LIMIT_CHECKOUT_PROMPT = 'build cli free tier limit checkout prompt',
+  FREE_TIER_NEAR_LIMIT_AGENT_UPDATES_TIP = 'build cli free tier near limit agent updates tip',
+  SIMULATORS_LAUNCH_HINT_SHOWN = 'build cli simulators launch hint shown',
 
   BUILD_STATUS_COMMAND = 'build cli build status',
 
@@ -149,7 +151,9 @@ export async function isAnalyticsOptedOutAsync(): Promise<boolean> {
 /**
  * Create an instance of Analytics based on the user's analytics enabled preferences.
  */
-export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration> {
+export async function createAnalyticsAsync(
+  parentCommand: string | null = null
+): Promise<AnalyticsWithOrchestration> {
   // TODO: remove after some time
   const amplitudeEnabled = await UserSettings.getAsync(USER_SETTINGS_KEY_AMPLITUDE_ENABLED, null);
   if (amplitudeEnabled !== null) {
@@ -184,7 +188,7 @@ export async function createAnalyticsAsync(): Promise<AnalyticsWithOrchestration
   if (!persistedDeviceId) {
     await UserSettings.setAsync(USER_SETTINGS_KEY_ANALYTICS_DEVICE_ID, deviceId);
   }
-  return new RudderstackAnalytics(deviceId);
+  return new RudderstackAnalytics(deviceId, parentCommand);
 }
 
 class NoOpAnalytics implements AnalyticsWithOrchestration {
@@ -220,7 +224,10 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
 
   private identifiedActor: Actor | null = null;
 
-  constructor(private readonly persistentDeviceId: string) {
+  constructor(
+    private readonly persistentDeviceId: string,
+    private readonly parentCommand: string | null
+  ) {
     // identify once with just anonymous ID. Once the actor is fetched, re-indentify with
     // both so that they can be associated
     this.rudderstackClient.identify({
@@ -274,6 +281,7 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },
       app: { name: 'eas cli', version: easCliVersion ?? undefined },
+      ...(this.parentCommand ? { parent_command: this.parentCommand } : {}),
       ...(sandboxProvider ? { sandbox_provider: sandboxProvider } : {}),
       ...(agent ? { agent } : {}),
     };

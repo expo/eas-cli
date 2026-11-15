@@ -1,0 +1,76 @@
+import path from 'node:path';
+
+import { claimAsync, prepareToolsAsync } from './commands/claim';
+import { prefetchAsync } from './commands/prefetch';
+import { startAsync } from './commands/start';
+import { stopAsync } from './commands/stop';
+import { commands } from './utils/processes';
+
+export async function mainAsync(args = process.argv.slice(2)): Promise<number> {
+  if (process.platform !== 'darwin') {
+    throw new Error('simulator-launcher requires macOS (darwin).');
+  }
+  if (args.length === 1 && args[0] === '--version') {
+    process.stdout.write(`${require('../package.json').version}\n`);
+    return 0;
+  }
+  if (args.length === 1 && args[0] === 'prefetch') {
+    const shutdown = new AbortController();
+    const stop = (): void => shutdown.abort(new Error('Simulator prefetch was interrupted.'));
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    try {
+      return await prefetchAsync(shutdown.signal);
+    } finally {
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+    }
+  }
+  const [command, engine, requestedDevice] = args;
+  if (
+    command !== 'start' &&
+    command !== 'warmup' &&
+    command !== 'stop' &&
+    command !== 'claim' &&
+    command !== 'prepare-tools'
+  ) {
+    throw new Error(
+      'Usage: simulator-launcher <warmup|start|stop|claim ENGINE [DEVICE]|prepare-tools|prefetch>'
+    );
+  }
+  if (command === 'warmup' && args.length !== 1) {
+    throw new Error('Usage: simulator-launcher warmup');
+  }
+  const bootUuid = (
+    await commands.runAsync('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid'])
+  ).trim();
+  if (!bootUuid) {
+    throw new Error(
+      'Could not read the VM boot identifier (kern.bootsessionuuid); startup cannot continue.'
+    );
+  }
+  switch (command) {
+    case 'warmup':
+      return await startAsync(bootUuid, true);
+    case 'start':
+      return await startAsync(bootUuid);
+    case 'stop':
+      return await stopAsync(bootUuid);
+    case 'claim':
+      return await claimAsync(bootUuid, engine, requestedDevice);
+    case 'prepare-tools':
+      return await prepareToolsAsync(bootUuid);
+  }
+}
+
+export async function runCliAsync(): Promise<void> {
+  try {
+    process.exitCode = await mainAsync();
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
+    process.exitCode = 1;
+  }
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
+  void runCliAsync();
+}

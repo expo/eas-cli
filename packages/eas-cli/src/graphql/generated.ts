@@ -19,14 +19,22 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  /** A non-negative integer number of bytes. */
   ByteSize: { input: any; output: any; }
+  /** Date custom scalar type */
   DateTime: { input: any; output: any; }
+  /** A DevDomainName for a deployed serverless app */
   DevDomainName: { input: any; output: any; }
+  /** A name of an environment variable environment */
   EnvironmentVariableEnvironment: { input: any; output: any; }
+  /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: { input: any; output: any; }
+  /** The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSONObject: { input: any; output: any; }
   SubmissionAndroidTrack: { input: any; output: any; }
+  /** A alias name for a serverless deployment */
   WorkerDeploymentIdentifier: { input: any; output: any; }
+  /** A Worker Deployment Request ID (also known as the CF Ray ID) */
   WorkerDeploymentRequestID: { input: any; output: any; }
 };
 
@@ -489,7 +497,17 @@ export type Account_DeviceRunSessionsPaginatedArgs = {
  * data and settings. Actors may own and be members of accounts.
  */
 export type Account_EnvironmentSecretsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type Account_EnvironmentVariableEnvironmentsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
@@ -499,6 +517,7 @@ export type Account_EnvironmentSecretsArgs = {
  */
 export type Account_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -509,6 +528,7 @@ export type Account_EnvironmentVariablesArgs = {
  */
 export type Account_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -795,7 +815,6 @@ export type AccountMutation = {
    * using, creating, changing, or deleting an environment variable whose environments are
    * exclusively production needs the PUBLISH_PROTECTED permission on the account, whatever its
    * visibility, in every project of the account. Requires the ADMIN permission on the account.
-   * Turning protection off also requires a sudo session.
    */
   setEnvironmentVariableProtectionEnabled: Account;
   /** Set whether EAS Observe ingestion is paused for this account. */
@@ -1484,6 +1503,8 @@ export type AndroidDeviceRunSessionDevice = {
   displayName: Scalars['String']['output'];
   /** AVD hardware profile id accepted by android.deviceIdentifier (e.g. "pixel_9"). */
   identifier: Scalars['String']['output'];
+  /** Whether a session starts this device when it requests no android.deviceIdentifier. */
+  isDefault: Scalars['Boolean']['output'];
 };
 
 export type AndroidDeviceRunSessionProfiles = {
@@ -1940,13 +1961,21 @@ export type App_EmbeddedUpdatesPaginatedArgs = {
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentSecretsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type App_EnvironmentVariableEnvironmentsArgs = {
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentVariablesArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -1954,6 +1983,7 @@ export type App_EnvironmentVariablesArgs = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App_EnvironmentVariablesIncludingSensitiveArgs = {
   environment?: InputMaybe<Scalars['EnvironmentVariableEnvironment']['input']>;
+  excludeProductionOnly?: InputMaybe<Scalars['Boolean']['input']>;
   filterNames?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -3068,13 +3098,13 @@ export enum AppObserveErrorOccurrencesOrderByField {
 /** AppObserveErrorStats for one platform; iOS includes iPadOS and tvOS. */
 export type AppObserveErrorPlatformStats = {
   __typename?: 'AppObserveErrorPlatformStats';
-  /** Distinct sessions on this platform that hit any exception. */
+  /** Distinct sessions on this platform that hit any exception, including installations outside the sampleRate sample. */
   affectedSessions: Scalars['Int']['output'];
-  /** Distinct users on this platform that hit any exception. */
+  /** Distinct users on this platform that hit any exception, including installations outside the sampleRate sample. */
   affectedUsers: Scalars['Int']['output'];
-  /** Fraction (0..1) of this platform's active sessions without a fatal error. */
+  /** Fraction (0..1) of this platform's active sessions without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of this platform's active users without a fatal error. */
+  /** Fraction (0..1) of this platform's active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
   fatalCount: Scalars['Int']['output'];
   nonFatalCount: Scalars['Int']['output'];
@@ -3090,13 +3120,13 @@ export enum AppObserveErrorSeverity {
 
 export type AppObserveErrorStats = {
   __typename?: 'AppObserveErrorStats';
-  /** Distinct sessions that hit any exception. */
+  /** Distinct sessions that hit any exception, including installations outside the sampleRate sample. */
   affectedSessions: Scalars['Int']['output'];
-  /** Distinct users that hit any exception. */
+  /** Distinct users that hit any exception, including installations outside the sampleRate sample that send errors because of errorSampleRate. */
   affectedUsers: Scalars['Int']['output'];
-  /** Fraction (0..1) of active sessions without a fatal error. Denominator spans app_metrics and app_events. */
+  /** Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample. Denominator spans app_metrics and app_events. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of active users without a fatal error. */
+  /** Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
   fatalCount: Scalars['Int']['output'];
   nonFatalCount: Scalars['Int']['output'];
@@ -3753,11 +3783,11 @@ export type AppObserveOverviewStability = {
   __typename?: 'AppObserveOverviewStability';
   /** Fatal exception events in range. */
   crashCount: Scalars['Int']['output'];
-  /** Fraction (0..1) of active sessions without a fatal error. */
+  /** Fraction (0..1) of active sessions without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeSessions: Scalars['Float']['output'];
-  /** Fraction (0..1) of active users without a fatal error. */
+  /** Fraction (0..1) of active users without a fatal error. Counts only installations in the sampleRate sample. */
   crashFreeUsers: Scalars['Float']['output'];
-  /** Distinct users that hit a fatal error in range. */
+  /** Distinct users that hit a fatal error in range, including installations outside the sampleRate sample. */
   crashedUsers: Scalars['Int']['output'];
   /** Fatal exception events in the equal-length window before startTime. Null when the window is longer than 45 days. */
   previousPeriodCrashCount?: Maybe<Scalars['Int']['output']>;
@@ -3963,6 +3993,7 @@ export type AppObserveSessionSpanFilter = {
   minDurationMs?: InputMaybe<Scalars['Float']['input']>;
   names?: InputMaybe<Array<Scalars['String']['input']>>;
   rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  scopes?: InputMaybe<Array<Scalars['String']['input']>>;
   statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
 };
 
@@ -4002,6 +4033,11 @@ export type AppObserveSpan = {
   /** Null for a root span. */
   parentSpanId?: Maybe<Scalars['String']['output']>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
+  /**
+   * The instrumentation scope that produced the span (OTLP scopeSpans.scope.name), such as
+   * expo-observe.network. Empty when the span was sent without a scope or stored before scopes were kept.
+   */
+  scopeName: Scalars['String']['output'];
   sessionId?: Maybe<Scalars['String']['output']>;
   spanId: Scalars['String']['output'];
   startTimestamp: Scalars['DateTime']['output'];
@@ -4084,6 +4120,8 @@ export type AppObserveSpanListFilter = {
   platforms?: InputMaybe<Array<AppObservePlatform>>;
   /** Only spans with no parent. */
   rootOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Spans produced by any of these instrumentation scopes, such as expo-observe.network. */
+  scopes?: InputMaybe<Array<Scalars['String']['input']>>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
   startTime: Scalars['DateTime']['input'];
   statusCodes?: InputMaybe<Array<AppObserveSpanStatusCode>>;
@@ -6620,8 +6658,15 @@ export type CreateAndConfigureRepositoryInput = {
 };
 
 export type CreateAndroidDeviceRunSessionInput = {
-  /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). */
+  /** AVD hardware profile id to use for the emulator (e.g. "pixel_9"). Defaults to "medium_phone". */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Logs to record during the session and upload afterward: emulator-output and device-logcat. Defaults to
+   * ["emulator-output"]. An empty list disables recording and uploading both sources. Device-wide logcat can contain
+   * credentials and personal data; include device-logcat only when you want to retain it.
+   * Logs are not redacted and use the existing 90-day artifact retention policy.
+   */
+  logSources?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Android SDK system image package to use for the emulator (e.g.
    * "system-images;android-35;google_apis;x86_64").
@@ -6869,7 +6914,10 @@ export type CreateGitHubRepositorySettingsInput = {
 };
 
 export type CreateIosDeviceRunSessionInput = {
-  /** Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). */
+  /**
+   * Simulator device name or UDID to use for the session (e.g. "iPhone 16 Pro"). Defaults to
+   * "iPhone 17".
+   */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -7377,6 +7425,12 @@ export type DeviceRunSession = ActivityTimelineProjectActivity & {
    */
   build?: Maybe<Build>;
   createdAt: Scalars['DateTime']['output'];
+  /**
+   * The simulator or emulator the session starts: the requested simulator device
+   * name or UDID on iOS, or the AVD hardware profile id on Android, or the platform
+   * default when none is requested. Null on sessions created before it was saved.
+   */
+  deviceIdentifier?: Maybe<Scalars['String']['output']>;
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
@@ -8682,7 +8736,7 @@ export type GitHubRepository = {
 
 export type GitHubRepositoryMetadata = {
   __typename?: 'GitHubRepositoryMetadata';
-  defaultBranch?: Maybe<Scalars['String']['output']>;
+  defaultBranch: Scalars['String']['output'];
   githubRepoDescription?: Maybe<Scalars['String']['output']>;
   githubRepoName: Scalars['String']['output'];
   githubRepoOwnerName: Scalars['String']['output'];
@@ -9090,6 +9144,8 @@ export type IosDeviceRunSessionDevice = {
   displayName: Scalars['String']['output'];
   /** Simulator device name accepted by ios.deviceIdentifier (e.g. "iPhone 17 Pro"). */
   identifier: Scalars['String']['output'];
+  /** Whether a session starts this device when it requests no ios.deviceIdentifier. */
+  isDefault: Scalars['Boolean']['output'];
 };
 
 export type IosDeviceRunSessionProfiles = {
@@ -11162,6 +11218,7 @@ export type StatuspageService = {
 /** Name of a service monitored by Expo status page. */
 export enum StatuspageServiceName {
   EasBuild = 'EAS_BUILD',
+  EasSimulator = 'EAS_SIMULATOR',
   EasSubmit = 'EAS_SUBMIT',
   EasUpdate = 'EAS_UPDATE',
   EasWorkflows = 'EAS_WORKFLOWS',
@@ -14556,7 +14613,20 @@ export type WorkflowRunGitBranchFilterInput = {
   searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
+/**
+ * Git metadata for a run started from an uploaded project. The commit must exist in the
+ * project's linked GitHub repository. The run records the branch and commit but is not
+ * linked to the repository.
+ */
+export type WorkflowRunGitInput = {
+  /** Branch name such as "main". Stored as refs/heads/<branch>. Fully qualified refs are rejected. */
+  branch: Scalars['String']['input'];
+  /** Full commit SHA. The commit message is read from GitHub. */
+  commitHash: Scalars['String']['input'];
+};
+
 export type WorkflowRunInput = {
+  git?: InputMaybe<WorkflowRunGitInput>;
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   projectSource: WorkflowProjectSourceInput;
   ssh?: InputMaybe<WorkflowRunSshInput>;
@@ -14663,6 +14733,7 @@ export enum WorkflowRunTriggerEventType {
   GithubPush = 'GITHUB_PUSH',
   GithubRefDelete = 'GITHUB_REF_DELETE',
   Manual = 'MANUAL',
+  ObserveNewError = 'OBSERVE_NEW_ERROR',
   RepackExpoGo = 'REPACK_EXPO_GO',
   Schedule = 'SCHEDULE',
   SentryIssueArchived = 'SENTRY_ISSUE_ARCHIVED',
@@ -15896,6 +15967,14 @@ export type CreateAppScopedUploadSessionMutationVariables = Exact<{
 
 export type CreateAppScopedUploadSessionMutation = { __typename?: 'RootMutation', uploadSession: { __typename?: 'UploadSession', createAppScopedUploadSession: any } };
 
+export type SetUserPreferenceMutationVariables = Exact<{
+  key: Scalars['String']['input'];
+  value: Scalars['JSON']['input'];
+}>;
+
+
+export type SetUserPreferenceMutation = { __typename?: 'RootMutation', userPreference: { __typename?: 'UserPreferenceMutation', set: { __typename?: 'UserPreference', id: string, key: string, value: any } } };
+
 export type CreateWebhookMutationVariables = Exact<{
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
@@ -15988,6 +16067,14 @@ export type AccountFullUsageQueryVariables = Exact<{
 
 
 export type AccountFullUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, status?: string | null, nextInvoice?: any | null, nextInvoiceAmountDueCents?: number | null, recurringCents?: number | null, price: number, concurrencies?: { __typename?: 'Concurrencies', total: number, android: number, ios: number } | null, addons: Array<{ __typename?: 'AddonDetails', id: string, name: string, quantity?: number | null }>, upcomingInvoice?: { __typename?: 'Invoice', id: string, total: number, lineItems: Array<{ __typename?: 'InvoiceLineItem', id: string, description: string, amount: number, period: { __typename?: 'InvoicePeriod', start: any, end: any } }> } | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', MEDIUM_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_ANDROID_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, MEDIUM_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, LARGE_IOS_BUILDS: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_UPDATE: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, EAS_SIMULATOR: { __typename?: 'UsageMetricTotal', id: string, totalCost: number, unavailableServiceUsageMetrics: Array<{ __typename?: 'UnavailableServiceUsageMetric', service: EasService }>, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any }, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null, jobTypeBreakdown?: { __typename?: 'EstimatedUsageJobTypeBreakdown', workflows: number, simulator: number, other: number } | null }>, overageMetrics: Array<{ __typename?: 'EstimatedOverageAndCost', id: string, service: EasService, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, totalCost: number, metadata?: { __typename?: 'AccountUsageEASBuildMetadata', billingResourceClass?: EasBuildBillingResourceClass | null, platform?: AppPlatform | null } | null }> }, IOS_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }>, ANDROID_SIMULATOR_MINUTES: Array<{ __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number }> } } } };
+
+export type AccountFreeTierBuildUsageQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+  currentDate: Scalars['DateTime']['input'];
+}>;
+
+
+export type AccountFreeTierBuildUsageQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null } | null, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any }, usageMetrics: { __typename?: 'AccountUsageMetrics', EAS_BUILD: { __typename?: 'UsageMetricTotal', id: string, planMetrics: Array<{ __typename?: 'EstimatedUsage', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number, limit: number, platformBreakdown?: { __typename?: 'EstimatedUsagePlatformBreakdown', ios: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number }, android: { __typename?: 'EstimatedUsagePlatformDetail', value: number, limit: number } } | null }> } } } } };
 
 export type AccountUsageForOverageWarningQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -16349,6 +16436,11 @@ export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSes
         | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewApiUrl?: string | null, previewUrl: string, previewToken?: string | null }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
+export type DeviceRunSessionProfilesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DeviceRunSessionProfilesQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', profiles: { __typename?: 'DeviceRunSessionProfiles', ios: { __typename?: 'IosDeviceRunSessionProfiles', devices: Array<{ __typename?: 'IosDeviceRunSessionDevice', identifier: string, displayName: string, isDefault: boolean }> }, android: { __typename?: 'AndroidDeviceRunSessionProfiles', devices: Array<{ __typename?: 'AndroidDeviceRunSessionDevice', identifier: string, displayName: string, isDefault: boolean }> } } } };
+
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -16529,13 +16621,41 @@ export type AppObserveSessionEventsQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
   metricsOrderBy?: InputMaybe<AppObserveMetricsListOrderBy>;
   logsOrderBy?: InputMaybe<AppObserveLogsOrderBy>;
+  spansOrderBy?: InputMaybe<AppObserveSpanListOrderBy>;
 }>;
 
 
 export type AppObserveSessionEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', session: { __typename?: 'AppObserveSession', id: string, metrics: { __typename?: 'AppObserveMetricConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveMetricEdge', node: { __typename?: 'AppObserveMetric', id: string, name: string, value: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> }, logs: { __typename?: 'AppObserveLogConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveLogEdge', node:
                 | { __typename: 'AppObserveError', id: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, type?: string | null, message?: string | null, source?: string | null, fingerprint?: string | null, isFatal?: boolean | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
                 | { __typename: 'AppObserveUserEvent', id: string, name: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> }
-               }> } } } } } };
+               }> }, spans: { __typename?: 'AppObserveSpanConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveSpanEdge', node: { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> } }> } } } } } };
+
+export type AppObserveSpanListQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter: AppObserveSpanListFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveSpanListOrderBy>;
+}>;
+
+
+export type AppObserveSpanListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', spans: { __typename?: 'AppObserveSpanConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveSpanEdge', cursor: string, node: { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> } }> } } } } } };
+
+export type AppObserveSpanNamesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  input: AppObserveSpanNamesInput;
+}>;
+
+
+export type AppObserveSpanNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', names: { __typename?: 'AppObserveSpanNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveSpanName', name: string, kind: AppObserveSpanKind, count: number }> } } } } } };
+
+export type AppObserveTraceByIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type AppObserveTraceByIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', traces: { __typename?: 'AppObserveTraces', trace?: { __typename?: 'AppObserveTrace', id: string, isTruncated: boolean, spans: Array<{ __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> }> } | null } } } } };
 
 export type AppObserveMetricByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -16769,11 +16889,18 @@ export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?
         | { __typename: 'User', username: string, id: string }
        | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
 
+export type UserPreferenceByKeyQueryVariables = Exact<{
+  key: Scalars['String']['input'];
+}>;
+
+
+export type UserPreferenceByKeyQuery = { __typename?: 'RootQuery', userPreference: { __typename?: 'UserPreferenceQuery', get?: { __typename?: 'UserPreference', id: string, key: string, value: any } | null } };
+
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
-    | { __typename: 'PartnerActor', id: string, username: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'PartnerActor', id: string, username: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission2: { __typename?: 'ViewerUserPermission', permissions: Array<Permission>, effectivePermissions: Array<Permission> } }> }
@@ -16971,7 +17098,7 @@ export type UsageMetricTotalFragment = { __typename?: 'UsageMetricTotal', id: st
 
 export type AccountUsageMetricFragment = { __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number };
 
-type MeActorFragment_PartnerActor = { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+type MeActorFragment_PartnerActor = { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
       | { __typename?: 'SSOUser', id: string, username: string }
       | { __typename?: 'User', id: string, username: string }
      | null, viewerUserPermission2: { __typename?: 'ViewerUserPermission', permissions: Array<Permission>, effectivePermissions: Array<Permission> } }> };
@@ -17058,6 +17185,8 @@ export type AppObserveMetricFragment = { __typename?: 'AppObserveMetric', id: st
 export type AppObserveErrorGroupFragment = { __typename?: 'AppObserveErrorGroup', fingerprint: string, exceptionType?: string | null, exceptionMessage?: string | null, errorSource?: string | null, severity: AppObserveErrorSeverity, isFatal: boolean, eventCount: number, uniqueUserCount: number, affectedSessionCount: number, firstSeenAt: any, lastSeenAt: any, platforms: Array<string> };
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
+
+export type AppObserveSpanFragment = { __typename?: 'AppObserveSpan', id: string, traceId: string, spanId: string, parentSpanId?: string | null, name: string, kind: AppObserveSpanKind, startTimestamp: any, endTimestamp: any, durationMs: number, statusCode: AppObserveSpanStatusCode, statusMessage?: string | null, sessionId?: string | null, droppedAttributesCount: number, droppedEventsCount: number, droppedLinksCount: number, ingestedAt?: any | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, expoSdkVersion?: string | null, reactNativeVersion?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, http?: { __typename?: 'AppObserveSpanHttp', method?: string | null, statusCode?: number | null, urlHost?: string | null, urlFull?: string | null, protocolVersion?: string | null, requestSize?: number | null, responseSize?: number | null, errorType?: string | null } | null, attributes: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }>, events: Array<{ __typename?: 'AppObserveSpanEvent', name: string, timestamp: any, attributes: any }> };
 
 export type PostHogOrganizationConnectionFragment = { __typename?: 'PostHogOrganizationConnection', id: string, posthogOrganizationIdentifier: string, posthogOrganizationName: string, posthogRegion: PostHogRegion, createdAt: any, updatedAt: any };
 

@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { type FSWatcher, createReadStream, watch } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm, rmdir, stat } from 'node:fs/promises';
@@ -7,8 +8,8 @@ import { z } from 'zod';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 import {
   type ScreenshotSession,
   loadScreenshotSessionAsync,
@@ -93,7 +94,10 @@ async function uploadScreenshotAsync(
     artifactId: name.slice(0, -4),
     name: artifactDetails.name,
     filename: artifactDetails.filename,
-    metadata: artifactDetails.metadata,
+    metadata: {
+      ...artifactDetails.metadata,
+      ...(await createScreenshotMetadataAsync(file, { source: 'manual', logger })),
+    },
     kind: 'screenshot',
     size,
     openStream: () => createReadStream(file),

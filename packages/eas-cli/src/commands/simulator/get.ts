@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { Flags } from '@oclif/core';
 
 import { getDeviceRunSessionPreviewUrl, getDeviceRunSessionUrl } from '../../build/utils/url';
@@ -29,17 +30,21 @@ import {
   formatRemoteSessionInstructions,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
-import { formatBytes } from '../../utils/files';
 import formatFields, { FormatFieldsItem } from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 
 export default class SimulatorGet extends EasCommand {
-  static override aliases = ['sim:get'];
+  static override aliases = getSimulatorCommandAliases('get');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('get');
   static override description =
-    "[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference";
+    "get info about a remote simulator session on EAS by its simulator session ID. Preview links follow the session's saved sharing preference";
 
   static override flags = {
     id: Flags.string({

@@ -7,6 +7,7 @@ import { type CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { isProcessDescendantOfAsync } from '../../../utils/processes';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../../utils/agentDeviceArtifacts';
 import { startDeviceSessionHostAsync } from '../../utils/deviceSessionHost';
 import {
   monitorLocalEgressAsync,
@@ -82,6 +83,26 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   waitForDeviceRunSessionStoppedAsync: jest.fn(),
 }));
 
+// Agent-device also polls for Stop while it starts up. That watch sets neither an idle timeout nor
+// a duration; keep it pending until startup retires it, and give each lifetime wait its own mock.
+const lifetimeWait = jest.fn<
+  ReturnType<typeof waitForDeviceRunSessionStoppedAsync>,
+  Parameters<typeof waitForDeviceRunSessionStoppedAsync>
+>();
+function routeStartupWatch(): void {
+  lifetimeWait.mockReset();
+  jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async args => {
+    if ('idleTimeout' in args || 'maxDurationSeconds' in args) {
+      return await lifetimeWait(args);
+    }
+    if (!args.signal?.aborted) {
+      await new Promise<void>(resolve =>
+        args.signal?.addEventListener('abort', () => resolve(), { once: true })
+      );
+    }
+  });
+}
+
 const logger = {
   info: jest.fn(),
   warn: jest.fn(),
@@ -124,6 +145,8 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   }
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(pollAgentDeviceArtifactsForUploadAsync).mockResolvedValue();
+    routeStartupWatch();
     lifetime = registerLocalEgressResources(stopEgress);
     stopEgress.mockResolvedValue(undefined);
     stopPreview.mockResolvedValue(undefined);
@@ -166,7 +189,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
       finishAsync: stopPreview,
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue('started');
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => {
+    lifetimeWait.mockImplementation(async () => {
       expect(lifetime.aborted).toBe(false);
       expect(monitorLocalEgressAsync).toHaveBeenCalledTimes(1);
     });
@@ -179,7 +202,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   it('releases resources without monitoring when the session stopped during startup', async () => {
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValueOnce('stopped');
     await run();
-    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    expect(lifetimeWait).not.toHaveBeenCalled();
     expect(monitorLocalEgressAsync).not.toHaveBeenCalled();
     expect(stopPreview).toHaveBeenCalledTimes(1);
     expect(stopEgress).toHaveBeenCalledTimes(1);
@@ -188,16 +211,18 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
 
   it('reports credentials and starts monitoring before waiting, then releases resources', async () => {
     await run();
-    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith({
-      ctx,
-      deviceRunSessionId: 'session-id',
-      logger,
-      remoteConfig: expect.objectContaining({
-        ...fields,
-        [controllerField]: expect.any(String),
-        [controllerField === 'previewUrl' ? 'previewToken' : 'webPreviewToken']: 'preview-secret',
-      }),
-    });
+    expect(uploadRemoteSessionConfigAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ctx,
+        deviceRunSessionId: 'session-id',
+        logger,
+        remoteConfig: expect.objectContaining({
+          ...fields,
+          [controllerField]: expect.any(String),
+          [controllerField === 'previewUrl' ? 'previewToken' : 'webPreviewToken']: 'preview-secret',
+        }),
+      })
+    );
     expect(monitorLocalEgressAsync).toHaveBeenCalledWith({
       port: handoff.port,
       env,
@@ -211,7 +236,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
     await stopLocalEgressResourcesAsync(logger);
     stopEgress.mockClear();
     jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue(null);
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
+    lifetimeWait.mockResolvedValue(undefined);
     await run();
     const { remoteConfig } = jest.mocked(uploadRemoteSessionConfigAsync).mock.calls[0][0];
     expect(remoteConfig).toHaveProperty(controllerField);
@@ -230,7 +255,7 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
       } else if (phase === 'report') {
         jest.mocked(uploadRemoteSessionConfigAsync).mockRejectedValue(error);
       } else if (phase === 'wait') {
-        jest.mocked(waitForDeviceRunSessionStoppedAsync).mockRejectedValue(error);
+        lifetimeWait.mockRejectedValue(error);
       } else {
         stopPreview.mockRejectedValue(error);
       }
@@ -244,11 +269,10 @@ describe.each(controllers)('%s local egress', (_name, createFunction, controller
   );
   it('passes cancellation to the monitor and releases the lifetime', async () => {
     const abort = new AbortController();
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockImplementation(async () => abort.abort());
+    lifetimeWait.mockImplementation(async () => abort.abort());
     await run(abort.signal);
-    expect(monitorLocalEgressAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ signal: abort.signal })
-    );
+    // Agent-device hands the monitor its startup signal, which follows the step signal.
+    expect(jest.mocked(monitorLocalEgressAsync).mock.calls[0][0].signal?.aborted).toBe(true);
     expect(lifetime.aborted).toBe(true);
     expect(stopEgress).toHaveBeenCalledTimes(1);
   });

@@ -24,14 +24,18 @@ import {
 } from '../../simulator/events';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 const POLL_INTERVAL_MS = 5_000;
 const POST_STOP_REFRESH_COUNT = 2;
 
 export default class SimulatorEvents extends EasCommand {
-  static override aliases = ['sim:events'];
-  static override description =
-    '[EXPERIMENTAL] show activity events from a remote simulator session';
+  static override aliases = getSimulatorCommandAliases('events');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('events');
+  static override description = 'show activity events from a remote simulator session';
 
   static override flags = {
     id: Flags.string({

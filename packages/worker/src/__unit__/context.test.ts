@@ -4,9 +4,11 @@ import { ManagedArtifactType, Platform, Workflow } from '@expo/eas-build-job';
 import config from '../config';
 import { createBuildContext } from '../context';
 import { getBuildEnv } from '../env';
+import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
 import { uploadSourceMapAsync, uploadWorkflowArtifactAsync } from '../upload';
 
+jest.mock('../warmSimulator');
 jest.mock('../env', () => ({
   getBuildEnv: jest.fn(() => ({
     __API_SERVER_URL: 'http://api.expo.test',
@@ -44,11 +46,77 @@ describe(createBuildContext.name, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(maybeStopWarmSimulatorAsync).mockReset().mockResolvedValue(undefined);
+    jest.mocked(prepareRuntimeEnvironmentConfigFiles).mockReset().mockResolvedValue();
     jest.spyOn(RuntimeSettings, 'loadAsync').mockResolvedValue();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('starts shutdown after runtime settings without blocking setup or context creation', async () => {
+    let finishStop!: () => void;
+    let failStop!: (error: Error) => void;
+    const stopping = new Promise<void>((resolve, reject) => {
+      finishStop = resolve;
+      failStop = reject;
+    });
+    jest.mocked(maybeStopWarmSimulatorAsync).mockReturnValue(stopping);
+    const job = { platform: Platform.IOS } as any;
+    let created = false;
+    const creating = createBuildContext({ ...baseOptions, job }).then(ctx => {
+      created = true;
+      return ctx;
+    });
+    try {
+      for (let turn = 0; turn < 20 && !created; turn++) {
+        await Promise.resolve();
+      }
+      expect(created).toBe(true);
+      expect(maybeStopWarmSimulatorAsync).toHaveBeenCalledWith(job);
+      expect(jest.mocked(RuntimeSettings.loadAsync).mock.invocationCallOrder[0]).toBeLessThan(
+        jest.mocked(maybeStopWarmSimulatorAsync).mock.invocationCallOrder[0]
+      );
+      expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
+      const error = new Error('Late Simulator shutdown failure');
+      failStop(error);
+      await new Promise(resolve => setImmediate(resolve));
+      expect(childLogger.warn).toHaveBeenCalledWith(
+        { err: error },
+        'Could not stop warm Simulator services.'
+      );
+    } finally {
+      finishStop();
+      await creating;
+    }
+  });
+
+  it('warns and continues setup when shutdown rejects immediately', async () => {
+    const error = new Error('Simulator stop failed');
+    jest.mocked(maybeStopWarmSimulatorAsync).mockRejectedValue(error);
+    await createBuildContext({ ...baseOptions, job: { platform: Platform.IOS } as any });
+    expect(childLogger.warn).toHaveBeenCalledWith(
+      { err: error },
+      'Could not stop warm Simulator services.'
+    );
+    expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalledTimes(1);
+    expect(getBuildEnv).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves an unrelated setup failure even if background shutdown also fails', async () => {
+    const stopError = new Error('Simulator stop failed');
+    const setupError = new Error('Could not prepare runtime config');
+    jest.mocked(maybeStopWarmSimulatorAsync).mockRejectedValue(stopError);
+    jest.mocked(prepareRuntimeEnvironmentConfigFiles).mockRejectedValueOnce(setupError);
+    await expect(
+      createBuildContext({ ...baseOptions, job: { platform: Platform.IOS } as any })
+    ).rejects.toBe(setupError);
+    expect(childLogger.warn).toHaveBeenCalledWith(
+      { err: stopError },
+      'Could not stop warm Simulator services.'
+    );
+    expect(getBuildEnv).not.toHaveBeenCalled();
   });
 
   it('loads runtime settings with the job environment before creating build env', async () => {

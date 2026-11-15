@@ -108,6 +108,65 @@ describe('prepareRuntimeEnvironment', () => {
     });
   });
 
+  it.each([
+    { name: 'default', flag: undefined, sessionId: undefined, skip: false },
+    { name: 'disabled', flag: '1', sessionId: undefined, skip: true },
+    { name: 'zero', flag: '0', sessionId: undefined, skip: false },
+    { name: 'other value', flag: 'true', sessionId: undefined, skip: false },
+    { name: 'session ID only', flag: undefined, sessionId: 'session-id', skip: false },
+  ])(
+    'skips the CocoaPods proxy only with an explicit flag: $name',
+    async ({ flag, sessionId, skip }) => {
+      mockProcessPlatform('darwin');
+      jest.mocked(spawn).mockResolvedValue(spawnResult);
+      const builderEnvironment = {
+        env: {
+          ...(flag !== undefined ? { EAS_BUILD_DISABLE_COCOAPODS_CACHE_PLUGIN: flag } : {}),
+          ...(sessionId ? { DEVICE_RUN_SESSION_ID: sessionId } : {}),
+        },
+      };
+
+      await prepareRuntimeEnvironment(
+        { ...ctx, job: { builderEnvironment } },
+        builderEnvironment,
+        false /* skipIfTest */
+      );
+
+      const proxyInstalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(
+          ([command, args]) =>
+            command === 'sudo' &&
+            args.some(argument => argument.endsWith('expo-cocoapods-proxy.gem'))
+        );
+      expect(proxyInstalls).toHaveLength(skip ? 0 : 1);
+      expect(spawn).toHaveBeenCalledWith('bun', ['--version'], expect.anything());
+    }
+  );
+
+  it('queries package-manager versions in parallel before applying tool overrides', async () => {
+    mockProcessPlatform('linux');
+    const resolveVersion = new Map<string, (value: SpawnResult) => void>();
+    jest.mocked(spawn).mockImplementation((command, args) => {
+      if (['yarn', 'pnpm', 'bun'].includes(command) && args[0] === '--version') {
+        return new Promise(resolve => resolveVersion.set(command, resolve));
+      }
+      return Promise.resolve(spawnResult);
+    });
+
+    const preparing = prepareRuntimeEnvironment(ctx, { corepack: true }, false /* skipIfTest */);
+    expect([...resolveVersion.keys()]).toEqual(['yarn', 'pnpm', 'bun']);
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+
+    resolveVersion.get('pnpm')!({ ...spawnResult, stdout: '9.0.0\n' });
+    resolveVersion.get('bun')!({ ...spawnResult, stdout: '1.0.0\n' });
+    await Promise.resolve();
+    expect(spawn).not.toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+    resolveVersion.get('yarn')!({ ...spawnResult, stdout: '1.22.0\n' });
+    await preparing;
+    expect(spawn).toHaveBeenCalledWith('corepack', ['enable'], expect.anything());
+  });
+
   describe('installNode', () => {
     describe('prepareRuntimeEnvironment', () => {
       beforeEach(() => {

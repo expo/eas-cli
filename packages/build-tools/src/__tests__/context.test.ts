@@ -2,6 +2,7 @@ import {
   BuildPhase,
   BuildPhaseResult,
   BuildTrigger,
+  EnvironmentSecretType,
   Job,
   Metadata,
   Platform,
@@ -29,6 +30,34 @@ describe('BuildContext', () => {
     vol.reset();
     jest.clearAllMocks();
     (fs.readdir as unknown as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('keeps the sandbox worker token out of the env and keeps the other secrets', () => {
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+        secrets: {
+          environmentSecrets: [
+            {
+              name: 'EAS_SANDBOX_WORKER_TOKEN',
+              value: 'sandbox-worker-token',
+              type: EnvironmentSecretType.STRING,
+            },
+            { name: 'KEEP', value: 'value', type: EnvironmentSecretType.STRING },
+          ],
+        },
+      } as Job,
+      {
+        env: { __API_SERVER_URL: 'https://api.expo.test' },
+        workingdir: '/workingdir',
+        logger: createMockLogger(),
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+
+    expect(ctx.env.EAS_SANDBOX_WORKER_TOKEN).toBeUndefined();
+    expect(ctx.env.KEEP).toBe('value');
   });
 
   it('should merge secrets', async () => {

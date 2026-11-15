@@ -2,10 +2,15 @@ import spawnAsync from '@expo/spawn-async';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { SIMULATOR_DOTENV_FILE_NAME, loadSimulatorEnvAsync } from '../../simulator/env';
+import {
+  getSimulatorCommandAliases,
+  getSimulatorCommandHiddenAliases,
+} from '../../simulator/commandAliases';
 
 export default class SimulatorExec extends EasCommand {
-  static override aliases = ['sim:exec'];
-  static override description = `[EXPERIMENTAL] execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
+  static override aliases = getSimulatorCommandAliases('exec');
+  static override hiddenAliases = getSimulatorCommandHiddenAliases('exec');
+  static override description = `execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
   static override strict = false;
 
   static override contextDefinition = {
