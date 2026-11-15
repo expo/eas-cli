@@ -66,7 +66,7 @@ node_modules
       })
     )
       // ensure that parent dir is before child directories
-      .sort((a, b) => a.length - b.length && a.localeCompare(b));
+      .sort((a, b) => a.length - b.length || a.localeCompare(b));
 
     const ignoreMapping = await Promise.all(
       ignoreFilePaths.map(async filePath => {

@@ -74,6 +74,25 @@ describe(Ignore, () => {
     expect(ignore.ignores('.cache/bbb')).toBe(true);
   });
 
+  it('orders parent .gitignore files before child ones', async () => {
+    vol.fromJSON(
+      {
+        'dir/-x/.gitignore': 'ccc',
+        'dir/.gitignore': 'bbb',
+        '.gitignore': 'aaa',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect((ignore as any).ignoreMapping.map((i: any) => i[0])).toEqual([
+      '',
+      '',
+      'dir/',
+      'dir/-x/',
+    ]);
+  });
+
   it('applies all gitignore files in parent directories', async () => {
     vol.fromJSON(
       {
