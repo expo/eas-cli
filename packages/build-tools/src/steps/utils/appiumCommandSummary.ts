@@ -285,6 +285,7 @@ export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
   mobileGetPerformanceData: 'Read app performance data',
   mobileGetPermission: 'Read an app permission',
   mobileGetPermissions: 'Read app permissions',
+  mobileGetPressableButtons: 'Listed available device buttons',
   mobileGetSimulatedHingeAngle: 'Read the simulated hinge angle',
   mobileGetSimulatedLocation: 'Read the simulated location',
   mobileGetSource: 'Read the screen contents',
