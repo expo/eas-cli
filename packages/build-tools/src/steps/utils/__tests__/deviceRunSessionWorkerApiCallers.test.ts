@@ -443,7 +443,7 @@ describe('with a device run session token', () => {
         },
       })
     );
-    jest.mocked(fetch).mockResolvedValueOnce(new Response('stop here', { status: 500 }));
+    jest.mocked(fetch).mockResolvedValueOnce(new Response('stop here', { status: 400 }));
 
     await expect(
       downloadBuildAsync({
@@ -455,7 +455,7 @@ describe('with a device run session token', () => {
         extensions: ['app'],
       })
     ).rejects.toThrow(
-      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 400): stop here`
     );
 
     expectWorkerApiCall('application', 'GET');
@@ -670,7 +670,7 @@ describe('without a device run session token', () => {
         },
       }) as never
     );
-    jest.mocked(fetch).mockResolvedValueOnce(new Response('stop here', { status: 500 }));
+    jest.mocked(fetch).mockResolvedValueOnce(new Response('stop here', { status: 400 }));
 
     await expect(
       downloadBuildAsync({
@@ -682,7 +682,7 @@ describe('without a device run session token', () => {
         extensions: ['app'],
       })
     ).rejects.toThrow(
-      `Failed to download the application archive for build ${BUILD_ID} (HTTP 500): stop here`
+      `Failed to download the application archive for build ${BUILD_ID} (HTTP 400): stop here`
     );
 
     expect(ctx.graphqlClient.query).toHaveBeenCalled();

@@ -40,6 +40,15 @@ import { WorkerApiError } from '../utils/workerApi';
 
 const streamPipeline = promisify(stream.pipeline);
 
+class ArchiveHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
+
 type DownloadBuildSource =
   | { buildId: string; applicationArchiveUrl?: never }
   | { buildId?: never; applicationArchiveUrl: string };
@@ -325,8 +334,9 @@ export async function downloadBuildAsync(
                   : 'Check that the URL is correct and the archive still exists, then try again.')
             );
           }
-          throw new Error(
-            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
+          throw new ArchiveHttpError(
+            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`,
+            response.status
           );
         }
         const archiveFilename = resolveArchiveFilename({ response, extensions });
@@ -335,7 +345,15 @@ export async function downloadBuildAsync(
         await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
         return attemptArchivePath;
       },
-      { operation: 'download_build.archive_download', signal, isRetryable: isTransferFailure }
+      {
+        operation: 'download_build.archive_download',
+        signal,
+        // This GET is safe to repeat after internal, gateway, or temporary availability failures.
+        // Keep other statuses, including unsupported operations/protocols (501/505), nonretryable.
+        isRetryable: error =>
+          isTransferFailure(error) ||
+          (error instanceof ArchiveHttpError && [500, 502, 503, 504].includes(error.status)),
+      }
     );
   } catch (error) {
     signal?.throwIfAborted();
