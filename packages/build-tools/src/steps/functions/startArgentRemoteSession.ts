@@ -44,6 +44,7 @@ import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../u
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
   DeviceRunSessionStoppedError,
+  TOOL_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -137,13 +138,6 @@ export function createStartArgentRemoteSessionBuildFunction(
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
-      validateControllerVersion({
-        packageName: ARGENT_PACKAGE_NAME,
-        minimumVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
-        packageVersion,
-        logger,
-      });
-      const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
       const startupStop = new AbortController();
       const watchSignal = signal
@@ -156,7 +150,17 @@ export function createStartArgentRemoteSessionBuildFunction(
         startup: { signal: watchSignal, abort: reason => startupStop.abort(reason) },
       });
       const deviceIdentifier = inputs.device_identifier?.value as string | undefined;
-      const startSessionAsync = async (warmSession?: WarmIosSession): Promise<void> => {
+      const startSessionAsync = async (
+        warmSession?: WarmIosSession,
+        resolvedPackageVersion = packageVersion
+      ): Promise<void> => {
+        const versionSpec = resolvedPackageVersion ?? 'latest';
+        validateControllerVersion({
+          packageName: ARGENT_PACKAGE_NAME,
+          minimumVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
+          packageVersion: resolvedPackageVersion,
+          logger,
+        });
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
@@ -383,6 +387,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             rewriteHostHeader: true,
             healthCheck: { path: '/tools', statuses: [200, 401] },
             logger,
+            signal: startupSignal,
           });
           const publicToolsUrl = toolsTunnel.url;
           logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
@@ -478,7 +483,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             logger,
             sessionFailed,
             teardown: [
-              ['Argent tunnel', toolsTunnel?.stopAsync()],
+              ['Argent tunnel', toolsTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],
               ['Argent tool-server', toolTeardown],
               [
                 'session host',

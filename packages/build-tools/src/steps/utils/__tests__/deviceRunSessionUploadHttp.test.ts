@@ -13,6 +13,7 @@ import type { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import { findUnlistedDeviceScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
+import { uploadDeviceRunSessionFileAsync } from '../uploadDeviceRunSessionFile';
 
 jest.unmock('node-fetch');
 jest.unmock('node:fs');
@@ -121,6 +122,41 @@ it('replays the full file after a transient PUT failure without recreating the u
   expect(bodies).toEqual([payload, payload]);
   expect(streams).toHaveLength(2);
   expect(streams.every(stream => stream.destroyed)).toBe(true);
+});
+
+it('retries a PUT that fails before reading the body without aborting the file stream', async () => {
+  let puts = 0;
+  let replayed = 0;
+  handle = (request, response) => {
+    puts++;
+    if (puts === 1) {
+      response.statusCode = 503;
+      response.flushHeaders();
+      return;
+    }
+    request.on('data', chunk => {
+      replayed += chunk.length;
+    });
+    request.on('end', () => response.end());
+  };
+  const file = path.join(directory, 'emulator.log');
+  const payload = Buffer.alloc(8 * 1024 * 1024, '*');
+  await writeFile(file, payload);
+  await expect(
+    uploadDeviceRunSessionFileAsync(ctx, {
+      filePath: file,
+      describe: () => ({
+        deviceRunSessionId: 'drs-id',
+        artifactId: 'log-id',
+        name: 'Emulator log',
+        filename: 'emulator.log',
+        kind: 'simulator-log',
+      }),
+      attempts: 2,
+    })
+  ).resolves.toBe(true);
+  expect(puts).toBe(2);
+  expect(replayed).toBe(payload.length);
 });
 
 it('keeps a slow PUT alive while its body is still flowing', async () => {

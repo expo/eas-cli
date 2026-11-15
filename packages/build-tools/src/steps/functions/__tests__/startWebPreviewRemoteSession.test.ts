@@ -224,17 +224,42 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     );
   });
 
-  it('uses preview activity to reset the configured idle timeout', async () => {
-    await runAsync(BuildRuntimePlatform.DARWIN, { max_idle_time_minutes: { value: 5 } });
-    const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
-    expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
-    expect(idleTimeout?.getLastEventObservedAt()).toBeUndefined();
-    const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
-    const observedAt = new Date();
-    jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(observedAt);
-    expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(observedAt);
-    expect(stopAsync).toHaveBeenCalledTimes(1);
+  it('passes the resolved version to cold setup after a warm version mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '0.14.0'));
+    await createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }).fn!(
+      { logger, global: { runtimePlatform: BuildRuntimePlatform.DARWIN } } as never,
+      { inputs: { package_version: { value: 'latest' } }, outputs: {}, env } as never
+    );
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ packageVersion: '0.14.0' })
+    );
   });
+
+  it('lets the session host use the experimental emulator capture', async () => {
+    await runAsync(BuildRuntimePlatform.LINUX);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ emulatorCapture: true })
+    );
+  });
+
+  it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
+    'uses preview activity to reset the configured idle timeout on %s',
+    async runtimePlatform => {
+      await runAsync(runtimePlatform, { max_idle_time_minutes: { value: 5 } });
+      const { idleTimeout } = jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.calls[0][0];
+      expect(idleTimeout?.maxIdleTimeMinutes).toBe(5);
+      expect(idleTimeout?.getLastEventObservedAt()).toBeUndefined();
+      const host = await jest.mocked(startDeviceSessionHostAsync).mock.results[0].value;
+      const observedAt = new Date();
+      jest.mocked(host.getLastPreviewActivityAt).mockReturnValue(observedAt);
+      expect(idleTimeout?.getLastPreviewActivityAt?.()).toBe(observedAt);
+      expect(stopAsync).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
     'leaves the idle timer disabled when omitted on %s',
@@ -253,16 +278,6 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
     expect(waitForDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
       expect.objectContaining({ idleTimeout: undefined, maxDurationSeconds: 120 })
     );
-  });
-
-  it('rejects an Android idle timeout before starting the host', async () => {
-    await expect(
-      runAsync(BuildRuntimePlatform.LINUX, {
-        max_idle_time_minutes: { value: 5 },
-      })
-    ).rejects.toThrow('Omit max_idle_time_minutes for Android sessions.');
-    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
-    expect(waitForDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it.each([BuildRuntimePlatform.DARWIN, BuildRuntimePlatform.LINUX])(
@@ -494,6 +509,7 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
           }
         : {}),
       packageVersion: '1.2.3',
+      emulatorCapture: true,
       disableShare: false,
       frameAncestors: [],
       corsOrigins: [],

@@ -1,6 +1,7 @@
 import { boolish } from 'getenv';
 // eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
+import type { Writable } from 'stream';
 
 import Log from './log';
 
@@ -46,12 +47,29 @@ export function ora(options?: Options | string): Ora {
     spinner.text = spinner.text;
   };
 
+  // Cork so each frame is one write; separate clear and text writes flicker.
+  const corkable = stream as Partial<Pick<Writable, 'cork' | 'uncork'>>;
+  const corked = <T>(write: () => T): T => {
+    if (!corkable.cork || !corkable.uncork) {
+      return write();
+    }
+    corkable.cork();
+    try {
+      return write();
+    } finally {
+      corkable.uncork();
+    }
+  };
+
+  const oraRender = spinner.render.bind(spinner);
+  spinner.render = (): Ora => corked(oraRender);
+
   const oraStart = spinner.start.bind(spinner);
   const oraStop = spinner.stop.bind(spinner);
   const oraStopAndPersist = spinner.stopAndPersist.bind(spinner);
 
   const logWrap = (method: any, args: any[]): void => {
-    oraStop();
+    corked(oraStop);
     method(...args);
     spinner.start();
   };
@@ -111,14 +129,14 @@ export function ora(options?: Options | string): Ora {
   };
 
   spinner.stopAndPersist = (options): Ora => {
-    const result = oraStopAndPersist(options);
+    const result = corked(() => oraStopAndPersist(options));
     resetNativeLogs();
     stream.off('resize', onResize);
     return result;
   };
 
   spinner.stop = (): Ora => {
-    const result = oraStop();
+    const result = corked(oraStop);
     resetNativeLogs();
     stream.off('resize', onResize);
     return result;

@@ -2,6 +2,8 @@ import type { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { resolveSimulatorPackageVersionAsync } from '../../utils/simulatorPackageVersion';
+import { stopWarmSimulatorAsync } from '../../utils/warmSimulator';
 import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 import { type DeviceSessionServer } from './deviceSessionHost';
 import { fetchWebPreviewTurnArgsAsync } from './remoteDeviceRunSession';
@@ -28,6 +30,7 @@ export function createWarmDeviceSessionServer(
   }
   return {
     port: warm.server.port,
+    serveSimVersion: warm.serveSimVersion,
     turnArgs: fetchWebPreviewTurnArgsAsync(ctx, { logger }),
     // Set by prepare-tools, which the host runs before it installs the app.
     get preinstalledApp() {
@@ -68,14 +71,34 @@ export function createWarmDeviceSessionServer(
  */
 export async function runOnWarmIosSimulatorAsync<T>(
   claim: Parameters<typeof tryClaimWarmIosSessionAsync>[0],
-  run: (warm?: WarmIosSession) => Promise<T>
+  run: (warm?: WarmIosSession, packageVersion?: string) => Promise<T>
 ): Promise<T> {
-  const warm = await tryClaimWarmIosSessionAsync(claim);
+  let packageVersion = claim.packageVersion;
+  if (packageVersion !== undefined && claim.env.EAS_USE_WARM_SIMULATOR === '1') {
+    try {
+      packageVersion = await resolveSimulatorPackageVersionAsync(
+        claim.engine,
+        packageVersion,
+        claim
+      );
+    } catch (error) {
+      try {
+        await stopWarmSimulatorAsync(claim.env);
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          'Could not stop warmup after version resolution failed.'
+        );
+      }
+      throw error;
+    }
+  }
+  const warm = await tryClaimWarmIosSessionAsync({ ...claim, packageVersion });
   if (!warm) {
-    return await run(undefined);
+    return await run(undefined, packageVersion);
   }
   try {
-    return await run(warm);
+    return await run(warm, packageVersion);
   } catch (error) {
     try {
       await warm.process.stopAsync();
@@ -90,6 +113,6 @@ export async function runOnWarmIosSimulatorAsync<T>(
     }
     claim.logger.warn('Could not adopt the warm Simulator; starting a cold Simulator.');
     claim.signal?.throwIfAborted();
-    return await run(undefined);
+    return await run(undefined, packageVersion);
   }
 }

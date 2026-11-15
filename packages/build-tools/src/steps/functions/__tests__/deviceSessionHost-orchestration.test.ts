@@ -2,6 +2,7 @@ import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
@@ -139,13 +140,20 @@ describe.each([
     corsOrigins?: string[]
   ) {
     const fn = createFunction({} as CustomBuildContext);
+    const global = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+    const defaults = new Map(
+      fn.inputProviders?.map(provider => {
+        const input = provider(global, 'Test session');
+        return [input.id, input.defaultValue];
+      })
+    );
     await fn.fn!(
       {
         logger,
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
-        // Inputs a step does not get default to undefined, like in a real step call.
+        // Match step execution: omitted inputs use their declared defaults.
         inputs: new Proxy(
           {
             public_preview: { value: publicPreview },
@@ -153,7 +161,7 @@ describe.each([
             cors_origins: { value: corsOrigins },
           } as Record<string, { value: unknown }>,
           {
-            get: (target, id: string) => target[id] ?? { value: undefined },
+            get: (target, id: string) => target[id] ?? { value: defaults.get(id) },
           }
         ),
         outputs: {},

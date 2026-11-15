@@ -8,12 +8,14 @@ import path from 'node:path';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import { createScreenshotMetadataAsync } from '../deviceRunSessionScreenshotMetadata';
 import {
   startDeviceRunSessionScreenshotsAsync,
   uploadDeviceRunSessionScreenshotsAsync,
 } from '../deviceRunSessionScreenshots';
 
 jest.mock('../deviceRunSessionArtifacts');
+jest.mock('../deviceRunSessionScreenshotMetadata');
 jest.mock('../../../sentry');
 const ctx = {} as CustomBuildContext;
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
@@ -27,6 +29,9 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'screenshots-test-'));
   uploaded = [];
   failedUploads = new Map();
+  jest
+    .mocked(createScreenshotMetadataAsync)
+    .mockResolvedValue({ source: 'manual', width: 1179, height: 2556 });
   jest
     .mocked(uploadDeviceRunSessionArtifactAsync)
     .mockImplementation(async (_ctx, { openStream }) => {
@@ -68,9 +73,13 @@ it('uploads completed captures with their bytes and stable IDs, ignoring partial
       filename: 'screenshot-2026-09-24T08-45-59-123Z.png',
       kind: 'screenshot',
       size: 11,
-      metadata: { __eas_type: 'screenshot' },
+      metadata: { __eas_type: 'screenshot', source: 'manual', width: 1179, height: 2556 },
     })
   );
+  expect(createScreenshotMetadataAsync).toHaveBeenCalledWith(path.join(directory, filename), {
+    source: 'manual',
+    logger,
+  });
   expect(await readdir(directory)).not.toContain(filename);
   expect((await lstat(path.join(directory, link))).isSymbolicLink()).toBe(true);
 });

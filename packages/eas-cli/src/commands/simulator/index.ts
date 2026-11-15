@@ -23,6 +23,7 @@ import {
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
+  StatuspageServiceName,
 } from '../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
@@ -62,11 +63,14 @@ import {
   simulatorRequestProperties,
 } from '../../simulator/requestAnalytics';
 import {
+  DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_OPTIONS,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  DeviceRunSessionPlatformFlagValue,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
   formatSimulatorUnavailableMessage,
@@ -77,6 +81,7 @@ import {
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
 // Allow the cold-cache client download (up to 60s) and a further minute to connect.
 const EGRESS_SETUP_TIMEOUT_MS = 120_000;
@@ -86,13 +91,7 @@ const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
 } as const;
-const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
-type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
 const EGRESS_FLAG_VALUES = ['local'] as const;
-const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
-  android: AppPlatform.Android,
-  ios: AppPlatform.Ios,
-};
 
 export default class Simulator extends EasCommand {
   static override aliases = ['simulator:start', ...getSimulatorCommandAliases('start')];
@@ -101,7 +100,7 @@ export default class Simulator extends EasCommand {
     ...SIMULATOR_HIDDEN_TOPIC_ALIASES,
     ...getSimulatorCommandHiddenAliases('start'),
   ];
-  static override description = `[EXPERIMENTAL] start a remote simulator session on EAS
+  static override description = `start a remote simulator session on EAS
 
 Preview links require sign-in by default.
 
@@ -129,7 +128,7 @@ With local egress, actions wait for the connection and require interactive mode.
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
-      options: PLATFORM_FLAG_VALUES,
+      options: DEVICE_RUN_SESSION_PLATFORM_FLAG_VALUES,
     })(),
     name: Flags.string({
       description:
@@ -142,7 +141,7 @@ With local egress, actions wait for the connection and require interactive mode.
     }),
     device: Flags.string({
       description:
-        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 17 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_9"). Defaults to a device chosen by the runner. eas simulator:devices lists the devices Expo suggests.',
     }),
     'system-image': Flags.string({
       description:
@@ -190,6 +189,12 @@ With local egress, actions wait for the connection and require interactive mode.
       description:
         'Version of the package backing the simulator session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'log-source': Flags.option({
+      description:
+        'Android logs to record during the session and upload afterward. Repeat to select both sources; replaces the default emulator-output selection. Device-wide device-logcat may contain credentials and personal data. Logs are not redacted.',
+      options: ['emulator-output', 'device-logcat'],
+      multiple: true,
+    })(),
     'network-capture': Flags.boolean({
       allowNo: true,
       description:
@@ -218,7 +223,7 @@ With local egress, actions wait for the connection and require interactive mode.
     })(),
     egress: Flags.option({
       description:
-        'With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
+        '[EXPERIMENTAL] With "local", the simulator\'s network traffic exits from this machine and fails while the egress client is disconnected. On iOS, the simulator system proxy points at this machine: HTTP(S) and WebSocket requests that honor it (WebKit, URLSession) and clients that read proxy environment variables (gRPC, libcurl) use it, and connections that ignore both are refused inside the simulator and listed, with the library that tried, in the Logs section of the session page on expo.dev. On Android, all TCP traffic from the emulator goes through its proxy to this machine; traffic that cannot (UDP, such as QUIC) is refused and listed in the same Logs section, and DNS for apps that ignore the system proxy resolves on the device host. The egress client must keep running for the life of the session.',
       options: EGRESS_FLAG_VALUES,
     })(),
     'egress-allow': Flags.string({
@@ -282,7 +287,7 @@ With local egress, actions wait for the connection and require interactive mode.
     });
 
     // The server would reject the session anyway, but check the gate first so gated
-    // accounts get the waitlist link instead of a generic permission error. Expo admins
+    // accounts get the upgrade link instead of a generic permission error. Expo admins
     // skip the check so they can work on any account and let the server decide.
     if (!actor.isExpoAdmin) {
       const { accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
@@ -300,6 +305,7 @@ With local egress, actions wait for the connection and require interactive mode.
     const tags = flags.tag?.map(tag => tag.trim()).filter(tag => tag.length > 0);
     const deviceIdentifier = flags.device?.trim() || undefined;
     const systemImagePackage = flags['system-image']?.trim() || undefined;
+    const logSources = flags['log-source'];
     const buildId = flags['build-id']?.trim() || undefined;
     const buildFingerprint = flags['build-fingerprint']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
@@ -346,6 +352,11 @@ With local egress, actions wait for the connection and require interactive mode.
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
     const egress = flags.egress === 'local' ? DeviceRunSessionEgress.Local : undefined;
+    if (logSources && platform !== AppPlatform.Android) {
+      throw new EasCommandError(
+        '--log-source selects Android emulator logs. Pass --platform android.'
+      );
+    }
     if (systemImagePackage && platform !== AppPlatform.Android) {
       throw new EasCommandError('--system-image is only supported with --platform android.');
     }
@@ -385,12 +396,6 @@ With local egress, actions wait for the connection and require interactive mode.
       );
     }
 
-    if (platform === AppPlatform.Android) {
-      Log.warn(
-        'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
-      );
-      Log.newLine();
-    }
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
@@ -403,6 +408,12 @@ With local egress, actions wait for the connection and require interactive mode.
       );
       Log.newLine();
     }
+
+    // Same services as the outage banner on the simulator pages of the website.
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [
+      StatuspageServiceName.EasSimulator,
+      StatuspageServiceName.EasWorkflows,
+    ]);
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
@@ -421,6 +432,19 @@ With local egress, actions wait for the connection and require interactive mode.
         packageVersion: flags['package-version'],
         nonInteractive,
       });
+      const android = {
+        ...(deviceIdentifier ? { deviceIdentifier } : {}),
+        ...(systemImagePackage ? { systemImagePackage } : {}),
+        ...(logSources ? { logSources } : {}),
+      };
+      const platformInput =
+        platform === AppPlatform.Ios
+          ? deviceIdentifier
+            ? { ios: { deviceIdentifier } }
+            : {}
+          : Object.keys(android).length
+            ? { android }
+            : {};
       const session = await withSimulatorRequestAnalyticsAsync(
         analytics,
         requestProperties,
@@ -436,18 +460,7 @@ With local egress, actions wait for the connection and require interactive mode.
             packageVersion: flags['package-version'],
             networkCapture: flags['network-capture'],
             ...(networkCaptureFields.length ? { networkCaptureFields } : {}),
-            ...(platform === AppPlatform.Ios
-              ? deviceIdentifier
-                ? { ios: { deviceIdentifier } }
-                : {}
-              : deviceIdentifier || systemImagePackage
-                ? {
-                    android: {
-                      ...(deviceIdentifier ? { deviceIdentifier } : {}),
-                      ...(systemImagePackage ? { systemImagePackage } : {}),
-                    },
-                  }
-                : {}),
+            ...platformInput,
             ...(buildId ? { buildId } : {}),
             ...(buildFingerprint ? { buildFingerprint } : {}),
             ...(applicationArchiveUrlFromFlag
@@ -881,11 +894,11 @@ async function formatJobRunErrorsAsync(
 }
 
 async function resolvePlatformAsync(
-  platform: PlatformFlagValue | undefined,
+  platform: DeviceRunSessionPlatformFlagValue | undefined,
   nonInteractive: boolean
 ): Promise<AppPlatform> {
   if (platform) {
-    return APP_PLATFORM_BY_FLAG_VALUE[platform];
+    return DEVICE_RUN_SESSION_PLATFORM_BY_FLAG_VALUE[platform];
   }
 
   if (nonInteractive) {

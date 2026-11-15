@@ -18,6 +18,7 @@ import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   copyLatestAttemptXml,
   junitFileHasFileAttrs,
+  maestroRunnerAttemptDirectoryName,
   mergeJUnitReports,
   parseFailedFlowNamesFromJUnitFile,
   parseFailedFlowsFromFileAttrs,
@@ -353,7 +354,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         // maestro-runner writes all report formats and screenshot metadata here.
         const runnerOutputDirectory = path.join(
           testsDirectory,
-          `${platform}-maestro-runner-attempt-${attempt}`
+          maestroRunnerAttemptDirectoryName({ platform, attempt })
         );
         const outputPath = mayHaveJUnitReports
           ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)

@@ -152,6 +152,9 @@ it('publishes a manual preview PNG through the worker API and HTTP upload path',
       platform: 'ios',
       buildId: 'installed-build',
       gitCommitHash: installedCommit,
+      source: 'manual',
+      width: 1,
+      height: 1,
     },
   });
   await expect(stat(path.join(directory, filename))).rejects.toMatchObject({ code: 'ENOENT' });

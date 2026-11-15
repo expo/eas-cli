@@ -1,14 +1,30 @@
-import { EnvironmentSecretType, SystemError, UserError } from '@expo/eas-build-job';
+import {
+  ArchiveSourceType,
+  EnvironmentSecretType,
+  SystemError,
+  UserError,
+} from '@expo/eas-build-job';
 import fetch from 'node-fetch';
 
+import { stripRepositoryCredentialsAsync } from '../../../common/git';
 import * as sandboxDaemon from '../../utils/sandboxDaemon';
 import { SandboxWorkerApi } from '../../utils/sandboxWorkerApi';
 import { createStartSandboxBuildFunction } from '../startSandbox';
 
 const { AbortError, Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
+jest.mock('../../../common/git');
+
+const checkedOutStepCtx = { logger: {}, global: { wasCheckedOut: () => true } } as any;
+const notCheckedOutStepCtx = { logger: {}, global: { wasCheckedOut: () => false } } as any;
+
+const URL_JOB = {
+  projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com/project.tar.gz' },
+};
+
 const context = {
   job: {
+    ...URL_JOB,
     secrets: {
       environmentSecrets: [
         {
@@ -181,6 +197,97 @@ describe('sandbox build functions', () => {
       cause: expect.objectContaining({ status: 400 }),
     });
     expect(stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('strips the repository credentials before starting the daemon for git sources', async () => {
+    const startupError = new Error('stop after checking options');
+    const start = jest
+      .spyOn(sandboxDaemon, 'startSandboxDaemonAsync')
+      .mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: 'refs/heads/main',
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+        },
+      },
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!(checkedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).toHaveBeenCalledWith({
+      repositoryDirectory: '/workingdir/build',
+    });
+    expect(jest.mocked(stripRepositoryCredentialsAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      start.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('strips the repository credentials from the source directory before eas/checkout', async () => {
+    const startupError = new Error('stop after checking options');
+    jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: null,
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+        },
+      },
+      projectSourceDirectory: '/workingdir/temporary-custom-build',
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!(notCheckedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).toHaveBeenCalledWith({
+      repositoryDirectory: '/workingdir/temporary-custom-build',
+    });
+  });
+
+  it('does not start the daemon when stripping the repository credentials fails', async () => {
+    const stripError = new SystemError('Failed to strip credentials from the origin remote URL.');
+    jest.mocked(stripRepositoryCredentialsAsync).mockRejectedValueOnce(stripError);
+    const start = jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync');
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      job: {
+        ...context.job,
+        projectArchive: {
+          type: ArchiveSourceType.GIT,
+          gitRef: null,
+          gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+        },
+      },
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!(checkedOutStepCtx, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      stripError
+    );
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('leaves the remote alone for non-git sources', async () => {
+    const startupError = new Error('stop after checking options');
+    jest.spyOn(sandboxDaemon, 'startSandboxDaemonAsync').mockRejectedValue(startupError);
+    const fn = createStartSandboxBuildFunction({
+      ...context,
+      projectTargetDirectory: '/workingdir/build',
+    } as any);
+
+    await expect(fn.fn!({ logger: {} } as any, { inputs, outputs: {}, env: {} })).rejects.toBe(
+      startupError
+    );
+    expect(stripRepositoryCredentialsAsync).not.toHaveBeenCalled();
   });
 
   it.each([

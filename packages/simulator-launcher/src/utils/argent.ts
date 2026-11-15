@@ -4,6 +4,7 @@ import path from 'node:path';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
+import { argentPackageSpec } from './packageSpecs';
 import {
   type ChildProcessHandle,
   commands,
@@ -11,8 +12,6 @@ import {
   stopProcessAndDescendantsAsync,
 } from './processes';
 import { type WarmTool } from './tools';
-
-const packageSpec = (): string => `@swmansion/argent@${process.env.ARGENT_VERSION || 'latest'}`;
 
 const ArgentStateSchema = z.object({
   pid: z.number().int().min(2),
@@ -43,7 +42,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
         ['disable', 'video-watermark'],
       ]) {
         signal.throwIfAborted();
-        await commands.runAsync('bunx', [packageSpec(), verb, flag], signal).catch(error => {
+        await commands.runAsync('bunx', [argentPackageSpec(), verb, flag], signal).catch(error => {
           if (verb !== 'disable') {
             throw error;
           }
@@ -57,7 +56,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
       serverProcess = commands.start(
         'bunx',
         [
-          packageSpec(),
+          argentPackageSpec(),
           'server',
           'start',
           '--host',

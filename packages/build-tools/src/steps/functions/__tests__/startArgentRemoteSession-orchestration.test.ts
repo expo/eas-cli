@@ -322,6 +322,29 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(uploadRemoteSessionConfigAsync).not.toHaveBeenCalled();
   });
 
+  it('uses the resolved Argent version after a warm mismatch', async () => {
+    jest
+      .mocked(runOnWarmIosSimulatorAsync)
+      .mockImplementation((_claim, run) => run(undefined, '999.1.0'));
+    await createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext, { warm: true }).fn!(
+      {
+        logger: { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() },
+        global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+      } as never,
+      {
+        inputs: {
+          package_version: { value: 'latest' },
+          max_idle_time_minutes: { value: undefined },
+        },
+        outputs: {},
+        env: {},
+      } as never
+    );
+    expect(spawnDetached).toHaveBeenCalledWith(
+      expect.objectContaining({ args: expect.arrayContaining(['@swmansion/argent@999.1.0']) })
+    );
+  });
+
   it('keeps watching startup when warm adoption retries cold', async () => {
     const ctx = {} as CustomBuildContext;
     const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
@@ -644,7 +667,7 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     ['succeeded', false],
     ['failed', true],
   ])(
-    'fails after stopping the host and tools when the tools tunnel cannot close and the session %s',
+    'stops the host and tools when the tools tunnel cannot close and the session %s',
     async (_description, sessionFails) => {
       const closeError = new Error('ngrok close failed');
       const sessionError = new Error('session failed');
@@ -654,23 +677,26 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       }
       const logger = { info: jest.fn(), warn: jest.fn() };
       const buildFunction = createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext);
-      // The tunnel may still be serving, so its failure fails a session that otherwise succeeded.
-      await expect(
-        buildFunction.fn!(
-          {
-            logger,
-            global: { runtimePlatform: BuildRuntimePlatform.LINUX },
-          } as unknown as BuildStepContext,
-          {
-            inputs: {
-              package_version: { value: undefined },
-              max_idle_time_minutes: { value: undefined },
-            },
-            outputs: {},
-            env: {},
-          } as never
-        )
-      ).rejects.toBe(sessionFails ? sessionError : closeError);
+      // A stopped tunnel's proxy drops every connection, so its failure does not fail a session.
+      const running = buildFunction.fn!(
+        {
+          logger,
+          global: { runtimePlatform: BuildRuntimePlatform.LINUX },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      );
+      if (sessionFails) {
+        await expect(running).rejects.toBe(sessionError);
+      } else {
+        await expect(running).resolves.toBeUndefined();
+      }
       expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
       expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
       expect(mockStopAsync).toHaveBeenCalledTimes(1);
@@ -679,17 +705,13 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         { err: closeError },
         'Could not stop the Argent tunnel during remote session teardown.'
       );
-      expect(jest.mocked(Sentry.capture).mock.calls).toEqual(
-        sessionFails
-          ? [
-              [
-                'Could not stop the Argent tunnel after the remote session failed',
-                closeError,
-                { level: 'warning' },
-              ],
-            ]
-          : []
-      );
+      expect(jest.mocked(Sentry.capture).mock.calls).toEqual([
+        [
+          `Could not stop the Argent tunnel after the remote session ${sessionFails ? 'failed' : 'ended'}`,
+          closeError,
+          { level: 'warning' },
+        ],
+      ]);
     }
   );
 

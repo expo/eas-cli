@@ -1,5 +1,37 @@
 # @expo/eas-build-job
 
+## 27.10.0
+
+No changes in this release.
+
+## 27.9.0
+
+No changes in this release.
+
+## 27.8.0
+
+### Patch Changes
+
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+
+## 27.7.2
+
+No changes in this release.
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+
+## 27.7.0
+
+No changes in this release.
+
+## 27.6.0
+
+No changes in this release.
+
 ## 27.5.0
 
 No changes in this release.

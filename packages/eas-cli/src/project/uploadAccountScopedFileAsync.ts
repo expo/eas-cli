@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -5,7 +6,6 @@ import path from 'node:path';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountUploadSessionType } from '../graphql/generated';
 import { uploadAccountScopedFileAtPathToGCSAsync } from '../uploads';
-import { formatBytes } from '../utils/files';
 import { createProgressTracker } from '../utils/progress';
 
 /**

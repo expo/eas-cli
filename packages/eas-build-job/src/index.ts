@@ -35,6 +35,7 @@ export * from './submission-config';
 export * from './projectPackage';
 export * from './deviceRunSession';
 export * from './sandbox';
+export { formatBytes } from './formatBytes';
 
 const version = require('../package.json').version;
 export { version };

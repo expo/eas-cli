@@ -1,11 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { setTimeout as sleepAsync } from 'node:timers/promises';
+import semver from 'semver';
 import { z } from 'zod';
 
 export const LAUNCHER_STATE_FILE = '/tmp/expo-simulator-startup.json';
 
 const NonBlankStringSchema = z.string().regex(/\S/, 'Must not be blank.');
+// semver also accepts a leading v and whitespace; claims keep exact version inputs.
+export const PackageVersionSchema = z
+  .string()
+  .refine(
+    value => semver.valid(value) !== null && value.trim() === value && !value.startsWith('v')
+  );
+
 export const SimulatorDeviceSchema = z.object({
   udid: NonBlankStringSchema,
   name: NonBlankStringSchema,
@@ -31,6 +39,9 @@ export const PreinstalledAppSchema = z.object({
   version: z.string(),
 });
 export const WarmSessionInfoSchema = z.object({
+  serveSimVersion: PackageVersionSchema.optional(),
+  agentDeviceVersion: PackageVersionSchema.optional(),
+  argentVersion: PackageVersionSchema.optional(),
   // The default before claim, then the device selected for the job.
   device: SimulatorDeviceSchema,
   server: WarmServerSchema,

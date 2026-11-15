@@ -57,8 +57,7 @@ const PLATFORM_BY_FLAG_VALUE = Object.fromEntries(
 export default class SimulatorList extends EasCommand {
   static override aliases = getSimulatorCommandAliases('list');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('list');
-  static override description =
-    '[EXPERIMENTAL] list remote simulator sessions for the current project';
+  static override description = 'list remote simulator sessions for the current project';
 
   static override flags = {
     status: Flags.option({

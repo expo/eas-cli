@@ -4,6 +4,7 @@ import {
   AppObserveUserEvent,
   AppObserveUserEventListFilter,
   AppObserveUserEventListOrderBy,
+  AppObserveUserEventPropertyFilter,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
@@ -20,6 +21,7 @@ interface FetchCustomEventsOptions {
   updateId?: string;
   sessionId?: string;
   environment?: string;
+  propertyFilters?: AppObserveUserEventPropertyFilter[];
   orderBy?: AppObserveUserEventListOrderBy;
 }
 
@@ -43,6 +45,7 @@ export async function fetchObserveCustomEventsAsync(
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
     ...(options.environment && { environment: options.environment }),
+    ...(options.propertyFilters?.length && { propertyFilters: options.propertyFilters }),
   };
 
   return await ObserveQuery.customEventListAsync(graphqlClient, {

@@ -9,6 +9,7 @@ import { killProcessGroup } from '../../utils/processes';
 export async function preparePreinstalledWdaAsync({
   runtimeIdentifier,
   appiumHome,
+  prepared = false,
   appiumBinPath,
   appiumEnv,
   logger,
@@ -16,6 +17,8 @@ export async function preparePreinstalledWdaAsync({
 }: {
   runtimeIdentifier: string | undefined;
   appiumHome: string;
+  /** A prepared Appium home that already holds the runner. */
+  prepared?: boolean;
   appiumBinPath: string;
   appiumEnv: BuildStepEnv;
   logger: bunyan;
@@ -32,6 +35,13 @@ export async function preparePreinstalledWdaAsync({
 
   const outdir = path.join(appiumHome, 'preinstalled-wda');
   const runner = path.join(outdir, 'WebDriverAgentRunner-Runner.app');
+  if (prepared) {
+    logger.info('Using preinstalled WebDriverAgent to avoid xcodebuild during session creation.');
+    return {
+      'appium:usePreinstalledWDA': true,
+      'appium:prebuiltWDAPath': runner,
+    };
+  }
   try {
     // The driver selects the release matching its installed WDA and the host architecture.
     // Keep the Simulator runner intact; removing its XCTest frameworks breaks launch.

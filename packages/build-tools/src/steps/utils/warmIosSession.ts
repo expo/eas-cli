@@ -2,6 +2,7 @@ import { type bunyan } from '@expo/logger';
 import { type BuildStepEnv } from '@expo/steps';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import semver from 'semver';
 import { z } from 'zod';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../utils/warmSimulator';
@@ -9,7 +10,11 @@ import { readLocalEgressHandoffAsync } from './localEgress';
 import { type DetachedProcessHandle, isProcessRunning } from './remoteDeviceRunSession';
 
 const ServiceSchema = z.object({ pid: z.number(), port: z.number(), token: z.string() });
+const PackageVersionSchema = z.string().refine(version => semver.valid(version) !== null);
 const ClaimSchema = z.object({
+  serveSimVersion: PackageVersionSchema.optional(),
+  agentDeviceVersion: PackageVersionSchema.optional(),
+  argentVersion: PackageVersionSchema.optional(),
   device: z.object({ udid: z.string(), name: z.string() }),
   server: ServiceSchema,
   agentDeviceStateDir: z.string(),
@@ -53,10 +58,6 @@ export async function tryClaimWarmIosSessionAsync({
     return undefined;
   }
   try {
-    // Warm tools run the latest release with the VM's Simulator settings.
-    if (packageVersion && packageVersion !== 'latest') {
-      throw new Error('A pinned package_version needs a cold start.');
-    }
     const setting = Object.keys(env).find(
       name => name === 'SERVE_SIM_ADDITIONAL_DYLIBS' || name.startsWith('SIMCTL_CHILD_')
     );
@@ -71,6 +72,15 @@ export async function tryClaimWarmIosSessionAsync({
     const claim = ClaimSchema.parse(
       JSON.parse(await runSimulatorLauncherAsync(claimArgs, { env, signal }))
     );
+    const selectedVersion = {
+      'serve-sim': claim.serveSimVersion,
+      'agent-device': claim.agentDeviceVersion,
+      argent: claim.argentVersion,
+      appium: undefined,
+    }[engine];
+    if (packageVersion !== undefined && selectedVersion !== packageVersion) {
+      throw new Error('The warm tool does not match the requested package version.');
+    }
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {

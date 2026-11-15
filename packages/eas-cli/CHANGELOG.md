@@ -1,5 +1,71 @@
 # eas-cli
 
+## 27.10.0
+
+### Minor Changes
+
+- Add `eas simulator:devices` to list the devices Expo suggests for a simulator session. ([#4879](https://github.com/expo/eas-cli/pull/4879) by [@brentvatne](https://github.com/brentvatne))
+
+### Patch Changes
+
+- Include the parent CLI command in telemetry to distinguish nested commands from direct usage. ([#4876](https://github.com/expo/eas-cli/pull/4876) by [@davidmokos](https://github.com/davidmokos))
+
+## 27.9.0
+
+### Minor Changes
+
+- Warn about Expo Simulators and EAS Workflows outages from status.expo.dev before `eas simulator:start` creates a session, and describe degraded performance and maintenance correctly in all outage warnings. ([#4873](https://github.com/expo/eas-cli/pull/4873) by [@szdziedzic](https://github.com/szdziedzic))
+
+## 27.8.0
+
+### Minor Changes
+
+- Tell accounts without EAS Simulator access that it is available on the Starter, Production, and Enterprise plans and link to the billing page, instead of pointing at the waitlist. `simulator:availability --json` now returns `billingUrl` instead of `waitlistUrl`. ([#4866](https://github.com/expo/eas-cli/pull/4866) by [@szdziedzic](https://github.com/szdziedzic))
+
+### Patch Changes
+
+- Remove the "Android emulator support is still in development" warning from `eas simulator`. ([#4870](https://github.com/expo/eas-cli/pull/4870) by [@szdziedzic](https://github.com/szdziedzic))
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+- Package local Simulator app bundles for upload when the host supports gzip tar archives, and reject unsupported IPA and ZIP installs before uploading. ([#4684](https://github.com/expo/eas-cli/pull/4684) by [@gwdp](https://github.com/gwdp))
+
+  Fix packaging stalls for app bundles containing hard links and clean temporary archives when interrupted. Local app directories and `.tar.gz`/`.tgz` files require a host advertising archive support.
+
+- Remove the `[EXPERIMENTAL]` label from `eas simulator` commands, except `eas simulator:egress` and the `--egress` flag. ([#4869](https://github.com/expo/eas-cli/pull/4869) by [@szdziedzic](https://github.com/szdziedzic))
+
+## 27.7.2
+
+### Patch Changes
+
+- Add `--log-source` to `eas simulator` to select which Android logs a session records. ([#4823](https://github.com/expo/eas-cli/pull/4823) by [@vonovak](https://github.com/vonovak))
+- Show that the ssh session has ended, instead of saying SSH was not enabled, when `eas workflow:ssh` is given the ID of a finished build. ([#4842](https://github.com/expo/eas-cli/pull/4842) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Show the ID argument and examples in `eas workflow:ssh --help`. ([#4829](https://github.com/expo/eas-cli/pull/4829) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.7.1
+
+### Patch Changes
+
+- Update `node-forge`, `tar`, `nanoid`, `minimatch`, `joi`, `ajv`, `yaml`, and `zod` to versions with fixes for published security advisories. ([#4847](https://github.com/expo/eas-cli/pull/4847) by [@tchayen](https://github.com/tchayen))
+
+## 27.7.0
+
+### Minor Changes
+
+- Add `--git-branch` and `--git-commit-hash` to `eas workflow:run` to record the branch and commit of the uploaded project. ([#4815](https://github.com/expo/eas-cli/pull/4815) by [@hSATAC](https://github.com/hSATAC))
+
+### Patch Changes
+
+- Stop spinners from flickering when their text wraps onto a second line, such as the `simulator:start` queue message in a narrow terminal. ([#4850](https://github.com/expo/eas-cli/pull/4850) by [@brentvatne](https://github.com/brentvatne))
+
+## 27.6.0
+
+### Minor Changes
+
+- Add the `--property key=value` flag to `eas observe:events` to filter events by a property value. ([#4812](https://github.com/expo/eas-cli/pull/4812) by [@Ubax](https://github.com/Ubax))
+
+### Patch Changes
+
+- Stop suggesting other event names in `eas observe:events` when an event name with `--session-id`, `--app-version`, `--build-number`, or `--update-id` returns no events. ([#4813](https://github.com/expo/eas-cli/pull/4813) by [@Ubax](https://github.com/Ubax))
+
 ## 27.5.0
 
 ### Minor Changes

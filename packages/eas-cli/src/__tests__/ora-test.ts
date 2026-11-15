@@ -1,29 +1,40 @@
-import { EventEmitter } from 'events';
+import readline from 'readline';
+import { Writable } from 'stream';
 
 import type { ora as oraType } from '../ora';
 
 jest.unmock('ora');
 
-class FakeTTYStream extends EventEmitter {
+const CLEAR_LINE = '\x1b[2K';
+
+// Implements _writev like a TTY stream, so corked writes arrive in one call.
+class FakeTTYStream extends Writable {
   isTTY = true;
   columns = 200;
   clearLineCalls = 0;
+  writes: string[] = [];
 
-  write(): boolean {
-    return true;
+  override _write(chunk: Buffer, _encoding: BufferEncoding, callback: () => void): void {
+    this.writes.push(chunk.toString());
+    callback();
   }
 
-  clearLine(): boolean {
+  override _writev(chunks: { chunk: Buffer }[], callback: () => void): void {
+    this.writes.push(chunks.map(({ chunk }) => chunk.toString()).join(''));
+    callback();
+  }
+
+  clearLine(dir: readline.Direction): boolean {
     this.clearLineCalls++;
-    return true;
+    return readline.clearLine(this, dir);
   }
 
-  cursorTo(): boolean {
-    return true;
+  cursorTo(x: number): boolean {
+    return readline.cursorTo(this, x);
   }
 
-  moveCursor(): boolean {
-    return true;
+  moveCursor(dx: number, dy: number): boolean {
+    return readline.moveCursor(this, dx, dy);
   }
 }
 
@@ -67,5 +78,44 @@ describe('ora', () => {
 
     spinner.stop();
     expect(stream.listenerCount('resize')).toBe(0);
+  });
+
+  it('sends each frame as one write', () => {
+    const text = 'x'.repeat(150);
+    const stream = new FakeTTYStream();
+    stream.columns = 80;
+    const spinner = ora({
+      text,
+      stream: stream as unknown as NodeJS.WritableStream,
+      discardStdin: false,
+    }).start();
+    stream.writes = [];
+
+    jest.advanceTimersByTime(500);
+
+    expect(stream.writes.length).toBeGreaterThan(1);
+    for (const frame of stream.writes) {
+      expect(frame.split(CLEAR_LINE)).toHaveLength(3);
+      expect(frame).toContain(text);
+    }
+
+    spinner.stop();
+  });
+
+  it('clears the spinner and writes the final line as one write', () => {
+    const stream = new FakeTTYStream();
+    stream.columns = 80;
+    const spinner = ora({
+      text: 'x'.repeat(150),
+      stream: stream as unknown as NodeJS.WritableStream,
+      discardStdin: false,
+    }).start();
+    stream.writes = [];
+
+    spinner.succeed('done');
+
+    expect(stream.writes).toHaveLength(1);
+    expect(stream.writes[0].split(CLEAR_LINE)).toHaveLength(3);
+    expect(stream.writes[0]).toContain('done');
   });
 });

@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
@@ -11,8 +11,8 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 
 const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
@@ -208,13 +208,19 @@ export async function uploadArgentArtifactAsync(
       destinationPath: temporaryArtifactPath,
     });
     const { size } = await stat(temporaryArtifactPath);
+    const kind = getArgentArtifactKind(artifact);
+    const metadata =
+      (kind === 'screenshot' || kind === 'screenshot-diff') && !artifact.isDirectory
+        ? await createScreenshotMetadataAsync(temporaryArtifactPath, { source: 'argent', logger })
+        : undefined;
     logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
       artifactId: artifact.id,
       name: `${filename} (${artifact.id})`,
       filename,
-      kind: getArgentArtifactKind(artifact),
+      kind,
+      ...(metadata ? { metadata } : {}),
       size,
       openStream: () => createReadStream(temporaryArtifactPath),
     });

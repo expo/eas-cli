@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import os from 'node:os';
@@ -26,11 +27,27 @@ function createArchive(entries: { name: string; contents: Buffer }[]): Buffer {
 function installCalls() {
   return jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file === 'xcrun');
 }
+function archiveCalls() {
+  return jest.mocked(commands.runAsync).mock.calls.filter(([file]) => file.startsWith('/usr/bin/'));
+}
+/** Writes the archive where prefetch stores it for `url`, under the mocked home directory. */
+async function writeCachedArchive(contents: Buffer, url = stableUrl): Promise<string> {
+  const hash = createHash('sha256').update(url).digest('hex');
+  const file = path.join(
+    directory,
+    'Library/Caches/expo-simulator-startup/expo-go',
+    `${hash}.tar.gz`
+  );
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, contents);
+  return file;
+}
 
 let directory: string;
 let archive: Buffer;
 let controller: AbortController;
 let warmup: ReturnType<typeof startOn> | undefined;
+let sdkVersionPin: string | undefined;
 const stableUrl = 'https://example.test/Expo-Go-stable.tar.gz';
 const sdkVersions = {
   '57.0.0': {
@@ -51,8 +68,8 @@ const sdkVersions = {
 };
 
 /** Starts the shared download and preinstalls on one device, as warmup does for each device. */
-function startOn(udid: string, boot: Promise<unknown>) {
-  const preinstall = startExpoGoPreinstall(controller.signal);
+function startOn(udid: string, boot: Promise<unknown>, prepared?: { sdk: string; url: string }) {
+  const preinstall = startExpoGoPreinstall(controller.signal, prepared);
   return {
     ...preinstall,
     resultPromise: preinstall.preinstallOnDeviceAsync(udid, boot, controller.signal),
@@ -60,11 +77,15 @@ function startOn(udid: string, boot: Promise<unknown>) {
 }
 
 beforeEach(async () => {
+  // Tests set the pin themselves. Keep the value of the caller's shell out of them.
+  sdkVersionPin = process.env.EXPO_GO_SDK_VERSION;
+  delete process.env.EXPO_GO_SDK_VERSION;
   directory = await fs.mkdtemp(path.join(os.tmpdir(), 'expo-go-unit-'));
   archive = createArchive([
     { name: 'Info.plist', contents: Buffer.from('<plist>fixture</plist>') },
   ]);
   jest.spyOn(os, 'tmpdir').mockReturnValue(directory);
+  jest.spyOn(os, 'homedir').mockReturnValue(directory);
   jest
     .spyOn(global, 'fetch')
     .mockImplementation(async url =>
@@ -75,7 +96,9 @@ beforeEach(async () => {
   jest
     .spyOn(commands, 'runAsync')
     .mockImplementation(async (file, args, signal) =>
-      file === '/usr/bin/tar' ? await runCommandAsync(file, args, signal) : ''
+      file === '/usr/bin/tar' || file === '/usr/bin/gzip'
+        ? await runCommandAsync(file, args, signal)
+        : ''
     );
   jest.spyOn(commands, 'throwIfCommandCloseTimedOut').mockImplementation(() => {});
   jest.spyOn(process.stderr, 'write').mockReturnValue(true);
@@ -85,6 +108,11 @@ beforeEach(async () => {
 afterEach(async () => {
   controller.abort();
   await warmup?.stopAsync('UDID').catch(() => {});
+  if (sdkVersionPin === undefined) {
+    delete process.env.EXPO_GO_SDK_VERSION;
+  } else {
+    process.env.EXPO_GO_SDK_VERSION = sdkVersionPin;
+  }
   jest.restoreAllMocks();
   await fs.rm(directory, { recursive: true, force: true });
 });
@@ -634,3 +662,259 @@ it('preinstalls all three configured devices from one shared archive through the
     process.env = environment;
   }
 });
+
+it('uses the prefetched archive for the selected URL and keeps it after stop', async () => {
+  const cache = await writeCachedArchive(archive);
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const app = installCalls()[0][1][3];
+  expect(app).toMatch(/\/simulator-expo-go-[^/]+\/cached\/ExpoGo\.app$/);
+  expect(archiveCalls()).toEqual([
+    ['/usr/bin/gzip', ['-t', cache]],
+    ['/usr/bin/tar', ['-xzf', cache, '-C', app]],
+  ]);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Using the prefetched Expo Go archive for SDK 58.0.0.\n'
+  );
+  await warmup.stopAsync('UDID');
+  expect(await fs.readdir(directory)).toEqual(['Library']);
+  expect((await fs.readFile(cache)).equals(archive)).toBe(true);
+});
+
+it.each(['changed gzip CRC', 'truncated', 'no Info.plist', 'mode 000'] as const)(
+  'warns and downloads when the prefetched archive is %s',
+  async kind => {
+    let contents = archive;
+    if (kind === 'changed gzip CRC') {
+      // tar alone accepts this archive; gzip -t rejects it.
+      contents = Buffer.from(archive);
+      contents[contents.length - 8] ^= 0xff;
+    } else if (kind === 'truncated') {
+      contents = archive.subarray(0, archive.length - 20);
+    } else if (kind === 'no Info.plist') {
+      contents = createArchive([{ name: 'other', contents: Buffer.from('x') }]);
+    }
+    const cache = await writeCachedArchive(contents);
+    if (kind === 'mode 000') {
+      await fs.chmod(cache, 0o000);
+    }
+    warmup = startOn('UDID', Promise.resolve());
+    await warmup.resultPromise;
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining('Could not use the prefetched Expo Go archive')
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(installCalls()[0][1][3]).toMatch(/\/simulator-expo-go-[^/]+\/ExpoGo\.app$/);
+    await warmup.stopAsync('UDID');
+    await fs.chmod(cache, 0o644);
+    expect((await fs.readFile(cache)).equals(contents)).toBe(true);
+  }
+);
+
+it('claim during the cached extraction cannot install or download', async () => {
+  await writeCachedArchive(archive);
+  const extraction = deferred();
+  let extracting = false;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args) => {
+    if (file === '/usr/bin/tar') {
+      extracting = true;
+      await extraction.promise;
+    }
+    return file.startsWith('/usr/bin/') ? await runCommandAsync(file, args) : '';
+  });
+  warmup = startOn('UDID', Promise.resolve());
+  try {
+    await until(() => extracting);
+    await warmup.claimAsync('UDID');
+    extraction.resolve();
+    await warmup.stopAsync('UDID');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(installCalls()).toHaveLength(0);
+    expect(await fs.readdir(directory)).toEqual(['Library']);
+  } finally {
+    extraction.resolve();
+  }
+});
+
+it('claim during the cached gzip check starts no tar', async () => {
+  await writeCachedArchive(archive);
+  const check = deferred();
+  let checking = false;
+  jest.mocked(commands.runAsync).mockImplementation(async (file, args) => {
+    if (file === '/usr/bin/gzip') {
+      checking = true;
+      await check.promise;
+    }
+    return file.startsWith('/usr/bin/') ? await runCommandAsync(file, args) : '';
+  });
+  warmup = startOn('UDID', Promise.resolve());
+  try {
+    await until(() => checking);
+    await warmup.claimAsync('UDID');
+    check.resolve();
+    await warmup.stopAsync('UDID');
+    expect(archiveCalls().map(([file]) => file)).toEqual(['/usr/bin/gzip']);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(installCalls()).toHaveLength(0);
+    expect(await fs.readdir(directory)).toEqual(['Library']);
+  } finally {
+    check.resolve();
+  }
+});
+
+it('claim during the cache lookup starts no gzip and writes no hit line', async () => {
+  const cache = await writeCachedArchive(archive);
+  const access = fs.access.bind(fs);
+  jest.spyOn(fs, 'access').mockImplementation(async (file, mode) => {
+    if (file === cache) {
+      await warmup?.claimAsync('UDID');
+    }
+    await access(file, mode);
+  });
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  await warmup.stopAsync('UDID');
+  expect(fs.access).toHaveBeenCalledWith(cache);
+  expect(archiveCalls()).toEqual([]);
+  expect(process.stderr.write).not.toHaveBeenCalledWith(expect.stringContaining('prefetched'));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(installCalls()).toHaveLength(0);
+});
+
+it('a close timeout in the cached gzip fails closed without a download', async () => {
+  await writeCachedArchive(archive);
+  const failure = new Error('gzip close not proved');
+  jest.mocked(commands.runAsync).mockImplementationOnce(async file => {
+    expect(file).toBe('/usr/bin/gzip');
+    jest.mocked(commands.throwIfCommandCloseTimedOut).mockImplementation(() => {
+      throw failure;
+    });
+    throw failure;
+  });
+  warmup = startOn('UDID', Promise.resolve());
+  await expect(warmup.resultPromise).rejects.toBe(failure);
+  await expect(warmup.stopAsync('UDID')).rejects.toBe(failure);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(installCalls()).toHaveLength(0);
+});
+
+it.each(['no file', 'a file for another URL'])(
+  'downloads as before with %s in the cache',
+  async kind => {
+    if (kind !== 'no file') {
+      await writeCachedArchive(archive, 'https://example.test/old.tar.gz');
+    }
+    warmup = startOn('UDID', Promise.resolve());
+    await warmup.resultPromise;
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(archiveCalls().map(([file]) => file)).toEqual(['/usr/bin/tar']);
+    expect(process.stderr.write).not.toHaveBeenCalledWith(expect.stringContaining('prefetched'));
+    expect(installCalls()).toHaveLength(1);
+  }
+);
+
+it('does not read the cache when the versions API fails', async () => {
+  await writeCachedArchive(archive);
+  jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 500 }));
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(archiveCalls()).toEqual([]);
+  expect(installCalls()).toHaveLength(0);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    expect.stringContaining('Could not preinstall Expo Go')
+  );
+});
+
+it('uses the Expo Go of EXPO_GO_SDK_VERSION, not the latest stable one', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '57.0.0';
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenLastCalledWith('https://example.test/old.tar.gz', expect.anything());
+  expect(installCalls()).toHaveLength(1);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Preinstalling Expo Go for SDK 57.0.0 on Simulator UDID.\n'
+  );
+});
+
+it('a pinned SDK can be a beta that the versions API lists', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '59.0.0';
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenLastCalledWith('https://example.test/beta.tar.gz', expect.anything());
+  expect(installCalls()).toHaveLength(1);
+});
+
+it('uses the prefetched archive of the pinned SDK', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '57.0.0';
+  const cache = await writeCachedArchive(archive, 'https://example.test/old.tar.gz');
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(archiveCalls()[0]).toEqual(['/usr/bin/gzip', ['-t', cache]]);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    'Using the prefetched Expo Go archive for SDK 57.0.0.\n'
+  );
+});
+
+it.each(['62.0.0', 'latest', '58', 'constructor'])(
+  'warns, downloads nothing and installs nothing when EXPO_GO_SDK_VERSION is %s',
+  async pin => {
+    process.env.EXPO_GO_SDK_VERSION = pin;
+    await writeCachedArchive(archive);
+    warmup = startOn('UDID', Promise.resolve());
+    await warmup.resultPromise;
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(archiveCalls()).toEqual([]);
+    expect(installCalls()).toHaveLength(0);
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining(`No Expo Go Simulator archive is available for SDK ${pin}.`)
+    );
+  }
+);
+
+it.each([
+  ['no archive URL', {}],
+  ['an archive URL that is not https', { iosClientUrl: 'http://example.test/57.tar.gz' }],
+])('rejects a pinned SDK that the versions API lists with %s', async (_, release) => {
+  process.env.EXPO_GO_SDK_VERSION = '57.0.0';
+  jest.mocked(fetch).mockResolvedValueOnce(Response.json({ sdkVersions: { '57.0.0': release } }));
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(installCalls()).toHaveLength(0);
+  expect(process.stderr.write).toHaveBeenCalledWith(
+    expect.stringContaining('No Expo Go Simulator archive is available for SDK 57.0.0.')
+  );
+});
+
+it('an empty EXPO_GO_SDK_VERSION keeps the latest stable release', async () => {
+  process.env.EXPO_GO_SDK_VERSION = '';
+  warmup = startOn('UDID', Promise.resolve());
+  await warmup.resultPromise;
+  expect(fetch).toHaveBeenLastCalledWith(stableUrl, expect.anything());
+});
+
+it('uses the prepared Expo Go archive without a versions API request', async () => {
+  await writeCachedArchive(archive);
+  jest.mocked(fetch).mockRejectedValue(new Error('network unavailable'));
+  warmup = startOn('UDID', Promise.resolve(), { sdk: '58.0.0', url: stableUrl });
+  await warmup.resultPromise;
+  expect(fetch).not.toHaveBeenCalled();
+  expect(installCalls()).toHaveLength(1);
+});
+
+it.each([false, true])(
+  'downloads the recorded Expo Go URL if its cache is missing or damaged (damaged: %s)',
+  async damaged => {
+    if (damaged) {
+      await writeCachedArchive(Buffer.from('damaged'));
+    }
+    process.env.EXPO_GO_SDK_VERSION = '59.0.0';
+    warmup = startOn('UDID', Promise.resolve(), { sdk: '58.0.0', url: stableUrl });
+    await warmup.resultPromise;
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(stableUrl, expect.anything());
+    expect(installCalls()).toHaveLength(1);
+  }
+);

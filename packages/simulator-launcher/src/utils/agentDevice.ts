@@ -1,10 +1,9 @@
 import os from 'node:os';
 import path from 'node:path';
 
+import { agentDevicePackageSpec } from './packageSpecs';
 import { type ChildProcessHandle, commands, stopProcessAndDescendantsAsync } from './processes';
 import { type WarmTool, untilAbortedAsync } from './tools';
-
-const packageSpec = (): string => `agent-device@${process.env.AGENT_DEVICE_VERSION || 'latest'}`;
 
 /** `prepare ios-runner` builds and starts the runner and its daemon; it exits once both are up. */
 export function createAgentDeviceTool(): WarmTool {
@@ -24,7 +23,7 @@ export function createAgentDeviceTool(): WarmTool {
       prepareProcess = commands.start(
         'bunx',
         [
-          packageSpec(),
+          agentDevicePackageSpec(),
           'prepare',
           'ios-runner',
           '--platform',
@@ -56,7 +55,7 @@ export function createAgentDeviceTool(): WarmTool {
       await commands
         .runAsync(
           'bunx',
-          [packageSpec(), 'daemon', 'stop', '--clean', '--state-dir', stateDir],
+          [agentDevicePackageSpec(), 'daemon', 'stop', '--clean', '--state-dir', stateDir],
           AbortSignal.timeout(120_000)
         )
         .catch(error => errors.push(error));

@@ -11,6 +11,11 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { uploadContentWithSignedUrl } from '../../storage/uploadWithSignedUrl';
 import { killProcessGroup } from '../../utils/processes';
+import {
+  type ImageSize,
+  type ScreenshotMetadata,
+  readImageSize,
+} from './deviceRunSessionScreenshotMetadata';
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
@@ -20,7 +25,6 @@ const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 
 export function startDeviceRunSessionPreview({
   ctx,
-  deviceRunSessionId,
   captureAsync,
   logger,
 }: {
@@ -32,6 +36,7 @@ export function startDeviceRunSessionPreview({
   const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
   let uploadSession: { url: string; headers: Record<string, string> } | undefined;
+  let storedSize: ImageSize | undefined;
   let pending: Promise<void>;
 
   const uploadAsync = async (): Promise<void> => {
@@ -44,8 +49,10 @@ export function startDeviceRunSessionPreview({
       if (image.length === 0 || image.length > MAX_PREVIEW_SIZE_BYTES) {
         throw new Error('Session preview is empty or exceeds the 5 MiB upload limit.');
       }
+      const size = readImageSize(image);
       if (!uploadSession) {
-        uploadSession = await createPreviewUploadSessionAsync(ctx, deviceRunSessionId, signal);
+        uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
+        storedSize = size;
       }
       if (controller.signal.aborted) {
         return;
@@ -54,6 +61,16 @@ export function startDeviceRunSessionPreview({
         { signedUrl: uploadSession, content: image },
         { signal, retries: 0, stallTimeoutMs: 30_000 }
       );
+      if (
+        controller.signal.aborted ||
+        !size ||
+        (size.width === storedSize?.width && size.height === storedSize.height)
+      ) {
+        return;
+      }
+      storedSize = undefined;
+      uploadSession = await createPreviewUploadSessionAsync(ctx, size, signal);
+      storedSize = size;
     } catch (err) {
       if (!controller.signal.aborted) {
         logger.warn({ err }, 'Could not refresh the session preview; retrying in 60 seconds.');
@@ -80,10 +97,16 @@ export function startDeviceRunSessionPreview({
 
 async function createPreviewUploadSessionAsync(
   ctx: CustomBuildContext,
-  deviceRunSessionId: string,
+  size: ImageSize | undefined,
   signal: AbortSignal
 ): Promise<{ url: string; headers: Record<string, string> }> {
-  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync({ signal });
+  const metadata: ScreenshotMetadata | undefined = size
+    ? { source: 'preview', ...size }
+    : undefined;
+  return await requireDeviceRunSessionWorkerApi(ctx).createPreviewUploadSessionAsync(
+    { metadata },
+    { signal }
+  );
 }
 
 /**
@@ -141,18 +164,25 @@ export async function captureDeviceRunSessionPreviewAsync({
   device,
   env,
   signal,
+  captureIosScreenshotAsync,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
+  captureIosScreenshotAsync?: (file: string, signal: AbortSignal) => Promise<void>;
 }): Promise<Buffer> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
     const options = { env, signal, timeout: 30_000, stdio: 'pipe' as const };
     const preview = path.join(directory, 'preview.webp');
     if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-      await captureIosPreviewAsync({ device, directory, preview, options });
+      if (!captureIosScreenshotAsync) {
+        throw new Error(
+          'Cannot capture the iOS session preview: serve-sim screenshot capture is not configured.'
+        );
+      }
+      await captureIosPreviewAsync({ captureIosScreenshotAsync, directory, preview, options });
     } else {
       await captureAndroidPreviewAsync({ device, directory, preview, options });
     }
@@ -170,19 +200,20 @@ type CaptureOptions = {
 };
 
 async function captureIosPreviewAsync({
-  device,
+  captureIosScreenshotAsync,
   directory,
   preview,
   options,
 }: {
-  device: string;
+  captureIosScreenshotAsync: (file: string, signal: AbortSignal) => Promise<void>;
   directory: string;
   preview: string;
   options: CaptureOptions;
 }): Promise<void> {
   const screenshot = path.join(directory, 'screen.png');
   const resized = path.join(directory, 'resized.png');
-  await spawn('xcrun', ['simctl', 'io', device, 'screenshot', screenshot], options);
+  await captureIosScreenshotAsync(screenshot, options.signal);
+  options.signal.throwIfAborted();
   await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
   await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
 }
