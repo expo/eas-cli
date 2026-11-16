@@ -30,6 +30,8 @@ import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemot
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
+// The helper has its own test; here it would add spawn calls and Sentry reports.
+jest.mock('../../utils/endDeviceApps');
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../../utils/processes');

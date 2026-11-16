@@ -655,6 +655,28 @@ export namespace AndroidEmulatorUtils {
     });
   }
 
+  /** Force-stops every installed third-party app. */
+  export async function forceStopUserAppsAsync({
+    serialId,
+    env,
+    signal,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    await spawn(
+      'adb',
+      [
+        '-s',
+        serialId,
+        'shell',
+        'for p in $(pm list packages -3 | cut -d: -f2); do am force-stop "$p"; done',
+      ],
+      { env, signal }
+    );
+  }
+
   export async function stopAsync({
     serialId,
     env,

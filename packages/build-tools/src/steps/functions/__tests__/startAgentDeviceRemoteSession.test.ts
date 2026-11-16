@@ -10,6 +10,8 @@ import {
   stopAgentDeviceEventCollectionSafelyAsync,
 } from '../startAgentDeviceRemoteSession';
 
+// The helper has its own test; here it would add spawn calls and Sentry reports.
+jest.mock('../../utils/endDeviceApps');
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({

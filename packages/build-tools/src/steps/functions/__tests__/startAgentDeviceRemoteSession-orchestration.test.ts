@@ -31,6 +31,8 @@ import { runAgentDeviceRemoteSessionAsync } from '../startAgentDeviceRemoteSessi
 
 // The daemon entry path and the state directory are resolved from the home directory when
 // the module loads, so point it at a temp home we can populate.
+// The helper has its own test; here it would add spawn calls and Sentry reports.
+jest.mock('../../utils/endDeviceApps');
 jest.mock('node:os', () => {
   const actual = jest.requireActual('node:os');
   const actualPath = jest.requireActual('node:path');

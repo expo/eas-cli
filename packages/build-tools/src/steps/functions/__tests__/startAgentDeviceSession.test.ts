@@ -29,6 +29,8 @@ import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceS
 import { startAndroidEmulatorAsync } from '../startAndroidEmulator';
 import { bootIosSimulatorAsync } from '../startIosSimulator';
 
+// The helper has its own test; here it would add spawn calls and Sentry reports.
+jest.mock('../../utils/endDeviceApps');
 jest.mock('../../utils/localEgress', () => ({
   stopLocalEgressResourcesAsync: jest.fn().mockResolvedValue(undefined),
 }));

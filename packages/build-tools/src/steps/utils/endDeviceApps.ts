@@ -1,10 +1,11 @@
 import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
 
 import { AndroidEmulatorUtils } from '../../utils/AndroidEmulatorUtils';
+import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 
-const RUNNING_IOS_APP = /\tUIKitApplication:([^[\s]+)\[/;
+/** A wedged device must not hold the job: the session is already stopped. */
+const END_DEVICE_APPS_TIMEOUT_MS = 30_000;
 
 /**
  * Ends the apps on every booted Simulator or emulator. An app that ends closes its connections,
@@ -20,51 +21,52 @@ export async function endDeviceAppsAsync({
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
-  if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    await endIosAppsAsync(env, logger);
-  } else {
-    await endAndroidAppsAsync(env, logger);
-  }
-}
-
-async function endIosAppsAsync(env: BuildStepEnv, logger: bunyan): Promise<void> {
-  const list = await spawn('xcrun', ['simctl', 'list', 'devices', 'booted', '--json'], { env });
-  const { devices } = JSON.parse(list.stdout) as { devices: Record<string, { udid: string }[]> };
-  for (const { udid } of Object.values(devices).flat()) {
-    const labels = await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list'], { env });
-    const apps = new Set(
-      labels.stdout
-        .split('\n')
-        .map(line => RUNNING_IOS_APP.exec(line)?.[1])
-        .filter((app): app is string => !!app && !app.startsWith('com.apple.'))
-    );
-    for (const app of apps) {
-      // An app that exited since the list answers "found nothing to terminate".
-      const result = await spawn('xcrun', ['simctl', 'terminate', udid, app], { env }).catch(
-        (err: unknown) => err
+  const signal = AbortSignal.timeout(END_DEVICE_APPS_TIMEOUT_MS);
+  switch (runtimePlatform) {
+    case BuildRuntimePlatform.DARWIN: {
+      const simulators = await IosSimulatorUtils.getAvailableDevicesAsync({
+        env,
+        filter: 'booted',
+      });
+      await endOnEachDeviceAsync(
+        simulators.map(({ udid }) => [
+          `Simulator ${udid}`,
+          () => IosSimulatorUtils.terminateUserAppsAsync({ udid, env, logger, signal }),
+        ])
       );
-      if (result instanceof Error) {
-        logger.warn({ err: result }, `Could not end ${app} on the Simulator ${udid}.`);
-      } else {
-        logger.info(`Ended ${app} on the Simulator ${udid}.`);
-      }
+      return;
+    }
+    case BuildRuntimePlatform.LINUX: {
+      const emulators = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env });
+      await endOnEachDeviceAsync(
+        emulators
+          .filter(({ state }) => state === 'device')
+          .map(({ serialId }) => [
+            `emulator ${serialId}`,
+            async () => {
+              await AndroidEmulatorUtils.forceStopUserAppsAsync({ serialId, env, signal });
+              logger.info(`Ended the installed apps on the emulator ${serialId}.`);
+            },
+          ])
+      );
+      return;
     }
   }
 }
 
-async function endAndroidAppsAsync(env: BuildStepEnv, logger: bunyan): Promise<void> {
-  const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env });
-  for (const { serialId } of devices.filter(({ state }) => state === 'device')) {
-    await spawn(
-      'adb',
-      [
-        '-s',
-        serialId,
-        'shell',
-        'for p in $(pm list packages -3 | cut -d: -f2); do am force-stop "$p"; done',
-      ],
-      { env }
-    );
-    logger.info(`Ended the installed apps on the emulator ${serialId}.`);
+/** Every device gets its turn; one that fails does not keep the apps of the others running. */
+async function endOnEachDeviceAsync(
+  devices: [name: string, endAsync: () => Promise<void>][]
+): Promise<void> {
+  const errors: Error[] = [];
+  for (const [name, endAsync] of devices) {
+    try {
+      await endAsync();
+    } catch (err) {
+      errors.push(new Error(`Could not end the apps on the ${name}.`, { cause: err }));
+    }
+  }
+  if (errors.length > 0) {
+    throw new AggregateError(errors, `Could not end the apps on ${errors.length} device(s).`);
   }
 }
