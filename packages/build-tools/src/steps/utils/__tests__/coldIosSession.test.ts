@@ -108,6 +108,33 @@ it('shuts down the selected running device before resident cold startup', async 
   );
 });
 
+it.each([false, true])(
+  'passes an explicit policy when a legacy workflow already booted its device (local: %s)',
+  async local => {
+    if (local) {
+      jest.mocked(readLocalEgressHandoffAsync).mockResolvedValue({ port: 8899 } as never);
+    }
+    const server = await createColdIosSessionAsync({} as any, { env: {}, logger });
+    await fs.writeFile(
+      STATE_FILE,
+      JSON.stringify({ status: 'disabled', bootUuid: 'current-boot' })
+    );
+    await server.startAsync({
+      command: 'serve-sim',
+      args: [],
+      env: {},
+      logger,
+      secrets: [],
+      stopGracePeriodMs: 1000,
+    });
+    expect(spawnDetached).toHaveBeenCalledWith(
+      expect.objectContaining({ args: [local ? '--enable' : '--disable', 'egressGuard'] })
+    );
+    expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalledWith('xcrun', expect.anything(), expect.anything());
+  }
+);
+
 it('does not launch after an unconfirmed shutdown', async () => {
   const failure = new Error('Shutdown failed');
   jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);

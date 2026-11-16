@@ -23,8 +23,6 @@
     "watch": "tsc --watch --preserveWatchOutput",
     "prebuild": "yarn gql",
     "build": "tsc",
-    "build:egress-guard": "resources/egress-guard/build.sh",
-    "test:egress-guard": "resources/egress-guard/tests/run-policy-tests.sh && resources/egress-guard/tests/run-guard-tests.sh",
     "typecheck": "tsc",
     "generate-appium-commands": "mise exec node@22.23.4 -- node scripts/generate-appium-commands.js",
     "prepack": "rimraf dist \"*.tsbuildinfo\" && yarn gql && tsc -p tsconfig.build.json",

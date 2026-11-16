@@ -92,18 +92,11 @@ yarn workspaces focus @expo/worker --production
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 
-if [[ "$PLATFORM" != "ios" ]]; then
-  rm -f "$target_root_dir/packages/build-tools/bin/egress-guard.dylib"
-fi
+# Do not ship stale native outputs from an older local build-tools checkout.
+rm -f "$target_root_dir/packages/build-tools/bin/egress-guard.dylib" \
+  "$target_root_dir/packages/build-tools/bin/egress-guard-check"
 
 if [[ "$PLATFORM" == "ios" ]]; then
-  build_tools_bin_dir="$target_root_dir/packages/build-tools/bin"
-  mkdir -p "$build_tools_bin_dir"
-
-  # The local egress guard, injected into simulator processes; see
-  # packages/build-tools/resources/egress-guard/README.md.
-  "$ROOT_DIR/packages/build-tools/resources/egress-guard/build.sh" "$build_tools_bin_dir"
-
   # build plugin
   pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1
   if command -v brew &> /dev/null; then

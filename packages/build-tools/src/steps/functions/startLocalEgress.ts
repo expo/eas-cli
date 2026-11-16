@@ -18,7 +18,7 @@ import {
   stopLocalEgressResourcesAsync,
   writeLocalEgressHandoffAsync,
 } from '../utils/localEgress';
-import { stopLocalEgressGuardRelaysAsync } from '../utils/localEgressGuard';
+import { stopLocalEgressGuardRelaysAsync } from '../utils/localEgressEvents';
 import {
   type DetachedProcessHandle,
   type NgrokTunnelHandle,
@@ -225,8 +225,8 @@ export function createStartLocalEgressBuildFunction(): BuildFunction {
             'requests that honor the system proxy (WebKit, URLSession and other CFNetwork clients) ' +
             'fail until the EAS CLI egress client connects, then exit from that machine. Once the ' +
             'Simulator boots, proxy environment variables are set inside it for clients that read ' +
-            'them (gRPC, libcurl), and the local egress guard is installed so that connections which ' +
-            'ignore both are refused in the process that makes them and reported here.'
+            'them (gRPC, libcurl). Serve-sim blocks new external attempts that bypass these proxies; ' +
+            'existing connections stay open. Per-destination iOS refusal logs are not currently available.'
         );
       } catch (error) {
         finishSetup();

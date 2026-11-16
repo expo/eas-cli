@@ -6,7 +6,7 @@ import {
   readLocalEgressHandoffAsync,
   stopLocalEgressResourcesAsync,
 } from './localEgress';
-import { rebindLocalEgressGuardRelays } from './localEgressGuard';
+import { rebindLocalEgressGuardRelays } from './localEgressEvents';
 import { uploadRemoteSessionConfigAsync } from './remoteDeviceRunSession';
 
 /** Release the pre-boot egress resources even if controller startup or teardown fails. */
