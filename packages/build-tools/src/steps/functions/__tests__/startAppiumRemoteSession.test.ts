@@ -850,6 +850,26 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
     );
   }
 
+  it('does not fail a session when only the Appium tunnel cannot stop', async () => {
+    const tunnelError = new Error('Ngrok tunnel stop timed out after 4000ms.');
+    const logger = { info: jest.fn(), warn: jest.fn() };
+    stopAppium.mockResolvedValueOnce(undefined);
+    jest.mocked(startNgrokTunnelAsync).mockResolvedValueOnce({
+      url: 'https://appium-abc.tunnel.example.com',
+      subdomainId: 'appium-abc',
+      stopAsync: jest.fn().mockRejectedValue(tunnelError),
+    });
+
+    await expect(runSessionAsync(logger)).resolves.toBeUndefined();
+
+    expect(stopAppium).toHaveBeenCalledTimes(1);
+    expect(finishHost).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: tunnelError },
+      'Could not stop the Appium tunnel during remote session teardown.'
+    );
+  });
+
   it('does not allocate Appium or a host after parent cancellation during Xcode selection', async () => {
     const controller = new AbortController();
     const failure = new Error('parent step cancelled');

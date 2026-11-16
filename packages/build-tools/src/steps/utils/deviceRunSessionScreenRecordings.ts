@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, formatBytes } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import type { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -11,7 +11,6 @@ import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const RecordingsSchema = z.array(

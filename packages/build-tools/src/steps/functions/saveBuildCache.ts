@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -14,7 +14,6 @@ import os from 'os';
 import path from 'path';
 
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
-import { formatBytes } from '../../utils/artifacts';
 import {
   CcacheBuildTarget,
   generateDefaultBuildCacheKeyAsync,

@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -15,7 +15,6 @@ import stream from 'stream';
 import { promisify } from 'util';
 import { z } from 'zod';
 
-import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 

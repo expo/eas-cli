@@ -16,7 +16,15 @@ describe(applyStartConfigAsync, () => {
   let folder: string;
   let apiUrl: string;
   let actions: { action: string; params: Record<string, unknown> }[];
+  let onUpload: (() => void) | undefined;
   const catalog = {
+    'app.install': {
+      type: 'object',
+      properties: { udid: { type: 'string' }, path: { type: 'string' } },
+      required: ['udid', 'path'],
+      upload: 'path',
+      uploadArchive: 'tar.gz',
+    },
     set: {
       type: 'object',
       properties: { udid: { type: 'string' }, value: { type: 'string' } },
@@ -31,6 +39,7 @@ describe(applyStartConfigAsync, () => {
   };
   beforeEach(async () => {
     actions = [];
+    onUpload = undefined;
     folder = await fs.mkdtemp(path.join(os.tmpdir(), 'start-setup-'));
     server = http.createServer((req, res) => {
       if (req.url !== '/api' || req.headers.authorization !== 'Bearer token') {
@@ -51,6 +60,9 @@ describe(applyStartConfigAsync, () => {
       socket.on('message', bytes => {
         const message = JSON.parse(bytes.toString());
         actions.push(message);
+        if (message.action === 'upload.append') {
+          onUpload?.();
+        }
         const stdout =
           message.action === 'actions.describe'
             ? JSON.stringify(catalog)
@@ -120,5 +132,51 @@ describe(applyStartConfigAsync, () => {
     ).rejects.toThrow('Unknown simulator action');
     await closed;
     expect(actions.map(action => action.action)).toEqual(['actions.describe']);
+  });
+
+  it('leaves Ctrl+C cleanup to startup when interrupted during an app upload', async () => {
+    const bundle = path.join(folder, 'Startup.app');
+    await fs.ensureDir(bundle);
+    await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+    const file = path.join(folder, 'session.json');
+    await fs.writeJson(file, {
+      version: 1,
+      actions: [{ action: 'app.install', file: './Startup.app' }],
+    });
+    const config = await readSimulatorSessionConfigAsync(file);
+    const before = await fs.readdir(os.tmpdir());
+    const controller = new AbortController();
+    const interrupt = (): void => {
+      controller.abort();
+    };
+    const exit = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`premature process.exit(${code})`);
+    });
+    process.once('SIGINT', interrupt);
+    onUpload = () => {
+      try {
+        process.emit('SIGINT');
+      } catch {
+        // Record a premature archive-helper exit without terminating this test process.
+      }
+    };
+    try {
+      await expect(
+        applyStartConfigAsync({ apiUrl, token: 'token' }, config, {
+          signal: controller.signal,
+        })
+      ).rejects.toThrow();
+      expect(controller.signal.aborted).toBe(true);
+      expect(exit).not.toHaveBeenCalled();
+      expect(
+        (await fs.readdir(os.tmpdir())).filter(
+          name => name.startsWith('eas-simulator-app-') && !before.includes(name)
+        )
+      ).toEqual([]);
+      expect(actions.some(({ action }) => action === 'app.install')).toBe(false);
+    } finally {
+      process.removeListener('SIGINT', interrupt);
+      exit.mockRestore();
+    }
   });
 });
