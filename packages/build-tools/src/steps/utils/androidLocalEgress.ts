@@ -23,7 +23,7 @@ import {
   type GuardEvent,
   GuardEventRelay,
   registerLocalEgressGuardRelay,
-} from './localEgressGuard';
+} from './localEgressEvents';
 
 /**
  * Android emulator side of local egress, on Linux device hosts.

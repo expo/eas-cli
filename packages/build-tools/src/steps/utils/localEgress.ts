@@ -327,9 +327,9 @@ export function buildNetworksetupProxyArgs({
 
 /**
  * Point the macOS system HTTP and HTTPS proxy at the loopback egress port. The
- * simulator reads these settings when it boots, so this must run before
- * `start_ios_simulator`. Existing bypass and automatic proxy settings are left
- * unchanged. Requests that bypass this proxy can leave from this host's address.
+ * proxy is configured before job app actions. Existing clients may retain their
+ * previous proxy settings; this does not reconfigure every live session.
+ * Existing bypass and automatic proxy settings are left unchanged.
  */
 export async function configureSystemProxyAsync({
   env,

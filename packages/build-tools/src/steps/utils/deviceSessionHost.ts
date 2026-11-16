@@ -59,6 +59,7 @@ import { type ServeSimActivityPolling, startServeSimActivityPolling } from './se
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { configureSimulatorProxyEnvironmentAsync } from './localEgress';
 import { createColdIosSessionAsync } from './coldIosSession';
+import { waitForServeSimControlAsync } from './serveSimControl';
 import { createStartupTasks } from './startupTasks';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -1041,47 +1042,6 @@ async function startDeviceSessionHostInternalAsync(
     }
     throw error;
   }
-}
-
-async function waitForServeSimControlAsync({
-  device,
-  port,
-  stateDir,
-  previewServer,
-  timeoutMs,
-  signal,
-}: {
-  device: string;
-  port: number;
-  stateDir: string;
-  previewServer: DetachedProcessHandle;
-  timeoutMs: number;
-  signal?: AbortSignal;
-}): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    signal?.throwIfAborted();
-    if (
-      previewServer.getExitError() !== undefined ||
-      (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid))
-    ) {
-      throw new SystemError(
-        `serve-sim exited before its control API became ready. ${previewServer.getOutput()}`
-      );
-    }
-    const servers = await readServeSimServersAsync(stateDir);
-    const server = servers.find(
-      server =>
-        server.udid.toLowerCase() === device.toLowerCase() &&
-        server.url === `http://${WEB_PREVIEW_HOST}:${port}`
-    );
-    if (server?.token) {
-      return server.token;
-    }
-    await sleepAsync(WEB_PREVIEW_READY_POLL_INTERVAL_MS);
-  }
-  signal?.throwIfAborted();
-  throw new SystemError('Timed out waiting for serve-sim control readiness.');
 }
 
 async function finishDeviceSessionHostAsync(

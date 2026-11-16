@@ -24,7 +24,7 @@ jest.mock('../../utils/localEgress', () => ({
 jest.mock('../../utils/androidLocalEgress', () => ({
   startAndroidLocalEgressAsync: jest.fn(),
 }));
-jest.mock('../../utils/localEgressGuard', () => ({
+jest.mock('../../utils/localEgressEvents', () => ({
   stopLocalEgressGuardRelaysAsync: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({

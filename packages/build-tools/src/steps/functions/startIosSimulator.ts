@@ -8,12 +8,7 @@ import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
 
-import { configureSimulatorProxyEnvironmentAsync } from '../utils/localEgress';
-import {
-  installLocalEgressGuardAsync,
-  resolveLocalEgressBootEnvironmentAsync,
-  verifyLocalEgressGuardAsync,
-} from '../utils/localEgressGuard';
+import { bootResidentIosSimulatorAsync } from '../utils/residentIosSimulator';
 
 import {
   IosSimulatorName,
@@ -46,7 +41,7 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    fn: async ({ logger }, { inputs, env, signal }) => {
       const deviceIdentifierInput = inputs.device_identifier.value?.toString() as
         | IosSimulatorUuid
         | IosSimulatorName
@@ -56,19 +51,23 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         await bootIosSimulatorAsync({
           deviceIdentifier: deviceIdentifierInput,
           enableAccessibilitySettings,
+          signal,
           env,
           logger,
         });
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
+        signal?.throwIfAborted();
         logger.info(`Requested ${count} Simulators, shutting down ${formattedDevice} for cloning.`);
         await spawn('xcrun', ['simctl', 'shutdown', originalDeviceIdentifier], {
           logger,
           env,
+          signal,
         });
 
         for (let i = 0; i < count; i++) {
+          signal?.throwIfAborted();
           const cloneDeviceName = `eas-simulator-${i + 1}` as IosSimulatorName;
           logger.info(`Cloning ${formattedDevice} to ${cloneDeviceName}...`);
 
@@ -84,21 +83,11 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
               env,
             });
           }
-          const cloneUdid = await bootWithLocalEgressAsync({
+          const cloneUdid = await bootWithResidentEgressAsync({
             deviceIdentifier: cloneDeviceName,
             env,
             logger,
-          });
-
-          try {
-            await IosSimulatorUtils.disableApsdAsync({ udid: cloneUdid, env });
-          } catch (err) {
-            logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
-          }
-
-          await IosSimulatorUtils.waitForReadyAsync({
-            udid: cloneUdid,
-            env,
+            signal,
           });
 
           logger.info(`${cloneDeviceName} is ready.`);
@@ -116,11 +105,13 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
 export async function bootIosSimulatorAsync({
   deviceIdentifier: deviceIdentifierInput,
   enableAccessibilitySettings = false,
+  signal,
   env,
   logger,
 }: {
   deviceIdentifier?: IosSimulatorUuid | IosSimulatorName;
   enableAccessibilitySettings?: boolean;
+  signal?: AbortSignal;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<{
@@ -152,15 +143,7 @@ export async function bootIosSimulatorAsync({
   if (enableAccessibilitySettings) {
     await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
   }
-  const udid = await bootWithLocalEgressAsync({ deviceIdentifier, env, logger });
-
-  try {
-    await IosSimulatorUtils.disableApsdAsync({ udid, env });
-  } catch (err) {
-    logger.warn({ err }, 'Failed to disable apsd in the Simulator.');
-  }
-
-  await IosSimulatorUtils.waitForReadyAsync({ udid, env });
+  const udid = await bootWithResidentEgressAsync({ deviceIdentifier, env, logger, signal });
 
   logger.info('');
 
@@ -170,40 +153,21 @@ export async function bootIosSimulatorAsync({
   return { deviceIdentifier, udid, displayName };
 }
 
-/**
- * Boot a device with the local egress environment in place before anything
- * inside it starts. `simctl boot` returns once the simulator's launchd is up
- * and before it has spawned anything else, which is the only moment at which
- * launchd environment reaches every process of the boot. The proxy variables
- * and the guard are set in that gap; then the boot is waited for and the
- * guard is verified in a fresh process. Nothing here applies when no local
- * egress session is active.
- */
-async function bootWithLocalEgressAsync({
+async function bootWithResidentEgressAsync({
   deviceIdentifier,
   env,
   logger,
+  signal,
 }: {
   deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
   env: BuildStepEnv;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<IosSimulatorUuid> {
   const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
-  // The guard and proxy variables ride the boot itself, so launchd has them
-  // before it spawns its first process.
-  const launchdEnvironment = await resolveLocalEgressBootEnvironmentAsync();
-  await IosSimulatorUtils.bootAsync({
-    deviceIdentifier: udid,
-    env,
-    launchdEnvironment: launchdEnvironment ?? {},
-  });
-  // Also set them through launchctl, for a device that was already booted.
-  const guardInstalled = await installLocalEgressGuardAsync({ udid, env, logger });
-  await configureSimulatorProxyEnvironmentAsync({ udid, env, logger });
-  await IosSimulatorUtils.startAsync({ deviceIdentifier: udid, env });
-  if (guardInstalled) {
-    await verifyLocalEgressGuardAsync({ udid, env, logger });
-  }
+  signal?.throwIfAborted();
+  await bootResidentIosSimulatorAsync({ udid, env, logger, signal });
+  signal?.throwIfAborted();
   return udid;
 }
 
