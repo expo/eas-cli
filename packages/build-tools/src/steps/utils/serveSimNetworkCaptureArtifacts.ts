@@ -1,8 +1,8 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionFileAsync } from './uploadDeviceRunSessionFile';
 
 const NETWORK_CAPTURE_ARTIFACT_FILENAME = 'network-capture.har';
