@@ -1,10 +1,4 @@
-import {
-  ArchiveSource,
-  ArchiveSourceType,
-  BuildJob,
-  Metadata,
-  Platform,
-} from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, BuildJob, Metadata, Platform, formatBytes } from '@expo/eas-build-job';
 import { CredentialsSource } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
@@ -86,7 +80,6 @@ import { maybeUploadFingerprintAsync } from '../project/maybeUploadFingerprintAs
 import { resolveRuntimeVersionAsync } from '../project/resolveRuntimeVersionAsync';
 import { uploadFileAtPathToGCSAsync } from '../uploads';
 import { createRealtimeLogsClient } from '../utils/centrifuge';
-import { formatBytes } from '../utils/files';
 import { printJsonOnlyOutput } from '../utils/json';
 import { createProgressTracker } from '../utils/progress';
 import { sleepAsync } from '../utils/promise';

@@ -23,7 +23,7 @@ export default class SimulatorStop extends EasCommand {
   static override aliases = getSimulatorCommandAliases('stop');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('stop');
   static override description =
-    '[EXPERIMENTAL] stop a remote simulator session on EAS by its simulator session ID';
+    'stop a remote simulator session on EAS by its simulator session ID';
 
   static override flags = {
     id: Flags.string({

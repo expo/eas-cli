@@ -649,34 +649,66 @@ export async function stopDetachedProcessAsync(
 }
 
 /**
- * Runs every named teardown to completion and logs each failure. The first failure is rethrown
- * only when the session body succeeded, so a teardown error cannot replace the error that ended it.
+ * Teardown options for the stop of a tool tunnel (agent-device, Appium, or Argent) at the end of a
+ * session. The stop first makes the tunnel's local proxy drop every connection (see
+ * `startNgrokTunnelAsync`), so a listener that does not close in time cannot reach the session. The
+ * worker process exits after the job, and this closes the process's ngrok sessions. The warm-host
+ * preview tunnel does not use these options: its retirement still fails the session.
+ */
+export const TOOL_TUNNEL_TEARDOWN_OPTIONS = { failsSession: false } as const;
+
+/** A named task that `finishRemoteSessionAsync` waits for when a remote session ends. */
+export type RemoteSessionTeardown = [
+  name: string,
+  task: Promise<unknown> | undefined,
+  options?: {
+    /**
+     * False when a failure of this task cannot affect the user or a later session, so it is
+     * logged and reported to Sentry but does not fail a session that succeeded. Defaults to true.
+     */
+    failsSession?: boolean;
+  },
+];
+
+/**
+ * Runs every named teardown to completion and logs each failure. The first failure of a task that
+ * fails the session is rethrown only when the session body succeeded, so a teardown error cannot
+ * replace the error that ended it.
  */
 export async function finishRemoteSessionAsync({
   teardown,
   sessionFailed,
   logger,
 }: {
-  teardown: [name: string, task: Promise<unknown> | undefined][];
+  teardown: RemoteSessionTeardown[];
   sessionFailed: boolean;
   logger: bunyan;
 }): Promise<void> {
   const results = await Promise.allSettled(teardown.map(([, task]) => task));
-  const failures = results.flatMap((result, index) =>
-    result.status === 'rejected' ? [{ name: teardown[index][0], err: result.reason }] : []
-  );
-  for (const { name, err } of failures) {
+  const failures = results.flatMap((result, index) => {
+    if (result.status !== 'rejected') {
+      return [];
+    }
+    const [name, , options] = teardown[index];
+    return [{ name, err: result.reason, failsSession: options?.failsSession ?? true }];
+  });
+  for (const { name, err, failsSession } of failures) {
     logger.warn({ err }, `Could not stop the ${name} during remote session teardown.`);
-    if (sessionFailed) {
-      // The session error is what the step reports, so a swallowed teardown failure goes to Sentry.
+    if (sessionFailed || !failsSession) {
+      // The step does not report this failure, so it goes to Sentry.
       const error = err instanceof Error ? err : new Error(String(err));
-      Sentry.capture(`Could not stop the ${name} after the remote session failed`, error, {
-        level: 'warning',
-      });
+      Sentry.capture(
+        sessionFailed
+          ? `Could not stop the ${name} after the remote session failed`
+          : `Could not stop the ${name} after the remote session ended`,
+        error,
+        { level: 'warning' }
+      );
     }
   }
-  if (!sessionFailed && failures.length > 0) {
-    throw failures[0].err;
+  const sessionFailure = failures.find(({ failsSession }) => failsSession);
+  if (!sessionFailed && sessionFailure) {
+    throw sessionFailure.err;
   }
 }
 

@@ -1,11 +1,22 @@
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
+import * as tar from 'tar';
 
 import { executeControlConfigAsync, prepareControlConfigAsync } from '../controlConfig';
 import { HostActionCatalog, HostActionConnection, HostActionResult } from '../hostActions';
 
+jest.mock('tar', () => {
+  const actual = jest.requireActual<typeof import('tar')>('tar');
+  return { ...actual, create: jest.fn(actual.create) };
+});
+
 const itWithChmod = process.platform === 'win32' || process.geteuid?.() === 0 ? it.skip : it;
+
+function catalogWithAppArchives(): HostActionCatalog {
+  const fixture: HostActionCatalog = require('./fixtures/hostActionCatalog.json');
+  return { ...fixture, 'app.install': { ...fixture['app.install'], uploadArchive: 'tar.gz' } };
+}
 
 const catalog: HostActionCatalog = {
   'keyboard.set': {
@@ -145,6 +156,44 @@ describe('simulator control configuration', () => {
     expect(requestAsync).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    'packages an imported app only during execution (invalid later step: %s)',
+    async invalid => {
+      const bundle = path.join(folder, 'Imported.app');
+      await fs.ensureDir(bundle);
+      await fs.writeFile(path.join(bundle, 'Info.plist'), 'app plist');
+      const withApps: HostActionCatalog = {
+        ...catalog,
+        'app.install': {
+          type: 'object',
+          properties: { udid: { type: 'string' }, path: { type: 'string' } },
+          required: ['udid', 'path'],
+          upload: 'path',
+          uploadArchive: 'tar.gz',
+        },
+      };
+      await writeConfig([
+        { action: 'app.install', file: './Imported.app' },
+        ...(invalid ? [{ action: 'keyboard.set', params: { value: 'invalid' } }] : []),
+      ]);
+      const packaging = jest.mocked(tar.create);
+      const prepared = prepareControlConfigAsync(withApps, filePath, connection.udid);
+      if (invalid) {
+        await expect(prepared).rejects.toThrow(/step 2.*keyboard\.set/i);
+        expect(packaging).not.toHaveBeenCalled();
+        expect(requestAsync).not.toHaveBeenCalled();
+      } else {
+        const config = await prepared;
+        expect(packaging).not.toHaveBeenCalled();
+        await executeControlConfigAsync(connection, config);
+        expect(packaging).toHaveBeenCalledTimes(1);
+        const archive = packaging.mock.calls[0][0].file!;
+        expect(await fs.pathExists(path.dirname(archive))).toBe(false);
+        expect(requestAsync).toHaveBeenCalledWith('app.install', { path: '/remote/staged.txt' });
+      }
+    }
+  );
+
   it('rejects unknown actions before any execution', async () => {
     await writeConfig([{ action: 'echo' }, { action: 'missing' }]);
     await expect(prepareControlConfigAsync(catalog, filePath, connection.udid)).rejects.toThrow(
@@ -278,9 +327,9 @@ describe('simulator control configuration', () => {
   it.each(['app.install', 'media.add'])(
     'rejects an explicit file combined with another source for %s',
     async action => {
-      const realCatalog: HostActionCatalog = require('./fixtures/hostActionCatalog.json');
-      await fs.writeFile(path.join(folder, 'new.ipa'), 'new bytes');
-      await writeConfig([{ action, params: { uploadId: 'old.ipa' }, file: './new.ipa' }]);
+      const realCatalog = catalogWithAppArchives();
+      await fs.writeFile(path.join(folder, 'new.tgz'), 'new bytes');
+      await writeConfig([{ action, params: { uploadId: 'old.ipa' }, file: './new.tgz' }]);
       await expect(
         prepareControlConfigAsync(realCatalog, filePath, connection.udid)
       ).rejects.toThrow(/file.*source/i);
@@ -328,9 +377,9 @@ describe('simulator control configuration', () => {
   });
 
   it('accepts an explicit file as the only source of a union action', async () => {
-    const realCatalog: HostActionCatalog = require('./fixtures/hostActionCatalog.json');
-    await fs.writeFile(path.join(folder, 'new.ipa'), 'new bytes');
-    await writeConfig([{ action: 'app.install', file: './new.ipa' }]);
+    const realCatalog = catalogWithAppArchives();
+    await fs.writeFile(path.join(folder, 'new.tgz'), 'new bytes');
+    await writeConfig([{ action: 'app.install', file: './new.tgz' }]);
     const config = await prepareControlConfigAsync(realCatalog, filePath, connection.udid);
     await executeControlConfigAsync(connection, config);
     expect(requestAsync).toHaveBeenCalledWith('app.install', { path: '/remote/staged.txt' });

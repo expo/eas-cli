@@ -123,6 +123,28 @@ it('adds detected sandbox context to analytics events', async () => {
   );
 });
 
+it('omits the parent command when no command started this one', async () => {
+  const analytics = await createAnalyticsAsync();
+
+  analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
+
+  expect(mockTrack.mock.calls[0][0].context).not.toHaveProperty('parent_command');
+});
+
+it('adds the parent command to analytics events', async () => {
+  const analytics = await createAnalyticsAsync('expo run:ios');
+
+  analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
+
+  expect(mockTrack).toHaveBeenCalledWith(
+    expect.objectContaining({
+      context: expect.objectContaining({
+        parent_command: 'expo run:ios',
+      }),
+    })
+  );
+});
+
 describe(isAnalyticsOptedOutAsync, () => {
   it('is false by default', async () => {
     await expect(isAnalyticsOptedOutAsync()).resolves.toBe(false);

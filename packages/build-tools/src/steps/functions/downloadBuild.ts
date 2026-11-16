@@ -1,4 +1,4 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { SystemError, UserError, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -23,7 +23,6 @@ import bplistParser from 'bplist-parser';
 import plist from 'plist';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {

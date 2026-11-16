@@ -48,15 +48,15 @@ function endPhaseCalls(logger: any): any[] {
 
 describe(startSshSessionPhaseAsync, () => {
   let handle: {
-    getConnectedClientCountAsync: jest.Mock;
-    ensureConnectedAsync: jest.Mock;
+    readStatusAsync: jest.Mock;
+    reportReconnectingAsync: jest.Mock;
     stopAsync: jest.Mock;
   };
 
   beforeEach(() => {
     handle = {
-      getConnectedClientCountAsync: jest.fn(async () => 0),
-      ensureConnectedAsync: jest.fn(async () => {}),
+      readStatusAsync: jest.fn(async () => ({ state: 'ready', connectedClientCount: 0 })),
+      reportReconnectingAsync: jest.fn(async () => {}),
       stopAsync: jest.fn(async () => {}),
     };
     mocked.startSshSessionAsync.mockResolvedValue({ handle, idleTimeoutSeconds: 0 } as any);

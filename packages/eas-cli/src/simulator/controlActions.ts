@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import path from 'path';
 
+import { createAppArchiveAsync } from './appArchive';
 import {
   HostActionCatalog,
   HostActionCatalogEntry,
@@ -24,7 +25,7 @@ export type PreparedControlAction = Readonly<{
   entry: HostActionCatalogEntry;
   params: Readonly<Record<string, unknown>>;
   outputPath?: string;
-  localFile?: Readonly<{ param: string; path: string }>;
+  localFile?: Readonly<{ param: string; path: string; appBundle?: true }>;
 }>;
 
 export function resolveControlActionPath(value: string, baseDir?: string): string {
@@ -67,8 +68,11 @@ export async function prepareControlActionAsync(
     if (Object.hasOwn(params, param)) {
       throw new Error(`${param} and file cannot both be supplied for ${action.action}.`);
     }
-    localFile = { param, path: resolveControlActionPath(action.file, baseDir) };
-    await assertLocalFileAsync(localFile.path);
+    localFile = await prepareLocalFileAsync(
+      action.action,
+      entry,
+      resolveControlActionPath(action.file, baseDir)
+    );
   } else if (localFileMode === 'auto' && param && applies && typeof params[param] === 'string') {
     const value = params[param];
     if (value.startsWith('host:')) {
@@ -97,8 +101,7 @@ export async function prepareControlActionAsync(
           `${value} does not exist on this computer. Pass a local file, or prefix an absolute simulator-host path with host:.`
         );
       }
-      await assertLocalFileAsync(localPath, stat);
-      localFile = { param, path: localPath };
+      localFile = await prepareLocalFileAsync(action.action, entry, localPath, stat);
     }
   }
   return {
@@ -110,40 +113,92 @@ export async function prepareControlActionAsync(
   };
 }
 
-export async function assertLocalFileAsync(localPath: string, stats?: fs.Stats): Promise<void> {
+async function prepareLocalFileAsync(
+  action: string,
+  entry: HostActionCatalogEntry,
+  localPath: string,
+  stats?: fs.Stats
+): Promise<NonNullable<PreparedControlAction['localFile']>> {
+  const stat = await assertLocalFileAsync(localPath, { action, stats });
+  if (
+    action === 'app.install' &&
+    (stat.isDirectory() || /\.(?:tar\.gz|tgz)$/i.test(localPath)) &&
+    entry.uploadArchive !== 'tar.gz'
+  ) {
+    throw new Error(
+      'This simulator host does not support app archives. Start a session with an updated serve-sim package.'
+    );
+  }
+  return {
+    param: entry.upload!,
+    path: localPath,
+    ...(stat.isDirectory() ? { appBundle: true } : {}),
+  };
+}
+
+export async function assertLocalFileAsync(
+  localPath: string,
+  { action, stats }: { action?: string; stats?: fs.Stats } = {}
+): Promise<fs.Stats> {
   const stat = stats ?? (await fs.stat(localPath).catch(() => null));
   if (!stat) {
     throw new Error(`${localPath} does not exist on this computer.`);
   }
   if (stat.isDirectory()) {
-    throw new Error(`${localPath} is a folder. Pass the path of a file.`);
-  }
-  if (!stat.isFile()) {
+    if (action !== 'app.install') {
+      throw new Error(`${localPath} is a folder. Pass the path of a file.`);
+    }
+    if (path.extname(path.resolve(localPath)) !== '.app') {
+      throw new Error(
+        `${localPath} is a folder. Pass a Simulator .app bundle or .tar.gz/.tgz archive.`
+      );
+    }
+  } else if (!stat.isFile()) {
     throw new Error(`${localPath} is not a regular file.`);
-  }
-  if (stat.size === 0) {
+  } else if (action === 'app.install' && /\.(?:ipa|zip)$/i.test(localPath)) {
+    throw new Error(
+      'Simulator installs require a Simulator .app bundle or .tar.gz/.tgz archive. Device .ipa builds and .zip archives are not supported.'
+    );
+  } else if (stat.size === 0) {
     throw new Error(`${localPath} is empty. Pass a file with content.`);
   }
   await fs.access(localPath, fs.constants.R_OK);
+  return stat;
 }
 
 export async function executeControlActionAsync(
   connection: HostActionConnection,
   plan: PreparedControlAction,
-  { validateParams }: { validateParams?: (params: Record<string, unknown>) => void } = {}
+  {
+    validateParams,
+    onProgress,
+    handleInterrupt,
+  }: {
+    validateParams?: (params: Record<string, unknown>) => void;
+    onProgress?: (phase: 'packaging' | 'uploading' | 'running') => void;
+    handleInterrupt?: boolean;
+  } = {}
 ): Promise<ControlActionResult> {
   connection.signal.throwIfAborted();
   const params: Record<string, unknown> = { ...plan.params };
   let uploadId: string | undefined;
+  let archive: Awaited<ReturnType<typeof createAppArchiveAsync>> | undefined;
   let succeeded = false;
   try {
     if (plan.localFile) {
-      const upload = await uploadFileAsync(connection, plan.localFile.path);
+      if (plan.localFile.appBundle) {
+        onProgress?.('packaging');
+        archive = await createAppArchiveAsync(plan.localFile.path, { handleInterrupt });
+      }
+      connection.signal.throwIfAborted();
+      onProgress?.('uploading');
+      const upload = await uploadFileAsync(connection, archive?.path ?? plan.localFile.path);
       uploadId = upload.uploadId;
       params[plan.localFile.param] = plan.entry.uploadAs === 'id' ? upload.uploadId : upload.path;
     }
     connection.signal.throwIfAborted();
     validateParams?.(params);
+    onProgress?.('running');
     const result = await connection.requestAsync(plan.action, params);
     if (result.exitCode !== 0) {
       const detail = (result.stderr || result.stdout).trim() || `exit code ${result.exitCode}`;
@@ -161,6 +216,7 @@ export async function executeControlActionAsync(
     if (uploadId && (!plan.entry.keepUpload || !succeeded)) {
       await connection.requestAsync('upload.remove', { uploadId }).catch(() => {});
     }
+    await archive?.cleanupAsync();
   }
 }
 
