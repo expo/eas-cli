@@ -37,6 +37,8 @@ import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
 // be mocked directly — can read a real state file we control.
+// The helper has its own test; here it would add spawn calls and Sentry reports.
+jest.mock('../../utils/endDeviceApps');
 jest.mock('node:os', () => {
   const actual = jest.requireActual('node:os');
   const actualPath = jest.requireActual('node:path');

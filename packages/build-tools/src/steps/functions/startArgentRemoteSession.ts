@@ -481,6 +481,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           })();
           await finishRemoteSessionAsync({
             logger,
+            device: { runtimePlatform, env },
             sessionFailed,
             teardown: [
               ['Argent tunnel', toolsTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],

@@ -415,6 +415,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
           })();
           await finishRemoteSessionAsync({
             logger,
+            device: { runtimePlatform, env },
             sessionFailed,
             teardown: [
               ['Appium tunnel', appiumTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],

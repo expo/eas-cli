@@ -346,6 +346,7 @@ export async function runAgentDeviceRemoteSessionAsync(
     })();
     await finishRemoteSessionAsync({
       logger,
+      device: { runtimePlatform, env },
       sessionFailed,
       teardown: [
         ...startupResults.flatMap((result): [string, Promise<unknown>][] =>

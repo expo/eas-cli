@@ -26,6 +26,7 @@ import { Sentry } from '../../sentry';
 import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { createProcessOutput } from './processOutput';
+import { endDeviceAppsAsync } from './endDeviceApps';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
@@ -671,25 +672,35 @@ export type RemoteSessionTeardown = [
 ];
 
 /**
- * Runs every named teardown to completion and logs each failure. The first failure of a task that
- * fails the session is rethrown only when the session body succeeded, so a teardown error cannot
- * replace the error that ended it.
+ * Runs every named teardown to completion, then ends the apps on the device, and logs each
+ * failure. The first failure of a task that fails the session is rethrown only when the session
+ * body succeeded, so a teardown error cannot replace the error that ended it.
  */
 export async function finishRemoteSessionAsync({
   teardown,
+  device,
   sessionFailed,
   logger,
 }: {
   teardown: RemoteSessionTeardown[];
+  device: { runtimePlatform: BuildRuntimePlatform; env: BuildStepEnv };
   sessionFailed: boolean;
   logger: bunyan;
 }): Promise<void> {
   const results = await Promise.allSettled(teardown.map(([, task]) => task));
+  // Last, because the tools above may still read the app. The VM delete after the job closes no
+  // connection, so an app left running keeps its dev server page listed.
+  const deviceApps = endDeviceAppsAsync({ ...device, logger });
+  results.push(...(await Promise.allSettled([deviceApps])));
+  const tasks: RemoteSessionTeardown[] = [
+    ...teardown,
+    ['device apps', deviceApps, { failsSession: false }],
+  ];
   const failures = results.flatMap((result, index) => {
     if (result.status !== 'rejected') {
       return [];
     }
-    const [name, , options] = teardown[index];
+    const [name, , options] = tasks[index];
     return [{ name, err: result.reason, failsSession: options?.failsSession ?? true }];
   });
   for (const { name, err, failsSession } of failures) {
