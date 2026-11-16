@@ -72,6 +72,14 @@ jest.mock('../localEgress', () => ({
 jest.mock('node:timers');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
+jest.mock('../devicePackageMirror', () => ({
+  // Sessions run `<name>@latest` unless a test resolves the package from the mirror.
+  resolveLatestDevicePackageAsync: jest.fn(async ({ packageName }: { packageName: string }) => ({
+    packageSpec: `${packageName}@latest`,
+    description: `${packageName}@latest`,
+    source: 'npm',
+  })),
+}));
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn');

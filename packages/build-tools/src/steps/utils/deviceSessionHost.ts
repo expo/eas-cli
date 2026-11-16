@@ -60,6 +60,7 @@ import { type PreviewActivityPolling, startPreviewActivityPolling } from './prev
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createColdIosSessionAsync } from './coldIosSession';
+import { resolveLatestDevicePackageAsync } from './devicePackageMirror';
 import { createStartupTasks } from './startupTasks';
 
 const WEB_PREVIEW_HOST = '127.0.0.1';
@@ -145,6 +146,7 @@ export function createServeSimArgs({
   shareUrl,
   disableShare = false,
   packageVersion,
+  packageSpec,
   iosSimulatorUdid,
   installAppPath,
   launchAppIdentifier,
@@ -162,6 +164,8 @@ export function createServeSimArgs({
   shareUrl?: string;
   disableShare?: boolean;
   packageVersion?: string;
+  /** Replaces `@expo/serve-sim@<packageVersion>`, for example with a downloaded tarball. */
+  packageSpec?: string;
   iosSimulatorUdid?: string;
   installAppPath?: string;
   networkCapture?: boolean;
@@ -169,7 +173,7 @@ export function createServeSimArgs({
   networkCaptureProxy?: string;
 } & ServeSimLaunchOptions): string[] {
   return [
-    createServeSimPackageSpec(packageVersion),
+    packageSpec ?? createServeSimPackageSpec(packageVersion),
     ...(iosSimulatorUdid ? [iosSimulatorUdid] : []),
     ...(iosSimulatorUdid && IOS_SIMULATOR_UDID.test(iosSimulatorUdid)
       ? ['--single-device', iosSimulatorUdid]
@@ -221,6 +225,7 @@ export function createExpoDeviceHubArgs({
   frameAncestorArgs: frameArgs = [],
   corsOriginArgs: corsArgs = [],
   packageVersion,
+  packageSpec,
   recordingDirectory,
 }: {
   port: number;
@@ -230,10 +235,12 @@ export function createExpoDeviceHubArgs({
   frameAncestorArgs?: string[];
   corsOriginArgs?: string[];
   packageVersion?: string;
+  /** Replaces `expo-device-hub@<packageVersion>`, for example with a downloaded tarball. */
+  packageSpec?: string;
   recordingDirectory?: string;
 }): string[] {
   return [
-    createExpoDeviceHubPackageSpec(packageVersion),
+    packageSpec ?? createExpoDeviceHubPackageSpec(packageVersion),
     ...(device && ANDROID_DEVICE_SERIAL.test(device) ? ['--single-device', device] : []),
     '--port',
     String(port),
@@ -609,9 +616,10 @@ async function startDeviceSessionHostInternalAsync(
   const port = server.port;
   packageVersion = server.serveSimVersion ?? packageVersion;
   const serverName = isAndroid ? 'expo-device-hub' : 'serve-sim';
-  const packageSpec = isAndroid
+  let packageSpec = isAndroid
     ? createExpoDeviceHubPackageSpec(packageVersion)
     : createServeSimPackageSpec(packageVersion);
+  let packageDescription = packageSpec;
   const turnArgsResult = asyncResult(server.turnArgs);
   const screenshots = await startDeviceRunSessionScreenshotsAsync(ctx, {
     deviceRunSessionId: getDeviceRunSessionIdOrThrow(env),
@@ -742,14 +750,31 @@ async function startDeviceSessionHostInternalAsync(
   try {
     const turnArgs = (await turnArgsResult).enforceValue();
     const localEgress = !isAndroid ? await readLocalEgressHandoffAsync() : null;
+    const packageManager = resolveConfiguredPackageManager(env, PackageManager.NPM);
+    // The latest release comes from the EAS package mirror first, so a release that npm lists
+    // but does not serve yet does not stop the session. A requested version and a warm server
+    // keep their npm spec, and `bun x` cannot run a local tarball.
+    if (packageVersion === undefined && !providedServer && packageManager !== PackageManager.BUN) {
+      const resolved = await startup.untilAborted(
+        resolveLatestDevicePackageAsync({
+          packageName: isAndroid ? EXPO_DEVICE_HUB_PACKAGE_NAME : SERVE_SIM_PACKAGE_NAME,
+          env,
+          logger,
+          signal: startup.signal,
+        })
+      );
+      packageSpec = resolved.packageSpec;
+      packageDescription = resolved.description;
+    }
     const previewExec = resolvePackageExec(
-      resolveConfiguredPackageManager(env, PackageManager.NPM),
+      packageManager,
       isAndroid
         ? createExpoDeviceHubArgs({
             port,
             device: previewDevice,
             turnArgs,
             packageVersion,
+            packageSpec,
             recordingDirectory: recording?.directory,
             websiteArgs: websiteOriginArgs(env),
             frameAncestorArgs: frameAncestorArgs(frameAncestors),
@@ -759,6 +784,7 @@ async function startDeviceSessionHostInternalAsync(
             port,
             turnArgs,
             packageVersion,
+            packageSpec,
             iosSimulatorUdid: previewDevice,
             websiteArgs: websiteOriginArgs(env),
             frameAncestorArgs: frameAncestorArgs(frameAncestors),
@@ -778,7 +804,7 @@ async function startDeviceSessionHostInternalAsync(
           })
     );
     logger.info(
-      `Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
+      `Launching ${packageDescription} on ${WEB_PREVIEW_HOST}:${port} via ${previewExec.command}.`
     );
     // Redact these credentials before forwarding process output to build logs.
     secrets.push(

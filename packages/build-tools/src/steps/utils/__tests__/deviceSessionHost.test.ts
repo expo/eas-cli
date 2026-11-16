@@ -32,6 +32,7 @@ import {
   startDeviceSessionHostAsync,
   waitForWebPreviewReadyAsync,
 } from '../deviceSessionHost';
+import { resolveLatestDevicePackageAsync } from '../devicePackageMirror';
 import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import {
@@ -72,6 +73,14 @@ jest.mock('../serveSimMetricsRecorder', () => ({
     .mockResolvedValue([{ udid: 'emulator-5554', token: 'preview-token' }]),
 }));
 jest.mock('../../../utils/turtleFetch');
+jest.mock('../devicePackageMirror', () => ({
+  // Sessions run `<name>@latest` unless a test resolves the package from the mirror.
+  resolveLatestDevicePackageAsync: jest.fn(async ({ packageName }: { packageName: string }) => ({
+    packageSpec: `${packageName}@latest`,
+    description: `${packageName}@latest`,
+    source: 'npm',
+  })),
+}));
 jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
@@ -2869,3 +2878,132 @@ it.each([
     }
   }
 );
+
+describe('package source', () => {
+  const hubTarball = 'file:/tmp/eas-device-package-hub/expo-device-hub-0.24.0.tgz';
+  const serveSimTarball = 'file:/tmp/eas-device-package-sim/serve-sim-0.14.3.tgz';
+
+  it('starts expo-device-hub from the tarball that the mirror resolved', async () => {
+    jest.mocked(resolveLatestDevicePackageAsync).mockResolvedValueOnce({
+      packageSpec: hubTarball,
+      description: 'expo-device-hub@0.24.0 from the EAS package mirror',
+      source: 'mirror',
+      version: '0.24.0',
+    });
+    const host = await startHostAsync();
+    try {
+      expect(resolveLatestDevicePackageAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ packageName: 'expo-device-hub', env })
+      );
+      const { command, args } = jest.mocked(spawnDetached).mock.calls[0][0];
+      expect([command, ...args.slice(0, 2)]).toEqual(['npx', '--yes', hubTarball]);
+      expect(args).not.toContain('expo-device-hub@latest');
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^Launching expo-device-hub@0\.24\.0 from the EAS package mirror on 127\.0\.0\.1:\d+ via npx\.$/
+        )
+      );
+    } finally {
+      await host.finishAsync();
+    }
+  });
+
+  it('starts a cold serve-sim from the mirrored tarball and records with the same package', async () => {
+    jest.mocked(resolveLatestDevicePackageAsync).mockResolvedValueOnce({
+      packageSpec: serveSimTarball,
+      description: '@expo/serve-sim@0.14.3 from the EAS package mirror',
+      source: 'mirror',
+      version: '0.14.3',
+    });
+    const recording = jest.spyOn(IosSimulatorRecordingUtils, 'useServeSimPackage');
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    });
+    try {
+      expect(resolveLatestDevicePackageAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ packageName: '@expo/serve-sim' })
+      );
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].args.slice(0, 2)).toEqual([
+        '--yes',
+        serveSimTarball,
+      ]);
+      expect(recording).toHaveBeenCalledWith(serveSimTarball);
+    } finally {
+      recording.mockRestore();
+      await host.finishAsync();
+    }
+  });
+
+  it.each([
+    ['a requested version', { packageVersion: '0.7.0' }, env, 'expo-device-hub@0.7.0'],
+    [
+      'bun, which cannot run a local tarball',
+      {},
+      { ...env, EAS_OVERRIDE_PACKAGE_MANAGER: 'bun' },
+      'expo-device-hub@latest',
+    ],
+  ])('keeps the npm spec for %s', async (_description, options, stepEnv, spec) => {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: stepEnv,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+      ...options,
+    });
+    try {
+      expect(resolveLatestDevicePackageAsync).not.toHaveBeenCalled();
+      expect(jest.mocked(spawnDetached).mock.calls[0][0].args).toContain(spec);
+    } finally {
+      await host.finishAsync();
+    }
+  });
+
+  it('keeps the npm spec of a warm serve-sim, which the launcher installed', async () => {
+    jest
+      .mocked(readServeSimServersAsync)
+      .mockResolvedValue([
+        { udid: 'emulator-5554', token: 'preview-token', url: 'http://127.0.0.1:3200' },
+      ]);
+    const startAsync = jest.fn(async () => ({
+      pid: undefined,
+      getOutput: () => '',
+      getExitError: () => undefined,
+      stopAsync: stopServer,
+    }));
+    const host = await startDeviceSessionHostAsync(
+      ctx,
+      {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env,
+        logger,
+        iosSimulatorUdid: 'emulator-5554',
+        timeoutMs: 1000,
+      },
+      {
+        port: 3200,
+        turnArgs: Promise.resolve([]),
+        requiresPreviewRetirement: true,
+        startAsync,
+        stopAsync: stopServer,
+      }
+    );
+    try {
+      expect(resolveLatestDevicePackageAsync).not.toHaveBeenCalled();
+      expect(startAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          args: expect.arrayContaining(['@expo/serve-sim@latest']),
+        })
+      );
+    } finally {
+      await host.finishAsync();
+    }
+  });
+});
