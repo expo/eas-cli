@@ -56,8 +56,8 @@ import {
 } from './iosAppArtifact';
 import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
 import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
-import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
+import { configureSimulatorProxyEnvironmentAsync } from './localEgress';
 import { createColdIosSessionAsync } from './coldIosSession';
 import { createStartupTasks } from './startupTasks';
 
@@ -408,7 +408,6 @@ export type DeviceSessionHostOptions = {
   /** Selected preview target; does not enable Simulator boot or setup. */
   previewDeviceId?: string;
   installAppPath?: string;
-  bootEnv?: Record<string, string>;
   application?: Promise<ServeSimApplicationOptions | void>;
   onStartupError?: (error: unknown) => void;
   networkCapture?: boolean;
@@ -524,7 +523,6 @@ async function startDeviceSessionHostInternalAsync(
     openUrl,
     networkCapture = false,
     networkCaptureFields = [],
-    bootEnv = {},
     preview,
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
@@ -533,15 +531,6 @@ async function startDeviceSessionHostInternalAsync(
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
-  if (
-    Object.keys(bootEnv).length > 0 &&
-    (runtimePlatform !== BuildRuntimePlatform.DARWIN || !iosSimulatorUdid)
-  ) {
-    throw new UserError(
-      'EAS_IOS_SIMULATOR_BOOT_INVALID_INPUT',
-      'Simulator boot options require an explicit iOS Simulator.'
-    );
-  }
   // Unreachable from the step functions, which reject a non-Darwin launch while parsing.
   // Kept because this function is exported and expo-device-hub cannot launch.
   if (isAndroid && networkCapture) {
@@ -767,7 +756,6 @@ async function startDeviceSessionHostInternalAsync(
       args: previewExec.args,
       env: {
         ...env,
-        ...bootEnv,
         ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
@@ -890,9 +878,14 @@ async function startDeviceSessionHostInternalAsync(
       });
       previewToken = token;
       secrets.push(token);
-      if (Object.keys(bootEnv).length > 0) {
+      startup.signal.throwIfAborted();
+      if (!providedServer) {
         await startup.untilAborted(
-          verifyLocalEgressGuardAsync({ udid: iosSimulatorUdid as IosSimulatorUuid, env, logger })
+          configureSimulatorProxyEnvironmentAsync({
+            udid: iosSimulatorUdid as IosSimulatorUuid,
+            env,
+            logger,
+          })
         );
       }
       signal?.throwIfAborted();

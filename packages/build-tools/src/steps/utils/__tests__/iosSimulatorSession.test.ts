@@ -5,19 +5,9 @@ import { createMockLogger } from '../../../__tests__/utils/logger';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../../utils/IosSimulatorUtils';
 import { resolveIosSessionStartupAsync } from '../iosSimulatorSession';
 import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
-import {
-  resolveLocalEgressServeSimBootEnvironmentAsync,
-  startLocalEgressGuardRelayAsync,
-} from '../localEgressGuard';
-
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../iosAppArtifact', () => ({ readIosApplicationIdentifierAsync: jest.fn() }));
-jest.mock('../localEgressGuard', () => ({
-  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn(),
-  startLocalEgressGuardRelayAsync: jest.fn(),
-}));
-
 const mockedSpawn = jest.mocked(spawn);
 const mockedUtils = jest.mocked(IosSimulatorUtils);
 
@@ -38,7 +28,6 @@ describe('serve-sim Simulator preparation', () => {
       },
     ] as never);
     mockedUtils.resolveUdidAsync.mockResolvedValue('selected-udid' as IosSimulatorUuid);
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as never);
     jest.mocked(readIosApplicationIdentifierAsync).mockResolvedValue('dev.example.app');
   });
@@ -58,7 +47,6 @@ describe('serve-sim Simulator preparation', () => {
     ).rejects.toThrow('iOS launch_args');
     expect(mockedUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
     expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
-    expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -75,7 +63,6 @@ describe('serve-sim Simulator preparation', () => {
     ).rejects.toThrow('iOS open_url');
     expect(mockedUtils.getAvailableDevicesAsync).not.toHaveBeenCalled();
     expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
-    expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
   });
 
   it('keeps an explicit launch identifier independent of the installed app', async () => {
@@ -119,7 +106,6 @@ describe('serve-sim Simulator preparation', () => {
     expect(startup.iosStartup).toBeUndefined();
     expect(startup.launch.launchAppIdentifier).toBe('previously.installed.app');
     expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
-    expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
     expect(spawn).not.toHaveBeenCalled();
   });
 
@@ -127,79 +113,6 @@ describe('serve-sim Simulator preparation', () => {
     const startup = await resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true });
     expect(startup.iosStartup?.iosSimulatorUdid).toBe('SELECTED-UDID');
     expect(startup.launch.launchAppIdentifier).toBeUndefined();
-  });
-
-  it.each(['Booted', 'Booting', 'Shutdown'])(
-    'prepares guarded startup on a %s device',
-    async state => {
-      const bootEnv = { SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' };
-      jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(bootEnv);
-      mockedUtils.getDeviceAsync.mockResolvedValue({ state } as never);
-      const startup = await resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true });
-      expect(startup.iosStartup).toEqual({
-        iosSimulatorUdid: 'SELECTED-UDID',
-        bootEnv,
-        installAppPath: undefined,
-      });
-      if (state === 'Shutdown') {
-        expect(spawn).not.toHaveBeenCalled();
-      } else {
-        expect(spawn).toHaveBeenCalledWith(
-          'xcrun',
-          ['simctl', 'shutdown', 'SELECTED-UDID'],
-          expect.anything()
-        );
-      }
-      expect(startLocalEgressGuardRelayAsync).toHaveBeenCalled();
-      expect(mockedUtils.bootAsync).not.toHaveBeenCalled();
-    }
-  );
-
-  it('preserves the Stop reason when Simulator shutdown rejects after cancellation', async () => {
-    const controller = new AbortController();
-    const stopped = new Error('Session stopped');
-    const wrapped = new Error('Shutdown process aborted', { cause: stopped });
-    let shutdownEntered!: () => void;
-    const entered = new Promise<void>(resolve => {
-      shutdownEntered = resolve;
-    });
-    jest
-      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
-      .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
-    mockedUtils.getDeviceAsync.mockResolvedValue({ state: 'Booted' } as never);
-    mockedSpawn.mockImplementationOnce((_command, _args, options) => {
-      shutdownEntered();
-      return new Promise((_resolve, reject) =>
-        options!.signal!.addEventListener('abort', () => reject(wrapped), { once: true })
-      ) as ReturnType<typeof spawn>;
-    });
-    const running = resolveIosSessionStartupAsync({
-      ...hostOptions,
-      bootSimulator: true,
-      signal: controller.signal,
-    });
-    running.catch(() => {});
-    await entered;
-    controller.abort(stopped);
-    await expect(running).rejects.toBe(stopped);
-    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
-  });
-
-  it('preserves a genuine Simulator shutdown failure', async () => {
-    const failure = new Error('Could not shut down Simulator');
-    jest
-      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
-      .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
-    mockedUtils.getDeviceAsync.mockResolvedValue({ state: 'Booted' } as never);
-    mockedSpawn.mockRejectedValueOnce(failure);
-    await expect(
-      resolveIosSessionStartupAsync({
-        ...hostOptions,
-        bootSimulator: true,
-        signal: new AbortController().signal,
-      })
-    ).rejects.toBe(failure);
-    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
   });
 
   it('resolves an explicit Simulator without booting or configuring it', async () => {
@@ -235,24 +148,4 @@ describe('serve-sim Simulator preparation', () => {
       resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true })
     ).rejects.toThrow('Could not find an iPhone');
   });
-});
-
-it('leaves warm guard enrollment to serve-sim without cold injection or shutdown', async () => {
-  jest
-    .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
-    .mockResolvedValue({ SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' });
-  jest
-    .mocked(IosSimulatorUtils.resolveUdidAsync)
-    .mockResolvedValue('selected-udid' as IosSimulatorUuid);
-  const result = await resolveIosSessionStartupAsync({
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    deviceIdentifier: 'selected-udid',
-    warm: true,
-    env: {},
-    logger: createMockLogger(),
-  });
-  expect(result.iosStartup?.bootEnv).toBeUndefined();
-  expect(resolveLocalEgressServeSimBootEnvironmentAsync).not.toHaveBeenCalled();
-  expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
-  expect(spawn).not.toHaveBeenCalled();
 });

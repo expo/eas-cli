@@ -70,9 +70,6 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
       .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
   },
 }));
-jest.mock('../../utils/localEgressGuard', () => ({
-  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
-}));
 
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),

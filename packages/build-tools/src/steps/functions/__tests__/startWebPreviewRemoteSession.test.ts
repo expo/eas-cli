@@ -35,9 +35,6 @@ jest.mock('../../utils/iosAppArtifact', () => ({
   ...jest.requireActual('../../utils/iosAppArtifact'),
   readIosApplicationIdentifierAsync: jest.fn().mockResolvedValue('dev.example.app'),
 }));
-jest.mock('../../utils/localEgressGuard', () => ({
-  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
-}));
 
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
   ...jest.requireActual('../../utils/remoteDeviceRunSession'),
@@ -504,7 +501,6 @@ describe(createStartWebPreviewRemoteSessionBuildFunction, () => {
         ? {
             iosSimulatorUdid: 'SELECTED-IOS-UDID',
             installAppPath: undefined,
-            bootEnv: undefined,
           }
         : {}),
       packageVersion: '1.2.3',

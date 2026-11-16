@@ -331,27 +331,6 @@ export async function resolveLocalEgressBootEnvironmentAsync({
   };
 }
 
-/** Supply the guard at boot and require its self-check before starting serve-sim. */
-export async function resolveLocalEgressServeSimBootEnvironmentAsync({
-  checkPath,
-  ...options
-}: LocalEgressBootEnvironmentOptions & {
-  checkPath?: string | null;
-} = {}): Promise<Record<string, string> | null> {
-  const environment = await resolveLocalEgressBootEnvironmentAsync(options);
-  if (!environment) {
-    return null;
-  }
-  await requireEgressGuardCheckAsync(checkPath);
-  const { DYLD_INSERT_LIBRARIES, ...childEnvironment } = environment;
-  return {
-    SERVE_SIM_ADDITIONAL_DYLIBS: DYLD_INSERT_LIBRARIES,
-    ...Object.fromEntries(
-      Object.entries(childEnvironment).map(([name, value]) => [`SIMCTL_CHILD_${name}`, value])
-    ),
-  };
-}
-
 type ActiveRelay = {
   source: { stopAsync: () => Promise<void> };
   relay: GuardEventRelay;

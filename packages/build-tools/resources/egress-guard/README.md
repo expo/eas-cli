@@ -1,5 +1,9 @@
 # egress-guard
 
+This copy serves the standalone `eas/start_ios_simulator` step, including its
+cloning path. Warm and cold iOS session hosts use serve-sim's resident guard;
+keep these packaged binaries until the standalone callers also migrate.
+
 A small dylib injected into every process the iOS Simulator launches during a
 `--egress local` session. It interposes the socket calls that open outbound
 traffic (`connect`, `connectx`, `sendto`, `sendmsg`, and the `$NOCANCEL`
@@ -71,16 +75,14 @@ by a coverage report from `lsof`, listing any process without the library. Both 
 `packages/worker/package.sh` for the iOS worker tarball and by the
 `test-egress-guard` EAS workflow, not committed.
 
-For serve-sim-owned iOS session startup, build-tools passes the guard through
-`SERVE_SIM_ADDITIONAL_DYLIBS` and its configuration and proxy variables through
-inherited `SIMCTL_CHILD_` variables. It shuts down an already booted selected
-device so every process inherits the guard. Serve-sim boots that device while
-build-tools prepares the app. After serve-sim's control endpoint is available,
-build-tools runs the packaged guard self-check before requesting installation
-and launch through the authenticated host API. Preview readiness and application
-startup both complete before reporting the remote session live. Build-tools keeps
-the event relay and egress cleanup without rewriting launchd's dylib list after
-serve-sim adds its capability loader.
+For serve-sim-owned iOS session startup, build-tools selects `--enable egressGuard`
+for local egress and `--disable egressGuard` otherwise. Cold startup waits for warm
+cleanup, stops the selected running device, and lets serve-sim enroll and boot it.
+Serve-sim owns resident metadata, confirmed-dead reclamation and the native
+self-check before readiness. Build-tools then sets the proxy environment and
+installs and launches the app through the authenticated host API. It retains
+the tunnel, host system proxy and transport cleanup. Resident refusal events do
+not currently use this copy's event relay.
 
 Failure semantics: a missing library, a failed `launchctl setenv`, or a failed
 self-check fails the session, since a `--egress local` session without the
