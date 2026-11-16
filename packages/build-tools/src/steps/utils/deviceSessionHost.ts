@@ -42,6 +42,7 @@ import {
 } from './remoteDeviceRunSession';
 import { LOCAL_EGRESS_PROXY_HOST, readLocalEgressHandoffAsync } from './localEgress';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import { EMULATOR_CAPTURE_REQUESTED_ENV } from './emulatorCapture';
 import {
   IosSimulatorRecordingUtils,
   SERVE_SIM_STOP_GRACE_PERIOD_MS,
@@ -55,7 +56,7 @@ import {
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
 import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
-import { type ServeSimActivityPolling, startServeSimActivityPolling } from './serveSimActivity';
+import { type PreviewActivityPolling, startPreviewActivityPolling } from './previewActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { createColdIosSessionAsync } from './coldIosSession';
@@ -73,6 +74,10 @@ const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '960';
 const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
 const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
+// expo-device-hub downloads the scrcpy server on first start. This copy keeps Android sessions
+// working when the GitHub release download fails; expo-device-hub falls back to GitHub when the
+// copy is missing.
+const SCRCPY_SERVER_MIRROR_BASE_URL = 'https://storage.googleapis.com/turtle-v2/scrcpy';
 // expo-device-hub's record of each running Hub, like serve-sim's: `server-<port>.json`.
 export const EXPO_DEVICE_HUB_STATE_DIR = path.join(os.tmpdir(), 'expo-device-hub');
 // On SIGTERM the Hub finalizes the recording itself, with this deadline before it force-exits,
@@ -371,7 +376,7 @@ export type DeviceWebPreview = {
 export type DeviceSessionHost = {
   /** The preview tunnel opened during startup, or a new one after closeAsync. */
   openPreviewAsync(): Promise<DeviceWebPreview>;
-  /** Last observed preview input. Always `undefined` on Android, which keeps no event log. */
+  /** Last observed preview input from the serve-sim (iOS) or expo-device-hub (Android) input log. */
   getLastPreviewActivityAt(): Date | undefined;
   /**
    * Terminal and idempotent. Finalization, host-stop and upload failures are logged and reported.
@@ -413,6 +418,11 @@ export type DeviceSessionHostOptions = {
   onStartupError?: (error: unknown) => void;
   networkCapture?: boolean;
   networkCaptureFields?: string[];
+  /**
+   * This session type runs an expo-device-hub that can use the experimental emulator capture.
+   * Only web preview sets it; the host rejects a capture request from any other session type.
+   */
+  emulatorCapture?: boolean;
 } & ServeSimLaunchOptions;
 
 export type DeviceSessionServerLaunch = {
@@ -526,6 +536,7 @@ async function startDeviceSessionHostInternalAsync(
     networkCaptureFields = [],
     bootEnv = {},
     preview,
+    emulatorCapture = false,
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
   artifactLogger: bunyan,
@@ -533,6 +544,15 @@ async function startDeviceSessionHostInternalAsync(
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
+  const requestedEmulatorCapture = env[EMULATOR_CAPTURE_REQUESTED_ENV];
+  if (isAndroid && requestedEmulatorCapture && !emulatorCapture) {
+    // Other session types run the latest expo-device-hub, which ignores the capture, so the
+    // session would start without the capture that it asked for.
+    throw new UserError(
+      'EAS_EMULATOR_CAPTURE_UNSUPPORTED_SESSION',
+      `The experimental emulator capture (expo-emulator-capture@${requestedEmulatorCapture}) works only in web preview sessions for now. Remove experimental_emulator_capture_version from eas/start_android_emulator, or start a web preview session.`
+    );
+  }
   if (
     Object.keys(bootEnv).length > 0 &&
     (runtimePlatform !== BuildRuntimePlatform.DARWIN || !iosSimulatorUdid)
@@ -604,6 +624,9 @@ async function startDeviceSessionHostInternalAsync(
   let previewToken: string | undefined;
   let previewTask: Promise<DeviceWebPreview> | null = null;
   const previewRetirementErrors: unknown[] = [];
+  // Stops new attempts to open the preview tunnel when the host finishes. An attempt in progress
+  // continues, so preview retirement still waits for it and closes its listener.
+  const previewRetryController = new AbortController();
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
@@ -611,7 +634,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
-  let previewActivity: ServeSimActivityPolling | null = null;
+  let previewActivity: PreviewActivityPolling | null = null;
 
   function openPreviewAsync(): Promise<DeviceWebPreview> {
     if (finishTask) {
@@ -631,6 +654,7 @@ async function startDeviceSessionHostInternalAsync(
         authtoken: preview.authtoken,
         healthCheck: { path: isAndroid ? '/readyz' : '/healthz' },
         logger,
+        retrySignal: previewRetryController.signal,
       });
       if (finishTask) {
         await withDeviceRunSessionTimeoutAsync(
@@ -768,11 +792,23 @@ async function startDeviceSessionHostInternalAsync(
       env: {
         ...env,
         ...bootEnv,
+        // The emulator start turns the experimental emulator capture on in the job env. Otherwise
+        // keep it off, so a Hub build with the capture on by default does not try to attach the
+        // agent with a debugger.
+        ...(isAndroid && env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE === undefined
+          ? { EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '0' }
+          : {}),
         ...(isAndroid ? {} : { TMPDIR: serveSimTmpdir, SERVE_SIM_STATE_DIR: serveSimStateDir }),
         EXPO_DEVICE_HUB_SCREENSHOT_DIRECTORY: screenshots.directory,
         ...(recording ? { EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN: recording.controlToken } : {}),
         // The Hub must write its token in the directory read by this host.
         ...(isAndroid ? { EXPO_DEVICE_HUB_STATE_DIR } : {}),
+        ...(isAndroid
+          ? {
+              SERVE_EMU_SCRCPY_BASE_URL:
+                env.SERVE_EMU_SCRCPY_BASE_URL || SCRCPY_SERVER_MIRROR_BASE_URL,
+            }
+          : {}),
       },
       logger,
     };
@@ -789,6 +825,7 @@ async function startDeviceSessionHostInternalAsync(
     startup.abort(error);
     // Mark the opening tunnel as retired; its late-open path closes it.
     finishTask = Promise.resolve();
+    previewRetryController.abort();
     await Promise.allSettled([simulatorSetup, retirePreviewAsync()]);
     let hostStopped = true;
     try {
@@ -816,6 +853,7 @@ async function startDeviceSessionHostInternalAsync(
     finishAsync() {
       readinessController.abort(new Error('Simulator preview ended.'));
       return (finishTask ??= (async () => {
+        previewRetryController.abort();
         const previewRetirement = retirePreviewAsync();
         if (server.requiresPreviewRetirement) {
           // Confirm the tunnel is closed before stop, so the next session cannot reach this one.
@@ -987,9 +1025,14 @@ async function startDeviceSessionHostInternalAsync(
     secrets.push(previewToken);
     if (!isAndroid) {
       IosSimulatorRecordingUtils.useServeSimPackage(packageSpec);
-      if (!finishTask) {
-        previewActivity = startServeSimActivityPolling({ port, token: previewToken, logger });
-      }
+    }
+    if (!finishTask) {
+      previewActivity = startPreviewActivityPolling({
+        server: isAndroid ? 'expo-device-hub' : 'serve-sim',
+        port,
+        token: previewToken,
+        logger,
+      });
     }
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.

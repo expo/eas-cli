@@ -83,6 +83,52 @@ const createTestEasCommand = (): any => {
 // instance and calling run() like other command tests, because they cover
 // oclif's catch and finally wiring, which only runs inside the static path.
 describe('EasCommand', () => {
+  describe('parent command', () => {
+    const originalParentCommand = process.env.__EXPO_PARENT_COMMAND;
+
+    afterEach(() => {
+      if (originalParentCommand === undefined) {
+        delete process.env.__EXPO_PARENT_COMMAND;
+      } else {
+        process.env.__EXPO_PARENT_COMMAND = originalParentCommand;
+      }
+    });
+
+    it('is the parent of a command that it runs, then restores the inherited parent', async () => {
+      process.env.__EXPO_PARENT_COMMAND = 'expo run:ios';
+      const ParentCommand = createTestEasCommand();
+      const ChildCommand = createTestEasCommand();
+      ParentCommand.id = 'build';
+      ChildCommand.id = 'update:configure';
+      jest.spyOn(ParentCommand.prototype, 'runAsync').mockImplementation(async () => {
+        expect(process.env.__EXPO_PARENT_COMMAND).toBe('eas build');
+        await ChildCommand.run([], mockConfig);
+        expect(process.env.__EXPO_PARENT_COMMAND).toBe('eas build');
+      });
+
+      await ParentCommand.run([], mockConfig);
+
+      const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
+      expect(createAnalyticsAsync).toHaveBeenNthCalledWith(1, 'expo run:ios');
+      expect(createAnalyticsAsync).toHaveBeenNthCalledWith(2, 'eas build');
+      expect(process.env.__EXPO_PARENT_COMMAND).toBe('expo run:ios');
+    });
+
+    it('restores the inherited parent after the command fails', async () => {
+      process.env.__EXPO_PARENT_COMMAND = 'expo run:ios';
+      const TestEasCommand = createTestEasCommand();
+      jest
+        .spyOn(TestEasCommand.prototype, 'runAsync')
+        .mockRejectedValue(new Error('Command failed'));
+
+      await expect(TestEasCommand.run([], mockConfig)).rejects.toThrow(
+        'testEasCommand command failed.'
+      );
+
+      expect(process.env.__EXPO_PARENT_COMMAND).toBe('expo run:ios');
+    });
+  });
+
   describe('without exceptions', () => {
     it('ensures the user data is read', async () => {
       const TestEasCommand = createTestEasCommand();

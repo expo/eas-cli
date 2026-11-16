@@ -134,6 +134,24 @@ describe('simulator start configuration', () => {
     ).rejects.toThrow('does not exist on this computer');
   });
 
+  it('accepts a local app bundle during startup preflight without a live catalog', async () => {
+    await fs.ensureDir(path.join(folder, 'Startup.app'));
+    await fs.writeFile(path.join(folder, 'Startup.app', 'Info.plist'), 'app plist');
+    await expect(
+      resolve({ platform: 'ios' }, [], [{ action: 'app.install', file: './Startup.app' }])
+    ).resolves.toBeDefined();
+  });
+
+  it.each(['Device.ipa', 'Device.zip'])(
+    'rejects unsupported installs before creating a session: %s',
+    async name => {
+      await fs.writeFile(path.join(folder, name), 'device archive');
+      await expect(
+        resolve({ platform: 'ios' }, [], [{ action: 'app.install', file: `./${name}` }])
+      ).rejects.toThrow('Simulator installs require');
+    }
+  );
+
   it('rejects invalid output parents and device overrides during local preflight', async () => {
     await expect(
       resolve({}, [], [{ action: 'screenshot.capture', output: './missing/shot.png' }])

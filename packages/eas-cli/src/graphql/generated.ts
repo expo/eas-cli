@@ -1503,6 +1503,8 @@ export type AndroidDeviceRunSessionDevice = {
   displayName: Scalars['String']['output'];
   /** AVD hardware profile id accepted by android.deviceIdentifier (e.g. "pixel_9"). */
   identifier: Scalars['String']['output'];
+  /** Whether a session starts this device when it requests no android.deviceIdentifier. */
+  isDefault: Scalars['Boolean']['output'];
 };
 
 export type AndroidDeviceRunSessionProfiles = {
@@ -9142,6 +9144,8 @@ export type IosDeviceRunSessionDevice = {
   displayName: Scalars['String']['output'];
   /** Simulator device name accepted by ios.deviceIdentifier (e.g. "iPhone 17 Pro"). */
   identifier: Scalars['String']['output'];
+  /** Whether a session starts this device when it requests no ios.deviceIdentifier. */
+  isDefault: Scalars['Boolean']['output'];
 };
 
 export type IosDeviceRunSessionProfiles = {
@@ -11214,6 +11218,7 @@ export type StatuspageService = {
 /** Name of a service monitored by Expo status page. */
 export enum StatuspageServiceName {
   EasBuild = 'EAS_BUILD',
+  EasSimulator = 'EAS_SIMULATOR',
   EasSubmit = 'EAS_SUBMIT',
   EasUpdate = 'EAS_UPDATE',
   EasWorkflows = 'EAS_WORKFLOWS',
@@ -16430,6 +16435,11 @@ export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSes
         | { __typename: 'ServeSimRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewUrl: string, previewToken?: string | null, previewApiUrl?: string | null }
         | { __typename: 'WebPreviewOnlyRunSessionRemoteConfig', egressUrl?: string | null, egressToken?: string | null, egressFingerprint?: string | null, egressPort?: number | null, previewApiUrl?: string | null, previewUrl: string, previewToken?: string | null }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+
+export type DeviceRunSessionProfilesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DeviceRunSessionProfilesQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', profiles: { __typename?: 'DeviceRunSessionProfiles', ios: { __typename?: 'IosDeviceRunSessionProfiles', devices: Array<{ __typename?: 'IosDeviceRunSessionDevice', identifier: string, displayName: string, isDefault: boolean }> }, android: { __typename?: 'AndroidDeviceRunSessionProfiles', devices: Array<{ __typename?: 'AndroidDeviceRunSessionDevice', identifier: string, displayName: string, isDefault: boolean }> } } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

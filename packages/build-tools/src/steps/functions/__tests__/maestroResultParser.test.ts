@@ -15,6 +15,7 @@ import {
   parseMaestroResults,
   parseMaestroResultsFromFileAttrs,
   parseMaestroRunnerReport,
+  parseMaestroRunnerResults,
 } from '../maestroResultParser';
 
 describe(parseFailedFlowsFromMaestroRunnerReport, () => {
@@ -480,6 +481,271 @@ describe(parseMaestroResultsFromFileAttrs, () => {
     });
     const results = await parseMaestroResultsFromFileAttrs('/junit');
     expect(results).toEqual([expect.objectContaining({ name: 'a', path: 'a.yaml' })]);
+  });
+});
+
+describe(parseMaestroRunnerResults, () => {
+  function runnerJUnit(testcases: { name: string; file: string; failed?: boolean }[]): string {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<testsuites>',
+      '  <testsuite name="maestro-runner">',
+      ...testcases.flatMap(({ name, file, failed }) => [
+        `    <testcase id="${name}" name="${name}" classname="${name}" time="1.000" status="${failed ? 'ERROR' : 'SUCCESS'}">`,
+        '      <properties>',
+        `        <property name="file" value="${file}"/>`,
+        '        <property name="device.platform" value="android"/>',
+        '      </properties>',
+        ...(failed ? ['      <failure message="Element not found">tapOn</failure>'] : []),
+        '    </testcase>',
+      ]),
+      '  </testsuite>',
+      '</testsuites>',
+    ].join('\n');
+  }
+
+  it('adds the tags of each flow from the report.json of its attempt', async () => {
+    vol.fromJSON({
+      '/junit/android-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'flows/auth/sign-in.yaml', failed: true },
+        { name: 'settings', file: 'flows/settings.yaml' },
+      ]),
+      '/tests/android-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          {
+            name: 'sign-in',
+            sourceFile: 'flows/auth/sign-in.yaml',
+            status: 'failed',
+            tags: ['auth', 'smoke'],
+          },
+          { name: 'settings', sourceFile: 'flows/settings.yaml', status: 'passed' },
+        ],
+      }),
+      '/junit/android-maestro-junit-attempt-1.xml': runnerJUnit([
+        { name: 'sign-in', file: 'flows/auth/sign-in.yaml' },
+      ]),
+      '/tests/android-maestro-runner-attempt-1/report.json': JSON.stringify({
+        flows: [
+          {
+            name: 'sign-in',
+            sourceFile: 'flows/auth/sign-in.yaml',
+            status: 'passed',
+            tags: ['auth'],
+          },
+        ],
+      }),
+    });
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      {
+        name: 'sign-in',
+        path: 'flows/auth/sign-in.yaml',
+        status: 'failed',
+        errorMessage: 'Element not found',
+        duration: 1000,
+        retryCount: 0,
+        tags: ['auth', 'smoke'],
+        properties: { file: 'flows/auth/sign-in.yaml', 'device.platform': 'android' },
+      },
+      expect.objectContaining({ path: 'flows/auth/sign-in.yaml', retryCount: 1, tags: ['auth'] }),
+      expect.objectContaining({ path: 'flows/settings.yaml', retryCount: 0, tags: [] }),
+    ]);
+  });
+
+  it('matches an absolute sourceFile with a JUnit path relative to the working directory', async () => {
+    vol.fromJSON({
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'flows/sign-in.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          {
+            name: 'sign-in',
+            sourceFile: '/project/flows/sign-in.yaml',
+            status: 'passed',
+            tags: ['auth'],
+          },
+        ],
+      }),
+    });
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({ path: 'flows/sign-in.yaml', tags: ['auth'] }),
+    ]);
+  });
+
+  it('matches a sourceFile under a symlinked directory with the JUnit path of its target', async () => {
+    vol.fromJSON({
+      '/project/flows/sign-in.yaml': '',
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'flows/sign-in.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'sign-in', sourceFile: 'linked/sign-in.yaml', status: 'passed', tags: ['auth'] },
+        ],
+      }),
+    });
+    vol.symlinkSync('/project/flows', '/project/linked');
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({ path: 'flows/sign-in.yaml', tags: ['auth'] }),
+    ]);
+  });
+
+  it('matches a sourceFile whose symlink leaves the working directory by the path as given', async () => {
+    vol.fromJSON({
+      '/project/.keep': '',
+      '/shared/sign-in.yaml': '',
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'linked/sign-in.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'sign-in', sourceFile: 'linked/sign-in.yaml', status: 'passed', tags: ['auth'] },
+        ],
+      }),
+    });
+    vol.symlinkSync('/shared', '/project/linked');
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({ path: 'linked/sign-in.yaml', tags: ['auth'] }),
+    ]);
+  });
+
+  it('does not follow a symlink from the bare file name that maestro-runner <= 1.1.17 writes', async () => {
+    vol.fromJSON({
+      '/project/flows/sign-in.yaml': '',
+      '/project/settings.yaml': '',
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'sign-in.yaml' },
+        { name: 'settings', file: 'settings.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'sign-in', sourceFile: 'flows/sign-in.yaml', status: 'passed', tags: ['auth'] },
+          { name: 'settings', sourceFile: 'settings.yaml', status: 'passed', tags: ['settings'] },
+        ],
+      }),
+    });
+    vol.symlinkSync('/project/settings.yaml', '/project/sign-in.yaml');
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({ path: 'sign-in.yaml', tags: ['auth'] }),
+      expect.objectContaining({ path: 'settings.yaml', tags: ['settings'] }),
+    ]);
+  });
+
+  it('matches by file name when JUnit has only the file name and it is unique', async () => {
+    vol.fromJSON({
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'sign-in.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          {
+            name: 'sign-in',
+            sourceFile: 'flows/auth/sign-in.yaml',
+            status: 'passed',
+            tags: ['auth'],
+          },
+          {
+            name: 'settings',
+            sourceFile: 'flows/settings.yaml',
+            status: 'passed',
+            tags: ['settings'],
+          },
+        ],
+      }),
+    });
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([expect.objectContaining({ path: 'sign-in.yaml', tags: ['auth'] })]);
+  });
+
+  it('adds no tags when two flows of the attempt have the same file name', async () => {
+    vol.fromJSON({
+      '/junit/ios-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'sign-in.yaml' },
+      ]),
+      '/tests/ios-maestro-runner-attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'a', sourceFile: 'flows/a/sign-in.yaml', status: 'passed', tags: ['a'] },
+          { name: 'b', sourceFile: 'flows/b/sign-in.yaml', status: 'passed', tags: ['b'] },
+        ],
+      }),
+    });
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([expect.objectContaining({ path: 'sign-in.yaml', tags: [] })]);
+  });
+
+  it.each([
+    { name: 'is not valid JSON', content: '{' },
+    { name: 'has an unknown shape', content: JSON.stringify({ flows: [{ name: 'sign-in' }] }) },
+    {
+      name: 'does not have the flow',
+      content: JSON.stringify({
+        flows: [{ name: 'other', sourceFile: 'flows/other.yaml', status: 'passed', tags: ['x'] }],
+      }),
+    },
+  ])('keeps the JUnit result without tags when report.json $name', async ({ content }) => {
+    vol.fromJSON({
+      '/junit/android-maestro-junit-attempt-0.xml': runnerJUnit([
+        { name: 'sign-in', file: 'flows/sign-in.yaml' },
+      ]),
+      '/tests/android-maestro-runner-attempt-0/report.json': content,
+    });
+
+    const results = await parseMaestroRunnerResults({
+      junitDirectory: '/junit',
+      testsDirectory: '/tests',
+      workingDirectory: '/project',
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({ name: 'sign-in', path: 'flows/sign-in.yaml', tags: [] }),
+    ]);
   });
 });
 

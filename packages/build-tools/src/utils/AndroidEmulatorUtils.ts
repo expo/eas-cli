@@ -6,7 +6,7 @@ import assert from 'assert';
 import FastGlob from 'fast-glob';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import { Socket } from 'node:net';
+import { Socket, createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -35,6 +35,8 @@ export type AndroidEmulatorLaunchGate = {
 
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
+  const FIRST_CONSOLE_PORT = 5554;
+  const LAST_CONSOLE_PORT = 5584;
 
   export const defaultSystemImagePackage = `system-images;android-30;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
@@ -329,12 +331,24 @@ export namespace AndroidEmulatorUtils {
     logcatDirectory,
     launchGate,
     logCapture,
+    consolePort,
+    extraArgs = [],
+    extraEnv = {},
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
     logcatDirectory: string;
     launchGate?: AndroidEmulatorLaunchGate;
     logCapture: AndroidEmulatorLogCapture;
+    /**
+     * The console port, from `findFreeConsolePortAsync`. It sets the serial (`emulator-<port>`)
+     * before the start. Without it, the emulator picks a free port itself.
+     */
+    consolePort?: number;
+    /** Emulator arguments before $ANDROID_EMULATOR_EXTRA_ARGS, which can still override them. */
+    extraArgs?: string[];
+    /** Environment variables for the emulator process only. */
+    extraEnv?: Record<string, string>;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
@@ -375,12 +389,15 @@ export namespace AndroidEmulatorUtils {
       deviceName,
       '-accel',
       'on',
+      ...(consolePort !== undefined ? ['-port', String(consolePort)] : []),
+      ...extraArgs,
       ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
         ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
         : []),
     ];
     const emulatorEnv = {
       ...env,
+      ...extraEnv,
       // We don't need to wait for emulator to exit gracefully.
       ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
     };
@@ -612,6 +629,30 @@ export namespace AndroidEmulatorUtils {
     });
 
     return { outputPath };
+  }
+
+  /**
+   * A free console port: an even port from 5554 to 5584, the range that adb scans, whose next
+   * port, for adb, is free too.
+   */
+  export async function findFreeConsolePortAsync(): Promise<number> {
+    for (let port = FIRST_CONSOLE_PORT; port <= LAST_CONSOLE_PORT; port += 2) {
+      if ((await isPortFreeAsync(port)) && (await isPortFreeAsync(port + 1))) {
+        return port;
+      }
+    }
+    throw new Error(
+      `No emulator console port from ${FIRST_CONSOLE_PORT} to ${LAST_CONSOLE_PORT} is free.`
+    );
+  }
+
+  async function isPortFreeAsync(port: number): Promise<boolean> {
+    return await new Promise(resolve => {
+      const server = createServer();
+      server.unref();
+      server.once('error', () => resolve(false));
+      server.listen(port, '127.0.0.1', () => server.close(() => resolve(true)));
+    });
   }
 
   export async function stopAsync({

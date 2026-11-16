@@ -5,10 +5,12 @@ import { z } from 'zod';
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   MaestroFlowResult,
+  hasMaestroRunnerAttemptDirectories,
   isFileAttrRun,
   parseJUnitTestCases,
   parseMaestroResults,
   parseMaestroResultsFromFileAttrs,
+  parseMaestroRunnerResults,
 } from './maestroResultParser';
 import { CustomBuildContext } from '../../customBuildContext';
 
@@ -73,8 +75,15 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         // map testcase names back to paths.
         const usedFileAttrs = isFileAttrRun(await parseJUnitTestCases(junitDirectory));
 
+        const testsDirectory = (inputs.tests_directory.value as string | undefined) ?? '';
         let flowResults: MaestroFlowResult[];
-        if (usedFileAttrs) {
+        if (usedFileAttrs && (await hasMaestroRunnerAttemptDirectories(testsDirectory))) {
+          flowResults = await parseMaestroRunnerResults({
+            junitDirectory,
+            testsDirectory,
+            workingDirectory: stepsCtx.workingDirectory,
+          });
+        } else if (usedFileAttrs) {
           flowResults = await parseMaestroResultsFromFileAttrs(junitDirectory);
         } else {
           // Legacy (Maestro < 2.6.0) — DELETE this arm once the fleet is on >= 2.6.0.

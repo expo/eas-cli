@@ -4,12 +4,10 @@ import { graphql } from 'gql.tada';
 
 import { formatSecondsForLog } from './formatDuration';
 import { sleepAsync } from './retry';
-import { SshConnectionConfig, startUptermHostAsync } from './upterm';
+import { SshConnectionConfig, UptermSessionStatus, startUptermHostAsync } from './upterm';
 import { BuildContext } from '../context';
 import { Sentry } from '../sentry';
 
-const MAX_SSH_REDIALS = 10;
-const REDIAL_BACKOFF_MS = 6_000;
 const CLIENT_COUNT_POLL_INTERVAL_MS = 5_000;
 const MAX_SSH_IDLE_TIMEOUT_SECONDS = 3600;
 const DEFAULT_SSH_IDLE_TIMEOUT_SECONDS = 0;
@@ -67,8 +65,8 @@ export function getSshRelayServerUrl(job: Pick<Job, 'ssh'>): string {
 }
 
 export type SshSessionHandle = {
-  getConnectedClientCountAsync: () => Promise<number>;
-  ensureConnectedAsync: () => Promise<void>;
+  readStatusAsync: () => Promise<UptermSessionStatus>;
+  reportReconnectingAsync: (reconnecting: boolean) => Promise<void>;
   stopAsync: () => Promise<void>;
 };
 
@@ -125,7 +123,7 @@ export async function startSshSessionAsync(
   try {
     ({ idleTimeoutSeconds } = await createOrUpdateSessionAsync(ctx, {
       target,
-      connectionConfig: { ...host.connectionConfig, reconnecting: false },
+      connectionConfig: { ...host.connectionConfig, reconnecting: host.startedReconnecting },
       idleTimeoutSeconds: requestedIdleTimeoutSeconds,
     }));
   } catch (err) {
@@ -133,44 +131,27 @@ export async function startSshSessionAsync(
     throw err;
   }
 
-  const ensureConnectedAsync = async (): Promise<void> => {
-    if (host.isAlive()) {
+  let reportedReconnecting = host.startedReconnecting;
+  const reportReconnectingAsync = async (reconnecting: boolean): Promise<void> => {
+    if (reconnecting === reportedReconnecting) {
       return;
     }
-    for (let attempt = 1; attempt <= MAX_SSH_REDIALS; attempt++) {
-      try {
-        if (!host.isAlive()) {
-          logger.warn('The SSH relay connection dropped. Reconnecting...');
-          await createOrUpdateSessionAsync(ctx, {
-            target,
-            connectionConfig: { ...host.connectionConfig, reconnecting: true },
-            idleTimeoutSeconds: requestedIdleTimeoutSeconds,
-          }).catch(() => {});
-          await host.redialAsync();
-        }
-        await createOrUpdateSessionAsync(ctx, {
-          target,
-          connectionConfig: { ...host.connectionConfig, reconnecting: false },
-          idleTimeoutSeconds: requestedIdleTimeoutSeconds,
-        });
-        logger.info('The SSH relay connection was restored.');
-        return;
-      } catch (err) {
-        logger.warn({ err }, `SSH reconnect attempt ${attempt} of ${MAX_SSH_REDIALS} failed.`);
-        if (attempt < MAX_SSH_REDIALS) {
-          await sleepAsync(REDIAL_BACKOFF_MS);
-        }
-      }
+    try {
+      await createOrUpdateSessionAsync(ctx, {
+        target,
+        connectionConfig: { ...host.connectionConfig, reconnecting },
+        idleTimeoutSeconds: requestedIdleTimeoutSeconds,
+      });
+      reportedReconnecting = reconnecting;
+    } catch (err) {
+      logger.debug({ err }, 'Failed to report the SSH relay connection state.');
     }
-    throw new SystemError(
-      `The SSH relay connection dropped and could not be restored after ${MAX_SSH_REDIALS} attempts.`
-    );
   };
 
   return {
     handle: {
-      getConnectedClientCountAsync: () => host.getConnectedClientCountAsync(),
-      ensureConnectedAsync,
+      readStatusAsync: () => host.readStatusAsync(),
+      reportReconnectingAsync,
       stopAsync: () => host.stopAsync(),
     },
     idleTimeoutSeconds,
@@ -191,25 +172,12 @@ export async function superviseSshSessionAsync({
   const idleTimeoutMs = idleTimeoutSeconds * 1_000;
   let idleSince: number | null = null;
   let previousClientCount = 0;
+  let previousReconnecting = false;
 
   for (;;) {
+    let status: UptermSessionStatus;
     try {
-      await handle.ensureConnectedAsync();
-    } catch (err) {
-      logger.warn({ err }, 'Could not restore the SSH relay connection. Closing the session.');
-      Sentry.capture(
-        'Could not restore the SSH relay connection',
-        err instanceof Error ? err : undefined,
-        {
-          tags: { trackingCode: 'SSH_RELAY_RECONNECT_FAILED' },
-        }
-      );
-      return;
-    }
-
-    let connectedClientCount: number;
-    try {
-      connectedClientCount = await handle.getConnectedClientCountAsync();
+      status = await handle.readStatusAsync();
     } catch (err) {
       logger.warn({ err }, 'Could not read the SSH client count. Closing the session.');
       Sentry.capture(
@@ -221,6 +189,28 @@ export async function superviseSshSessionAsync({
       );
       return;
     }
+    if (status.state === 'gone') {
+      logger.warn(
+        `Could not restore the SSH relay connection (${status.reason}). Closing the session.`
+      );
+      Sentry.capture(`Could not restore the SSH relay connection (${status.reason})`, {
+        tags: { trackingCode: 'SSH_RELAY_RECONNECT_FAILED' },
+      });
+      return;
+    }
+
+    const reconnecting = status.state === 'reconnecting';
+    if (reconnecting !== previousReconnecting) {
+      if (reconnecting) {
+        logger.warn('The SSH relay connection dropped. Reconnecting...');
+      } else {
+        logger.info('The SSH relay connection was restored.');
+      }
+      previousReconnecting = reconnecting;
+    }
+    await handle.reportReconnectingAsync(reconnecting);
+
+    const { connectedClientCount } = status;
     if (connectedClientCount !== previousClientCount) {
       logger.info(`SSH clients connected: ${connectedClientCount}`);
       previousClientCount = connectedClientCount;

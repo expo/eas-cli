@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import glob from 'fast-glob';
 import fs from 'fs-extra';
@@ -7,7 +8,6 @@ import { extract } from 'tar';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 
-import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
 import { ProgressHandler, createProgressTracker } from './progress';
 import fetch, { RequestInit, Response } from '../fetch';

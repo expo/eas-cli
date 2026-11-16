@@ -3,7 +3,6 @@ import { Config } from '@oclif/core';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import Log from '../../../log';
-import { EAS_SIMULATOR_WAITLIST_URL } from '../../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorAvailability from '../availability';
 
@@ -79,7 +78,7 @@ describe(SimulatorAvailability, () => {
     });
   });
 
-  it('emits JSON with available false and the waitlist URL when not enabled', async () => {
+  it('emits JSON with available false and the billing URL when not enabled', async () => {
     mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand(['--json']);
@@ -88,11 +87,11 @@ describe(SimulatorAvailability, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       available: false,
       accountName: 'testuser',
-      waitlistUrl: EAS_SIMULATOR_WAITLIST_URL,
+      billingUrl: 'https://expo.dev/accounts/testuser/settings/billing',
     });
   });
 
-  it('omits the waitlist URL from JSON when enabled', async () => {
+  it('omits the billing URL from JSON when enabled', async () => {
     mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
 
     const command = createCommand(['--json']);
@@ -117,7 +116,7 @@ describe(SimulatorAvailability, () => {
     });
   });
 
-  it('logs a graceful message pointing at the waitlist when not enabled', async () => {
+  it('logs a message pointing at the paid plans when not enabled', async () => {
     mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand([]);
@@ -125,8 +124,9 @@ describe(SimulatorAvailability, () => {
 
     expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
     expect(mockLog).toHaveBeenCalledWith(
-      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
-        `Join the waitlist to get access: ${EAS_SIMULATOR_WAITLIST_URL}`
+      "EAS Simulator isn't enabled for testuser. It's available on the Starter, Production, and Enterprise plans.\n" +
+        'Upgrade, or update billing if a payment is past due: https://expo.dev/accounts/testuser/settings/billing\n' +
+        'If your account is on an annual Enterprise plan, contact your Expo account executive.'
     );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
