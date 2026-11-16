@@ -129,7 +129,6 @@ export async function runAgentDeviceRemoteSessionAsync(
         }
       | {
           iosSimulatorUdid: string;
-          bootEnv?: Record<string, string>;
           application?: Promise<ServeSimApplicationOptions | void>;
         };
   }
@@ -178,7 +177,6 @@ export async function runAgentDeviceRemoteSessionAsync(
         networkCapture: capture.networkCapture,
         networkCaptureFields: capture.networkCaptureFields,
         iosSimulatorUdid: hostBootedDevice?.iosSimulatorUdid,
-        bootEnv: hostBootedDevice?.bootEnv,
         application: hostBootedDevice?.application,
       },
       ...(warm ? [createWarmDeviceSessionServer(ctx, taskLogger, warm)] : [])

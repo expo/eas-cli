@@ -235,7 +235,6 @@ export function createStartAgentDeviceSessionBuildFunction(
           tasks.signal.throwIfAborted();
           const { launch, iosStartup } = isIos
             ? await resolveIosSessionStartupAsync({
-                warm: warmSession !== undefined,
                 runtimePlatform,
                 bootSimulator: true,
                 deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
@@ -370,7 +369,6 @@ export function createStartAgentDeviceSessionBuildFunction(
             device: iosSimulatorUdid
               ? {
                   iosSimulatorUdid,
-                  bootEnv: iosStartup?.bootEnv,
                   application: applicationReady,
                 }
               : {

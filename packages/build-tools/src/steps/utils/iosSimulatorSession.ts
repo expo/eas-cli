@@ -1,7 +1,6 @@
 import { UserError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
 
 import {
@@ -9,10 +8,6 @@ import {
   IosSimulatorUtils,
   type IosSimulatorUuid,
 } from '../../utils/IosSimulatorUtils';
-import {
-  resolveLocalEgressServeSimBootEnvironmentAsync,
-  startLocalEgressGuardRelayAsync,
-} from './localEgressGuard';
 import { readIosApplicationIdentifierAsync } from './iosAppArtifact';
 import {
   type ServeSimLaunchOptions,
@@ -23,26 +18,21 @@ import {
 export type IosSessionStartup = {
   iosSimulatorUdid: string;
   installAppPath?: string;
-  bootEnv?: Record<string, string>;
 };
 
 export async function resolveIosSessionStartupAsync({
   runtimePlatform,
   bootSimulator,
-  warm = false,
   deviceIdentifier,
   installAppPath,
   launchAppIdentifier,
   launchArgs,
   openUrl,
   env,
-  logger,
   signal,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   bootSimulator?: boolean;
-  /** The claimed serve-sim boot owns resident guard policy; cold startup retains boot injection. */
-  warm?: boolean;
   deviceIdentifier?: string;
   installAppPath?: string;
   launchAppIdentifier?: unknown;
@@ -93,26 +83,9 @@ export async function resolveIosSessionStartupAsync({
   const iosSimulatorUdid = (
     await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier: selectedIdentifier, env })
   ).toUpperCase() as IosSimulatorUuid;
-  const bootEnv = warm ? null : await resolveLocalEgressServeSimBootEnvironmentAsync();
-  signal?.throwIfAborted();
-  if (bootEnv) {
-    const device = await IosSimulatorUtils.getDeviceAsync({ udid: iosSimulatorUdid, env });
-    signal?.throwIfAborted();
-    if (device && device.state !== 'Shutdown') {
-      logger.info(`Shutting down ${iosSimulatorUdid} to apply the local egress guard at boot.`);
-      try {
-        await spawn('xcrun', ['simctl', 'shutdown', iosSimulatorUdid], { env, logger, signal });
-      } catch (error) {
-        signal?.throwIfAborted();
-        throw error;
-      }
-    }
-    signal?.throwIfAborted();
-    await startLocalEgressGuardRelayAsync({ logger });
-  }
   signal?.throwIfAborted();
   return {
     launch,
-    iosStartup: { iosSimulatorUdid, installAppPath, bootEnv: bootEnv ?? undefined },
+    iosStartup: { iosSimulatorUdid, installAppPath },
   };
 }

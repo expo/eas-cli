@@ -739,38 +739,6 @@ describe('runAgentDeviceRemoteSessionAsync orchestration', () => {
       expect(mockPreviewStopAsync).toHaveBeenCalledTimes(1);
     });
 
-    it('passes the guard boot environment with the startup installation and launch', async () => {
-      const startup = {
-        installAppPath: '/tmp/App.app',
-        launchAppIdentifier: 'dev.example.app',
-        launchArgs: ['--flag'],
-        openUrl: 'example://screen',
-      };
-      const bootEnv = {
-        SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-        SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
-        SIMCTL_CHILD_EAS_EGRESS_GUARD_LOG: '/tmp/egress-guard.log',
-        SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:8899',
-      };
-      await startSession({
-        iosSimulatorUdid: 'guarded-udid',
-        bootEnv,
-        application: Promise.resolve(startup),
-      });
-      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
-        ctx,
-        expect.objectContaining({
-          application: expect.any(Promise),
-          bootEnv,
-          iosSimulatorUdid: 'guarded-udid',
-        })
-      );
-      const hostOptions = jest.mocked(startDeviceSessionHostAsync).mock.calls[0][1];
-      expect(hostOptions.bootEnv).toBe(bootEnv);
-      expect(hostOptions.bootEnv).not.toHaveProperty('DYLD_INSERT_LIBRARIES');
-      expect(hostOptions.bootEnv).not.toHaveProperty('SIMCTL_CHILD_DYLD_INSERT_LIBRARIES');
-    });
-
     it('cleans up a host returned after cancellation without configuring the device', async () => {
       const hostReady = deferred();
       const controller = new AbortController();

@@ -1,10 +1,12 @@
 import type { bunyan } from '@expo/logger';
 import type { BuildStepEnv } from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
 
 import type { CustomBuildContext } from '../../customBuildContext';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { waitForWarmSimulatorCleanupAsync } from '../../utils/warmSimulatorCleanup';
 import type { DeviceSessionServer } from './deviceSessionHost';
+import { readLocalEgressHandoffAsync } from './localEgress';
 import {
   fetchWebPreviewTurnArgsAsync,
   findAvailablePortAsync,
@@ -30,9 +32,30 @@ export async function createColdIosSessionAsync(
       // serve-sim boots the device, so warm Simulator cleanup must finish first.
       await waitForWarmSimulatorCleanupAsync(env, { signal });
       signal?.throwIfAborted();
+      if (iosSimulatorUdid) {
+        const localEgress = await readLocalEgressHandoffAsync();
+        signal?.throwIfAborted();
+        const udid = iosSimulatorUdid as IosSimulatorUuid;
+        const device = await IosSimulatorUtils.getDeviceAsync({ udid, env });
+        signal?.throwIfAborted();
+        if (device && device.state !== 'Shutdown') {
+          logger.info(`Shutting down ${udid} for resident egress startup.`);
+          try {
+            await spawn('xcrun', ['simctl', 'shutdown', udid], { env, logger, signal });
+          } catch (error) {
+            signal?.throwIfAborted();
+            throw error;
+          }
+        }
+        signal?.throwIfAborted();
+        // Serve-sim owns boot, dead-enrollment reclamation and the native self-check.
+        // The job makes an explicit choice even after a failed warm adoption.
+        args = [...args, localEgress ? '--enable' : '--disable', 'egressGuard'];
+      }
       return spawnDetached({ command, args, env, logger, secrets, stopGracePeriodMs });
     },
     async setupSimulatorAsync({ signal, logger }) {
+      signal.throwIfAborted();
       try {
         await IosSimulatorUtils.disableApsdAsync({
           udid: iosSimulatorUdid as IosSimulatorUuid,

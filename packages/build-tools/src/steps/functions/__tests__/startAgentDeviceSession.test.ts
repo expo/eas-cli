@@ -9,10 +9,6 @@ import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { stopLocalEgressResourcesAsync } from '../../utils/localEgress';
 import {
-  resolveLocalEgressServeSimBootEnvironmentAsync,
-  startLocalEgressGuardRelayAsync,
-} from '../../utils/localEgressGuard';
-import {
   selectXcodeDeveloperDirectoryAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../../utils/remoteDeviceRunSession';
@@ -31,10 +27,6 @@ import { bootIosSimulatorAsync } from '../startIosSimulator';
 
 jest.mock('../../utils/localEgress', () => ({
   stopLocalEgressResourcesAsync: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('../../utils/localEgressGuard', () => ({
-  resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn(),
-  startLocalEgressGuardRelayAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../utils/androidEmulatorLogs');
@@ -168,8 +160,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       );
     deviceLaunch = undefined;
     jest.clearAllMocks();
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(null);
-    jest.mocked(startLocalEgressGuardRelayAsync).mockResolvedValue(undefined);
     jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Shutdown' } as never);
     jest.mocked(spawn).mockResolvedValue({ stdout: '' } as never);
     jest.mocked(IosSimulatorUtils.resolveUdidAsync).mockResolvedValue('selected-udid' as never);
@@ -243,41 +233,19 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
       expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
     }
   );
-  it('hands guarded iOS boot to serve-sim and starts reporting before host startup', async () => {
-    const bootEnv = {
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-      SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
-      SIMCTL_CHILD_http_proxy: 'http://127.0.0.1:8899',
-    };
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue(bootEnv);
+  it('hands iOS boot and app startup to the session host without guard injection', async () => {
     await runStep(BuildRuntimePlatform.DARWIN, {
       install_app_path: '/tmp/App.app',
       launch_args: ['-flag'],
       open_url: 'exp://example.test',
     });
-    expect(
-      jest.mocked(selectXcodeDeveloperDirectoryAsync).mock.invocationCallOrder[0]
-    ).toBeLessThan(
-      jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mock.invocationCallOrder[0]
-    );
-    expect(startLocalEgressGuardRelayAsync).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(startLocalEgressGuardRelayAsync).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(runAgentDeviceRemoteSessionAsync).mock.invocationCallOrder[0]
-    );
     expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
-
     expect(runAgentDeviceRemoteSessionAsync).toHaveBeenCalledTimes(1);
-    const device = sessionDevice();
-    expect(device).toEqual({
+    expect(sessionDevice()).toEqual({
       iosSimulatorUdid: 'SELECTED-UDID',
-      bootEnv,
       application: expect.any(Promise),
     });
     expect(spawn).not.toHaveBeenCalled();
-    expect(readIosApplicationIdentifierAsync).toHaveBeenCalledWith({
-      artifactPath: '/tmp/App.app',
-      env: {},
-    });
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
     expect(deviceLaunch).toEqual({
@@ -288,73 +256,8 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
   });
 
-  it('shuts down only the selected guarded Booted device before host startup', async () => {
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-    });
-    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
-    await runStep(BuildRuntimePlatform.DARWIN);
-    expect(IosSimulatorUtils.getDeviceAsync).toHaveBeenCalledWith({
-      udid: 'SELECTED-UDID',
-      env: {},
-    });
-    expect(spawn).toHaveBeenCalledTimes(1);
-    expect(spawn).toHaveBeenCalledWith('xcrun', ['simctl', 'shutdown', 'SELECTED-UDID'], {
-      env: {},
-      logger: expect.any(Object),
-      signal: expect.any(AbortSignal),
-    });
-    expect(jest.mocked(spawn).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(runAgentDeviceRemoteSessionAsync).mock.invocationCallOrder[0]
-    );
-  });
-
-  it('fails before app installation or host startup when guarded device shutdown fails', async () => {
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-    });
-    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
-    jest.mocked(spawn).mockRejectedValue(new Error('shutdown failed'));
-    await expect(
-      runStep(BuildRuntimePlatform.DARWIN, { install_app_path: '/tmp/App.app' })
-    ).rejects.toThrow('shutdown failed');
-
-    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
-    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it('treats Stop during guarded device shutdown as normal cancellation', async () => {
-    const stopped = deferred();
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockReturnValue(stopped.promise);
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-    });
-    jest.mocked(IosSimulatorUtils.getDeviceAsync).mockResolvedValue({ state: 'Booted' } as never);
-    jest.mocked(spawn).mockImplementation(
-      (_command, _args, options) =>
-        new Promise((_resolve, reject) => {
-          options!.signal!.addEventListener('abort', () => reject(new Error('shutdown aborted')), {
-            once: true,
-          });
-        }) as ReturnType<typeof spawn>
-    );
-    const step = runStep(BuildRuntimePlatform.DARWIN, { build_id: 'build-id' });
-    step.catch(() => {});
-    await flushAsync();
-    expect(spawn).toHaveBeenCalled();
-    stopped.resolve();
-    await expect(step).resolves.toBeUndefined();
-    expect(downloadBuildAsync).not.toHaveBeenCalled();
-    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
-    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
-    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
-  });
-
   it('provides Simulator preparation and local app startup options to the remote session', async () => {
     const hostReady = deferred();
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-    });
     jest.mocked(runAgentDeviceRemoteSessionAsync).mockImplementation(async (_ctx, { device }) => {
       expect('iosSimulatorUdid' in device).toBe(true);
       if (!('iosSimulatorUdid' in device)) {
@@ -393,33 +296,13 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     });
   });
 
-  it('fails a guarded session before app installation or host startup if its boot files are missing', async () => {
-    jest
-      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
-      .mockRejectedValue(new Error('missing bin/egress-guard-check'));
-    await expect(
-      runStep(BuildRuntimePlatform.DARWIN, { install_app_path: '/tmp/App.app' })
-    ).rejects.toThrow('missing bin/egress-guard-check');
-    expect(startLocalEgressGuardRelayAsync).not.toHaveBeenCalled();
-
-    expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
-    expect(IosSimulatorUtils.getDeviceAsync).not.toHaveBeenCalled();
-    expect(spawn).not.toHaveBeenCalled();
-    expect(runAgentDeviceRemoteSessionAsync).not.toHaveBeenCalled();
-    expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it('releases guard reporting and egress resources when host startup fails', async () => {
-    jest.mocked(resolveLocalEgressServeSimBootEnvironmentAsync).mockResolvedValue({
-      SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib',
-    });
+  it('releases egress resources when host startup fails', async () => {
     jest
       .mocked(runAgentDeviceRemoteSessionAsync)
       .mockRejectedValueOnce(new Error('guard check failed'));
     await expect(
       runStep(BuildRuntimePlatform.DARWIN, { install_app_path: '/tmp/App.app' })
     ).rejects.toThrow('guard check failed');
-    expect(startLocalEgressGuardRelayAsync).toHaveBeenCalledTimes(1);
     expect(stopLocalEgressResourcesAsync).toHaveBeenCalledTimes(1);
     expect(installBuildAsync).not.toHaveBeenCalled();
     expect(launchApplicationAsync).not.toHaveBeenCalled();
@@ -433,7 +316,6 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(getAndroidEmulatorLogCapture).not.toHaveBeenCalled();
     expect(sessionDevice()).toEqual({
       iosSimulatorUdid: 'SELECTED-UDID',
-      bootEnv: undefined,
       application: undefined,
     });
   });

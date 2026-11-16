@@ -10,7 +10,6 @@ import path from 'node:path';
 import type { CustomBuildContext } from '../../../customBuildContext';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { IosSimulatorRecordingUtils } from '../IosSimulatorRecordingUtils';
-import { verifyLocalEgressGuardAsync } from '../localEgressGuard';
 import { type ServeSimApplicationOptions } from '../remoteDeviceRunSession';
 
 import { Sentry } from '../../../sentry';
@@ -33,7 +32,10 @@ import {
   waitForWebPreviewReadyAsync,
 } from '../deviceSessionHost';
 import { readIosApplicationIdentifierAsync } from '../iosAppArtifact';
-import { readLocalEgressHandoffAsync } from '../localEgress';
+import {
+  configureSimulatorProxyEnvironmentAsync,
+  readLocalEgressHandoffAsync,
+} from '../localEgress';
 import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
@@ -52,9 +54,12 @@ import * as previewCapture from '../serveSimPreviewCapture';
 jest.mock('@ngrok/ngrok');
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
-  IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
+  IosSimulatorUtils: {
+    getDeviceAsync: jest.fn().mockResolvedValue({ state: 'Shutdown' }),
+    disableApsdAsync: jest.fn(),
+    waitForReadyAsync: jest.fn(),
+  },
 }));
-jest.mock('../localEgressGuard', () => ({ verifyLocalEgressGuardAsync: jest.fn() }));
 jest.mock('../serveSimActions');
 jest.mock('../iosAppArtifact', () => ({
   readIosApplicationIdentifierAsync: jest.fn(),
@@ -63,6 +68,7 @@ jest.mock('../serveSimActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
+  configureSimulatorProxyEnvironmentAsync: jest.fn(),
 }));
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
@@ -168,8 +174,8 @@ beforeEach(() => {
     .mocked(readIosApplicationIdentifierAsync)
     .mockReset()
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
-  jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
+  jest.mocked(configureSimulatorProxyEnvironmentAsync).mockReset().mockResolvedValue(false);
   jest
     .mocked(runServeSimActionWithResultAsync)
     .mockReset()
@@ -328,77 +334,6 @@ it('targets the selected Simulator in the serve-sim invocation', () => {
   ]);
 });
 
-it('merges Simulator boot variables into the inherited serve-sim environment', async () => {
-  const inheritedEnv = {
-    ...env,
-    SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:1111',
-    HOST_SETTING: 'inherited',
-  };
-  const bootEnv = {
-    SERVE_SIM_ADDITIONAL_DYLIBS: '/tmp/guard lib.dylib:/tmp/extra.dylib',
-    SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block',
-    SIMCTL_CHILD_EAS_EGRESS_GUARD_LOG: '/tmp/guard log',
-    SIMCTL_CHILD_http_proxy: 'http://127.0.0.1:8899',
-    SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:8899',
-  };
-  const host = await startDeviceSessionHostAsync(ctx, {
-    preview: { baseDomain, authtoken },
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env: inheritedEnv,
-    logger,
-    timeoutMs: 10_000,
-    iosSimulatorUdid: 'emulator-5554',
-    bootEnv,
-  });
-  const invocation = jest.mocked(spawnDetached).mock.calls[0][0];
-  expect(invocation.env).toEqual(expect.objectContaining({ ...inheritedEnv, ...bootEnv }));
-  expect(invocation.args).not.toEqual(expect.arrayContaining([expect.stringMatching(/^--boot-/)]));
-  expect(invocation.env).not.toHaveProperty('EAS_EGRESS_GUARD_MODE');
-  expect(invocation.env).not.toHaveProperty('EAS_EGRESS_GUARD_LOG');
-  expect(invocation.env).not.toHaveProperty('http_proxy');
-  expect(invocation.env).not.toHaveProperty('HTTP_PROXY');
-  expect(invocation.env).not.toHaveProperty('DYLD_INSERT_LIBRARIES');
-  expect(invocation.env).not.toHaveProperty('DYLD_LIBRARY_PATH');
-  expect(invocation.env).not.toHaveProperty('SIMCTL_CHILD_DYLD_INSERT_LIBRARIES');
-  expect(inheritedEnv).toEqual({
-    ...env,
-    SIMCTL_CHILD_HTTP_PROXY: 'http://127.0.0.1:1111',
-    HOST_SETTING: 'inherited',
-  });
-  await host.finishAsync();
-});
-
-it('rejects Simulator boot options for Android before acquiring host resources', async () => {
-  await expect(
-    startDeviceSessionHostAsync(ctx, {
-      preview: { baseDomain, authtoken },
-      runtimePlatform: BuildRuntimePlatform.LINUX,
-      env,
-      logger,
-      timeoutMs: 10_000,
-      iosSimulatorUdid: 'emulator-5554',
-      bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: '/tmp/guard.dylib' },
-    })
-  ).rejects.toThrow('Simulator boot options require an explicit iOS Simulator');
-  expect(fetchWebPreviewTurnArgsAsync).not.toHaveBeenCalled();
-  expect(spawnDetached).not.toHaveBeenCalled();
-});
-
-it('rejects boot options without an explicit Simulator before acquiring host resources', async () => {
-  await expect(
-    startDeviceSessionHostAsync(ctx, {
-      preview: { baseDomain, authtoken },
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger,
-      timeoutMs: 10_000,
-      bootEnv: { SIMCTL_CHILD_EAS_EGRESS_GUARD_MODE: 'block' },
-    })
-  ).rejects.toThrow('Simulator boot options require an explicit iOS Simulator');
-  expect(fetchWebPreviewTurnArgsAsync).not.toHaveBeenCalled();
-  expect(spawnDetached).not.toHaveBeenCalled();
-});
-
 it('installs and launches through the API for the selected Simulator', async () => {
   jest
     .mocked(stageServeSimAppAsync)
@@ -415,7 +350,6 @@ it('installs and launches through the API for the selected Simulator', async () 
     launchArgs: ['--flag'],
     openUrl: 'example://screen',
   });
-  expect(verifyLocalEgressGuardAsync).not.toHaveBeenCalled();
   const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
   expect(args).not.toContain('--install-app-path');
   expect(args).not.toContain('--launch-app-identifier');
@@ -521,7 +455,6 @@ it('preserves startup CLI flags for already-prepared workflows', async () => {
   ]);
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
-  expect(verifyLocalEgressGuardAsync).not.toHaveBeenCalled();
   await host.finishAsync();
 });
 
@@ -1851,23 +1784,13 @@ it.each([true, false])(
   }
 );
 
-it('stops the host without installing or launching when guard verification fails', async () => {
-  jest
-    .mocked(verifyLocalEgressGuardAsync)
-    .mockRejectedValueOnce(new Error('guard refused startup'));
-  jest.mocked(spawnDetached).mockImplementation(options => {
-    const port = options.args[options.args.indexOf('--port') + 1];
-    jest
-      .mocked(readServeSimServersAsync)
-      .mockResolvedValue([
-        { udid: 'emulator-5554', token: 'preview-token', url: `http://127.0.0.1:${port}` },
-      ]);
-    return {
-      pid: undefined,
-      getOutput: () => '',
-      getExitError: () => undefined,
-      stopAsync: stopServer,
-    };
+it('does not configure the proxy or app when serve-sim rejects native admission', async () => {
+  const failure = new Error('native admission refused');
+  jest.mocked(spawnDetached).mockReturnValueOnce({
+    pid: undefined,
+    getOutput: () => failure.message,
+    getExitError: () => failure,
+    stopAsync: stopServer,
   });
   await expect(
     startDeviceSessionHostAsync(ctx, {
@@ -1877,11 +1800,83 @@ it('stops the host without installing or launching when guard verification fails
       logger,
       timeoutMs: 2_000,
       iosSimulatorUdid: 'emulator-5554',
-      bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' },
+      installAppPath: '/tmp/App.app',
+      launchAppIdentifier: 'dev.example.app',
     })
-  ).rejects.toThrow('guard refused startup');
+  ).rejects.toThrow('native admission refused');
+  expect(configureSimulatorProxyEnvironmentAsync).not.toHaveBeenCalled();
+  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it.each([false, true])(
+  'sets the proxy environment before cold readiness and app actions (app: %s)',
+  async hasApp => {
+    const proxy = deferred<boolean>();
+    const entered = deferred<void>();
+    jest.mocked(configureSimulatorProxyEnvironmentAsync).mockImplementationOnce(() => {
+      entered.resolve();
+      return proxy.promise;
+    });
+    jest
+      .mocked(stageServeSimAppAsync)
+      .mockResolvedValue({ directory: '/staged', path: '/staged/App.app' });
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 2_000,
+      iosSimulatorUdid: 'emulator-5554',
+      ...(hasApp ? { installAppPath: '/tmp/App.app', launchAppIdentifier: 'dev.example.app' } : {}),
+    });
+    let ready = false;
+    void starting.then(() => {
+      ready = true;
+    });
+    await entered.promise;
+    expect(ready).toBe(false);
+    expect(runServeSimActionAsync).not.toHaveBeenCalled();
+    expect(configureSimulatorProxyEnvironmentAsync).toHaveBeenCalledWith({
+      udid: 'emulator-5554',
+      env,
+      logger,
+    });
+    proxy.resolve(true);
+    const host = await starting;
+    expect(runServeSimActionAsync).toHaveBeenCalledTimes(hasApp ? 2 : 0);
+    await host.finishAsync();
+  }
+);
+
+it('cancels pending proxy setup before app actions and observes a late failure', async () => {
+  const proxy = deferred<boolean>();
+  const entered = deferred<void>();
+  const controller = new AbortController();
+  jest.mocked(configureSimulatorProxyEnvironmentAsync).mockImplementationOnce(() => {
+    entered.resolve();
+    return proxy.promise;
+  });
+  const starting = startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 2_000,
+    iosSimulatorUdid: 'emulator-5554',
+    installAppPath: '/tmp/App.app',
+    launchAppIdentifier: 'dev.example.app',
+    signal: controller.signal,
+  });
+  const rejected = expect(starting).rejects.toThrow('Job stopped');
+  await entered.promise;
+  controller.abort(new Error('Job stopped'));
+  await rejected;
+  expect(runServeSimActionAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+  proxy.reject(new Error('Late proxy failure'));
+  await new Promise(resolve => setImmediate(resolve));
 });
 
 it('does not launch after installation fails', async () => {
@@ -1934,43 +1929,6 @@ it('does not launch after installation fails', async () => {
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
   expect(stopServer).toHaveBeenCalledTimes(1);
   await expect(access(directory)).rejects.toThrow();
-});
-
-it('verifies the guard before starting setup or installing the app', async () => {
-  const guard = deferred<void>();
-  jest.mocked(verifyLocalEgressGuardAsync).mockReturnValue(guard.promise);
-  jest
-    .mocked(stageServeSimAppAsync)
-    .mockResolvedValue({ directory: '/staged', path: '/staged/App.app' });
-  const starting = startDeviceSessionHostAsync(ctx, {
-    preview: { baseDomain, authtoken },
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 2_000,
-    iosSimulatorUdid: 'emulator-5554',
-    bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' },
-    installAppPath: '/tmp/App.app',
-    launchAppIdentifier: 'dev.example.app',
-  });
-  while (!jest.mocked(verifyLocalEgressGuardAsync).mock.calls.length) {
-    await new Promise(resolve => setImmediate(resolve));
-  }
-  expect(verifyLocalEgressGuardAsync).toHaveBeenCalledWith({
-    udid: 'emulator-5554',
-    env,
-    logger,
-  });
-  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
-  expect(runServeSimActionAsync).not.toHaveBeenCalled();
-  guard.resolve();
-  const host = await starting;
-  expect(IosSimulatorUtils.disableApsdAsync).toHaveBeenCalledWith({
-    udid: 'emulator-5554',
-    env,
-  });
-  expect(runServeSimActionAsync).toHaveBeenCalledTimes(2);
-  await host.finishAsync();
 });
 
 it('warns and continues launching when disabling push fails', async () => {
@@ -2027,39 +1985,6 @@ it('cancels pending app preparation and observes late setup failure', async () =
   await new Promise(resolve => setImmediate(resolve));
 });
 
-it('cancels a pending guard check before setup or app startup', async () => {
-  const controller = new AbortController();
-  let rejectGuard!: (error: Error) => void;
-  jest.mocked(verifyLocalEgressGuardAsync).mockReturnValue(
-    new Promise((_resolve, reject) => {
-      rejectGuard = reject;
-    })
-  );
-  const starting = startDeviceSessionHostAsync(ctx, {
-    preview: { baseDomain, authtoken },
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 2_000,
-    iosSimulatorUdid: 'emulator-5554',
-    bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' },
-    installAppPath: '/tmp/App.app',
-    launchAppIdentifier: 'dev.example.app',
-    signal: controller.signal,
-  });
-  const rejected = expect(starting).rejects.toThrow('session canceled');
-  while (!jest.mocked(verifyLocalEgressGuardAsync).mock.calls.length) {
-    await new Promise(resolve => setImmediate(resolve));
-  }
-  controller.abort(new Error('session canceled'));
-  await rejected;
-  expect(IosSimulatorUtils.disableApsdAsync).not.toHaveBeenCalled();
-  expect(runServeSimActionAsync).not.toHaveBeenCalled();
-  expect(stopServer).toHaveBeenCalledTimes(1);
-  rejectGuard(new Error('late guard failure'));
-  await new Promise(resolve => setImmediate(resolve));
-});
-
 it('cancels setup while the app download is still pending', async () => {
   const controller = new AbortController();
   const application = deferred<ServeSimApplicationOptions>();
@@ -2080,33 +2005,6 @@ it('cancels setup while the app download is still pending', async () => {
   ).rejects.toThrow('session canceled');
   expect(runServeSimActionAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
-});
-
-it('reports startup failure before waiting for host cleanup', async () => {
-  const failure = new Error('guard refused startup');
-  const stopping = deferred<void>();
-  const onStartupError = jest.fn();
-  jest.mocked(verifyLocalEgressGuardAsync).mockRejectedValueOnce(failure);
-  stopServer.mockImplementationOnce(() => stopping.promise);
-  const starting = startDeviceSessionHostAsync(ctx, {
-    preview: { baseDomain, authtoken },
-    runtimePlatform: BuildRuntimePlatform.DARWIN,
-    env,
-    logger,
-    timeoutMs: 2_000,
-    iosSimulatorUdid: 'emulator-5554',
-    bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: '/guard.dylib' },
-    onStartupError,
-  });
-  const rejected = expect(starting).rejects.toBe(failure);
-  while (!stopServer.mock.calls.length) {
-    await new Promise(resolve => setImmediate(resolve));
-  }
-  expect(onStartupError).toHaveBeenCalledTimes(1);
-  expect(onStartupError).toHaveBeenCalledWith(failure);
-  expect(runServeSimActionAsync).not.toHaveBeenCalled();
-  stopping.resolve();
-  await rejected;
 });
 
 it.each(['control state', 'app download'])(
