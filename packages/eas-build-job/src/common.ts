@@ -194,7 +194,7 @@ export const CacheSchema = Joi.object({
 
 const GitHubContextZ = z.object({
   triggering_actor: z.string().optional(),
-  event_name: z.enum(['push', 'pull_request', 'workflow_dispatch', 'schedule']),
+  event_name: z.enum(['push', 'pull_request', 'workflow_dispatch', 'schedule', 'issue_comment']),
   sha: z.string(),
   ref: z.string(),
   ref_name: z.string(),

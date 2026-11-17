@@ -922,6 +922,50 @@ describe('GitHub context event payload passthrough', () => {
 
     expect(parsed.github?.event).toMatchObject(context.github.event);
   });
+
+  it('accepts the issue_comment event with issue and comment fields', () => {
+    const context = {
+      after: {},
+      needs: {},
+      github: {
+        event_name: 'issue_comment',
+        sha: 'abc123',
+        ref: 'refs/heads/main',
+        ref_name: 'main',
+        ref_type: 'branch',
+        event: {
+          action: 'created',
+          issue: {
+            number: 123,
+            title: 'Issue title',
+          },
+          comment: {
+            id: 456,
+            body: 'Comment body',
+          },
+        },
+      },
+      workflow: {
+        id: 'workflow-id',
+        name: 'Workflow',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+    };
+
+    const parsed = StaticWorkflowInterpolationContextZ.parse(context);
+
+    expect(parsed.github?.event_name).toBe('issue_comment');
+    expect(parsed.github?.event).toMatchObject(context.github.event);
+  });
 });
 
 describe('fetchEasCliVersionsAsync', () => {
