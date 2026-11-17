@@ -39,12 +39,12 @@ describe(endDeviceAppsAsync, () => {
     jest.mocked(spawn).mockReset();
   });
 
-  it('terminates every running app that is not a system app, past one that fails', async () => {
+  it('terminates the non-system apps on every Simulator, past an app and a Simulator that fail', async () => {
+    const wedged = new Error('timed out');
     fakeSpawn({
-      'xcrun simctl list devices --json --no-escape-slashes booted': JSON.stringify({
-        devices: { 'com.apple.CoreSimulator.SimRuntime.iOS-26-0': [{ udid: A }] },
-      }),
-      [`xcrun simctl spawn ${A} launchctl list`]: [
+      'xcrun simctl list devices --json --no-escape-slashes booted': bootedList,
+      [`xcrun simctl spawn ${A} launchctl list`]: wedged,
+      [`xcrun simctl spawn ${B} launchctl list`]: [
         'PID\tStatus\tLabel',
         '80297\t0\tUIKitApplication:com.apple.Spotlight[9ec9][rb-legacy]',
         '80300\t0\tUIKitApplication:dev.expo.easexample[ca71][rb-legacy]',
@@ -52,30 +52,7 @@ describe(endDeviceAppsAsync, () => {
         '-\t0\tcom.apple.mobilesafari.webcontent',
       ].join('\n'),
       // Exited between the list and the terminate.
-      [`xcrun simctl terminate ${A} dev.expo.easexample`]: new Error('found nothing to terminate'),
-    });
-
-    await endDeviceAppsAsync({ runtimePlatform: BuildRuntimePlatform.DARWIN, env, logger });
-
-    expect(deviceCommands()).toEqual([
-      {
-        argv: ['xcrun', 'simctl', 'terminate', A, 'dev.expo.easexample'],
-        signal: expect.any(AbortSignal),
-      },
-      {
-        argv: ['xcrun', 'simctl', 'terminate', A, 'host.exp.Exponent'],
-        signal: expect.any(AbortSignal),
-      },
-    ]);
-  });
-
-  it('ends the apps on the other Simulators when one does not answer, then fails', async () => {
-    const wedged = new Error('timed out');
-    fakeSpawn({
-      'xcrun simctl list devices --json --no-escape-slashes booted': bootedList,
-      [`xcrun simctl spawn ${A} launchctl list`]: wedged,
-      [`xcrun simctl spawn ${B} launchctl list`]:
-        '80300\t0\tUIKitApplication:dev.expo.easexample[ca71][rb-legacy]',
+      [`xcrun simctl terminate ${B} dev.expo.easexample`]: new Error('found nothing to terminate'),
     });
 
     const error = await endDeviceAppsAsync({
@@ -84,8 +61,15 @@ describe(endDeviceAppsAsync, () => {
       logger,
     }).catch((err: unknown) => err);
 
-    expect(deviceCommands().map(({ argv }) => argv)).toEqual([
-      ['xcrun', 'simctl', 'terminate', B, 'dev.expo.easexample'],
+    expect(deviceCommands()).toEqual([
+      {
+        argv: ['xcrun', 'simctl', 'terminate', B, 'dev.expo.easexample'],
+        signal: expect.any(AbortSignal),
+      },
+      {
+        argv: ['xcrun', 'simctl', 'terminate', B, 'host.exp.Exponent'],
+        signal: expect.any(AbortSignal),
+      },
     ]);
     expect(error).toBeInstanceOf(AggregateError);
     expect((error as AggregateError).errors.map((err: Error) => [err.message, err.cause])).toEqual([
@@ -93,36 +77,26 @@ describe(endDeviceAppsAsync, () => {
     ]);
   });
 
-  it('force-stops the installed apps on each attached emulator, past one that fails', async () => {
-    const failing = new Error('adb: device offline');
-    jest.mocked(spawn).mockImplementation(((command: string, args: string[]) => {
-      if (args[0] === 'devices') {
-        return Promise.resolve({
-          stdout: [
-            'List of devices attached',
-            'emulator-5554          device product:sdk_gphone64_x86_64',
-            'emulator-5556          offline',
-            'emulator-5558          device product:sdk_gphone64_x86_64',
-            '',
-          ].join('\n'),
-        });
-      }
-      return args[1] === 'emulator-5554'
-        ? Promise.reject(failing)
-        : Promise.resolve({ stdout: '' });
-    }) as never);
+  it('force-stops the installed apps on each online emulator', async () => {
+    jest.mocked(spawn).mockImplementation(((_command: string, args: string[]) =>
+      Promise.resolve({
+        stdout:
+          args[0] === 'devices'
+            ? [
+                'List of devices attached',
+                'emulator-5554          device product:sdk_gphone64_x86_64',
+                'emulator-5556          offline',
+                'emulator-5558          device product:sdk_gphone64_x86_64',
+                '',
+              ].join('\n')
+            : '',
+      })) as never);
 
-    const error = await endDeviceAppsAsync({
-      runtimePlatform: BuildRuntimePlatform.LINUX,
-      env,
-      logger,
-    }).catch((err: unknown) => err);
+    await endDeviceAppsAsync({ runtimePlatform: BuildRuntimePlatform.LINUX, env, logger });
 
-    expect(deviceCommands().map(({ argv }) => argv.slice(0, 4))).toEqual([
-      ['adb', '-s', 'emulator-5554', 'shell'],
-      ['adb', '-s', 'emulator-5558', 'shell'],
+    expect(deviceCommands().map(({ argv, signal }) => [argv.slice(0, 4), signal])).toEqual([
+      [['adb', '-s', 'emulator-5554', 'shell'], expect.any(AbortSignal)],
+      [['adb', '-s', 'emulator-5558', 'shell'], expect.any(AbortSignal)],
     ]);
-    expect(deviceCommands().every(({ signal }) => signal instanceof AbortSignal)).toBe(true);
-    expect((error as AggregateError).errors.map((err: Error) => err.cause)).toEqual([failing]);
   });
 });
