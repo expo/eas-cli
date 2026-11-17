@@ -185,7 +185,7 @@ export function maybeWarnAboutNonStandardBuildType({
     return;
   }
 
-  const knownValidBuildTypes = ['debug', 'release'];
+  const knownValidBuildTypes = ['debug', 'release', 'debugOptimized'];
   if (!knownValidBuildTypes.includes(buildType)) {
     Log.warn(
       `Custom gradle command "${chalk.bold(

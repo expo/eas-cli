@@ -14,6 +14,16 @@ describe('maybeWarnAboutNonStandardBuildType', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  it('should not warn about debugOptimized', () => {
+    const buildProfile = {
+      gradleCommand: ':app:assembleDebugOptimized',
+    };
+
+    maybeWarnAboutNonStandardBuildType({ buildProfile, buildType: 'debugOptimized' });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('should warn about non-standard build type', () => {
     const buildProfile = {
       gradleCommand: ':app:buildStage',
