@@ -42,7 +42,6 @@ import {
   resolveAppiumDeviceAsync,
 } from '../startAppiumRemoteSession';
 
-// The helper has its own test; here it would add spawn calls and Sentry reports.
 jest.mock('../../utils/endDeviceApps');
 jest.mock('node:timers/promises', () => ({
   ...jest.requireActual('node:timers/promises'),

@@ -104,7 +104,6 @@ export namespace IosSimulatorUtils {
     return allAvailableDevices;
   }
 
-  /** Ends every running app that is not a system app. An app that exits meanwhile is skipped. */
   export async function terminateUserAppsAsync({
     udid,
     env,

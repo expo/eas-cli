@@ -34,7 +34,6 @@ import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 
-// The helper has its own test; here it would add spawn calls and Sentry reports.
 jest.mock('../../utils/endDeviceApps');
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
