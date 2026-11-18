@@ -8380,12 +8380,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"agent-cli-detector@npm:0.1.7":
-  version: 0.1.7
-  resolution: "agent-cli-detector@npm:0.1.7"
+"agent-cli-detector@npm:0.1.8":
+  version: 0.1.8
+  resolution: "agent-cli-detector@npm:0.1.8"
   bin:
     agent-cli-detector: dist/cli.js
-  checksum: 10c0/4ff016e5fad2d96a0c53db9fd75c2359bb005a672969e8e6e7bce5c910e94107c226cbcba1303409d1da3a1cdf8f22290e63049705bb530823cce4699d39fc1d
+  checksum: 10c0/1d686317a6f18b1a2849b6da2bd881cebafc7304933019876b0a93686e29921f12f1aa41a4416360ab4a4615e59b370d39fd28501992106eff7e127aebe6853b
   languageName: node
   linkType: hard
 
@@ -10818,7 +10818,7 @@ __metadata:
     "@types/ws": "npm:8.5.10"
     "@urql/core": "npm:4.0.11"
     "@urql/exchange-retry": "npm:1.2.0"
-    agent-cli-detector: "npm:0.1.7"
+    agent-cli-detector: "npm:0.1.8"
     ajv: "npm:8.20.0"
     ajv-formats: "npm:2.1.1"
     axios: "npm:1.18.1"
