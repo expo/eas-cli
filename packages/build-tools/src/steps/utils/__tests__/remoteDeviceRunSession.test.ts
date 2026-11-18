@@ -190,6 +190,14 @@ function workerApiCallCount(route: string): number {
     .mock.calls.filter(([url]) => url === `${DEVICE_RUN_SESSION_WORKER_URL}${route}`).length;
 }
 
+/** The JSON body of each stop request the worker sent. */
+function stopRequestBodies(): unknown[] {
+  return jest
+    .mocked(turtleFetch)
+    .mock.calls.filter(([url]) => url === `${DEVICE_RUN_SESSION_WORKER_URL}stop`)
+    .map(([, , options]) => (options as { json?: unknown } | undefined)?.json);
+}
+
 /**
  * Serves session status polls from `results` in order, and idle stops, through the device run
  * session worker API.
@@ -1872,7 +1880,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(jest.mocked(turtleFetch)).not.toHaveBeenCalled();
   });
 
-  it('returns normally when the maximum duration elapses', async () => {
+  it('stops the session with max_duration when the maximum duration elapses', async () => {
     const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
     const logger = createLoggerMock();
     const waitPromise = waitForDeviceRunSessionStoppedAsync({
@@ -1891,7 +1899,41 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(logger.info).toHaveBeenCalledWith(
       'Device run session drs-id reached its maximum duration.'
     );
+    expect(stopRequestBodies()).toEqual([{ reason: 'max_duration' }]);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('stops with max_duration when the maximum duration interrupts a status poll', async () => {
+    const ctx = createStatusCtxMock([{ error: new Error('The operation was aborted.') }]);
+    const waitPromise = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      maxDurationSeconds: 1,
+    });
+
+    jest.mocked(setTimeoutCallback).mock.calls[0][0]();
+    await waitPromise;
+
+    expect(stopRequestBodies()).toEqual([{ reason: 'max_duration' }]);
+  });
+
+  it('does not stop the session when the build step is canceled', async () => {
+    const ctx = createStatusCtxMock([{ status: 'in-progress' }]);
+    const abortController = new AbortController();
+    const waitPromise = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      maxDurationSeconds: 1,
+      signal: abortController.signal,
+    });
+
+    abortController.abort();
+    jest.mocked(setTimeoutCallback).mock.calls[0][0]();
+    await waitPromise;
+
+    expect(workerApiCallCount('stop')).toBe(0);
   });
 
   it('clears the duration timeout when the session stops first', async () => {
@@ -2082,6 +2124,7 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       // One minute at the 5-second poll interval is 12 status polls.
       expect(workerApiCallCount('session')).toBe(12);
       expect(workerApiCallCount('stop')).toBe(1);
+      expect(stopRequestBodies()).toEqual([{ reason: 'idle_timeout' }]);
       expect(logger.info).toHaveBeenCalledWith(
         'Device run session drs-id had no activity for 1 minute(s) (max idle time). Stopping the session.'
       );
@@ -2171,9 +2214,9 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         'Could not mark device run session drs-id as stopped. The session job ends anyway.'
       );
       expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
-        'Could not mark idle device run session as stopped',
+        'Could not mark device run session as stopped',
         expect.any(Error),
-        { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
+        { level: 'warning', extras: { deviceRunSessionId: 'drs-id', reason: 'idle_timeout' } }
       );
     });
   });
