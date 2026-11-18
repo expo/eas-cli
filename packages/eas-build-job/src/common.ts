@@ -12,6 +12,11 @@ export enum BuildMode {
   REPACK = 'repack',
 }
 
+export enum NativeBuilder {
+  XCODE = 'xcode',
+  GRADLE = 'gradle',
+}
+
 export enum Workflow {
   GENERIC = 'generic',
   MANAGED = 'managed',
