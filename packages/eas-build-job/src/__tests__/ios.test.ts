@@ -2,7 +2,14 @@ import { LoggerLevel } from '@expo/logger';
 import { randomUUID } from 'crypto';
 import Joi from 'joi';
 
-import { ArchiveSourceType, BuildMode, Platform, Workflow } from '../common';
+import {
+  ArchiveSourceType,
+  BuildMode,
+  BuildTrigger,
+  NativeBuilder,
+  Platform,
+  Workflow,
+} from '../common';
 import * as Ios from '../ios';
 
 const joiOptions: Joi.ValidationOptions = {
@@ -20,6 +27,32 @@ const buildCredentials: Ios.BuildCredentials = {
     provisioningProfileBase64: 'MnRuZXRub2N5cmFuaWI=',
   },
 };
+
+function createNativeJob(overrides: object = {}): Record<string, unknown> {
+  return {
+    mode: BuildMode.BUILD,
+    builder: NativeBuilder.XCODE,
+    type: Workflow.GENERIC,
+    triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+    platform: Platform.IOS,
+    projectArchive: {
+      type: ArchiveSourceType.GIT,
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
+    },
+    projectRootDirectory: '.',
+    simulator: false,
+    secrets: {
+      credentialsByBundleIdentifier: {
+        'com.example.testapp': buildCredentials.testapp,
+        'com.example.testapp.widget': buildCredentials.testapp,
+      },
+    },
+    initiatingUserId: randomUUID(),
+    appId: randomUUID(),
+    ...overrides,
+  };
+}
 
 describe('Ios.JobSchema', () => {
   test('valid generic job', () => {
@@ -579,5 +612,187 @@ describe('Ios.JobSchema', () => {
     const { value, error } = Ios.JobSchema.validate(job, joiOptions);
     expect(value.refreshAdHocProvisioningProfile).toBeUndefined();
     expect(error).toBeFalsy();
+  });
+
+  test('returns a valid native job unchanged', () => {
+    const job = createNativeJob({
+      scheme: 'testapp',
+      buildConfiguration: 'Release',
+      projectFile: 'testapp.xcworkspace',
+      hooks: { after_checkout: [{ run: 'echo Hello, world!' }] },
+    });
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value).toEqual(job);
+  });
+
+  test('returns a valid native simulator job without credentials unchanged', () => {
+    const job = createNativeJob({ simulator: true, secrets: {} });
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value).toEqual(job);
+  });
+
+  test('native job requires simulator', () => {
+    const job = createNativeJob({ simulator: undefined });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"simulator" is required');
+  });
+
+  test('native job defaults mode to build', () => {
+    const job = createNativeJob({ mode: undefined });
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value.mode).toBe(BuildMode.BUILD);
+  });
+
+  test.each([BuildMode.RESIGN, BuildMode.CUSTOM, BuildMode.REPACK])(
+    'native job rejects mode %s',
+    mode => {
+      const job = createNativeJob({ mode });
+
+      const { error } = Ios.JobSchema.validate(job, joiOptions);
+      expect(error?.message).toBe('"mode" must be [build]');
+    }
+  );
+
+  test('job without builder is not a native job', () => {
+    const job = createNativeJob({ builder: undefined, buildProfile: 'production' });
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value.buildProfile).toBe('production');
+  });
+
+  test.each([false, true])('native job requires secrets (simulator: %s)', simulator => {
+    const job = createNativeJob({ simulator, secrets: undefined });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"secrets" is required');
+  });
+
+  test('native job requires credentialsByBundleIdentifier when it does not build for a simulator', () => {
+    const job = createNativeJob({ secrets: {} });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"secrets.credentialsByBundleIdentifier" is required');
+  });
+
+  test('native job rejects an incomplete credentialsByBundleIdentifier entry', () => {
+    const job = createNativeJob({
+      secrets: {
+        credentialsByBundleIdentifier: {
+          'com.example.testapp': {
+            distributionCertificate: buildCredentials.testapp.distributionCertificate,
+          },
+        },
+      },
+    });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe(
+      '"secrets.credentialsByBundleIdentifier.com.example.testapp.provisioningProfileBase64" is required'
+    );
+  });
+
+  test.each([false, true])(
+    'native job rejects an empty credentialsByBundleIdentifier (simulator: %s)',
+    simulator => {
+      const job = createNativeJob({ simulator, secrets: { credentialsByBundleIdentifier: {} } });
+
+      const { error } = Ios.JobSchema.validate(job, joiOptions);
+      expect(error?.message).toBe(
+        '"secrets.credentialsByBundleIdentifier" must have at least 1 key'
+      );
+    }
+  );
+
+  test('native job rejects secrets.buildCredentials', () => {
+    const job = createNativeJob({
+      secrets: {
+        buildCredentials,
+        credentialsByBundleIdentifier: { 'com.example.testapp': buildCredentials.testapp },
+      },
+    });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"secrets.buildCredentials" is not allowed');
+  });
+
+  test('native job rejects a type other than generic', () => {
+    const job = createNativeJob({ type: Workflow.MANAGED });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"type" must be [generic]');
+  });
+
+  test.each([NativeBuilder.GRADLE, 'unknown'])('native job rejects builder %s', builder => {
+    const job = createNativeJob({ builder });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"builder" must be [xcode]');
+  });
+
+  test.each([
+    ['buildProfile', 'production'],
+    ['updates', { channel: 'main' }],
+    ['cache', { disabled: false }],
+    ['developmentClient', true],
+    ['version', { buildNumber: '1' }],
+    ['buildArtifactPaths', ['ios/build/*.log']],
+    ['applicationArchivePath', 'ios/build/*.ipa'],
+    ['username', 'testuser'],
+    ['customBuildConfig', { path: 'production.yml' }],
+    ['steps', [{ id: 'step1', run: 'echo Hello, world!', shell: 'sh' }]],
+    ['outputs', { build_number: '1' }],
+    ['experimental', { prebuildCommand: 'echo Hello, world!' }],
+    ['githubTriggerOptions', { autoSubmit: true }],
+    [
+      'resign',
+      { applicationArchiveSource: { type: ArchiveSourceType.URL, url: 'http://localhost:3000' } },
+    ],
+    ['refreshAdHocProvisioningProfile', true],
+  ])('native job rejects %s', (field, fieldValue) => {
+    const job = createNativeJob({ [field]: fieldValue });
+
+    const { error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe(`"${field}" is not allowed`);
+  });
+
+  test('native job accepts only the job fields listed here', () => {
+    const { keys } = Ios.JobSchema.describe().whens[0].then;
+    const acceptedFields = Object.keys(keys).filter(
+      field => keys[field].flags?.presence !== 'forbidden'
+    );
+
+    expect(new Set(acceptedFields)).toEqual(
+      new Set([
+        'mode',
+        'type',
+        'triggeredBy',
+        'projectArchive',
+        'platform',
+        'projectRootDirectory',
+        'builderEnvironment',
+        'scheme',
+        'buildConfiguration',
+        'hooks',
+        'ssh',
+        'expoBuildUrl',
+        'loggerLevel',
+        'initiatingUserId',
+        'appId',
+        'environment',
+        'workflowInterpolationContext',
+        'builder',
+        'simulator',
+        'secrets',
+        'projectFile',
+      ])
+    );
   });
 });

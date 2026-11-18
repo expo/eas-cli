@@ -17,6 +17,8 @@ import {
   HooksSchema,
   JobOutputs,
   JobOutputsSchema,
+  NativeBuilder,
+  NativeJobForbiddenKeys,
   Platform,
   SshSettings,
   SshSettingsSchema,
@@ -81,12 +83,14 @@ const BuilderEnvironmentSchema = Joi.object({
 
 export interface BuildSecrets {
   buildCredentials?: BuildCredentials;
+  credentialsByBundleIdentifier?: Record<string, TargetCredentials>;
   environmentSecrets?: EnvironmentSecret[];
   robotAccessToken?: string;
 }
 
 export interface Job {
   mode: BuildMode;
+  builder?: NativeBuilder.XCODE;
   type: Workflow;
   triggeredBy: BuildTrigger;
   projectArchive: ArchiveSource;
@@ -119,6 +123,7 @@ export interface Job {
 
   scheme?: string;
   buildConfiguration?: string;
+  projectFile?: string;
   applicationArchivePath?: string;
 
   username?: string;
@@ -158,7 +163,16 @@ const SecretsSchema = Joi.object({
   robotAccessToken: Joi.string(),
 });
 
-export const JobSchema = Joi.object({
+const CredentialsByBundleIdentifierSchema = Joi.object()
+  .pattern(Joi.string(), TargetCredentialsSchema)
+  .min(1);
+
+const NativeSecretsSchema = SecretsSchema.keys({
+  buildCredentials: Joi.forbidden(),
+  credentialsByBundleIdentifier: CredentialsByBundleIdentifierSchema,
+});
+
+const BaseJobSchema = Joi.object({
   mode: Joi.string()
     .valid(...Object.values(BuildMode))
     .default(BuildMode.BUILD),
@@ -242,4 +256,29 @@ export const JobSchema = Joi.object({
   workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)
   ),
-}).concat(CustomBuildConfigSchema);
+});
+
+const NonNativeJobSchema = BaseJobSchema.concat(CustomBuildConfigSchema);
+
+const NativeJobSchema = BaseJobSchema.keys({
+  ...NativeJobForbiddenKeys,
+  resign: Joi.forbidden(),
+  refreshAdHocProvisioningProfile: Joi.forbidden(),
+  mode: Joi.string().valid(BuildMode.BUILD).default(BuildMode.BUILD),
+  type: Joi.string().valid(Workflow.GENERIC).required(),
+  builder: Joi.string().valid(NativeBuilder.XCODE).required(),
+  secrets: Joi.when('simulator', {
+    is: true,
+    then: NativeSecretsSchema.required(),
+    otherwise: NativeSecretsSchema.keys({
+      credentialsByBundleIdentifier: CredentialsByBundleIdentifierSchema.required(),
+    }).required(),
+  }),
+  projectFile: Joi.string(),
+}).fork('simulator', schema => schema.required());
+
+export const JobSchema = Joi.object().when('.builder', {
+  is: Joi.exist(),
+  then: NativeJobSchema,
+  otherwise: NonNativeJobSchema,
+});
