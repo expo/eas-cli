@@ -57,7 +57,7 @@ export async function runHookableBuildPhaseAsync<TJob extends BuildJob, T>({
   return result;
 }
 
-async function runHookEntriesAsync<TJob extends BuildJob>({
+export async function runHookEntriesAsync<TJob extends BuildJob>({
   ctx,
   hooks,
   timing,

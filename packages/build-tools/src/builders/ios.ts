@@ -76,7 +76,7 @@ async function buildInnerAsync(
   ctx: BuildContext<Ios.Job>,
   jobHooksRef: JobHooksRef
 ): Promise<void> {
-  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
+  await setupAsync(ctx, { jobHooksRef });
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
