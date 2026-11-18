@@ -1,6 +1,6 @@
 import Joi from 'joi';
 
-import { Workflow } from './common';
+import { NativeBuilder, Workflow } from './common';
 
 export type Metadata = {
   /**
@@ -174,6 +174,8 @@ export type Metadata = {
    * EAS env vars environment chosen for the job
    */
   environment?: string;
+
+  builder?: NativeBuilder;
 };
 
 export const MetadataSchema = Joi.object({
@@ -208,6 +210,7 @@ export const MetadataSchema = Joi.object({
   selectedImage: Joi.string(),
   customNodeVersion: Joi.string(),
   environment: Joi.string(),
+  builder: Joi.string().valid(...Object.values(NativeBuilder)),
 });
 
 export function sanitizeMetadata(metadata: object): Metadata {
