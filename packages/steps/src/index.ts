@@ -9,6 +9,7 @@ export { BuildStepInput, BuildStepInputValueTypeName } from './BuildStepInput';
 export { BuildStepOutput } from './BuildStepOutput';
 export { BuildStepGlobalContext, ExternalBuildContextProvider } from './BuildStepContext';
 export { BuildWorkflow, executeHookStepsAsync } from './BuildWorkflow';
+export { BuildWorkflowValidator } from './BuildWorkflowValidator';
 export { BuildStepEnv } from './BuildStepEnv';
 export { BuildFunctionGroup } from './BuildFunctionGroup';
 export { BuildStep } from './BuildStep';
