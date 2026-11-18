@@ -458,6 +458,22 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
   }),
 });
 
+export const NativeJobForbiddenKeys = {
+  buildProfile: Joi.forbidden(),
+  updates: Joi.forbidden(),
+  cache: Joi.forbidden(),
+  developmentClient: Joi.forbidden(),
+  version: Joi.forbidden(),
+  buildArtifactPaths: Joi.forbidden(),
+  applicationArchivePath: Joi.forbidden(),
+  username: Joi.forbidden(),
+  customBuildConfig: Joi.forbidden(),
+  steps: Joi.forbidden(),
+  outputs: Joi.forbidden(),
+  experimental: Joi.forbidden(),
+  githubTriggerOptions: Joi.forbidden(),
+};
+
 export enum EasCliNpmTags {
   STAGING = 'latest-eas-build-staging',
   PRODUCTION = 'latest-eas-build',
