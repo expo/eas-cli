@@ -5,3 +5,7 @@ export const COMMON_FASTLANE_ENV = {
   FASTLANE_HIDE_TIMESTAMP: 'true',
   LC_ALL: 'en_US.UTF-8',
 };
+
+export const DEFAULT_FASTLANE_GYM_ENV = {
+  ZIPOPT: '-1',
+};
