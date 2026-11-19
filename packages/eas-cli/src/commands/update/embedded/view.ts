@@ -1,3 +1,4 @@
+import { formatBytes } from '@expo/eas-build-job';
 import { Args, Errors } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -10,7 +11,6 @@ import {
 } from '../../../graphql/queries/EmbeddedUpdateQuery';
 import Log from '../../../log';
 import { fromNow } from '../../../utils/date';
-import { formatBytes } from '../../../utils/files';
 import formatFields from '../../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 

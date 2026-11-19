@@ -83,8 +83,8 @@ jobs:
           git push --force-with-lease origin "$branch"
 
           if gh pr view "$branch" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$branch" --title "$title" --body "$body" --add-reviewer sjchmiela
+            gh pr edit "$branch" --title "$title" --body "$body"
           else
             gh pr create --base main --head "$branch" --title "$title" --body "$body" \
-              --label 'no changelog' --reviewer sjchmiela
+              --label 'no changelog'
           fi

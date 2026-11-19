@@ -62,9 +62,13 @@ import { createStartWebPreviewRemoteSessionBuildFunction } from './functions/sta
 import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
 import { createStartServeSimLogsBuildFunction } from './functions/startServeSimLogs';
 import { createCollectServeSimLogsBuildFunction } from './functions/collectServeSimLogs';
+import { createStartServeSimNetworkCaptureBuildFunction } from './functions/startServeSimNetworkCapture';
+import { createStartServeSimCrashesBuildFunction } from './functions/startServeSimCrashes';
+import { createCollectServeSimCrashesBuildFunction } from './functions/collectServeSimCrashes';
 import { createCollectAndroidEmulatorLogsBuildFunction } from './functions/collectAndroidEmulatorLogs';
 import { createStartSandboxBuildFunction } from './functions/startSandbox';
 import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
+import { createCollectServeSimNetworkCaptureBuildFunction } from './functions/collectServeSimNetworkCapture';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadEmbeddedBundleBuildFunction } from './functions/uploadEmbeddedBundle';
@@ -129,11 +133,15 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartWebPreviewRemoteSessionBuildFunction(ctx, { warm: true }),
     createStartServeSimMetricsBuildFunction(),
     createStartServeSimLogsBuildFunction(),
+    createStartServeSimCrashesBuildFunction(),
+    createCollectServeSimCrashesBuildFunction(ctx),
     createCollectServeSimLogsBuildFunction(ctx),
     createCollectAndroidEmulatorLogsBuildFunction(ctx),
     createStartSandboxBuildFunction(ctx),
     createRunAgentBuildFunction(ctx),
     createCollectServeSimMetricsBuildFunction(ctx),
+    createStartServeSimNetworkCaptureBuildFunction(),
+    createCollectServeSimNetworkCaptureBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
     createInstallMitmproxyBuildFunction(),
 

@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -17,7 +17,6 @@ import * as tar from 'tar';
 import { promisify } from 'util';
 import z from 'zod';
 
-import { formatBytes } from '../../utils/artifacts';
 import { PUBLIC_CACHE_KEY_PREFIX_BY_PLATFORM } from '../../utils/cacheKey';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';

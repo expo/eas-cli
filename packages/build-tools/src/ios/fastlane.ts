@@ -10,7 +10,7 @@ import type { Credentials } from './credentials/manager';
 import { createFastfileForResigningBuild } from './fastfile';
 import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from './gymfile';
 import { isTVOS } from './tvos';
-import { COMMON_FASTLANE_ENV } from '../common/fastlane';
+import { COMMON_FASTLANE_ENV, DEFAULT_FASTLANE_GYM_ENV } from '../common/fastlane';
 import { XcodeBuildLogger } from '../common/xcpretty';
 import { BuildContext, SkipNativeBuildError } from '../context';
 
@@ -52,7 +52,7 @@ export async function runFastlaneGym<TJob extends Ios.Job>(
     await runFastlane(['gym'], {
       cwd: workspacePath,
       logger: ctx.logger,
-      env: { ...ctx.env, ...extraEnv },
+      env: { ...DEFAULT_FASTLANE_GYM_ENV, ...ctx.env, ...extraEnv },
     });
   } finally {
     await buildLogger.flush();

@@ -26,6 +26,7 @@ import { type StartupTasks } from '../utils/startupTasks';
 import {
   type DetachedProcessHandle,
   DeviceRunSessionStoppedError,
+  TOOL_TUNNEL_TEARDOWN_OPTIONS,
   finishRemoteSessionAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -213,6 +214,7 @@ export async function runAgentDeviceRemoteSessionAsync(
       authtoken: ngrokAuthtoken,
       healthCheck: { path: '/health' },
       logger: taskLogger,
+      signal: tasks.signal,
     });
     tasks.signal.throwIfAborted();
     taskLogger.info(`Tunnel is ready at ${agentDeviceTunnel.url}.`);
@@ -351,7 +353,7 @@ export async function runAgentDeviceRemoteSessionAsync(
             ? [['startup cleanup', Promise.reject(result.reason)]]
             : []
         ),
-        ['agent-device tunnel', agentDeviceTunnel?.stopAsync()],
+        ['agent-device tunnel', agentDeviceTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],
         ['agent-device daemon', toolTeardown],
         [
           'session host',

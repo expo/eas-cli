@@ -1,5 +1,42 @@
 # @expo/build-tools
 
+## 27.10.0
+
+### Minor Changes
+
+- Add the experimental `experimental_emulator_capture_version` input to `eas/start_android_emulator`. The Android Emulator then preloads that version of the `expo-emulator-capture` agent and uses the lavapipe renderer, and later steps start expo-device-hub with the emulator capture on. When the agent cannot install, the emulator starts as before. Only web preview sessions support the capture for now, so other session types fail with an error when the input is set. ([#4827](https://github.com/expo/eas-cli/pull/4827) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+
+### Patch Changes
+
+- Retry the first ngrok tunnel open of a device run session up to two times when ngrok rejects it with ERR_NGROK_802. The first open now waits 19 seconds instead of 15, so a tunnel that opens late is kept instead of closed. Startup can be cancelled during the retries, and a preview tunnel stops retrying when its session host finishes. ([#4874](https://github.com/expo/eas-cli/pull/4874) by [@szdziedzic](https://github.com/szdziedzic))
+- Run worker SSH sessions as detached upterm sessions that reconnect on their own under the same session ID, and stop them with `upterm session stop`. ([#4857](https://github.com/expo/eas-cli/pull/4857) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Run the command a client passes with `eas workflow:ssh <id> <command>` in worker SSH sessions, in the build directory. ([#4863](https://github.com/expo/eas-cli/pull/4863) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- Always download upterm for worker SSH sessions instead of using an `upterm` found on `PATH`. ([#4859](https://github.com/expo/eas-cli/pull/4859) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
+## 27.9.0
+
+No changes in this release.
+
+## 27.8.0
+
+### Patch Changes
+
+- Point expo-device-hub at the scrcpy server copy in the `turtle-v2` bucket in Android device sessions, so a failed GitHub release download no longer fails the session. expo-device-hub falls back to GitHub when the copy is missing. ([#4848](https://github.com/expo/eas-cli/pull/4848) by [@sjkim-expo](https://github.com/sjkim-expo))
+- Fix black iOS session preview artifacts on multi-display Simulators by capturing the active display through serve-sim. ([#4777](https://github.com/expo/eas-cli/pull/4777) by [@gwdp](https://github.com/gwdp))
+
+  Skip automatic previews on older serve-sim versions that cannot exclude them from idle activity.
+
+- Report flow tags with the Maestro test results of jobs that run `maestro-runner`. The tags are read from the runner's `report.json`. ([#4853](https://github.com/expo/eas-cli/pull/4853) by [@hSATAC](https://github.com/hSATAC))
+- Send the session preview size to `preview-upload-session` and refresh it when the size changes. ([#4864](https://github.com/expo/eas-cli/pull/4864) by [@hirbod](https://github.com/hirbod))
+- Send the width, height and source of simulator session screenshots (manual, agent-device and Argent, including Argent screenshot diffs) as artifact metadata, read from the image header. ([#4858](https://github.com/expo/eas-cli/pull/4858) by [@hirbod](https://github.com/hirbod))
+- Fix sizes of 102.4 GB and larger being printed with a value about a million times too large, and share one `formatBytes` helper between `eas-cli` and `build-tools`. ([#4854](https://github.com/expo/eas-cli/pull/4854) by [@vonovak](https://github.com/vonovak))
+
+## 27.7.2
+
+### Patch Changes
+
+- Start SSH session shells in the job's build directory instead of the worker's directory. ([#4843](https://github.com/expo/eas-cli/pull/4843) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ## 27.7.1
 
 ### Patch Changes

@@ -11,7 +11,12 @@ import {
   startSshSessionAsync,
   superviseSshSessionAsync,
 } from '../turtleSshSession';
-import { SshConnectionConfig, UptermHost, startUptermHostAsync } from '../upterm';
+import {
+  SshConnectionConfig,
+  UptermHost,
+  UptermSessionStatus,
+  startUptermHostAsync,
+} from '../upterm';
 
 jest.mock('../retry', () => ({
   sleepAsync: jest.fn().mockResolvedValue(undefined),
@@ -28,13 +33,14 @@ function sshJob(idleTimeoutSeconds: number): { ssh: SshSettings } {
 }
 
 function superviseHandle(
-  overrides: Partial<SshSessionHandle> &
-    Pick<SshSessionHandle, 'getConnectedClientCountAsync' | 'ensureConnectedAsync'>
+  readStatusAsync: () => Promise<UptermSessionStatus>,
+  reportReconnectingAsync: (reconnecting: boolean) => Promise<void> = async () => {}
 ): SshSessionHandle {
-  return {
-    stopAsync: async () => {},
-    ...overrides,
-  };
+  return { readStatusAsync, reportReconnectingAsync, stopAsync: async () => {} };
+}
+
+function ready(connectedClientCount: number): UptermSessionStatus {
+  return { state: 'ready', connectedClientCount };
 }
 
 describe(isSshEnabled, () => {
@@ -77,7 +83,6 @@ describe(getSshRelayServerUrl, () => {
 
 describe(startSshSessionAsync, () => {
   const config1: SshConnectionConfig = { type: 'upterm-v1', secret: 'secret-1' };
-  const config2: SshConnectionConfig = { ...config1, secret: 'secret-2' };
   const target = { type: 'JOB_RUN', id: 'jr-1' } as const;
 
   let createOrUpdateResult: { data?: unknown; error?: { message: string } };
@@ -85,18 +90,17 @@ describe(startSshSessionAsync, () => {
   let ctx: BuildContext;
 
   function makeHost(overrides: Partial<UptermHost> = {}): UptermHost {
-    const host: UptermHost = {
+    return {
       connectionConfig: config1,
-      getConnectedClientCountAsync: jest.fn().mockResolvedValue(3),
-      isAlive: jest.fn().mockReturnValue(true),
-      redialAsync: jest.fn(async () => {
-        host.connectionConfig = config2;
-        return config2;
-      }),
+      startedReconnecting: false,
+      readStatusAsync: jest.fn().mockResolvedValue(ready(3)),
       stopAsync: jest.fn().mockResolvedValue(undefined),
       ...overrides,
     };
-    return host;
+  }
+
+  function reportedReconnecting(): boolean[] {
+    return mutation.mock.calls.map(([, vars]) => vars.connectionConfig.reconnecting);
   }
 
   beforeEach(() => {
@@ -133,8 +137,7 @@ describe(startSshSessionAsync, () => {
       sessionSettings: { idleTimeoutSeconds: 900 },
     });
     expect(idleTimeoutSeconds).toBe(900);
-    await handle.getConnectedClientCountAsync();
-    expect(host.getConnectedClientCountAsync).toHaveBeenCalled();
+    expect(await handle.readStatusAsync()).toEqual(ready(3));
     await handle.stopAsync();
     expect(host.stopAsync).toHaveBeenCalled();
   });
@@ -203,117 +206,61 @@ describe(startSshSessionAsync, () => {
     expect(host.stopAsync).toHaveBeenCalled();
   });
 
-  it('ensureConnected is a no-op while the host is alive', async () => {
-    const host = makeHost({ isAlive: jest.fn().mockReturnValue(true) });
-    mockedStartUptermHost.mockResolvedValue(host);
+  it('tells www about reconnecting only when it changes, with the same session id', async () => {
+    mockedStartUptermHost.mockResolvedValue(makeHost());
 
     const { handle } = await startSshSessionAsync(ctx, {
       target,
       relayServerUrl: 'wss://r',
       idleTimeoutSeconds: 300,
     });
-    await handle.ensureConnectedAsync();
+    for (const reconnecting of [false, true, true, false, false]) {
+      await handle.reportReconnectingAsync(reconnecting);
+    }
 
-    expect(host.redialAsync).not.toHaveBeenCalled();
-    expect(mutation).toHaveBeenCalledTimes(1);
-  });
-
-  it('marks reconnecting, redials, then reports the fresh config', async () => {
-    const host = makeHost({ isAlive: jest.fn().mockReturnValue(false) });
-    mockedStartUptermHost.mockResolvedValue(host);
-
-    const { handle } = await startSshSessionAsync(ctx, {
-      target,
-      relayServerUrl: 'wss://r',
-      idleTimeoutSeconds: 300,
-    });
-    await handle.ensureConnectedAsync();
-
-    expect(host.redialAsync).toHaveBeenCalledTimes(1);
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        connectionConfig: expect.objectContaining({ reconnecting: true }),
-      })
-    );
+    expect(reportedReconnecting()).toEqual([false, true, false]);
     expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
       target: { type: 'JOB_RUN', id: 'jr-1' },
-      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-2', reconnecting: false },
+      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-1', reconnecting: false },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });
   });
 
-  it('continues redial when the reconnecting status update fails', async () => {
-    const host = makeHost({ isAlive: jest.fn().mockReturnValue(false) });
-    mockedStartUptermHost.mockResolvedValue(host);
+  it('sends the start status in the create call and tracks changes from it', async () => {
+    mockedStartUptermHost.mockResolvedValue(makeHost({ startedReconnecting: true }));
+
+    const { handle } = await startSshSessionAsync(ctx, {
+      target,
+      relayServerUrl: 'wss://r',
+      idleTimeoutSeconds: 300,
+    });
+    for (const reconnecting of [true, false, false]) {
+      await handle.reportReconnectingAsync(reconnecting);
+    }
+
+    expect(reportedReconnecting()).toEqual([true, false]);
+  });
+
+  it('retries a failed report on the next call and drops it when the state flips back first', async () => {
+    mockedStartUptermHost.mockResolvedValue(makeHost());
     mutation
-      .mockReturnValueOnce({ toPromise: async () => createOrUpdateResult }) // initial create
-      .mockReturnValueOnce({
-        toPromise: async () => {
-          throw new Error('www unreachable');
-        },
-      }) // reconnecting=true best-effort
-      .mockReturnValue({ toPromise: async () => createOrUpdateResult }); // post-redial
-
-    const { handle } = await startSshSessionAsync(ctx, {
-      target,
-      relayServerUrl: 'wss://r',
-      idleTimeoutSeconds: 300,
-    });
-    await handle.ensureConnectedAsync();
-
-    expect(host.redialAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it('retries only the report (no second redial) when reporting the fresh config fails', async () => {
-    let alive = false;
-    const host = makeHost({
-      isAlive: jest.fn(() => alive),
-    });
-    host.redialAsync = jest.fn(async () => {
-      alive = true;
-      host.connectionConfig = config2;
-      return config2;
-    });
-    mockedStartUptermHost.mockResolvedValue(host);
-    mutation = jest
-      .fn()
       .mockReturnValueOnce({ toPromise: async () => createOrUpdateResult })
+      .mockReturnValueOnce({ toPromise: async () => ({ error: { message: 'www down' } }) })
       .mockReturnValueOnce({ toPromise: async () => createOrUpdateResult })
-      .mockReturnValueOnce({ toPromise: async () => ({ error: { message: 'flaky' } }) })
+      .mockReturnValueOnce({ toPromise: async () => ({ error: { message: 'www down' } }) })
       .mockReturnValue({ toPromise: async () => createOrUpdateResult });
-    ctx = { logger: createMockLogger(), graphqlClient: { mutation } } as unknown as BuildContext;
 
     const { handle } = await startSshSessionAsync(ctx, {
       target,
       relayServerUrl: 'wss://r',
       idleTimeoutSeconds: 300,
     });
-    await handle.ensureConnectedAsync();
+    for (const reconnecting of [true, true, false, true, false]) {
+      await handle.reportReconnectingAsync(reconnecting);
+    }
 
-    expect(host.redialAsync).toHaveBeenCalledTimes(1);
-    expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
-      target: { type: 'JOB_RUN', id: 'jr-1' },
-      connectionConfig: { type: 'UPTERM_V1', secret: 'secret-2', reconnecting: false },
-      sessionSettings: { idleTimeoutSeconds: 300 },
-    });
-  });
-
-  it('throws once the redial budget is exhausted', async () => {
-    const host = makeHost({
-      isAlive: jest.fn().mockReturnValue(false),
-      redialAsync: jest.fn().mockRejectedValue(new Error('relay down')),
-    });
-    mockedStartUptermHost.mockResolvedValue(host);
-
-    const { handle } = await startSshSessionAsync(ctx, {
-      target,
-      relayServerUrl: 'wss://r',
-      idleTimeoutSeconds: 300,
-    });
-
-    await expect(handle.ensureConnectedAsync()).rejects.toThrow(/after 10 attempts/);
-    expect(host.redialAsync).toHaveBeenCalledTimes(10);
+    // create, true (fails), true, false (fails), nothing while www still has true, false.
+    expect(reportedReconnecting()).toEqual([false, true, true, false, false]);
   });
 });
 
@@ -329,33 +276,23 @@ describe(superviseSshSessionAsync, () => {
   it('keeps the session open while the job is running, even with a 0 idle timeout', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {
-          if (polls >= 5) {
-            throw new SystemError('stop the loop');
-          }
-        },
-        getConnectedClientCountAsync: async () => {
-          polls += 1;
-          return 0;
-        },
+      handle: superviseHandle(async () => {
+        polls += 1;
+        return polls > 5 ? { state: 'gone', reason: 'ending' } : ready(0);
       }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => false,
       logger,
     });
-    expect(polls).toBe(5);
+    expect(polls).toBe(6);
   });
 
   it('closes as soon as the job finishes when the idle timeout is 0', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {},
-        getConnectedClientCountAsync: async () => {
-          polls += 1;
-          return 0;
-        },
+      handle: superviseHandle(async () => {
+        polls += 1;
+        return ready(0);
       }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
@@ -371,12 +308,9 @@ describe(superviseSshSessionAsync, () => {
     const clientCounts = [1, 1, 0];
     let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {},
-        getConnectedClientCountAsync: async () => {
-          polls += 1;
-          return clientCounts.shift() ?? 0;
-        },
+      handle: superviseHandle(async () => {
+        polls += 1;
+        return ready(clientCounts.shift() ?? 0);
       }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
@@ -395,15 +329,12 @@ describe(superviseSshSessionAsync, () => {
         jest.setSystemTime(Date.now() + 60_000);
       });
       await superviseSshSessionAsync({
-        handle: superviseHandle({
-          ensureConnectedAsync: async () => {},
-          getConnectedClientCountAsync: async () => {
-            polls += 1;
-            if (polls >= 5) {
-              jobHasFinished = true;
-            }
-            return 0;
-          },
+        handle: superviseHandle(async () => {
+          polls += 1;
+          if (polls >= 5) {
+            jobHasFinished = true;
+          }
+          return ready(0);
         }),
         idleTimeoutSeconds: 300,
         hasJobFinished: () => jobHasFinished,
@@ -420,10 +351,7 @@ describe(superviseSshSessionAsync, () => {
   it('logs the connected client count whenever it changes', async () => {
     const clientCounts = [1, 2, 1, 0];
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {},
-        getConnectedClientCountAsync: async () => clientCounts.shift() ?? 0,
-      }),
+      handle: superviseHandle(async () => ready(clientCounts.shift() ?? 0)),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
@@ -434,57 +362,78 @@ describe(superviseSshSessionAsync, () => {
     expect(logger.info).toHaveBeenCalledWith('SSH clients connected: 0');
   });
 
-  it('closes the session when the relay connection cannot be restored', async () => {
-    let clientCountCalls = 0;
+  it('keeps the session open while upterm reconnects, then closes it once it is gone for good', async () => {
+    const statuses: UptermSessionStatus[] = [
+      { state: 'reconnecting', connectedClientCount: 0 },
+      { state: 'reconnecting', connectedClientCount: 0 },
+      { state: 'gone', reason: 'disconnected (reconnect_unsupported)' },
+      ready(1),
+    ];
+    const reportReconnectingAsync = jest.fn(async () => {});
+    let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {
-          throw new SystemError('relay down');
-        },
-        getConnectedClientCountAsync: async () => {
-          clientCountCalls += 1;
-          return 1;
-        },
-      }),
+      handle: superviseHandle(async () => {
+        polls += 1;
+        return statuses.shift() ?? ready(1);
+      }, reportReconnectingAsync),
       idleTimeoutSeconds: 300,
       hasJobFinished: () => false,
       logger,
     });
-    expect(clientCountCalls).toBe(0);
+    expect(polls).toBe(3);
+    expect(reportReconnectingAsync.mock.calls).toEqual([[true], [true]]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Could not restore the SSH relay connection (disconnected (reconnect_unsupported)). Closing the session.'
+    );
+  });
+
+  it('reports the reconnecting state of every poll and logs only its changes', async () => {
+    const reconnecting: UptermSessionStatus = { state: 'reconnecting', connectedClientCount: 0 };
+    const statuses: UptermSessionStatus[] = [
+      ready(0),
+      reconnecting,
+      reconnecting,
+      ready(0),
+      { state: 'gone', reason: 'ending' },
+    ];
+    const reportReconnectingAsync = jest.fn(async () => {});
+    await superviseSshSessionAsync({
+      handle: superviseHandle(async () => statuses.shift() ?? ready(0), reportReconnectingAsync),
+      idleTimeoutSeconds: 300,
+      hasJobFinished: () => false,
+      logger,
+    });
+    expect(reportReconnectingAsync.mock.calls).toEqual([[false], [true], [true], [false]]);
+    expect(
+      jest
+        .mocked(logger.warn)
+        .mock.calls.filter(
+          ([message]) => message === 'The SSH relay connection dropped. Reconnecting...'
+        )
+    ).toHaveLength(1);
+    expect(logger.info).toHaveBeenCalledWith('The SSH relay connection was restored.');
   });
 
   it('does not close while a client stays connected, even past the idle timeout', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {
-          if (polls > 3) {
-            throw new SystemError('stop the loop');
-          }
-        },
-        getConnectedClientCountAsync: async () => {
-          polls += 1;
-          return 1;
-        },
+      handle: superviseHandle(async () => {
+        polls += 1;
+        return polls > 4 ? { state: 'gone', reason: 'ending' } : ready(1);
       }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
     });
-    expect(polls).toBeGreaterThan(3);
+    expect(polls).toBe(5);
   });
 
   it('closes when the client count cannot be read', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      handle: superviseHandle({
-        ensureConnectedAsync: async () => {},
-        getConnectedClientCountAsync: async () => {
-          polls += 1;
-          throw new SystemError(
-            'Could not read the SSH client count from the upterm admin socket.'
-          );
-        },
+      handle: superviseHandle(async () => {
+        polls += 1;
+        throw new SystemError('Could not read the SSH client count from the upterm admin socket.');
       }),
       idleTimeoutSeconds: 300,
       hasJobFinished: () => false,

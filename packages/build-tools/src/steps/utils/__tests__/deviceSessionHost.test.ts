@@ -40,11 +40,18 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
-import { runServeSimActionAsync, stageServeSimAppAsync } from '../serveSimActions';
-import { startServeSimActivityPolling } from '../serveSimActivity';
+import {
+  runServeSimActionAsync,
+  runServeSimActionWithResultAsync,
+  stageServeSimAppAsync,
+} from '../serveSimActions';
+import { startPreviewActivityPolling } from '../previewActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
+import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
+import * as previewCapture from '../serveSimPreviewCapture';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../serveSimCrashesRecorder');
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils', () => ({
   IosSimulatorUtils: { disableApsdAsync: jest.fn(), waitForReadyAsync: jest.fn() },
@@ -54,7 +61,7 @@ jest.mock('../serveSimActions');
 jest.mock('../iosAppArtifact', () => ({
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
-jest.mock('../serveSimActivity');
+jest.mock('../previewActivity');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
@@ -147,6 +154,7 @@ const stopSessionPreview = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockReset().mockResolvedValue(undefined);
   jest
     .mocked(startNgrokTunnelAsync)
     .mockReset()
@@ -165,6 +173,12 @@ beforeEach(() => {
     .mockImplementation(async ({ artifactPath }) => installedBundleIds[artifactPath]);
   jest.mocked(verifyLocalEgressGuardAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(readLocalEgressHandoffAsync).mockReset().mockResolvedValue(null);
+  jest
+    .mocked(runServeSimActionWithResultAsync)
+    .mockReset()
+    .mockResolvedValue(
+      JSON.stringify({ 'screenshot.capture': { properties: { automation: { type: 'boolean' } } } })
+    );
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -633,7 +647,7 @@ it('starts the readiness budget after refusals that exceed the normal startup de
 it('reports preview activity from serve-sim on iOS and stops polling when finished', async () => {
   const observedAt = new Date('2026-10-19T12:00:00Z');
   const stopActivity = jest.fn().mockResolvedValue(undefined);
-  jest.mocked(startServeSimActivityPolling).mockReturnValue({
+  jest.mocked(startPreviewActivityPolling).mockReturnValue({
     getLastActivityObservedAt: () => observedAt,
     stopAsync: stopActivity,
   });
@@ -650,7 +664,8 @@ it('reports preview activity from serve-sim on iOS and stops polling when finish
     ]
   );
 
-  expect(startServeSimActivityPolling).toHaveBeenCalledWith({
+  expect(startPreviewActivityPolling).toHaveBeenCalledWith({
+    server: 'serve-sim',
     port,
     token: 'preview-token',
     logger: expect.anything(),
@@ -677,15 +692,33 @@ it('does not start polling preview activity when startup is cancelled', async ()
       signal: controller.signal,
     })
   ).rejects.toThrow();
-  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
+  expect(startPreviewActivityPolling).not.toHaveBeenCalled();
 });
 
-it('reports no preview activity on Android, where expo-device-hub keeps no event log', async () => {
+it('reports preview activity from expo-device-hub on Android and stops polling when finished', async () => {
+  const observedAt = new Date('2026-11-13T12:00:00Z');
+  const stopActivity = jest.fn().mockResolvedValue(undefined);
+  jest.mocked(startPreviewActivityPolling).mockReturnValue({
+    getLastActivityObservedAt: () => observedAt,
+    stopAsync: stopActivity,
+  });
   const host = await startHostAsync();
+  const port = Number(
+    jest.mocked(spawnDetached).mock.calls[0][0].args[
+      jest.mocked(spawnDetached).mock.calls[0][0].args.indexOf('--port') + 1
+    ]
+  );
 
-  expect(startServeSimActivityPolling).not.toHaveBeenCalled();
-  expect(host.getLastPreviewActivityAt()).toBeUndefined();
+  expect(startPreviewActivityPolling).toHaveBeenCalledWith({
+    server: 'expo-device-hub',
+    port,
+    token: expect.any(String),
+    logger: expect.anything(),
+  });
+  expect(host.getLastPreviewActivityAt()).toBe(observedAt);
+
   await host.finishAsync();
+  expect(stopActivity).toHaveBeenCalledTimes(1);
 });
 
 it('stops a host that became ready on a different Simulator', async () => {
@@ -842,6 +875,73 @@ it('drains an in-flight tunnel when finishing and rejects new opens', async () =
   await expect(opening).rejects.toThrow('finalized while the preview was opening');
   await finishing;
   expect(closeTunnel).toHaveBeenCalledTimes(2);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('does not retry a rejected preview tunnel open after finishing', async () => {
+  const host = await startHostAsync();
+  await (await host.openPreviewAsync()).closeAsync();
+  const forwardCalls = jest.mocked(ngrok.forward).mock.calls.length;
+  const tunnel = deferred<Awaited<ReturnType<typeof ngrok.forward>>>();
+  jest.mocked(ngrok.forward).mockReturnValueOnce(tunnel.promise);
+  const opening = host.openPreviewAsync();
+  const finishing = host.finishAsync();
+  tunnel.reject(
+    new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+  );
+  await expect(opening).rejects.toThrow('ERR_NGROK_802');
+  await finishing;
+  expect(jest.mocked(ngrok.forward).mock.calls.length).toBe(forwardCalls + 1);
+  expect(logger.warn).not.toHaveBeenCalledWith(
+    expect.anything(),
+    expect.stringContaining('; retrying.')
+  );
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('does not retry a rejected preview tunnel open after startup fails', async () => {
+  jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+  const forwardCalls = jest.mocked(ngrok.forward).mock.calls.length;
+  jest
+    .mocked(ngrok.forward)
+    .mockRejectedValueOnce(
+      new Error('failed to start listener: internal server error error_code: ERR_NGROK_802')
+    );
+  const startGate = deferred<void>();
+  const startupError = new Error('startup failure');
+  const startAsync = jest.fn(async () => {
+    await startGate.promise;
+    throw startupError;
+  });
+  const outcome = startDeviceSessionHostAsync(
+    ctx,
+    {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      preview: { baseDomain, authtoken },
+      env,
+      logger,
+      timeoutMs: 30_000,
+    },
+    {
+      port: 3200,
+      turnArgs: Promise.resolve([]),
+      requiresPreviewRetirement: true,
+      startAsync,
+      stopAsync: stopServer,
+    }
+  ).catch(error => error);
+  const retrying = () =>
+    jest
+      .mocked(logger.warn)
+      .mock.calls.some(([, message]) => String(message).endsWith('; retrying.'));
+  for (let i = 0; i < 50 && !retrying(); i++) {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  expect(retrying()).toBe(true);
+  startGate.resolve();
+  await jest.advanceTimersByTimeAsync(5_000);
+  expect(await outcome).toBe(startupError);
+  expect(jest.mocked(ngrok.forward).mock.calls.length).toBe(forwardCalls + 1);
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 
@@ -1116,6 +1216,75 @@ it.each([
   await host.finishAsync();
 });
 
+it('keeps the experimental emulator capture off in expo-device-hub by default', async () => {
+  const host = await startHostAsync();
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBe('0');
+  await host.finishAsync();
+});
+
+it('rejects an emulator capture request in a session type without the capture', async () => {
+  await expect(
+    startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: { ...env, EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION: '0.1.0' },
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    })
+  ).rejects.toThrow(
+    'The experimental emulator capture (expo-emulator-capture@0.1.0) works only in web preview sessions for now.'
+  );
+  expect(spawnDetached).not.toHaveBeenCalled();
+  expect(startNgrokTunnelAsync).not.toHaveBeenCalled();
+});
+
+it('passes the emulator capture that the emulator start turned on to expo-device-hub', async () => {
+  const host = await startDeviceSessionHostAsync(ctx, {
+    preview: { baseDomain, authtoken },
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env: {
+      ...env,
+      EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+      EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/package/libexpo_emulator_capture.so',
+      EAS_EXPERIMENTAL_EMULATOR_CAPTURE_VERSION: '0.1.0',
+    },
+    logger,
+    separateLogPhase: true,
+    timeoutMs: 10_000,
+    emulatorCapture: true,
+  });
+  const options = jest.mocked(spawnDetached).mock.calls[0][0];
+  expect(options.env).toMatchObject({
+    EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
+    EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: '/tmp/package/libexpo_emulator_capture.so',
+  });
+  // The env turns the capture on, because an expo-device-hub without it rejects unknown flags.
+  expect(options.args).not.toContain('--experimental-emulator-capture');
+  await host.finishAsync();
+});
+
+it.each([
+  ['the turtle-v2 copy by default', undefined, 'https://storage.googleapis.com/turtle-v2/scrcpy'],
+  ['the step env value when it is set', 'https://mirror.test/scrcpy', 'https://mirror.test/scrcpy'],
+])(
+  'points expo-device-hub at %s for the scrcpy server',
+  async (_description, override, expected) => {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: override ? { ...env, SERVE_EMU_SCRCPY_BASE_URL: override } : env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+    });
+    const options = jest.mocked(spawnDetached).mock.calls[0][0];
+    expect(options.env.SERVE_EMU_SCRCPY_BASE_URL).toBe(expected);
+    await host.finishAsync();
+  }
+);
+
 it('lets the session add frame ancestors and CORS origins after the website origins', async () => {
   const host = await startDeviceSessionHostAsync(ctx, {
     preview: { baseDomain, authtoken },
@@ -1163,6 +1332,7 @@ it('leaves iOS recording to its existing build steps', async () => {
   const options = jest.mocked(spawnDetached).mock.calls[0][0];
   expect(options.args).not.toContain('--android-recording-directory');
   expect(options.env.EXPO_DEVICE_HUB_RECORDING_CONTROL_TOKEN).toBeUndefined();
+  expect(options.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
   await host.finishAsync();
   expect(jest.mocked(turtleFetch).mock.calls.some(([, method]) => method === 'POST')).toBe(false);
   expect(uploadDeviceRunSessionScreenRecordingsAsync).not.toHaveBeenCalled();
@@ -1478,6 +1648,119 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
     );
   }
 );
+
+it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
+  'skips automated thumbnails with %s without stopping the iOS session',
+  async failure => {
+    if (failure === 'unavailable catalog') {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockRejectedValueOnce(new Error('unknown action'));
+    } else {
+      jest
+        .mocked(runServeSimActionWithResultAsync)
+        .mockResolvedValueOnce(
+          failure === 'invalid catalog'
+            ? 'invalid JSON'
+            : JSON.stringify({ 'screenshot.capture': { properties: {} } })
+        );
+    }
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(runServeSimActionWithResultAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+    expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+    expect(stopServer).not.toHaveBeenCalled();
+    await host.finishAsync();
+  }
+);
+
+it('cancels catalog inspection during shutdown without sending a thumbnail capture', async () => {
+  let inspectionSignal: AbortSignal | undefined;
+  jest.mocked(runServeSimActionWithResultAsync).mockImplementationOnce(async ({ signal }) => {
+    inspectionSignal = signal;
+    return await new Promise<string>((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  });
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  expect(inspectionSignal?.aborted).toBe(false);
+  await host.finishAsync();
+  expect(inspectionSignal?.aborted).toBe(true);
+  expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
+  expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
+  const finishScreenshots = jest.fn().mockResolvedValue(undefined);
+  const collector = jest
+    .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
+    .mockResolvedValueOnce({
+      directory: '/tmp/manual-screenshots',
+      finishAsync: finishScreenshots,
+    });
+  const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
+  const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
+    isSupportedAsync: jest.fn().mockResolvedValue(true),
+    captureAsync: jest.fn(),
+    cleanupAfterHostStoppedAsync: cleanup,
+  });
+  try {
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    await host.finishAsync();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(finishScreenshots).toHaveBeenCalledWith(true);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Could not remove session preview capture files.'
+    );
+  } finally {
+    factory.mockRestore();
+    collector.mockRestore();
+  }
+});
+
+it('drains thumbnail capture before stopping the iOS host', async () => {
+  const stopped = deferred<void>();
+  stopSessionPreview.mockReturnValueOnce(stopped.promise);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.DARWIN,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const finishing = host.finishAsync();
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    expect(stopServer).not.toHaveBeenCalled();
+  } finally {
+    stopped.resolve();
+    await finishing;
+  }
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
 
 it.each(['success', 'failure'])(
   'keeps macOS readiness nonblocking and drains encoder setup %s before ending the phase',
@@ -2077,6 +2360,22 @@ it('cancels an in-flight install while Simulator setup is pending', async () => 
   expect(installSignal?.aborted).toBe(true);
   expect(installSignal?.reason).toBe(failure);
   expect(runServeSimActionAsync).toHaveBeenCalledTimes(1);
+  expect(stopServer).toHaveBeenCalledTimes(1);
+});
+
+it('finishes in-flight crash collection before stopping the host', async () => {
+  const host = await startHostAsync();
+  const collecting = deferred<void>();
+  const entered = deferred<void>();
+  jest.mocked(ServeSimCrashesRecorder.stopAsync).mockImplementationOnce(async () => {
+    entered.resolve();
+    await collecting.promise;
+  });
+  const finishing = host.finishAsync();
+  await entered.promise;
+  expect(stopServer).not.toHaveBeenCalled();
+  collecting.resolve();
+  await finishing;
   expect(stopServer).toHaveBeenCalledTimes(1);
 });
 

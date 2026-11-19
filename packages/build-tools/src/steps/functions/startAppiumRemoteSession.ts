@@ -52,6 +52,7 @@ import { preparePreinstalledWdaAsync } from '../utils/preinstalledWda';
 import { watchDeviceRunSessionStartup } from '../utils/deviceRunSessionStartup';
 import {
   DeviceRunSessionStoppedError,
+  TOOL_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
   createIosSessionStartupInputProviders,
@@ -328,6 +329,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             authtoken: ngrokAuthtoken,
             healthCheck: { path: '/status' },
             logger,
+            signal: startupSignal,
           });
 
           // The preview host uses the same device selected for Appium.
@@ -415,7 +417,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
             logger,
             sessionFailed,
             teardown: [
-              ['Appium tunnel', appiumTunnel?.stopAsync()],
+              ['Appium tunnel', appiumTunnel?.stopAsync(), TOOL_TUNNEL_TEARDOWN_OPTIONS],
               ['Appium server', appiumTeardown],
               [
                 'session host',
