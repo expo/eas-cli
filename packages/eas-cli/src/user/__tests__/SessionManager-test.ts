@@ -419,6 +419,23 @@ describe(SessionManager, () => {
     });
   });
 
+  describe('ensureLoggedInAsync', () => {
+    it('logs in with the browser when no user is logged in, like eas login does', async () => {
+      jest.mocked(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const sessionManager = new SessionManager(analytics);
+
+      await sessionManager.ensureLoggedInAsync({ nonInteractive: false });
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({
+        sso: false,
+      });
+    });
+  });
+
   describe('retryUsernamePasswordAuthWithOTPAsync', () => {
     it('shows authenticator OTP prompt', async () => {
       jest
