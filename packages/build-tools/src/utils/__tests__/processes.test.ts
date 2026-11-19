@@ -1,4 +1,7 @@
-import { isProcessGroupRunning, isProcessRunning } from '../processes';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+
+import { isProcessGroupRunning, isProcessRunning, killProcesses } from '../processes';
 
 describe(isProcessRunning, () => {
   afterEach(() => {
@@ -49,5 +52,64 @@ describe(isProcessGroupRunning, () => {
       throw Object.assign(new Error('Operation not permitted'), { code: 'EPERM' });
     });
     expect(isProcessGroupRunning(4321)).toBe(true);
+  });
+});
+
+describe(killProcesses, () => {
+  function errnoError(code: string): NodeJS.ErrnoException {
+    const error: NodeJS.ErrnoException = new Error(`kill ${code}`);
+    error.code = code;
+    return error;
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('kills every pid with the given signal', () => {
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+    killProcesses([101, 102], 'SIGKILL');
+
+    expect(killSpy.mock.calls).toEqual([
+      [101, 'SIGKILL'],
+      [102, 'SIGKILL'],
+    ]);
+  });
+
+  it('ignores pids that already exited and keeps killing the rest', () => {
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation(pid => {
+      if (pid === 101) {
+        throw errnoError('ESRCH');
+      }
+      return true;
+    });
+
+    expect(() => {
+      killProcesses([101, 102]);
+    }).not.toThrow();
+    expect(killSpy.mock.calls).toEqual([
+      [101, 'SIGTERM'],
+      [102, 'SIGTERM'],
+    ]);
+  });
+
+  it('does not throw for a real process that has already exited', async () => {
+    const exited = spawn(process.execPath, ['-e', '']);
+    await once(exited, 'exit');
+
+    expect(() => {
+      killProcesses([exited.pid!]);
+    }).not.toThrow();
+  });
+
+  it('rethrows other errors', () => {
+    jest.spyOn(process, 'kill').mockImplementation(() => {
+      throw errnoError('EPERM');
+    });
+
+    expect(() => {
+      killProcesses([101]);
+    }).toThrow('kill EPERM');
   });
 });
