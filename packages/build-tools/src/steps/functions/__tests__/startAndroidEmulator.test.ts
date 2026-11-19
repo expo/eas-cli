@@ -494,7 +494,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         logcatDirectory: '/tmp/logcat-directory',
         logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
         consolePort: port,
-        extraArgs: ['-gpu', 'lavapipe'],
         extraEnv: {
           LD_PRELOAD: LIBRARY,
           EXPO_EMULATOR_CAPTURE_SOCKET: `/tmp/job/expo-emulator-capture/emulator-${port}.sock`,
@@ -511,7 +510,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-5554'));
     });
 
-    it('preloads the agent and turns the capture on for expo-device-hub', async () => {
+    it('preloads the agent without overriding the renderer and turns the capture on for expo-device-hub', async () => {
       const step = createStep(
         { experimental_emulator_capture_version: '0.1.0' },
         { TMPDIR: '/tmp/job' }
@@ -530,7 +529,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: LIBRARY,
       });
       expect(stepLogger(step).info).toHaveBeenCalledWith(
-        'emulator-5554 preloads expo-emulator-capture@0.1.0 with -gpu lavapipe, and its agent socket is /tmp/job/expo-emulator-capture/emulator-5554.sock. Later steps start expo-device-hub with the emulator capture on.'
+        'emulator-5554 preloads expo-emulator-capture@0.1.0, and its agent socket is /tmp/job/expo-emulator-capture/emulator-5554.sock. Later steps start expo-device-hub with the emulator capture on.'
       );
     });
 
