@@ -347,7 +347,7 @@ const SentryContextZ = z.looseObject({
 const ObserveContextZ = z.looseObject({
   event: z.looseObject({
     id: z.uuid(),
-    type: z.literal('new_error'),
+    type: z.enum(['new_error', 'error_occurrence']),
     occurredAt: z.iso.datetime(),
     appId: z.uuid(),
     fingerprint: z.looseObject({
