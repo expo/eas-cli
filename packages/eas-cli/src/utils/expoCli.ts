@@ -3,11 +3,27 @@ import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
 import type { CommonSpawnOptions } from 'node:child_process';
+import path from 'path';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 import semver from 'semver';
 
 import { memoize } from './expodash/memoize';
 import Log, { link } from '../log';
+
+/**
+ * Resolve a file of `@expo/cli`, looking first from the project and then from the installed `expo` package.
+ * With strict package managers (e.g. pnpm without hoisting) `@expo/cli` is a dependency of `expo`
+ * and is not visible from the project directory itself.
+ */
+function silentResolveExpoCli(projectDir: string, subpath: string = ''): string | undefined {
+  const request = `@expo/cli${subpath}`;
+  const fromProject = resolveFrom.silent(projectDir, request);
+  if (fromProject) {
+    return fromProject;
+  }
+  const expoPackageJson = resolveFrom.silent(projectDir, 'expo/package.json');
+  return expoPackageJson ? resolveFrom.silent(path.dirname(expoPackageJson), request) : undefined;
+}
 
 // Aggressively returns `true` (UNVERSIONED, invalid SDK version format) to push users towards the versioned CLI.
 function gteSdkVersion(fromSdkVersion: string, sdkVersion: string): boolean {
@@ -54,7 +70,7 @@ export function shouldUseVersionedExpoCLIExpensive(
   }
 
   // Finally ensure the CLI is available for sanity.
-  return !!resolveFrom.silent(projectDir, '@expo/cli');
+  return !!silentResolveExpoCli(projectDir);
 }
 
 /**
@@ -65,7 +81,7 @@ export function shouldUseVersionedExpoCLIExpensive(
 export function shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive(
   projectDir: string
 ): boolean {
-  const expoCliPath = resolveFrom.silent(projectDir, '@expo/cli/package.json');
+  const expoCliPath = silentResolveExpoCli(projectDir, '/package.json');
   if (!expoCliPath) {
     return false;
   }
