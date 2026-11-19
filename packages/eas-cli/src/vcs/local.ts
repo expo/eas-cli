@@ -60,12 +60,13 @@ node_modules
     const ignoreFilePaths = (
       await fg(`**/${GITIGNORE_FILENAME}`, {
         cwd: this.rootDir,
-        ignore: ['node_modules'],
+        ignore: ['node_modules', '.git'],
         followSymbolicLinks: false,
+        dot: true,
       })
     )
       // ensure that parent dir is before child directories
-      .sort((a, b) => a.length - b.length && a.localeCompare(b));
+      .sort((a, b) => a.length - b.length || a.localeCompare(b));
 
     const ignoreMapping = await Promise.all(
       ignoreFilePaths.map(async filePath => {
