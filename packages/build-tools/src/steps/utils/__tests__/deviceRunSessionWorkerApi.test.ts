@@ -137,6 +137,15 @@ describe(DeviceRunSessionWorkerApi, () => {
       expected: { id: 'drs-id', status: 'stopped' },
     },
     {
+      name: 'stopAsync with a reason',
+      call: (api: DeviceRunSessionWorkerApi) => api.stopAsync({ reason: 'max_duration' }),
+      method: 'POST',
+      route: 'stop',
+      json: { reason: 'max_duration' },
+      data: { id: 'drs-id', status: 'stopped' },
+      expected: { id: 'drs-id', status: 'stopped' },
+    },
+    {
       name: 'createArtifactUploadSessionAsync',
       call: (api: DeviceRunSessionWorkerApi) =>
         api.createArtifactUploadSessionAsync({
