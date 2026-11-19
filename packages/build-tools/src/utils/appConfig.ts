@@ -1,6 +1,6 @@
 import { ProjectConfig, getConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import { load } from '@expo/env';
+import { get as getDotenv } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
 import { expoCommandAsync } from './expoCli';
@@ -16,7 +16,7 @@ export async function readAppConfig(params: ReadAppConfigParams): Promise<Projec
   const shouldLoadEnvVarsFromDotenvFile =
     params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
   if (shouldLoadEnvVarsFromDotenvFile) {
-    const envVarsFromDotenvFile = load(params.projectDir) as Env;
+    const envVarsFromDotenvFile = getDotenv(params.projectDir).env as Env;
     const env = { ...params.env, ...envVarsFromDotenvFile };
     params = { ...params, env };
   }
