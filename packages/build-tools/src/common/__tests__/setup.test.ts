@@ -4,7 +4,7 @@ import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from '../easBuildInternal';
-import { runHookableBuildPhaseAsync } from '../hookableBuildPhase';
+import { runHookEntriesAsync, runHookableBuildPhaseAsync } from '../hookableBuildPhase';
 import { JobHooksRef, setupAsync } from '../setup';
 import { ParsedJobHooks, parseJobHooksAsync } from '../jobHooks';
 import { prepareProjectSourcesAsync } from '../projectSources';
@@ -15,7 +15,10 @@ jest.mock('../easBuildInternal', () => ({
   resolveEnvFromBuildProfileAsync: jest.fn(),
   runEasBuildInternalAsync: jest.fn(),
 }));
-jest.mock('../hookableBuildPhase', () => ({ runHookableBuildPhaseAsync: jest.fn() }));
+jest.mock('../hookableBuildPhase', () => ({
+  runHookEntriesAsync: jest.fn(),
+  runHookableBuildPhaseAsync: jest.fn(),
+}));
 jest.mock('../jobHooks', () => ({ parseJobHooksAsync: jest.fn() }));
 jest.mock('../../utils/npmrc', () => ({ setUpNpmrcAsync: jest.fn() }));
 jest.mock('../../utils/hooks', () => ({
@@ -79,6 +82,9 @@ describe(setupAsync, () => {
       order.push('parse-hooks');
       return PARSED;
     });
+    jest.mocked(runHookEntriesAsync).mockImplementation(async () => {
+      order.push('after-checkout-hooks');
+    });
     jest.mocked(runHookableBuildPhaseAsync).mockImplementation(async () => {
       // Record the wrapper call; deliberately do NOT run its `fn` so the install
       // internals stay out of the ordering test.
@@ -91,23 +97,50 @@ describe(setupAsync, () => {
     }));
   });
 
-  it('parses hooks after project prep + profile-env + pre-install hook, and before the install wrapper', async () => {
+  it('parses hooks after project prep + profile-env + pre-install hook, then runs the after_checkout hooks before the install wrapper', async () => {
     const jobHooksRef: JobHooksRef = { current: null };
     await setupAsync(createCtx(BuildTrigger.GIT_BASED_INTEGRATION), {
-      wrappedAnchors: ['install_node_modules'],
       jobHooksRef,
     });
-    const parseAt = order.indexOf('parse-hooks');
-    expect(order.indexOf('prepare-project')).toBeLessThan(parseAt);
-    expect(order.indexOf('profile-env')).toBeLessThan(parseAt);
-    expect(order.indexOf('pre-install-hook')).toBeLessThan(parseAt);
-    expect(parseAt).toBeLessThan(order.indexOf('install-wrapper'));
+    expect(order).toEqual([
+      'prepare-project',
+      'profile-env',
+      'pre-install-hook',
+      'parse-hooks',
+      'after-checkout-hooks',
+      'install-wrapper',
+    ]);
+    expect(parseJobHooksAsync).toHaveBeenCalledWith(expect.anything(), [
+      'after_checkout',
+      'before_install_node_modules',
+      'after_install_node_modules',
+    ]);
+    expect(runHookEntriesAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ hooks: PARSED, timing: 'after', anchor: 'checkout' })
+    );
+  });
+
+  it('publishes the parsed hooks to the ref before an after_checkout hook can fail', async () => {
+    jest.mocked(runHookEntriesAsync).mockRejectedValueOnce(new Error('hook boom'));
+    const jobHooksRef: JobHooksRef = { current: null };
+    await expect(
+      setupAsync(createCtx(BuildTrigger.GIT_BASED_INTEGRATION), { jobHooksRef })
+    ).rejects.toThrow('hook boom');
+    expect(jobHooksRef.current).toBe(PARSED);
+    expect(runHookableBuildPhaseAsync).not.toHaveBeenCalled();
+  });
+
+  it('runs no after_checkout hooks when the job has no hooks', async () => {
+    jest.mocked(parseJobHooksAsync).mockResolvedValueOnce(null);
+    await setupAsync(createCtx(BuildTrigger.GIT_BASED_INTEGRATION), {
+      jobHooksRef: { current: null },
+    });
+    expect(runHookEntriesAsync).not.toHaveBeenCalled();
   });
 
   it('parses hooks unconditionally on a non-git-based build (never parked in the git-only branch)', async () => {
     const jobHooksRef: JobHooksRef = { current: null };
     await setupAsync(createCtx(BuildTrigger.EAS_CLI), {
-      wrappedAnchors: ['install_node_modules'],
       jobHooksRef,
     });
     expect(parseJobHooksAsync).toHaveBeenCalledTimes(1);
@@ -119,7 +152,6 @@ describe(setupAsync, () => {
   it('publishes the parsed hooks to the ref before the install wrapper runs', async () => {
     const jobHooksRef: JobHooksRef = { current: null };
     await setupAsync(createCtx(BuildTrigger.GIT_BASED_INTEGRATION), {
-      wrappedAnchors: ['install_node_modules'],
       jobHooksRef,
     });
     expect(jobHooksRef.current).toBe(PARSED);

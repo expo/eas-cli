@@ -2,7 +2,6 @@ import {
   BuildJob,
   CompositeFunctionCatalog,
   ErrorCode,
-  HookAnchorId,
   HookKey,
   UserError,
   parseHookKey,
@@ -37,12 +36,12 @@ export interface ParsedJobHooks {
 /**
  * Parses the native job's `hooks` into engine-ready entries, once, at setup
  * time. Shape-validates every registered key (reachable or not); constructs
- * entries only for the anchors this build actually wraps. Returns null when the
+ * entries only for the hook keys this build runs. Returns null when the
  * job declares no hooks.
  */
 export async function parseJobHooksAsync<TJob extends BuildJob>(
   ctx: BuildContext<TJob>,
-  wrappedAnchors: readonly HookAnchorId[]
+  hookKeys: readonly HookKey[]
 ): Promise<ParsedJobHooks | null> {
   const hooks = ctx.job.hooks;
   if (!hooks || Object.keys(hooks).length === 0) {
@@ -81,8 +80,8 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
     }
   }
 
-  // Construct entries for the wrapped anchors in EXECUTION order (per anchor,
-  // before_ then after_) so generated step ids and output references follow the
+  // Construct entries for the given hook keys in the order given, which is
+  // EXECUTION order, so generated step ids and output references follow the
   // order steps actually run. All entries share one globalContext, so env and
   // outputs accumulate across keys.
   const hookEntriesByKey: Partial<Record<HookKey, HookEntry[]>> = {};
@@ -92,37 +91,34 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
     ctx.getReactNativeProjectDirectory(),
     { logger: ctx.logger }
   );
-  for (const anchor of wrappedAnchors) {
-    for (const side of ['before', 'after'] as const) {
-      const key: HookKey = `${side}_${anchor}`;
-      const steps = hooks[key];
-      if (!Array.isArray(steps) || steps.length === 0) {
-        continue;
-      }
-      let entries: HookEntry[];
-      try {
-        // Extended per key so a bad `uses:` path is attributed to that hook key.
-        await extendCompositeFunctionCatalogFromStepsAsync({
-          catalog: compositeFunctionCatalog,
-          rootSteps: steps,
-          loadCompositeFunction,
-        });
-        entries = await constructHookEntriesAsync(globalContext, steps, {
-          externalFunctions,
-          externalFunctionGroups,
-          compositeFunctionCatalog,
-        });
-      } catch (err) {
-        throw new UserError(
-          ErrorCode.HOOKS_ERROR,
-          `Failed to parse hooks.${key}: ${err instanceof Error ? err.message : String(err)}. Hooks use the same syntax as workflow steps.`,
-          { cause: err }
-        );
-      }
-      hookEntriesByKey[key] = entries;
-      for (const entry of entries) {
-        orderedSteps.push(...entry.steps);
-      }
+  for (const key of hookKeys) {
+    const steps = hooks[key];
+    if (!Array.isArray(steps) || steps.length === 0) {
+      continue;
+    }
+    let entries: HookEntry[];
+    try {
+      // Extended per key so a bad `uses:` path is attributed to that hook key.
+      await extendCompositeFunctionCatalogFromStepsAsync({
+        catalog: compositeFunctionCatalog,
+        rootSteps: steps,
+        loadCompositeFunction,
+      });
+      entries = await constructHookEntriesAsync(globalContext, steps, {
+        externalFunctions,
+        externalFunctionGroups,
+        compositeFunctionCatalog,
+      });
+    } catch (err) {
+      throw new UserError(
+        ErrorCode.HOOKS_ERROR,
+        `Failed to parse hooks.${key}: ${err instanceof Error ? err.message : String(err)}. Hooks use the same syntax as workflow steps.`,
+        { cause: err }
+      );
+    }
+    hookEntriesByKey[key] = entries;
+    for (const entry of entries) {
+      orderedSteps.push(...entry.steps);
     }
   }
 

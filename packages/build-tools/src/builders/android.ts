@@ -72,7 +72,7 @@ async function buildInnerAsync(
   ctx: BuildContext<Android.Job>,
   jobHooksRef: JobHooksRef
 ): Promise<void> {
-  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
+  await setupAsync(ctx, { jobHooksRef });
   const evictUsedBefore = new Date();
   const workingDirectory = ctx.getReactNativeProjectDirectory();
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;

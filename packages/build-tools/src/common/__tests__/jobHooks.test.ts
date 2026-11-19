@@ -9,7 +9,7 @@ import { createTestIosJob } from '../../__tests__/utils/job';
 import { BuildContext } from '../../context';
 import { parseJobHooksAsync } from '../jobHooks';
 
-const INSTALL: ['install_node_modules'] = ['install_node_modules'];
+const INSTALL = ['before_install_node_modules', 'after_install_node_modules'] as const;
 
 function createCtx(
   hooks: Hooks | undefined,
