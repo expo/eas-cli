@@ -35,6 +35,17 @@ describe(parseFrameAncestorList, () => {
     const origins = Array.from({ length: 11 }, (_, i) => `https://embed-${i}.example.test`);
     expect(() => parseFrameAncestorList(origins)).toThrow('at most 10 origins; received 11');
   });
+
+  it('counts origins after dropping duplicates', () => {
+    const origins = Array.from({ length: 10 }, (_, i) => `https://embed-${i}.example.test`);
+    expect(
+      parseFrameAncestorList([
+        ...origins,
+        'https://embed-0.example.test/',
+        ' https://EMBED-1.example.test ',
+      ])
+    ).toEqual(origins);
+  });
 });
 
 describe(parseCorsOriginList, () => {
