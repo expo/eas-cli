@@ -1,5 +1,12 @@
 # eas-cli
 
+## 27.11.0
+
+### Patch Changes
+
+- Detect Factory Droid, Grok Bot, Claude Cowork, and Muse in EAS CLI telemetry. ([#4912](https://github.com/expo/eas-cli/pull/4912) by [@davidmokos](https://github.com/davidmokos))
+- Mark the default device for each platform in `eas simulator:devices` and include `isDefault` in JSON output. ([#4895](https://github.com/expo/eas-cli/pull/4895) by [@gwdp](https://github.com/gwdp))
+
 ## 27.10.0
 
 ### Minor Changes

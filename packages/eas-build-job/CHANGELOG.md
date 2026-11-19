@@ -1,5 +1,12 @@
 # @expo/eas-build-job
 
+## 27.11.0
+
+### Minor Changes
+
+- Accept `issue_comment` as a `github.event_name` value in the workflow interpolation context. ([#4906](https://github.com/expo/eas-cli/pull/4906) by [@sswrk](https://github.com/sswrk))
+- Support error occurrence events in Observe workflow context. ([#4860](https://github.com/expo/eas-cli/pull/4860) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
 ## 27.10.0
 
 No changes in this release.

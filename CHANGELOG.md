@@ -2,6 +2,24 @@
 
 This is the log of notable changes to EAS CLI and related packages.
 
+## [27.11.0](https://github.com/expo/eas-cli/releases/tag/v27.11.0) - 2026-11-19
+
+### 🎉 New features
+
+- [build-tools] Report the identifier of the installed app as `applicationIdentifier` in the agent-device remote config, so clients can attach to the app of an `application_archive_url` session. ([#4831](https://github.com/expo/eas-cli/pull/4831) by [@expo-tuft](https://github.com/apps/expo-tuft))
+- [build-tools] Count Android web preview input as session activity, so `max_idle_time_minutes` works on Android sessions. `eas/start_serve_sim_remote_session` no longer rejects it on Android; the API does not accept an idle timeout for Android web-preview-only sessions yet. ([#4890](https://github.com/expo/eas-cli/pull/4890) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-build-job] Accept `issue_comment` as a `github.event_name` value in the workflow interpolation context. ([#4906](https://github.com/expo/eas-cli/pull/4906) by [@sswrk](https://github.com/sswrk))
+- [eas-build-job] Support error occurrence events in Observe workflow context. ([#4860](https://github.com/expo/eas-cli/pull/4860) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- [build-tools] Add start and collect steps that attach serve-sim simulator crash reports to device run sessions as IPS files. ([#4596](https://github.com/expo/eas-cli/pull/4596) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add start and collect steps that attach serve-sim network captures to device run sessions as HAR files. ([#4495](https://github.com/expo/eas-cli/pull/4495) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Detect Factory Droid, Grok Bot, Claude Cowork, and Muse in EAS CLI telemetry. ([#4912](https://github.com/expo/eas-cli/pull/4912) by [@davidmokos](https://github.com/davidmokos))
+- [build-tools] Default `fastlane gym` dSYM compression level to 1. ([#4909](https://github.com/expo/eas-cli/pull/4909) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+- [eas-cli] Mark the default device for each platform in `eas simulator:devices` and include `isDefault` in JSON output. ([#4895](https://github.com/expo/eas-cli/pull/4895) by [@gwdp](https://github.com/gwdp))
+- [build-tools] A successful remote device run session no longer fails when its agent-device, Appium, or Argent tunnel does not stop within its time-out. ([#4893](https://github.com/expo/eas-cli/pull/4893) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [27.10.0](https://github.com/expo/eas-cli/releases/tag/v27.10.0) - 2026-11-13
 
 ### 🎉 New features

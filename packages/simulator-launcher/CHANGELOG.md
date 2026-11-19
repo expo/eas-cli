@@ -1,5 +1,9 @@
 # @expo/simulator-launcher
 
+## 27.11.0
+
+No changes in this release.
+
 ## 27.10.0
 
 No changes in this release.
