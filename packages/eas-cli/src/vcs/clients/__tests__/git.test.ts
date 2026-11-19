@@ -194,6 +194,42 @@ describe('git', () => {
       await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
       await expect(fs.readdir(path.join(repoClone, '.git'))).resolves.toBeDefined();
     });
+
+    it('does not include .git when no .easignore exists', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/committed-file.txt`, 'file');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'temp commit'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, '.git'))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, 'committed-file.txt'))).resolves.not.toThrow();
+    });
+
+    it('keeps .git when requireCommit is true and no .easignore exists', async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: true,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/committed-file.txt`, 'file');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'temp commit'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.readdir(path.join(repoClone, '.git'))).resolves.toBeDefined();
+      await expect(fs.stat(path.join(repoClone, 'committed-file.txt'))).resolves.not.toThrow();
+    });
   });
 
   it('does not include files that have been removed in the working directory', async () => {
