@@ -183,12 +183,15 @@ export async function captureDeviceRunSessionPreviewAsync({
   env,
   signal,
   captureIosScreenshotAsync,
+  captureAndroidScreenshotAsync,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
-  captureIosScreenshotAsync?: IosScreenshotCapture;
+  captureIosScreenshotAsync?: ScreenshotCapture;
+  /** serve-emu's capture through the Hub; without it, adb captures with no rotation. */
+  captureAndroidScreenshotAsync?: ScreenshotCapture;
 }): Promise<DeviceRunSessionPreviewCapture> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
@@ -208,8 +211,13 @@ export async function captureDeviceRunSessionPreviewAsync({
         options,
       }));
     } else {
-      // adb screencap reports no rotation.
-      await captureAndroidPreviewAsync({ device, directory, preview, options });
+      ({ displayRotation } = await captureAndroidPreviewAsync({
+        captureAndroidScreenshotAsync,
+        device,
+        directory,
+        preview,
+        options,
+      }));
     }
     const image = await readFile(preview);
     return { image, displayRotation };
@@ -218,7 +226,7 @@ export async function captureDeviceRunSessionPreviewAsync({
   }
 }
 
-type IosScreenshotCapture = (file: string, signal: AbortSignal) => Promise<CapturedDisplayRotation>;
+type ScreenshotCapture = (file: string, signal: AbortSignal) => Promise<CapturedDisplayRotation>;
 
 type CaptureOptions = {
   env: BuildStepEnv;
@@ -233,7 +241,7 @@ async function captureIosPreviewAsync({
   preview,
   options,
 }: {
-  captureIosScreenshotAsync: IosScreenshotCapture;
+  captureIosScreenshotAsync: ScreenshotCapture;
   directory: string;
   preview: string;
   options: CaptureOptions;
@@ -248,36 +256,27 @@ async function captureIosPreviewAsync({
 }
 
 async function captureAndroidPreviewAsync({
+  captureAndroidScreenshotAsync,
   device,
   directory,
   preview,
   options,
 }: {
+  captureAndroidScreenshotAsync?: ScreenshotCapture;
   device: string;
   directory: string;
   preview: string;
   options: CaptureOptions;
-}): Promise<void> {
+}): Promise<CapturedDisplayRotation> {
   const screenshot = path.join(directory, 'screen.png');
-  let serial = device;
-  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
-  if (serial === 'no-device-id') {
-    const result = await spawn('adb', ['devices'], options);
-    const devices = result.stdout
-      .split('\n')
-      .map(line => line.trim().split(/\s+/))
-      .filter(([, status]) => status === 'device');
-    if (devices.length !== 1) {
-      throw new Error('Expected exactly one connected Android device for the session preview.');
-    }
-    serial = devices[0][0];
+  let captured: CapturedDisplayRotation = {};
+  if (captureAndroidScreenshotAsync) {
+    captured = await captureAndroidScreenshotAsync(screenshot, options.signal);
+    options.signal.throwIfAborted();
+  } else {
+    // adb screencap reports no rotation.
+    await captureAdbScreenshotAsync({ device, screenshot, options });
   }
-  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
-  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
-  await Promise.all([
-    capture,
-    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
-  ]);
   await spawn(
     'ffmpeg',
     [
@@ -297,4 +296,35 @@ async function captureAndroidPreviewAsync({
     ],
     options
   );
+  return captured;
+}
+
+async function captureAdbScreenshotAsync({
+  device,
+  screenshot,
+  options,
+}: {
+  device: string;
+  screenshot: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  let serial = device;
+  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
+  if (serial === 'no-device-id') {
+    const result = await spawn('adb', ['devices'], options);
+    const devices = result.stdout
+      .split('\n')
+      .map(line => line.trim().split(/\s+/))
+      .filter(([, status]) => status === 'device');
+    if (devices.length !== 1) {
+      throw new Error('Expected exactly one connected Android device for the session preview.');
+    }
+    serial = devices[0][0];
+  }
+  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
+  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
+  await Promise.all([
+    capture,
+    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
+  ]);
 }

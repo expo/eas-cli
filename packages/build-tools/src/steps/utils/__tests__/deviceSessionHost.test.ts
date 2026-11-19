@@ -49,6 +49,7 @@ import {
 import { startPreviewActivityPolling } from '../previewActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import * as previewCapture from '../serveSimPreviewCapture';
+import { createExpoDeviceHubPreviewCapture } from '../expoDeviceHubPreviewCapture';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('@expo/turtle-spawn');
@@ -61,6 +62,7 @@ jest.mock('../iosAppArtifact', () => ({
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
 jest.mock('../previewActivity');
+jest.mock('../expoDeviceHubPreviewCapture');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
@@ -179,6 +181,13 @@ beforeEach(() => {
         'screenshot.capture': { properties: { automation: { type: 'boolean' } } },
       }),
     });
+  jest
+    .mocked(createExpoDeviceHubPreviewCapture)
+    .mockReset()
+    .mockReturnValue({
+      isSupportedAsync: jest.fn().mockResolvedValue(false),
+      captureAsync: jest.fn(),
+    });
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -277,6 +286,58 @@ it('uses the supplied Android serial for Hub and thumbnails without selecting an
     expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
       expect.objectContaining({ device: 'emulator-5556' })
     );
+  } finally {
+    await host.finishAsync();
+  }
+});
+
+it.each([
+  ['a Hub that supports automated screenshots', 'supported'],
+  ['an older Hub', 'unsupported'],
+  ['a failed support check', 'failed'],
+] as const)('captures Android previews with %s', async (_, support) => {
+  const hubCapture = {
+    isSupportedAsync:
+      support === 'failed'
+        ? jest.fn().mockRejectedValue(new Error('connection refused'))
+        : jest.fn().mockResolvedValue(support === 'supported'),
+    captureAsync: jest.fn(),
+  };
+  jest.mocked(createExpoDeviceHubPreviewCapture).mockReturnValueOnce(hubCapture);
+  jest.mocked(turtleFetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ status: 'ready', device: 'no-device-id' }),
+  } as Awaited<ReturnType<typeof turtleFetch>>);
+  const host = await startDeviceSessionHostAsync(ctx, {
+    runtimePlatform: BuildRuntimePlatform.LINUX,
+    env,
+    logger,
+    timeoutMs: 10_000,
+    preview: { baseDomain, authtoken },
+  });
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    expect(createExpoDeviceHubPreviewCapture).toHaveBeenCalledWith({
+      port: expect.any(Number),
+      token: expect.any(String),
+    });
+    // The preview keeps running in every case; only the capture source changes.
+    expect(startDeviceRunSessionPreview).toHaveBeenCalledTimes(1);
+    await jest
+      .mocked(startDeviceRunSessionPreview)
+      .mock.calls[0][0].captureAsync(new AbortController().signal);
+    expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        captureAndroidScreenshotAsync:
+          support === 'supported' ? hubCapture.captureAsync : undefined,
+      })
+    );
+    if (support === 'failed') {
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        'Could not check expo-device-hub screenshot support; session previews use adb.'
+      );
+    }
   } finally {
     await host.finishAsync();
   }
