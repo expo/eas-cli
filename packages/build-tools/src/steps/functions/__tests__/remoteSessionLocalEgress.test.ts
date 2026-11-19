@@ -30,6 +30,7 @@ import { createStartAppiumRemoteSessionBuildFunction } from '../startAppiumRemot
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { createStartWebPreviewRemoteSessionBuildFunction } from '../startWebPreviewRemoteSession';
 
+jest.mock('../../utils/endDeviceApps');
 jest.mock('@expo/turtle-spawn');
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../../utils/processes');

@@ -34,6 +34,7 @@ import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 
+jest.mock('../../utils/endDeviceApps');
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
 // home so waitForArgentToolServerStateAsync — which lives in the module under test and cannot
 // be mocked directly — can read a real state file we control.

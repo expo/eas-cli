@@ -1,4 +1,5 @@
 import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,6 +10,8 @@ import { z } from 'zod';
 
 import { retryAsync } from './retry';
 import { waitForWarmSimulatorCleanupAsync } from './warmSimulatorCleanup';
+
+const RUNNING_APP_LABEL = /\tUIKitApplication:([^[\s]+)\[/;
 
 export type IosSimulatorUuid = string & z.BRAND<'IosSimulatorUuid'>;
 export type IosSimulatorName = string & z.BRAND<'IosSimulatorName'>;
@@ -99,6 +102,39 @@ export namespace IosSimulatorUtils {
     }
 
     return allAvailableDevices;
+  }
+
+  export async function terminateUserAppsAsync({
+    udid,
+    env,
+    logger,
+    signal,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+    logger: bunyan;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const { stdout } = await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list'], {
+      env,
+      signal,
+    });
+    const apps = new Set(
+      stdout
+        .split('\n')
+        .map(line => RUNNING_APP_LABEL.exec(line)?.[1])
+        .filter((app): app is string => !!app && !app.startsWith('com.apple.'))
+    );
+    for (const app of apps) {
+      try {
+        await spawn('xcrun', ['simctl', 'terminate', udid, app], { env, signal });
+        logger.info(`Ended ${app} on the Simulator ${udid}.`);
+      } catch (err) {
+        signal?.throwIfAborted();
+        // "found nothing to terminate" when the app exited after the list.
+        logger.warn({ err }, `Could not end ${app} on the Simulator ${udid}.`);
+      }
+    }
   }
 
   export async function getDeviceAsync({

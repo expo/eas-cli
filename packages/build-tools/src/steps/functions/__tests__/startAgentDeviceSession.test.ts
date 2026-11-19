@@ -29,6 +29,7 @@ import { createStartAgentDeviceSessionBuildFunction } from '../startAgentDeviceS
 import { startAndroidEmulatorAsync } from '../startAndroidEmulator';
 import { bootIosSimulatorAsync } from '../startIosSimulator';
 
+jest.mock('../../utils/endDeviceApps');
 jest.mock('../../utils/localEgress', () => ({
   stopLocalEgressResourcesAsync: jest.fn().mockResolvedValue(undefined),
 }));

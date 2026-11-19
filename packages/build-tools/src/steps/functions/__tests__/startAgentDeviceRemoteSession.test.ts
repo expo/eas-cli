@@ -10,6 +10,7 @@ import {
   stopAgentDeviceEventCollectionSafelyAsync,
 } from '../startAgentDeviceRemoteSession';
 
+jest.mock('../../utils/endDeviceApps');
 jest.mock('../../../sentry');
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({

@@ -25,6 +25,7 @@ import {
 } from '../IosSimulatorRecordingUtils';
 import * as remoteDeviceRunSession from '../remoteDeviceRunSession';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
+import { endDeviceAppsAsync } from '../endDeviceApps';
 import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
@@ -65,6 +66,7 @@ import {
 import { parseNetworkCaptureFieldsInput, parseNetworkCaptureInputs } from '../networkCaptureFields';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('../endDeviceApps');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
@@ -231,9 +233,46 @@ function createEnvMock(): BuildStepEnv {
 describe(finishRemoteSessionAsync, () => {
   const tunnelError = new Error('tunnel stop timed out');
   const serverError = new Error('server stop failed');
+  const device = { runtimePlatform: BuildRuntimePlatform.DARWIN, env: createEnvMock() };
 
   beforeEach(() => {
     jest.mocked(Sentry).capture.mockReset();
+    jest.mocked(endDeviceAppsAsync).mockReset().mockResolvedValue();
+  });
+
+  it('ends the device apps after every other task, and does not fail a session on it', async () => {
+    const logger = { warn: jest.fn() } as unknown as bunyan;
+    const order: string[] = [];
+    let stopServer!: () => void;
+    const server = new Promise<void>(resolve => {
+      stopServer = resolve;
+    }).then(() => {
+      order.push('Appium server');
+    });
+    const appsError = new Error('simctl failed');
+    jest.mocked(endDeviceAppsAsync).mockImplementation(async () => {
+      order.push('device apps');
+      throw appsError;
+    });
+
+    const finish = finishRemoteSessionAsync({
+      logger,
+      device,
+      sessionFailed: false,
+      teardown: [['Appium server', server]],
+    });
+    stopServer();
+
+    await expect(finish).resolves.toBeUndefined();
+    expect(order).toEqual(['Appium server', 'device apps']);
+    expect(endDeviceAppsAsync).toHaveBeenCalledWith({ ...device, logger });
+    expect(jest.mocked(Sentry).capture.mock.calls).toEqual([
+      [
+        'Could not stop the device apps after the remote session ended',
+        appsError,
+        { level: 'warning' },
+      ],
+    ]);
   });
 
   it('does not fail a successful session when only a tunnel cannot stop', async () => {
@@ -241,6 +280,7 @@ describe(finishRemoteSessionAsync, () => {
     await expect(
       finishRemoteSessionAsync({
         logger,
+        device,
         sessionFailed: false,
         teardown: [
           ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
@@ -266,6 +306,7 @@ describe(finishRemoteSessionAsync, () => {
     await expect(
       finishRemoteSessionAsync({
         logger,
+        device,
         sessionFailed: false,
         teardown: [
           ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
@@ -288,6 +329,7 @@ describe(finishRemoteSessionAsync, () => {
     await expect(
       finishRemoteSessionAsync({
         logger,
+        device,
         sessionFailed: true,
         teardown: [
           ['Appium tunnel', Promise.reject(tunnelError), TOOL_TUNNEL_TEARDOWN_OPTIONS],
