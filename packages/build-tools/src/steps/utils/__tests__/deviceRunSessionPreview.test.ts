@@ -551,6 +551,34 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
     }
   );
 
+  it('encodes the serve-emu capture on Linux and returns its rotation without using adb', async () => {
+    jest.mocked(spawn).mockImplementation((command, args) => {
+      expect(command).toBe('ffmpeg');
+      return (async () => {
+        expect(await readFile(args[args.indexOf('-i') + 1])).toEqual(png);
+        await writeFile(args[args.length - 1], Uint8Array.from(webp));
+        return { stdout: '', stderr: '' };
+      })() as ReturnType<typeof spawn>;
+    });
+    const captureAndroidScreenshotAsync = jest.fn(async (file: string) => {
+      await writeFile(file, Uint8Array.from(png));
+      return { displayRotation: 'landscape-left' as const };
+    });
+    await expect(
+      captureDeviceRunSessionPreviewAsync({
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        device: 'no-device-id',
+        captureAndroidScreenshotAsync,
+        env: {},
+        signal: new AbortController().signal,
+      })
+    ).resolves.toEqual({ image: webp, displayRotation: 'landscape-left' });
+    expect(captureAndroidScreenshotAsync).toHaveBeenCalledTimes(1);
+    expect(
+      (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
+    ).toEqual([]);
+  });
+
   it('skips ambiguous Android devices instead of capturing the wrong screen', async () => {
     jest
       .mocked(spawn)

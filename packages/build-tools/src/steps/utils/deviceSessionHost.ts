@@ -56,6 +56,7 @@ import {
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
 import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
+import { createExpoDeviceHubPreviewCapture } from './expoDeviceHubPreviewCapture';
 import { type PreviewActivityPolling, startPreviewActivityPolling } from './previewActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
 import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -630,6 +631,7 @@ async function startDeviceSessionHostInternalAsync(
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
+  let androidPreviewCapture: ReturnType<typeof createExpoDeviceHubPreviewCapture> | undefined;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
@@ -1037,7 +1039,26 @@ async function startDeviceSessionHostInternalAsync(
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.
     previewSetupTask = (async () => {
-      if (!isAndroid) {
+      if (isAndroid) {
+        // Without serve-emu's automated captures, adb keeps the preview, with no rotation.
+        const capture = createExpoDeviceHubPreviewCapture({ port, token: previewToken! });
+        const supported = await asyncResult(
+          capture.isSupportedAsync(previewSetupController.signal)
+        );
+        previewSetupController.signal.throwIfAborted();
+        if (!supported.ok) {
+          logger.warn(
+            { err: supported.reason },
+            'Could not check expo-device-hub screenshot support; session previews use adb.'
+          );
+        } else if (!supported.value) {
+          logger.info(
+            'This expo-device-hub version cannot take automated screenshots; session previews use adb without the display rotation.'
+          );
+        } else {
+          androidPreviewCapture = capture;
+        }
+      } else {
         iosPreviewCapture = createServeSimPreviewCapture({
           port,
           token: previewToken!,
@@ -1064,6 +1085,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               captureIosScreenshotAsync: iosPreviewCapture?.captureAsync,
+              captureAndroidScreenshotAsync: androidPreviewCapture?.captureAsync,
               runtimePlatform,
               device: previewDevice ?? device,
               env,
