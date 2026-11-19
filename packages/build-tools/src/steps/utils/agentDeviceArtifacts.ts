@@ -1,5 +1,6 @@
 import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import fetch from 'node-fetch';
@@ -11,7 +12,10 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
-import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
+import {
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from './deviceRunSessionArtifacts';
 import { createScreenshotMetadataAsync } from './deviceRunSessionScreenshotMetadata';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
@@ -58,7 +62,8 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
   }
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
-  const uploadedArtifactIds = new Set<string>();
+  const finishedArtifactIds = new Set<string>();
+  const idempotencyKeys = new Map<string, string>();
   let listArtifactsErrorCount = 0;
 
   // Ending normal polling must not cancel a transfer that the session already produced.
@@ -92,22 +97,28 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
         });
         listArtifactsErrorCount = 0;
         for (const artifact of artifacts) {
-          if (uploadedArtifactIds.has(artifact.id)) {
+          if (finishedArtifactIds.has(artifact.id)) {
             continue;
           }
+          const idempotencyKey = idempotencyKeys.get(artifact.id) ?? randomUUID();
+          idempotencyKeys.set(artifact.id, idempotencyKey);
           try {
             await uploadAgentDeviceArtifactAsync(ctx, {
               deviceRunSessionId,
               daemonUrl,
               daemonToken,
               artifact,
+              idempotencyKey,
               logger,
               ...(transferSignal ? { signal: transferSignal } : {}),
             });
-            uploadedArtifactIds.add(artifact.id);
+            finishedArtifactIds.add(artifact.id);
           } catch (err) {
             if (transferSignal?.aborted) {
               return;
+            }
+            if (err instanceof DeviceRunSessionArtifactRejectedError) {
+              finishedArtifactIds.add(artifact.id);
             }
             const error = err instanceof Error ? err : new Error(String(err));
             Sentry.capture('Could not upload agent-device remote session artifact', error);
@@ -192,6 +203,7 @@ export async function uploadAgentDeviceArtifactAsync(
     daemonUrl,
     daemonToken,
     artifact,
+    idempotencyKey,
     logger,
     signal,
   }: {
@@ -199,6 +211,7 @@ export async function uploadAgentDeviceArtifactAsync(
     daemonUrl: string;
     daemonToken: string;
     artifact: AgentDeviceArtifact;
+    idempotencyKey: string;
     logger: bunyan;
     signal?: AbortSignal;
   }
@@ -237,6 +250,7 @@ export async function uploadAgentDeviceArtifactAsync(
       ...(metadata ? { metadata } : {}),
       size,
       openStream: () => createReadStream(temporaryArtifactPath),
+      idempotencyKey,
       ...(signal ? { signal } : {}),
     });
   } finally {

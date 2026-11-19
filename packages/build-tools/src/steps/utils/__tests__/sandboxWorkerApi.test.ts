@@ -85,6 +85,7 @@ describe(SandboxWorkerApi, () => {
       call: (api: SandboxWorkerApi) =>
         api.createArtifactUploadSessionAsync({ name: 'Crash log', filename: 'crash.log', size: 5 }),
       route: 'artifact-upload-sessions',
+      headers: { 'Idempotency-Key': expect.any(String) },
       json: { name: 'Crash log', filename: 'crash.log', size: 5 },
       data: {
         artifact: { id: ARTIFACT_ID },
@@ -105,7 +106,7 @@ describe(SandboxWorkerApi, () => {
     },
   ])(
     '$name calls POST /v2/sandbox-worker/$route with the sandbox worker token header',
-    async ({ call, route, json, data, expected }) => {
+    async ({ call, route, headers, json, data, expected }) => {
       jest.mocked(turtleFetch).mockResolvedValueOnce(jsonResponse({ data }));
 
       await expect(call(new SandboxWorkerApi(BASE_URL, TOKEN))).resolves.toEqual(expected);
@@ -113,10 +114,34 @@ describe(SandboxWorkerApi, () => {
       const [url, method, options] = jest.mocked(turtleFetch).mock.calls[0];
       expect(url).toBe(`https://api.expo.test/v2/sandbox-worker/${route}`);
       expect(method).toBe('POST');
-      expect(options.headers).toEqual({ 'expo-sandbox-worker-token': TOKEN });
+      expect(options.headers).toEqual({ ...headers, 'expo-sandbox-worker-token': TOKEN });
       expect(options.json).toEqual(json);
     }
   );
+
+  it('sends a new idempotency key for each artifact upload session', async () => {
+    jest.mocked(turtleFetch).mockImplementation(async () =>
+      jsonResponse({
+        data: {
+          artifact: { id: ARTIFACT_ID },
+          uploadSession: { url: 'https://uploads.expo.test/a', headers: {} },
+        },
+      })
+    );
+    const api = new SandboxWorkerApi(BASE_URL, TOKEN);
+
+    await api.createArtifactUploadSessionAsync({ name: 'A', filename: 'a.log', size: 1 });
+    await api.createArtifactUploadSessionAsync({ name: 'B', filename: 'b.log', size: 1 });
+
+    const [first, second] = jest
+      .mocked(turtleFetch)
+      .mock.calls.map(
+        ([, , options]) => (options.headers as Record<string, string>)['Idempotency-Key']
+      );
+    expect(first).toEqual(expect.any(String));
+    expect(second).toEqual(expect.any(String));
+    expect(second).not.toBe(first);
+  });
 
   it('escapes the artifact ID in the finalize route', async () => {
     jest

@@ -26,6 +26,11 @@ export type WorkerApiRequestOptions = {
   logger?: bunyan;
 };
 
+type WorkerApiRequest = WorkerApiRequestOptions & {
+  json?: Record<string, unknown>;
+  idempotencyKey?: string;
+};
+
 const ApiV2ErrorResponseSchema = z.object({
   errors: z.array(z.object({ code: z.string().optional(), message: z.string() })).min(1),
 });
@@ -66,7 +71,7 @@ export class WorkerApi {
     method: 'GET' | 'POST',
     route: string,
     dataSchema: z.ZodType<T>,
-    { retries = 0, ...options }: WorkerApiRequestOptions & { json?: Record<string, unknown> } = {}
+    { retries = 0, ...options }: WorkerApiRequest = {}
   ): Promise<T> {
     const url = new URL(route, this.baseUrl);
     const routeDescription = `${method} ${url.pathname}`;
@@ -96,18 +101,14 @@ export class WorkerApi {
     url: string,
     routeDescription: string,
     dataSchema: z.ZodType<T>,
-    {
-      signal,
-      timeoutMs,
-      logger,
-      json,
-    }: Omit<WorkerApiRequestOptions, 'retries'> & {
-      json?: Record<string, unknown>;
-    }
+    { signal, timeoutMs, logger, json, idempotencyKey }: Omit<WorkerApiRequest, 'retries'>
   ): Promise<T> {
     const responseResult = await asyncResult(
       turtleFetch(url, method, {
-        headers: { [this.auth.authHeader]: this.auth.token },
+        headers: {
+          [this.auth.authHeader]: this.auth.token,
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+        },
         ...(json ? { json } : {}),
         ...(signal ? { signal } : {}),
         ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),

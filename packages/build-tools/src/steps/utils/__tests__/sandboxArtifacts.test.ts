@@ -23,7 +23,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { inspect } from 'node:util';
 
 import { SandboxArtifactUploadManager, startSandboxArtifactUploadAsync } from '../sandboxArtifacts';
-import { type SandboxWorkerApi } from '../sandboxWorkerApi';
+import { SandboxWorkerApi } from '../sandboxWorkerApi';
 import { WorkerApiError } from '../workerApi';
 
 const { AbortError, FetchError, Response } = jest.requireActual(
@@ -46,7 +46,7 @@ describe('sandbox artifact uploads', () => {
     createArtifactUploadSessionAsync: jest.Mock;
     finalizeArtifactAsync: jest.Mock;
   };
-  let logger: { info: jest.Mock; error: jest.Mock };
+  let logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
   let uploadArtifactAsync: (options: {
     filePath: string;
     name: string;
@@ -62,7 +62,7 @@ describe('sandbox artifact uploads', () => {
       createArtifactUploadSessionAsync: jest.fn(),
       finalizeArtifactAsync: jest.fn(),
     };
-    logger = { info: jest.fn(), error: jest.fn() };
+    logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
     uploadArtifactAsync = async options =>
       await startSandboxArtifactUploadAsync({
         workerApi: workerApi as unknown as SandboxWorkerApi,
@@ -218,13 +218,28 @@ describe('sandbox artifact uploads', () => {
   });
 
   it.each([
-    { status: 400, code: 'VALIDATION_ERROR' },
-    { status: 403, code: 'UNAUTHORIZED' },
+    {
+      status: 409,
+      code: 'ARTIFACT_NAME_CONFLICT',
+      apiMessage:
+        'Sandbox already has an artifact named "Crash log". Use a different name for this artifact.',
+    },
+    {
+      status: 400,
+      code: 'VALIDATION_ERROR',
+      apiMessage:
+        'Sandbox is stopped, so it cannot upload artifacts. Upload artifacts while the sandbox is running.',
+    },
+    {
+      status: 403,
+      code: 'UNAUTHORIZED',
+      apiMessage:
+        'You are not authorized to upload artifacts for this sandbox. Only the user who created the sandbox can upload its artifacts.',
+    },
   ])(
     'rejects a $code upload session error as a bad request with the API message',
-    async ({ status, code }) => {
-      const message =
-        'POST /v2/sandbox-worker/artifact-upload-sessions failed with status 400: Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
+    async ({ status, code, apiMessage }) => {
+      const message = `POST /v2/sandbox-worker/artifact-upload-sessions failed with status ${status}: ${apiMessage}`;
       workerApi.createArtifactUploadSessionAsync.mockRejectedValueOnce(
         new WorkerApiError(message, status, undefined, code)
       );
@@ -246,6 +261,7 @@ describe('sandbox artifact uploads', () => {
   it.each([
     { status: 500, code: 'UNEXPECTED_ERROR' },
     { status: 401, code: 'AUTHENTICATION_ERROR' },
+    { status: 409, code: 'OTHER_CONFLICT' },
   ])('rethrows a $code upload session error unchanged', async ({ status, code }) => {
     const error = new WorkerApiError('Request failed.', status, undefined, code);
     workerApi.createArtifactUploadSessionAsync.mockRejectedValueOnce(error);
@@ -385,6 +401,79 @@ describe('sandbox artifact uploads', () => {
     expect(performance.now() - startedAt).toBeLessThan(600);
     controller.abort();
     await manager.stoppedPromise;
+  });
+
+  describe('with the sandbox worker API', () => {
+    const uploadSessionsUrl = 'https://api.expo.test/v2/sandbox-worker/artifact-upload-sessions';
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('retries a failed upload session request with the same idempotency key', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+      jest
+        .mocked(fetch)
+        .mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+        .mockResolvedValueOnce(jsonResponse({ data: createdSession }))
+        .mockResolvedValueOnce(new Response('', { status: 200 }))
+        .mockResolvedValueOnce(
+          jsonResponse({ data: { id: ARTIFACT_ID, downloadUrl: DOWNLOAD_URL } })
+        );
+
+      const uploadPromise = uploadWithWorkerApiAsync();
+      while (uploadSessionRequests().length === 0) {
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      await jest.advanceTimersByTimeAsync(1000);
+      const upload = await uploadPromise;
+
+      await expect(upload.completed).resolves.toEqual({
+        status: 'uploaded',
+        downloadUrl: DOWNLOAD_URL,
+      });
+      const keys = uploadSessionRequests().map(
+        ([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key']
+      );
+      expect(keys).toEqual([expect.any(String), keys[0]]);
+    });
+
+    it('does not retry an artifact name conflict', async () => {
+      const apiMessage =
+        'Sandbox already has an artifact named "Crash log". Use a different name for this artifact.';
+      jest
+        .mocked(fetch)
+        .mockResolvedValueOnce(
+          jsonResponse({ errors: [{ code: 'ARTIFACT_NAME_CONFLICT', message: apiMessage }] }, 409)
+        );
+
+      await expect(uploadWithWorkerApiAsync()).rejects.toMatchObject({
+        code: SandboxDaemonErrorCode.BAD_REQUEST,
+        message: `POST /v2/sandbox-worker/artifact-upload-sessions failed with status 409: ${apiMessage}`,
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    async function uploadWithWorkerApiAsync(): ReturnType<typeof startSandboxArtifactUploadAsync> {
+      return await startSandboxArtifactUploadAsync({
+        workerApi: new SandboxWorkerApi('https://api.expo.test/v2/', 'sandbox-worker-token'),
+        logger: logger as unknown as bunyan,
+        filePath,
+        name: 'Crash log',
+        signal: new AbortController().signal,
+      });
+    }
+
+    function uploadSessionRequests(): Parameters<typeof fetch>[] {
+      return jest.mocked(fetch).mock.calls.filter(([url]) => url === uploadSessionsUrl);
+    }
+
+    function jsonResponse(body: unknown, status = 200): InstanceType<typeof Response> {
+      return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   });
 
   function createManager(signal: AbortSignal): SandboxArtifactUploadManager {

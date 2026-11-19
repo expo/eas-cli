@@ -61,6 +61,7 @@ export type CreateDeviceRunSessionArtifactUploadSessionInput = {
   kind?: string | null;
   size: number;
   metadata?: Record<string, unknown> | null;
+  idempotencyKey: string;
 };
 
 /**
@@ -101,14 +102,14 @@ export class DeviceRunSessionWorkerApi {
   }
 
   public async createArtifactUploadSessionAsync(
-    input: CreateDeviceRunSessionArtifactUploadSessionInput,
+    { idempotencyKey, ...input }: CreateDeviceRunSessionArtifactUploadSessionInput,
     options: WorkerApiRequestOptions = {}
   ): Promise<DeviceRunSessionUploadSession> {
     const { uploadSession } = await this.client.requestAsync(
       'POST',
       'artifact-upload-sessions',
       UploadSessionSchema,
-      { ...options, json: input }
+      { ...options, json: input, idempotencyKey }
     );
     return uploadSession;
   }
