@@ -9,6 +9,7 @@ import { promptAsync } from '../../prompts';
 import sortBy from '../../utils/expodash/sortBy';
 import { Client } from '../../vcs/vcs';
 import { resolveWorkflowAsync } from '../workflow';
+import { sanitizedNameForProject } from './sanitizedName';
 
 export interface XcodeBuildContext {
   buildScheme: string;
@@ -46,7 +47,7 @@ export async function resolveXcodeBuildContextAsync(
     if (!expoName) {
       throw new Error('"expo.name" is required in your app.json');
     }
-    const sanitizedExpoName = IOSConfig.XcodeUtils.sanitizedName(expoName);
+    const sanitizedExpoName = sanitizedNameForProject(projectDir, expoName);
     if (!sanitizedExpoName) {
       throw new Error('"expo.name" needs to contain some alphanumeric characters');
     }

@@ -13,6 +13,7 @@ import { promptAsync } from '../../prompts';
 import { Client } from '../../vcs/vcs';
 import { getOwnerAccountForProjectIdAsync, getProjectConfigDescription } from '../projectUtils';
 import { resolveWorkflowAsync } from '../workflow';
+import { sanitizedNameForProject } from './sanitizedName';
 
 export const INVALID_BUNDLE_IDENTIFIER_MESSAGE = `Invalid format of iOS bundle identifier. Only alphanumeric characters, '.' and '-' are allowed, and each '.' must be followed by a letter.`;
 
@@ -104,7 +105,7 @@ export async function getBundleIdentifierAsync(
     // TODO: the following asserts are only temporary until we support app extensions in managed projects
     assert(
       !xcodeContext?.targetName ||
-        xcodeContext?.targetName === IOSConfig.XcodeUtils.sanitizedName(exp.name),
+        xcodeContext?.targetName === sanitizedNameForProject(projectDir, exp.name),
       'targetName cannot be set to an arbitrary value for managed projects.'
     );
     assert(
