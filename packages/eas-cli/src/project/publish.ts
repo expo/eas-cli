@@ -44,7 +44,11 @@ import {
   truncateString as truncateUpdateMessage,
   updatePublishPlatformToAppPlatform,
 } from '../update/utils';
-import { PresignedPost, uploadWithPresignedPostWithRetryAsync } from '../uploads';
+import {
+  PresignedPost,
+  computeFileMd5Base64Async,
+  uploadWithPresignedPostWithRetryAsync,
+} from '../uploads';
 import {
   expoCommandAsync,
   shouldUseVersionedExpoCLI,
@@ -543,6 +547,13 @@ export async function uploadAssetsAsync(
 
   notifyProgress(missingAssets);
 
+  Log.debug(
+    `Uploading ${missingAssets.length} of ${uniqueAssets.length} assets with Node ${process.version}`
+  );
+  for (const asset of missingAssets) {
+    Log.debug(`Asset ${asset.path} (${asset.contentType}) has storage key ${asset.storageKey}`);
+  }
+
   // Just past the finalize cloud function's event max age plus a startup buffer. Beyond this,
   // waiting longer can't help, so we re-upload to generate a fresh event with a new retry window.
   const FINALIZE_POLL_MS = 55_000;
@@ -580,7 +591,19 @@ export async function uploadAssetsAsync(
             throw Error('Canceled upload');
           }
           const presignedPost: PresignedPost = JSON.parse(specification);
-          await uploadWithPresignedPostWithRetryAsync(asset.path, presignedPost, onBegin);
+          const response = await uploadWithPresignedPostWithRetryAsync(
+            asset.path,
+            presignedPost,
+            onBegin
+          );
+          if (Log.isDebug) {
+            const md5 = await computeFileMd5Base64Async(asset.path);
+            Log.debug(
+              `Uploaded ${asset.path} to object ${presignedPost.fields.key} at ${new Date().toISOString()}: ` +
+                `HTTP ${response.status}, ETag ${response.headers.get('etag')}, ` +
+                `x-goog-hash ${response.headers.get('x-goog-hash')}, local MD5 ${md5}`
+            );
+          }
         })
       )
     );
@@ -612,8 +635,16 @@ export async function uploadAssetsAsync(
   // Re-upload assets that don't finalize in time to trigger a fresh finalize event and retry window.
   let pendingAssets = missingAssets;
   for (let attempt = 0; attempt < MAX_UPLOAD_ATTEMPTS && pendingAssets.length > 0; attempt++) {
+    Log.debug(
+      `Upload attempt ${attempt + 1} of ${MAX_UPLOAD_ATTEMPTS}: ${pendingAssets.length} asset(s)`
+    );
     await uploadBatchAsync(pendingAssets, onAssetUploadBegin);
     pendingAssets = await pollForFinalizationAsync(pendingAssets);
+    for (const asset of pendingAssets) {
+      Log.debug(
+        `Storage key ${asset.storageKey} for ${asset.path} not processed after ${FINALIZE_POLL_MS / 1000}s`
+      );
+    }
   }
 
   cancelationToken.isCanceledOrFinished = true;
