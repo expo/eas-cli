@@ -1,10 +1,12 @@
 import { errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import os from 'os';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 
+import { findCertificateFingerprintsAsync, findIdentitiesAsync } from './security';
 import { runFastlane } from '../fastlane';
 
 // Do not log raw fastlane output or spawn errors: they can contain passwords,
@@ -137,16 +139,21 @@ export default class Keychain {
   }
 
   public async ensureCertificateImported({
+    logger,
     teamId,
     fingerprint,
   }: {
+    logger?: bunyan;
     teamId: string;
     fingerprint: string;
   }): Promise<void> {
     const identities = await this.findIdentitiesByTeamId(teamId);
     if (!identities.includes(fingerprint)) {
+      // Diagnostics must not change the existing pass/fail check or mask its failure.
+      const diagnosticResult = await asyncResult(this.diagnoseMissingIdentity(fingerprint, logger));
+      const explanation = diagnosticResult.ok ? diagnosticResult.value : '';
       throw new Error(
-        `Distribution certificate with fingerprint ${fingerprint} hasn't been imported successfully`
+        `Signing identity validation failed for distribution certificate with fingerprint ${fingerprint}.${explanation ? ` ${explanation}` : ''}`
       );
     }
   }
@@ -199,5 +206,43 @@ export default class Keychain {
       }
     );
     return output.join('');
+  }
+
+  private async diagnoseMissingIdentity(fingerprint: string, logger?: bunyan): Promise<string> {
+    const [certificates, identities] = await Promise.all([
+      asyncResult(findCertificateFingerprintsAsync(this.keychainPath)),
+      asyncResult(findIdentitiesAsync(this.keychainPath)),
+    ]);
+    const expectedFingerprint = fingerprint.toUpperCase();
+    const certificatePresent = certificates.ok
+      ? certificates.value.includes(expectedFingerprint)
+      : null;
+    const matchingIdentities = identities.ok
+      ? identities.value.filter(identity => identity.fingerprint === expectedFingerprint)
+      : null;
+    const identityPresent = matchingIdentities === null ? null : matchingIdentities.length > 0;
+    const trustErrors = [
+      ...new Set(
+        (matchingIdentities ?? []).flatMap(identity =>
+          identity.trustError ? [identity.trustError] : []
+        )
+      ),
+    ];
+
+    // Never log raw command output, certificate names, or process errors.
+    logger?.error(
+      { certificatePresent, identityPresent, trustErrors },
+      `iOS signing identity diagnostics: certificatePresent=${certificatePresent}, identityPresent=${identityPresent}, trustErrors=${trustErrors.join(',') || 'none reported'} (null means the diagnostic query failed)`
+    );
+    if (identityPresent) {
+      return 'The identity is present, but macOS did not report it as valid. Check certificate dates and trust errors on the build machine.';
+    }
+    if (certificatePresent && identityPresent === false) {
+      return 'The certificate is present, but macOS did not list a matching private key identity. Check that the PKCS#12 file contains the matching private key.';
+    }
+    if (certificatePresent === false && identityPresent === false) {
+      return 'macOS did not find the expected certificate or identity. Read the certificate import logs.';
+    }
+    return 'A diagnostic query failed. Certificate or identity presence is unknown.';
   }
 }
