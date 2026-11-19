@@ -29,6 +29,7 @@ export type IosSessionStartup = {
 export async function resolveIosSessionStartupAsync({
   runtimePlatform,
   bootSimulator,
+  warm = false,
   deviceIdentifier,
   installAppPath,
   launchAppIdentifier,
@@ -40,6 +41,8 @@ export async function resolveIosSessionStartupAsync({
 }: {
   runtimePlatform: BuildRuntimePlatform;
   bootSimulator?: boolean;
+  /** The claimed serve-sim boot owns resident guard policy; cold startup retains boot injection. */
+  warm?: boolean;
   deviceIdentifier?: string;
   installAppPath?: string;
   launchAppIdentifier?: unknown;
@@ -90,7 +93,7 @@ export async function resolveIosSessionStartupAsync({
   const iosSimulatorUdid = (
     await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier: selectedIdentifier, env })
   ).toUpperCase() as IosSimulatorUuid;
-  const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync();
+  const bootEnv = warm ? null : await resolveLocalEgressServeSimBootEnvironmentAsync();
   signal?.throwIfAborted();
   if (bootEnv) {
     const device = await IosSimulatorUtils.getDeviceAsync({ udid: iosSimulatorUdid, env });

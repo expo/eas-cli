@@ -6,6 +6,11 @@ import { resolveSimulatorPackageVersionAsync } from '../../utils/simulatorPackag
 import { stopWarmSimulatorAsync } from '../../utils/warmSimulator';
 import { IosSimulatorRecordingUtils } from './IosSimulatorRecordingUtils';
 import { type DeviceSessionServer } from './deviceSessionHost';
+import {
+  configureSimulatorProxyEnvironmentAsync,
+  readLocalEgressHandoffAsync,
+} from './localEgress';
+import { type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 import { fetchWebPreviewTurnArgsAsync } from './remoteDeviceRunSession';
 import { type WarmIosSession, tryClaimWarmIosSessionAsync } from './warmIosSession';
 
@@ -40,6 +45,8 @@ export function createWarmDeviceSessionServer(
     stopAsync,
     async startAsync({ command, args, env, signal }) {
       try {
+        const localEgress = await readLocalEgressHandoffAsync();
+        const policyArgs = [localEgress ? '--enable' : '--disable', 'egressGuard'];
         // serve-sim starts this job's recording when it adopts the device.
         const recording = await IosSimulatorRecordingUtils.prepareAdoptedRecordingAsync({
           udid,
@@ -50,11 +57,22 @@ export function createWarmDeviceSessionServer(
           ? ['--recording-output', recording.output, '--recording-id', recording.recordingId]
           : [];
         const timeout = AbortSignal.timeout(360_000);
-        await spawn(command, [...args, '--single-device', udid, '--adopt', ...recordingArgs], {
-          env,
-          stdio: 'pipe',
-          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-        });
+        await spawn(
+          command,
+          [...args, '--single-device', udid, '--adopt', ...policyArgs, ...recordingArgs],
+          {
+            env,
+            stdio: 'pipe',
+            signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+          }
+        );
+        if (localEgress) {
+          await configureSimulatorProxyEnvironmentAsync({
+            udid: udid as IosSimulatorUuid,
+            env,
+            logger,
+          });
+        }
         await warm.prepareToolsAsync(signal);
       } catch {
         signal?.throwIfAborted();
