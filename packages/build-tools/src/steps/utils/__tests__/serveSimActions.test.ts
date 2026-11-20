@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import { once } from 'node:events';
 import {
   access,
@@ -14,9 +15,10 @@ import {
 } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { WebSocketServer } from 'ws';
+import { type WebSocket, WebSocketServer } from 'ws';
 
 import {
+  captureServeSimScreenshotAsync,
   runServeSimActionAsync,
   runServeSimActionWithResultAsync,
   stageServeSimAppAsync,
@@ -81,19 +83,6 @@ it('returns stdout from an authenticated action for catalog inspection', async (
   await expect(
     runServeSimActionWithResultAsync({ ...request(), action: 'actions.describe', params: {} })
   ).resolves.toEqual({ stdout: '{"actions":[]}' });
-});
-
-it('returns the reply metadata with stdout', async () => {
-  const metadata = { width: 1179, height: 2556, displayRotation: 'portrait' };
-  server.on('connection', socket => {
-    socket.on('message', () =>
-      socket.send(JSON.stringify({ id: 1, stdout: '/tmp/shot.png', exitCode: 0, metadata }))
-    );
-    socket.send(JSON.stringify({ ready: true }));
-  });
-  await expect(
-    runServeSimActionWithResultAsync({ ...request(), action: 'screenshot.capture', params: {} })
-  ).resolves.toEqual({ stdout: '/tmp/shot.png', metadata });
 });
 
 it.each([
@@ -225,6 +214,157 @@ it('does not connect when already aborted', async () => {
     })
   ).rejects.toThrow('already stopped');
   expect(connected).not.toHaveBeenCalled();
+});
+
+describe(captureServeSimScreenshotAsync, () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
+  const metadata = { width: 2556, height: 1179, displayRotation: 'landscape-left' };
+  const capture = (overrides: Partial<Parameters<typeof captureServeSimScreenshotAsync>[0]> = {}) =>
+    captureServeSimScreenshotAsync({
+      port,
+      token,
+      params: { udid: 'device', automation: true },
+      timeoutMs: 2_000,
+      waitForMetadata: true,
+      ...overrides,
+    });
+  // serve-sim prefixes the PNG with the request id as a uint32 big-endian.
+  const imageFrame = (id: number, image: Buffer) => {
+    const frame = Buffer.alloc(4 + image.length);
+    frame.writeUInt32BE(id);
+    image.copy(frame, 4);
+    return frame;
+  };
+  const serve = (reply: (socket: WebSocket, request: unknown) => void) => {
+    const requests: unknown[] = [];
+    server.on('connection', socket => {
+      socket.on('message', raw => {
+        const request = JSON.parse(raw.toString());
+        requests.push(request);
+        reply(socket, request);
+      });
+      socket.send(JSON.stringify({ ready: true }));
+    });
+    return requests;
+  };
+
+  it('requests binary output and returns the image with the metadata frame that follows', async () => {
+    const requests = serve(socket => {
+      // Replies for other ids are not for this capture.
+      socket.send(JSON.stringify({ id: 2, error: 'not this capture' }));
+      socket.send(imageFrame(1, png));
+      socket.send(JSON.stringify({ id: 1, screenshotMetadata: metadata }));
+    });
+    await expect(capture()).resolves.toEqual({ image: png, metadata });
+    expect(requests).toEqual([
+      {
+        id: 1,
+        action: 'screenshot.capture',
+        params: { udid: 'device', automation: true, output: 'binary' },
+      },
+    ]);
+  });
+
+  it('finishes on the image when the server does not send a metadata frame', async () => {
+    serve(socket => socket.send(imageFrame(1, png)));
+    await expect(capture({ waitForMetadata: false })).resolves.toEqual({ image: png });
+  });
+
+  it('waits for the metadata frame after the image when the server advertises it', async () => {
+    let sendMetadata!: () => void;
+    let imageSent!: () => void;
+    const sent = new Promise<void>(resolve => {
+      imageSent = resolve;
+    });
+    serve(socket => {
+      socket.send(imageFrame(1, png), () => imageSent());
+      sendMetadata = () => socket.send(JSON.stringify({ id: 1, screenshotMetadata: metadata }));
+    });
+    let settled = false;
+    const capturing = capture();
+    void capturing.finally(() => {
+      settled = true;
+    });
+    await sent;
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(settled).toBe(false);
+    sendMetadata();
+    await expect(capturing).resolves.toEqual({ image: png, metadata });
+  });
+
+  it.each([
+    [{ id: 1, error: 'Simulator is not booted' }, 'failed: Simulator is not booted'],
+    // A path reply means the server ignored binary output.
+    [{ id: 1, exitCode: 0, stdout: '/tmp/shot.png' }, 'failed: invalid response'],
+    [{ id: 1, screenshotMetadata: metadata }, 'failed: invalid response'],
+  ])('rejects the JSON reply %j without an image', async (reply, message) => {
+    serve(socket => socket.send(JSON.stringify(reply)));
+    const capturing = capture();
+    await expect(capturing).rejects.toThrow(SystemError);
+    await expect(capturing).rejects.toThrow(`serve-sim screenshot.capture ${message}`);
+  });
+
+  it('rejects an error frame after the image', async () => {
+    serve(socket => {
+      socket.send(imageFrame(1, png));
+      socket.send(JSON.stringify({ id: 1, error: 'Screenshot failed' }));
+    });
+    await expect(capture()).rejects.toThrow('failed: Screenshot failed');
+  });
+
+  it.each([
+    ['a frame shorter than its id', Buffer.from([0, 0, 1]), 'malformed image frame'],
+    ['a frame for another id', imageFrame(2, png), 'malformed image frame'],
+    ['an empty image', imageFrame(1, Buffer.alloc(0)), 'returned an empty image'],
+  ])('rejects %s', async (_description, frame, message) => {
+    serve(socket => socket.send(frame));
+    await expect(capture()).rejects.toThrow(message);
+  });
+
+  it('rejects a second image frame', async () => {
+    serve(socket => {
+      socket.send(imageFrame(1, png));
+      socket.send(imageFrame(1, png));
+    });
+    await expect(capture()).rejects.toThrow('malformed image frame');
+  });
+
+  it('rejects an invalid JSON reply', async () => {
+    serve(socket => socket.send('not JSON'));
+    await expect(capture()).rejects.toThrow('returned invalid JSON');
+  });
+
+  it('drains a sent capture before honoring abort', async () => {
+    const controller = new AbortController();
+    let reply!: () => void;
+    let dispatched!: () => void;
+    const received = new Promise<void>(resolve => {
+      dispatched = resolve;
+    });
+    serve(socket => {
+      reply = () => {
+        socket.send(imageFrame(1, png));
+        socket.send(JSON.stringify({ id: 1, screenshotMetadata: metadata }));
+      };
+      dispatched();
+    });
+    let settled = false;
+    const capturing = capture({ signal: controller.signal });
+    void capturing.finally(() => {
+      settled = true;
+    });
+    await received;
+    controller.abort(new Error('session stopped'));
+    await new Promise(resolve => setImmediate(resolve));
+    expect(settled).toBe(false);
+    reply();
+    await expect(capturing).resolves.toEqual({ image: png, metadata });
+  });
+
+  it('times out a capture that never replies', async () => {
+    serve(() => {});
+    await expect(capture({ timeoutMs: 30 })).rejects.toThrow('screenshot.capture timed out');
+  });
 });
 
 it("stages a local app without consuming the caller's original", async () => {

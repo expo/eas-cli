@@ -531,10 +531,9 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
         await captureDeviceRunSessionPreviewAsync({
           runtimePlatform,
           device,
-          captureIosScreenshotAsync: async (file, signal) => {
+          captureIosScreenshotAsync: async signal => {
             signal.throwIfAborted();
-            await writeFile(file, Uint8Array.from(png));
-            return { displayRotation: 'landscape-right' };
+            return { image: png, displayRotation: 'landscape-right' };
           },
           env: {},
           signal: new AbortController().signal,

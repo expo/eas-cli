@@ -868,7 +868,6 @@ async function startDeviceSessionHostInternalAsync(
             await sessionPreview?.stopAsync();
             await previewActivity?.stopAsync();
           },
-          cleanupPreviewCaptureAsync: async () => iosPreviewCapture?.cleanupAfterHostStoppedAsync(),
           previewServer,
           screenshots,
           serverName,
@@ -1043,7 +1042,6 @@ async function startDeviceSessionHostInternalAsync(
           port,
           token: previewToken!,
           device,
-          tmpdir: serveSimTmpdir,
         });
         if (!(await iosPreviewCapture.isSupportedAsync(previewSetupController.signal))) {
           logger.warn(
@@ -1140,7 +1138,6 @@ async function finishDeviceSessionHostAsync(
   {
     previewRetirement,
     stopSessionPreviewAsync,
-    cleanupPreviewCaptureAsync,
     previewServer,
     screenshots,
     serverName,
@@ -1152,7 +1149,6 @@ async function finishDeviceSessionHostAsync(
   }: {
     previewRetirement: Promise<boolean>;
     stopSessionPreviewAsync: () => Promise<void>;
-    cleanupPreviewCaptureAsync: () => Promise<void>;
     previewServer: DetachedProcessHandle;
     screenshots: { finishAsync(hostStopped: boolean): Promise<void> };
     serverName: string;
@@ -1187,13 +1183,6 @@ async function finishDeviceSessionHostAsync(
     hostStopped = true;
   } catch (err) {
     logger.warn({ err }, `Could not stop the ${serverName} session host.`);
-  }
-  if (hostStopped) {
-    try {
-      await cleanupPreviewCaptureAsync();
-    } catch (err) {
-      logger.warn({ err }, 'Could not remove session preview capture files.');
-    }
   }
   const previewRetired = await previewRetirement;
   onStopped(hostStopped && !hostExited && previewRetired);

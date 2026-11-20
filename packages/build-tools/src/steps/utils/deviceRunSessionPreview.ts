@@ -4,7 +4,7 @@ import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import spawn, { type SpawnOptions } from '@expo/turtle-spawn';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -218,7 +218,10 @@ export async function captureDeviceRunSessionPreviewAsync({
   }
 }
 
-type IosScreenshotCapture = (file: string, signal: AbortSignal) => Promise<CapturedDisplayRotation>;
+/** A PNG from the Simulator, with the rotation when the capture source confirmed it. */
+export type IosScreenshot = { image: Buffer } & CapturedDisplayRotation;
+
+type IosScreenshotCapture = (signal: AbortSignal) => Promise<IosScreenshot>;
 
 type CaptureOptions = {
   env: BuildStepEnv;
@@ -240,11 +243,12 @@ async function captureIosPreviewAsync({
 }): Promise<CapturedDisplayRotation> {
   const screenshot = path.join(directory, 'screen.png');
   const resized = path.join(directory, 'resized.png');
-  const captured = await captureIosScreenshotAsync(screenshot, options.signal);
+  const { image, displayRotation } = await captureIosScreenshotAsync(options.signal);
   options.signal.throwIfAborted();
+  await writeFile(screenshot, image);
   await spawn('sips', ['-Z', String(PREVIEW_MAX_DIMENSION), screenshot, '--out', resized], options);
   await spawn('cwebp', ['-quiet', '-q', String(PREVIEW_QUALITY), resized, '-o', preview], options);
-  return captured;
+  return { displayRotation };
 }
 
 async function captureAndroidPreviewAsync({
