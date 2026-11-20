@@ -1,19 +1,20 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
-import path from 'path';
 
 import { COMMON_FASTLANE_ENV, DEFAULT_FASTLANE_GYM_ENV } from '../../../common/fastlane';
 import { XcodeBuildLogger } from '../../../common/xcpretty';
 
 export async function runFastlaneGym({
   workingDir,
+  gymfileDirectory,
   logger,
   buildLogsDirectory,
   env,
   extraEnv,
 }: {
   workingDir: string;
+  gymfileDirectory: string;
   logger: bunyan;
   buildLogsDirectory: string;
   env: BuildStepEnv;
@@ -23,7 +24,7 @@ export async function runFastlaneGym({
   void buildLogger.watchLogFiles(buildLogsDirectory);
   try {
     await runFastlane(['gym'], {
-      cwd: path.join(workingDir, 'ios'),
+      cwd: gymfileDirectory,
       logger,
       env: { ...DEFAULT_FASTLANE_GYM_ENV, ...env },
       extraEnv,
