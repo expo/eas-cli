@@ -9,39 +9,22 @@ import {
   errors,
 } from '@expo/steps';
 import assert from 'assert';
-import fs from 'fs/promises';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
+import { prepareProjectForStepsAsync } from './prepareProjectForSteps';
 import { resolveEnvFromBuildProfileAsync } from '../common/easBuildInternal';
-import { prepareProjectSourcesAsync } from '../common/projectSources';
 import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
 import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
-import { retryAsync } from '../utils/retry';
 
 export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<Artifacts> {
   const customBuildCtx = new CustomBuildContext(ctx);
 
-  await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
-    await retryAsync(
-      async () => {
-        await fs.rm(customBuildCtx.projectSourceDirectory, { recursive: true, force: true });
-        await fs.mkdir(customBuildCtx.projectSourceDirectory, { recursive: true });
-
-        await prepareProjectSourcesAsync(ctx, customBuildCtx.projectSourceDirectory);
-      },
-      {
-        retryOptions: {
-          retries: 3,
-          retryIntervalMs: 1_000,
-        },
-      }
-    );
-  });
+  await prepareProjectForStepsAsync(ctx, customBuildCtx.projectSourceDirectory);
 
   if (ctx.job.triggeredBy === BuildTrigger.GIT_BASED_INTEGRATION) {
     // We need to setup envs from eas.json
