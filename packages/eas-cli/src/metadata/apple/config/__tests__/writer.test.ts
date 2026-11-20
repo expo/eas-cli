@@ -44,6 +44,27 @@ describe('setAgeRating', () => {
     expect(writer.schema.advisory).toMatchObject(mostRestrictiveAdvisory);
   });
 
+  it('omits social media answers the API did not return', () => {
+    const writer = new AppleConfigWriter();
+    writer.setAgeRating(emptyAdvisory);
+    expect(writer.schema.advisory).not.toHaveProperty('socialMedia');
+    expect(writer.schema.advisory).not.toHaveProperty('socialMediaAgeRestricted');
+  });
+
+  it('records social media answers when the API returns them', () => {
+    const writer = new AppleConfigWriter();
+    writer.setAgeRating({
+      ...leastRestrictiveAdvisory,
+      socialMedia: true,
+      socialMediaAgeRestricted: false,
+    });
+    expect(writer.schema.advisory).toMatchObject({
+      socialMedia: true,
+      socialMediaAgeRestricted: false,
+    });
+    expect(validateConfig(writer.toSchema())).toEqual([]);
+  });
+
   // Drift guard: every advisory field that the writer emits must be allowed by
   // metadata-0.json. If you add a field to writer.ts (or apple-utils surfaces a
   // new one upstream), update the schema in the same change. Without this

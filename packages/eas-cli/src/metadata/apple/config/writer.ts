@@ -20,7 +20,9 @@ import {
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
+  AppleSocialMediaAdvisory,
 } from '../types';
+import { definedSocialMediaAdvisory } from './socialMediaAdvisory';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -39,7 +41,8 @@ export class AppleConfigWriter {
 
   // Note, both `seventeenPlus` and `gamlingAndContests` are deprecated
   public setAgeRating(
-    attributes: Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'>
+    attributes: Omit<AttributesOf<AgeRatingDeclaration>, 'seventeenPlus' | 'gamblingAndContests'> &
+      AppleSocialMediaAdvisory
   ): void {
     this.schema.advisory = {
       ageRatingOverride: attributes.ageRatingOverride ?? RatingOverride.NONE,
@@ -71,6 +74,7 @@ export class AppleConfigWriter {
       messagingAndChat: attributes.messagingAndChat ?? false,
       parentalControls: attributes.parentalControls ?? false,
       userGeneratedContent: attributes.userGeneratedContent ?? false,
+      ...definedSocialMediaAdvisory(attributes),
     };
   }
 
