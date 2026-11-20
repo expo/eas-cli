@@ -8,7 +8,7 @@ const NO_VCS_WARNING = `Using EAS CLI without version control system is not reco
 
 let wasNoVcsWarningPrinted = false;
 
-export function resolveVcsClient(requireCommit: boolean = false): Client {
+export function resolveVcsClient(requireCommit: boolean = false, projectDir?: string): Client {
   if (process.env.EAS_NO_VCS) {
     if (process.env.NODE_ENV !== 'test') {
       if (!wasNoVcsWarningPrinted) {
@@ -20,7 +20,7 @@ export function resolveVcsClient(requireCommit: boolean = false): Client {
         wasNoVcsWarningPrinted = true;
       }
     }
-    return new NoVcsClient();
+    return new NoVcsClient({ projectDir });
   }
-  return new GitClient({ requireCommit });
+  return new GitClient({ requireCommit, projectDir });
 }

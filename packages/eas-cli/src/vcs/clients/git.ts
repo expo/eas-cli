@@ -16,19 +16,21 @@ import {
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
-import { EASIGNORE_FILENAME, Ignore, makeShallowCopyAsync } from '../local';
+import { Ignore, makeShallowCopyAsync, resolveEasignorePathAsync } from '../local';
 import { Client } from '../vcs';
 
 let hasWarnedAboutEasignoreInRequireCommit = false;
 
 export default class GitClient extends Client {
   private readonly maybeCwdOverride?: string;
+  private readonly projectDir?: string;
   public requireCommit: boolean;
 
-  constructor(options: { maybeCwdOverride?: string; requireCommit: boolean }) {
+  constructor(options: { maybeCwdOverride?: string; requireCommit: boolean; projectDir?: string }) {
     super();
     this.maybeCwdOverride = options.maybeCwdOverride;
     this.requireCommit = options.requireCommit;
+    this.projectDir = options.projectDir ?? options.maybeCwdOverride;
   }
 
   public override async ensureRepoExistsAsync(): Promise<void> {
@@ -166,8 +168,8 @@ export default class GitClient extends Client {
     }
 
     const rootPath = await this.getRootPathAsync();
-    const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
-    const doesEasignoreExist = await fs.exists(sourceEasignorePath);
+    const sourceEasignorePath = await resolveEasignorePathAsync(rootPath, this.projectDir);
+    const doesEasignoreExist = sourceEasignorePath !== null;
     const shouldSuppressWarning =
       hasWarnedAboutEasignoreInRequireCommit ||
       getenv.boolish('EAS_SUPPRESS_REQUIRE_COMMIT_EASIGNORE_WARNING', false);
@@ -212,8 +214,7 @@ export default class GitClient extends Client {
         { cwd: rootPath }
       );
 
-      const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
-      if (await fs.exists(sourceEasignorePath)) {
+      if (sourceEasignorePath) {
         Log.debug('.easignore exists, deleting files that should be ignored', {
           sourceEasignorePath,
         });
@@ -254,7 +255,7 @@ export default class GitClient extends Client {
         // Special-case `.git` which `git ls-files` will never consider ignored.
         // We don't want to ignore anything by default. We want to know what does
         // the user want to ignore.
-        const ignore = await Ignore.createForCheckingAsync(rootPath);
+        const ignore = await Ignore.createForCheckingAsync(rootPath, this.projectDir);
         if (ignore.ignores('.git')) {
           await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
           Log.debug('deleted .git', {
@@ -274,7 +275,7 @@ export default class GitClient extends Client {
       //
       // We only do this if `requireCommit` is false because `requireCommit: true`
       // setups expect no changes in files (e.g. locked files should remain locked).
-      await makeShallowCopyAsync(rootPath, destinationPath);
+      await makeShallowCopyAsync(rootPath, destinationPath, this.projectDir);
     } else {
       Log.debug('not making shallow copy', { requireCommit: this.requireCommit });
     }
@@ -355,9 +356,9 @@ export default class GitClient extends Client {
       isTracked = false;
     }
 
-    const easIgnorePath = path.join(rootPath, EASIGNORE_FILENAME);
-    if (await fs.exists(easIgnorePath)) {
-      const ignore = await Ignore.createForCheckingAsync(rootPath);
+    const easIgnorePath = await resolveEasignorePathAsync(rootPath, this.projectDir);
+    if (easIgnorePath) {
+      const ignore = await Ignore.createForCheckingAsync(rootPath, this.projectDir);
       const wouldNotBeCopiedToClone = ignore.ignores(filePath);
       const wouldBeDeletedFromClone =
         (
