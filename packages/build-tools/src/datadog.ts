@@ -30,6 +30,39 @@ type DatadogSetupOptions =
 let setupOptions: DatadogSetupOptions | null = null;
 let pendingUploads: Promise<unknown>[] = [];
 
+/**
+ * Bounds each upload. After this deadline, every request of the upload fails at once, so only the
+ * 1-second retry waits remain. The worker awaits `flushAsync` before it reports the job result, so a
+ * request that never gets a response must not hold it.
+ */
+const UPLOAD_TIMEOUT_MS = 10_000;
+
+/**
+ * Sends one upload with a deadline. A failure goes to Sentry. node-fetch rejects an aborted request
+ * with a generic `AbortError`, so a request stopped by the deadline reports the deadline instead.
+ */
+function startUpload(
+  upload: (signal: AbortSignal) => Promise<unknown>,
+  reportFailure: (err: Error) => void
+): void {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new Error(`Upload did not finish within ${UPLOAD_TIMEOUT_MS} ms.`));
+  }, UPLOAD_TIMEOUT_MS);
+  timer.unref();
+  const { signal } = controller;
+  pendingUploads.push(
+    upload(signal)
+      .catch((err: unknown) => {
+        const error: unknown = signal.aborted ? signal.reason : err;
+        reportFailure(error instanceof Error ? error : new Error(String(error)));
+      })
+      .finally(() => {
+        clearTimeout(timer);
+      })
+  );
+}
+
 function withTargetTag(
   tags: Record<string, string>,
   target: MetricsTarget
@@ -85,17 +118,20 @@ export const Datadog = {
 
     const { path: metricsPath, headers } = getMetricsRequest(setupOptions);
 
-    const uploadPromise = turtleFetch(new URL(metricsPath, expoApiV2BaseUrl).toString(), 'POST', {
-      json: { metrics },
-      headers,
-      retries: 2,
-    }).catch(err => {
-      Sentry.capture(`Failed to report turtle ${target.kind} metric`, err, {
-        extras: { metrics },
-      });
-    });
-
-    pendingUploads.push(uploadPromise);
+    startUpload(
+      async signal =>
+        await turtleFetch(new URL(metricsPath, expoApiV2BaseUrl).toString(), 'POST', {
+          json: { metrics },
+          headers,
+          retries: 2,
+          signal,
+        }),
+      err => {
+        Sentry.capture(`Failed to report turtle ${target.kind} metric`, err, {
+          extras: { metrics },
+        });
+      }
+    );
   },
 
   log(message: string, tags: Record<string, string> = {}): void {
@@ -112,19 +148,22 @@ export const Datadog = {
         : { jobRunId: target.turtleJobRunId, message, tags: tagsWithTarget };
     const logsPath = target.kind === 'build' ? 'turtle-builds/logs' : 'turtle-job-runs/logs';
 
-    const uploadPromise = turtleFetch(new URL(logsPath, expoApiV2BaseUrl).toString(), 'POST', {
-      json: log,
-      headers: {
-        Authorization: `Bearer ${robotAccessToken}`,
-      },
-      shouldThrowOnNotOk: false,
-    }).catch(err => {
-      Sentry.capture(`Failed to report turtle ${target.kind} log`, err, {
-        extras: { log },
-      });
-    });
-
-    pendingUploads.push(uploadPromise);
+    startUpload(
+      async signal =>
+        await turtleFetch(new URL(logsPath, expoApiV2BaseUrl).toString(), 'POST', {
+          json: log,
+          headers: {
+            Authorization: `Bearer ${robotAccessToken}`,
+          },
+          shouldThrowOnNotOk: false,
+          signal,
+        }),
+      err => {
+        Sentry.capture(`Failed to report turtle ${target.kind} log`, err, {
+          extras: { log },
+        });
+      }
+    );
   },
 
   async flushAsync(): Promise<void> {
