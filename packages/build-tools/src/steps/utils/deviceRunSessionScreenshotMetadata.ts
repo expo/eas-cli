@@ -1,17 +1,29 @@
 import type { bunyan } from '@expo/logger';
 import { open } from 'node:fs/promises';
+import { z } from 'zod';
 
 const IMAGE_HEADER_MAX_BYTES = 64 * 1024;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export type ScreenshotSource = 'manual' | 'agent-device' | 'argent' | 'preview';
 
+/** An unknown value parses as undefined so it cannot block an upload. */
+export const DisplayRotationSchema = z
+  .enum(['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right'])
+  .nullish()
+  .catch(undefined);
+
+export type DisplayRotation = NonNullable<z.infer<typeof DisplayRotationSchema>>;
+
 export type ScreenshotMetadata = {
   source: ScreenshotSource;
   width?: number;
   height?: number;
-  displayRotation?: string;
+  displayRotation?: DisplayRotation;
 };
+
+/** Set only when the capture source confirmed the rotation for this image. */
+export type CapturedDisplayRotation = Pick<ScreenshotMetadata, 'displayRotation'>;
 
 export type ImageSize = { width: number; height: number };
 
