@@ -1,4 +1,4 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import { RuntimeSettings, Sentry } from '@expo/build-tools';
 import { ManagedArtifactType, Platform, Workflow } from '@expo/eas-build-job';
 
 import config from '../config';
@@ -221,5 +221,62 @@ describe(createBuildContext.name, () => {
     });
     expect(result).toEqual({ artifactId: 'artifact-id' });
     expect(ctx.artifacts).toEqual({});
+  });
+
+  describe('Sentry tags', () => {
+    const sessionTokenSecret = {
+      name: 'EAS_DEVICE_RUN_SESSION_TOKEN',
+      type: 'string',
+      value: 'session-token',
+    };
+
+    beforeEach(() => {
+      jest.spyOn(Sentry, 'setTags').mockImplementation(() => {});
+    });
+
+    it('tags Sentry events with the device run session and job run of a session job', async () => {
+      await createBuildContext({
+        ...baseOptions,
+        job: {
+          type: Workflow.GENERIC,
+          secrets: { environmentSecrets: [sessionTokenSecret] },
+          builderEnvironment: { env: { DEVICE_RUN_SESSION_ID: 'session-id' } },
+        } as any,
+      });
+
+      expect(Sentry.setTags).toHaveBeenCalledWith({
+        deviceRunSessionId: 'session-id',
+        jobRunId: 'build-id',
+      });
+    });
+
+    it.each([
+      {
+        name: 'a build job',
+        job: {
+          platform: Platform.IOS,
+          secrets: { environmentSecrets: [sessionTokenSecret] },
+          builderEnvironment: { env: { DEVICE_RUN_SESSION_ID: 'session-id' } },
+        },
+      },
+      {
+        name: 'a job run without a session token',
+        job: {
+          secrets: { environmentSecrets: [] },
+          builderEnvironment: { env: { DEVICE_RUN_SESSION_ID: 'session-id' } },
+        },
+      },
+      {
+        name: 'a job run without a session ID',
+        job: {
+          secrets: { environmentSecrets: [sessionTokenSecret] },
+          builderEnvironment: { env: {} },
+        },
+      },
+    ])('does not tag Sentry events for $name', async ({ job }) => {
+      await createBuildContext({ ...baseOptions, job: { type: Workflow.GENERIC, ...job } as any });
+
+      expect(Sentry.setTags).not.toHaveBeenCalled();
+    });
   });
 });
