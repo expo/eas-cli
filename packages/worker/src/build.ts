@@ -91,7 +91,7 @@ export async function build({
       }
     }
 
-    if (ctx.job.platform) {
+    if (ctx.job.platform && ctx.job.builder === undefined) {
       try {
         await logProjectDependenciesAsync(ctx as BuildContext<BuildJob>, analytics, buildId);
       } catch {
