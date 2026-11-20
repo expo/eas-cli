@@ -98,7 +98,7 @@ describe(SimulatorCrashes, () => {
       >;
       jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue(session);
       await createCommand(['--artifact', '2', '-o', 'crash.ips', '--json']).runAsync();
-      expect(downloadSimulatorArtifactAsync).toHaveBeenCalledWith(session, 'simulator-crashes', {
+      expect(downloadSimulatorArtifactAsync).toHaveBeenCalledWith(session, 'simulator-crash', {
         artifact: 2,
         output: 'crash.ips',
         nonInteractive: true,

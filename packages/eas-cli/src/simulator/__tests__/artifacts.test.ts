@@ -254,20 +254,20 @@ it('selects individual IPS artifacts and saves their original native contents', 
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const crashes = ['first', 'second'].map(id => ({
-    ...artifact(id, 'simulator-crashes'),
+    ...artifact(id, 'simulator-crash'),
     name: 'Crash report (SIM-A)',
     filename: `${id}.ips`,
     downloadUrl: `${baseUrl}/${id}.ips`,
-    metadata: { __eas_type: 'simulator-crashes', udid: 'SIM-A' },
+    metadata: { __eas_type: 'simulator-crash', udid: 'SIM-A' },
   }));
   try {
     await expect(
-      downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crashes', options)
+      downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crash', options)
     ).rejects.toThrow('Choose an artifact with --artifact');
     expect(requested).toEqual([]);
     for (const [index, crash] of crashes.entries()) {
       const output = path.join(directory, crash.filename);
-      await downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crashes', {
+      await downloadSimulatorArtifactAsync(session([...crashes, first]), 'simulator-crash', {
         output,
         artifact: index + 1,
         nonInteractive: true,
