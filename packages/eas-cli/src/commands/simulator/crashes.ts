@@ -112,7 +112,7 @@ export default class SimulatorCrashes extends EasCommand {
           'The session has stopped. --report-id is only available while it runs. Use --output <path> to download its crash artifact.'
         );
       }
-      await downloadSimulatorArtifactAsync(session, 'simulator-crashes', {
+      await downloadSimulatorArtifactAsync(session, 'simulator-crash', {
         artifact: flags.artifact,
         output: flags.output,
         nonInteractive,
