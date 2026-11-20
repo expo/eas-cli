@@ -72,7 +72,7 @@ function createMockBuildFragment({
     updatedAt: new Date().toISOString(),
     platform: AppPlatform.Android,
     id: buildId ?? uuid(),
-    logFiles: [],
+    logFileUrls: [],
     priority: BuildPriority.Normal,
     app: {
       __typename: 'App',
