@@ -1,3 +1,4 @@
+import { NativeBuilder } from '../common';
 import { Metadata, MetadataSchema } from '../metadata';
 
 const validMetadata: Metadata = {
@@ -91,5 +92,30 @@ describe('MetadataSchema', () => {
     expect(error?.message).toEqual(
       '"credentialsSource" must be one of [local, remote]. "gitCommitHash" length must be 40 characters long. "gitCommitHash" must only contain hexadecimal characters. "gitCommitMessage" length must be less than or equal to 4096 characters long. "message" length must be less than or equal to 1024 characters long'
     );
+  });
+
+  test('valid metadata with builder', () => {
+    const { value, error } = MetadataSchema.validate(
+      { ...validMetadata, builder: NativeBuilder.GRADLE },
+      {
+        stripUnknown: true,
+        convert: true,
+        abortEarly: false,
+      }
+    );
+    expect(error).toBeFalsy();
+    expect(value.builder).toBe(NativeBuilder.GRADLE);
+  });
+
+  test('invalid builder', () => {
+    const { error } = MetadataSchema.validate(
+      { ...validMetadata, builder: 'custom' },
+      {
+        stripUnknown: true,
+        convert: true,
+        abortEarly: false,
+      }
+    );
+    expect(error?.message).toEqual('"builder" must be one of [xcode, gradle]');
   });
 });
