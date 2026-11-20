@@ -4,6 +4,7 @@ import {
   BuildMode,
   BuildTrigger,
   Ios,
+  NativeBuilder,
   Platform,
   Workflow,
 } from '@expo/eas-build-job';
@@ -91,4 +92,36 @@ export function createTestIosJob({
     initiatingUserId: randomUUID(),
     workflowInterpolationContext,
   };
+}
+
+export function createTestXcodeJob(overrides: Record<string, unknown> = {}): Ios.Job {
+  return {
+    mode: BuildMode.BUILD,
+    builder: NativeBuilder.XCODE,
+    platform: Platform.IOS,
+    triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+    type: Workflow.GENERIC,
+    projectArchive: {
+      type: ArchiveSourceType.GIT,
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
+    },
+    projectRootDirectory: '.',
+    simulator: false,
+    appIdentifier: 'dev.expo.nativeapp',
+    distribution: 'store',
+    secrets: { robotAccessToken: 'robot-access-token' },
+    appId: randomUUID(),
+    initiatingUserId: randomUUID(),
+    ...overrides,
+  } as Ios.Job;
+}
+
+export function createTestXcodeSimulatorJob(overrides: Record<string, unknown> = {}): Ios.Job {
+  return createTestXcodeJob({
+    simulator: true,
+    appIdentifier: undefined,
+    distribution: undefined,
+    ...overrides,
+  });
 }

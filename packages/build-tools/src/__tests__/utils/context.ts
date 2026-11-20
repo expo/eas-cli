@@ -1,3 +1,4 @@
+import { Job } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildRuntimePlatform,
@@ -72,6 +73,16 @@ export function createStepContextMock({
   return new BuildStepContext(globalCtx, {
     logger: logger ?? createMockLogger(),
     relativeWorkingDirectory,
+  });
+}
+
+export function createTestBuildContext<TJob extends Job>(job: TJob): BuildContext<TJob> {
+  return new BuildContext(job, {
+    env: { __API_SERVER_URL: 'http://api.expo.test' },
+    logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+    logger: createMockLogger(),
+    uploadArtifact: jest.fn(),
+    workingdir: '/workingdir',
   });
 }
 
