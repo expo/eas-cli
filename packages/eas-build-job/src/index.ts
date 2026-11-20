@@ -14,6 +14,7 @@ export {
   EnvironmentSecret,
   EnvironmentSecretType,
   Hooks,
+  NativeBuilder,
   SshSettings,
   Workflow,
   Platform,
