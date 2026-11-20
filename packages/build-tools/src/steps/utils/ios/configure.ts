@@ -64,7 +64,7 @@ export async function updateVersionsAsync(
       targetName,
       buildConfiguration,
     });
-    const infoPlist = xcBuildConfiguration.buildSettings.INFOPLIST_FILE;
+    const infoPlist = xcBuildConfiguration!.buildSettings.INFOPLIST_FILE;
     if (infoPlist) {
       const evaluatedInfoPlistPath = trimQuotes(
         evaluateTemplateString(infoPlist, {

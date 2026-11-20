@@ -2581,6 +2581,7 @@ __metadata:
     typescript: "npm:^6.0.3"
     uuid: "npm:^9.0.1"
     ws: "npm:8.21.1"
+    xcode: "npm:^3.0.1"
     yaml: "npm:^2.9.1"
     zod: "npm:^4.6.7"
   languageName: unknown
