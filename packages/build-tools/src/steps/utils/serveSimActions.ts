@@ -41,8 +41,15 @@ type ServeSimRequest = {
   drainAfterDispatch?: boolean;
 };
 
-/** What a reply frame means for the request: keep waiting, or finish with a result or an error. */
-type ServeSimReplyOutcome<T> = { result: T } | { error: Error } | undefined;
+/**
+ * What a reply frame means for the request: keep waiting, finish with a result or an error, or
+ * keep a fallback result that finishes the request when no better frame arrives within `timeoutMs`.
+ */
+type ServeSimReplyOutcome<T> =
+  | { result: T }
+  | { error: Error }
+  | { fallback: T; timeoutMs: number }
+  | undefined;
 
 export async function runServeSimActionAsync(options: ServeSimRequest): Promise<void> {
   await runServeSimActionWithResultAsync(options);
@@ -74,17 +81,23 @@ export type ServeSimScreenshot = {
   metadata?: unknown;
 };
 
+/** How long a capture waits for the metadata frame after the image before it gives up on it. */
+export const SERVE_SIM_SCREENSHOT_METADATA_TIMEOUT_MS = 10_000;
+
 /**
  * Captures a screenshot as exec-ws binary output, so the caller gets the image bytes, not a path.
  * Set `waitForMetadata` only when the catalog advertises `binaryMetadataFrame`; older servers
- * send the image alone.
+ * send the image alone. A capture that gets the image but no metadata frame within
+ * `metadataTimeoutMs` returns the image without metadata.
  */
 export async function captureServeSimScreenshotAsync({
   params,
   waitForMetadata,
+  metadataTimeoutMs = SERVE_SIM_SCREENSHOT_METADATA_TIMEOUT_MS,
   ...options
 }: Omit<ServeSimRequest, 'action' | 'drainAfterDispatch'> & {
   waitForMetadata: boolean;
+  metadataTimeoutMs?: number;
 }): Promise<ServeSimScreenshot> {
   const action = 'screenshot.capture';
   let image: Buffer | undefined;
@@ -97,9 +110,22 @@ export async function captureServeSimScreenshotAsync({
       drainAfterDispatch: true,
     },
     (data, isBinary): ServeSimReplyOutcome<ServeSimScreenshot> => {
+      if (image) {
+        // The image is complete, so any frame for this capture other than its metadata ends the
+        // wait with the image alone.
+        const reply = isBinary ? undefined : parseReply(action, data);
+        const json = reply && 'json' in reply ? reply.json : null;
+        if (json && json.id !== 1) {
+          return undefined;
+        }
+        if (json && json.error === undefined && 'screenshotMetadata' in json) {
+          return { result: { image, metadata: json.screenshotMetadata } };
+        }
+        return { result: { image } };
+      }
       if (isBinary) {
         // A binary reply is the uint32 big-endian request id followed by the PNG bytes.
-        if (image || data.length < 4 || data.readUInt32BE(0) !== 1) {
+        if (data.length < 4 || data.readUInt32BE(0) !== 1) {
           return {
             error: new SystemError(`serve-sim ${action} returned a malformed image frame.`),
           };
@@ -108,7 +134,9 @@ export async function captureServeSimScreenshotAsync({
         if (image.length === 0) {
           return { error: new SystemError(`serve-sim ${action} returned an empty image.`) };
         }
-        return waitForMetadata ? undefined : { result: { image } };
+        return waitForMetadata
+          ? { fallback: { image }, timeoutMs: metadataTimeoutMs }
+          : { result: { image } };
       }
       const reply = parseReply(action, data);
       if ('error' in reply) {
@@ -116,9 +144,6 @@ export async function captureServeSimScreenshotAsync({
       }
       if (reply.json?.id !== 1) {
         return undefined;
-      }
-      if (image && reply.json.error === undefined && 'screenshotMetadata' in reply.json) {
-        return { result: { image, metadata: reply.json.screenshotMetadata } };
       }
       return { error: replyError(action, reply.json) };
     }
@@ -160,8 +185,10 @@ async function runServeSimRequestAsync<T>(
   signal?.throwIfAborted();
   return await new Promise<T>((resolve, reject) => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/exec-ws`, [`serve-sim.token.${token}`]);
+    const deadline = Date.now() + timeoutMs;
     let settled = false;
     let sent = false;
+    let fallback: { result: T } | undefined;
     const finish = (outcome: { result: T } | { error: unknown }) => {
       if (settled) {
         return;
@@ -176,21 +203,22 @@ async function runServeSimRequestAsync<T>(
         resolve(outcome.result);
       }
     };
+    // Once a fallback result is kept, a lost connection or the deadline finishes with it.
+    const fail = (error: Error) => finish(fallback ?? { error });
     const aborted = () => {
-      if (!sent || !drainAfterDispatch) {
+      // A kept fallback means the host already finished its work, so nothing is left to drain.
+      if (!sent || !drainAfterDispatch || fallback) {
         finish({ error: signal?.reason ?? new Error('Serve-sim action aborted.') });
       }
     };
-    const timer = setTimeout(
-      () => finish({ error: new SystemError(`serve-sim ${action} timed out.`) }),
+    let timer = setTimeout(
+      () => fail(new SystemError(`serve-sim ${action} timed out.`)),
       timeoutMs
     );
     signal?.addEventListener('abort', aborted, { once: true });
-    socket.on('error', () =>
-      finish({ error: new SystemError(`serve-sim ${action} connection failed.`) })
-    );
+    socket.on('error', () => fail(new SystemError(`serve-sim ${action} connection failed.`)));
     socket.on('close', () =>
-      finish({ error: new SystemError(`serve-sim ${action} connection closed before completion.`) })
+      fail(new SystemError(`serve-sim ${action} connection closed before completion.`))
     );
     socket.on('message', (raw, isBinary) => {
       if (settled) {
@@ -199,7 +227,19 @@ async function runServeSimRequestAsync<T>(
       const data = toBuffer(raw);
       if (sent) {
         const outcome = handleReply(data, isBinary);
-        if (outcome) {
+        if (outcome && 'fallback' in outcome) {
+          fallback = { result: outcome.fallback };
+          // An abort during the drain was deferred until now; with a fallback it finishes at once.
+          if (signal?.aborted) {
+            aborted();
+            return;
+          }
+          clearTimeout(timer);
+          timer = setTimeout(
+            () => fail(new SystemError(`serve-sim ${action} timed out.`)),
+            Math.max(0, Math.min(outcome.timeoutMs, deadline - Date.now()))
+          );
+        } else if (outcome) {
           finish(outcome);
         }
         return;

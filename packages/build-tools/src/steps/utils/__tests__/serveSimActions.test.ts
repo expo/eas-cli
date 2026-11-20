@@ -304,12 +304,49 @@ describe(captureServeSimScreenshotAsync, () => {
     await expect(capturing).rejects.toThrow(`serve-sim screenshot.capture ${message}`);
   });
 
-  it('rejects an error frame after the image', async () => {
+  it.each([
+    ['an error frame', JSON.stringify({ id: 1, error: 'Screenshot failed' })],
+    ['a second image frame', imageFrame(1, png)],
+    ['an invalid JSON frame', 'not JSON'],
+  ])('returns the image alone when %s follows it', async (_description, frame) => {
     serve(socket => {
       socket.send(imageFrame(1, png));
-      socket.send(JSON.stringify({ id: 1, error: 'Screenshot failed' }));
+      socket.send(frame);
     });
-    await expect(capture()).rejects.toThrow('failed: Screenshot failed');
+    await expect(capture()).resolves.toEqual({ image: png });
+  });
+
+  it('returns the image alone when the metadata frame does not arrive in time', async () => {
+    serve(socket => socket.send(imageFrame(1, png)));
+    await expect(capture({ metadataTimeoutMs: 30 })).resolves.toEqual({ image: png });
+  });
+
+  it('waits for the metadata frame no longer than the capture deadline', async () => {
+    serve(socket => socket.send(imageFrame(1, png)));
+    const started = Date.now();
+    await expect(capture({ timeoutMs: 100, metadataTimeoutMs: 10_000 })).resolves.toEqual({
+      image: png,
+    });
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it('returns the image alone when the connection closes before the metadata frame', async () => {
+    serve(socket => socket.send(imageFrame(1, png), () => socket.close()));
+    await expect(capture()).resolves.toEqual({ image: png });
+  });
+
+  it('stops waiting for the metadata frame on abort', async () => {
+    const controller = new AbortController();
+    let imageSent!: () => void;
+    const sent = new Promise<void>(resolve => {
+      imageSent = resolve;
+    });
+    serve(socket => socket.send(imageFrame(1, png), () => imageSent()));
+    const capturing = capture({ signal: controller.signal });
+    await sent;
+    await new Promise(resolve => setTimeout(resolve, 20));
+    controller.abort(new Error('session stopped'));
+    await expect(capturing).rejects.toThrow('session stopped');
   });
 
   it.each([
@@ -321,20 +358,12 @@ describe(captureServeSimScreenshotAsync, () => {
     await expect(capture()).rejects.toThrow(message);
   });
 
-  it('rejects a second image frame', async () => {
-    serve(socket => {
-      socket.send(imageFrame(1, png));
-      socket.send(imageFrame(1, png));
-    });
-    await expect(capture()).rejects.toThrow('malformed image frame');
-  });
-
   it('rejects an invalid JSON reply', async () => {
     serve(socket => socket.send('not JSON'));
     await expect(capture()).rejects.toThrow('returned invalid JSON');
   });
 
-  it('drains a sent capture before honoring abort', async () => {
+  it('drains a sent capture until its image before honoring abort', async () => {
     const controller = new AbortController();
     let reply!: () => void;
     let dispatched!: () => void;
@@ -350,15 +379,39 @@ describe(captureServeSimScreenshotAsync, () => {
     });
     let settled = false;
     const capturing = capture({ signal: controller.signal });
-    void capturing.finally(() => {
-      settled = true;
-    });
+    void capturing
+      .finally(() => {
+        settled = true;
+      })
+      .catch(() => {});
     await received;
     controller.abort(new Error('session stopped'));
     await new Promise(resolve => setImmediate(resolve));
     expect(settled).toBe(false);
     reply();
-    await expect(capturing).resolves.toEqual({ image: png, metadata });
+    await expect(capturing).rejects.toThrow('session stopped');
+  });
+
+  it('stops at the image when the abort came while the capture was draining', async () => {
+    const controller = new AbortController();
+    let reply!: () => void;
+    let dispatched!: () => void;
+    const received = new Promise<void>(resolve => {
+      dispatched = resolve;
+    });
+    serve(socket => {
+      // The server sends the image but never the metadata frame.
+      reply = () => socket.send(imageFrame(1, png));
+      dispatched();
+    });
+    const capturing = capture({ signal: controller.signal, metadataTimeoutMs: 10_000 });
+    await received;
+    controller.abort(new Error('session stopped'));
+    await new Promise(resolve => setImmediate(resolve));
+    const started = Date.now();
+    reply();
+    await expect(capturing).rejects.toThrow('session stopped');
+    expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('times out a capture that never replies', async () => {
