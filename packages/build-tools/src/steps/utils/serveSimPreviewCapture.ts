@@ -17,6 +17,7 @@ type ScreenshotCatalog = {
   'screenshot.capture'?: {
     properties?: {
       automation?: { type?: unknown };
+      maxWidth?: unknown;
       output?: { enum?: unknown; binaryMetadataFrame?: unknown };
     };
   };
@@ -26,13 +27,17 @@ export function createServeSimPreviewCapture({
   port,
   token,
   device,
+  maxWidth,
 }: {
   port: number;
   token: string;
   device: string;
+  /** serve-sim resizes the image to at most this width, so less data crosses the socket. */
+  maxWidth: number;
 }) {
   // Servers that advertise this flag send a metadata frame after each binary image.
   let binaryMetadataFrame = false;
+  let resizes = false;
   return {
     async isSupportedAsync(signal: AbortSignal): Promise<boolean> {
       const { stdout } = await runServeSimActionWithResultAsync({
@@ -47,6 +52,7 @@ export function createServeSimPreviewCapture({
       const properties = catalog?.['screenshot.capture']?.properties;
       const outputs = properties?.output?.enum;
       binaryMetadataFrame = properties?.output?.binaryMetadataFrame === true;
+      resizes = properties?.maxWidth !== undefined;
       return (
         properties?.automation?.type === 'boolean' &&
         Array.isArray(outputs) &&
@@ -58,7 +64,7 @@ export function createServeSimPreviewCapture({
       const { image, metadata } = await captureServeSimScreenshotAsync({
         port,
         token,
-        params: { udid: device, automation: true },
+        params: { udid: device, automation: true, ...(resizes ? { maxWidth } : {}) },
         timeoutMs: 30_000,
         signal,
         waitForMetadata: binaryMetadataFrame,

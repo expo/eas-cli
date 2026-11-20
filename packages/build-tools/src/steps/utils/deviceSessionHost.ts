@@ -23,6 +23,7 @@ import {
   uploadDeviceRunSessionScreenRecordingsAsync,
 } from './deviceRunSessionScreenRecordings';
 import {
+  PREVIEW_MAX_DIMENSION,
   captureDeviceRunSessionPreviewAsync,
   ensureMacosPreviewEncoderInstalledAsync,
   startDeviceRunSessionPreview,
@@ -1042,6 +1043,7 @@ async function startDeviceSessionHostInternalAsync(
           port,
           token: previewToken!,
           device,
+          maxWidth: PREVIEW_MAX_DIMENSION,
         });
         if (!(await iosPreviewCapture.isSupportedAsync(previewSetupController.signal))) {
           logger.warn(

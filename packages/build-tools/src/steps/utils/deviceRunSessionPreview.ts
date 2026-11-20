@@ -21,7 +21,7 @@ import {
 import { requireDeviceRunSessionWorkerApi } from './deviceRunSessionWorkerApi';
 
 const PREVIEW_INTERVAL_MS = 60_000;
-const PREVIEW_MAX_DIMENSION = 320;
+export const PREVIEW_MAX_DIMENSION = 320;
 const PREVIEW_QUALITY = 70;
 const MAX_PREVIEW_SIZE_BYTES = 5 * 1024 * 1024;
 
