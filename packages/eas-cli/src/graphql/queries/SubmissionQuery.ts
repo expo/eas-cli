@@ -156,9 +156,9 @@ export const SubmissionQuery = {
                     }
                     submittedBuild {
                       id
+                      appIdentifier
                     }
                     androidConfig {
-                      applicationIdentifier
                       track
                       releaseStatus
                       rollout

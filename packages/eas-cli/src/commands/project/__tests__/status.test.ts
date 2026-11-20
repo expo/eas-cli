@@ -96,9 +96,8 @@ function makeSubmission(overrides: Partial<ProjectStatusSubmission> = {}): Proje
     createdAt: '2026-07-02T12:00:00.000Z',
     completedAt: '2026-07-02T12:05:00.000Z',
     initiatingActor: { id: 'actor-1', displayName: 'jester' },
-    submittedBuild: { id: 'build-1' },
+    submittedBuild: { id: 'build-1', appIdentifier: 'com.example.app' },
     androidConfig: {
-      applicationIdentifier: 'com.example.app',
       track: 'production',
       releaseStatus: null,
       rollout: 50,

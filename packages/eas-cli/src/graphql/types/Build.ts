@@ -29,7 +29,7 @@ export const BuildFragmentNode = gql`
       id
       displayName
     }
-    logFiles
+    logFileUrls
     app {
       __typename
       id
@@ -57,9 +57,6 @@ export const BuildFragmentNode = gql`
     }
     gitCommitHash
     gitCommitMessage
-    initialQueuePosition
-    queuePosition
-    estimatedWaitTimeLeftSeconds
     priority
     createdAt
     updatedAt

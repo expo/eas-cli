@@ -47,7 +47,7 @@ function createBuildFragment(status: BuildStatus): BuildFragment {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     platform: AppPlatform.Android,
-    logFiles: [],
+    logFileUrls: [],
     priority: BuildPriority.Normal,
     app: {
       __typename: 'App',

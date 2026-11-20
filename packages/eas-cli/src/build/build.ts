@@ -2,7 +2,6 @@ import { ArchiveSource, ArchiveSourceType, BuildJob, Metadata, Platform, formatB
 import { CredentialsSource } from '@expo/eas-json';
 import assert from 'assert';
 import chalk from 'chalk';
-import cliProgress from 'cli-progress';
 import fs from 'fs-extra';
 import { GraphQLError } from 'graphql/error';
 import nullthrows from 'nullthrows';
@@ -61,7 +60,6 @@ import {
   BuildFragment,
   BuildMetadataInput,
   BuildParamsInput,
-  BuildPriority,
   BuildStatus,
   FingerprintSourceInput,
   UploadSessionType,
@@ -651,12 +649,6 @@ type BuildLogsProgressOptions = {
   installRender: (render: () => void) => void;
 };
 
-let queueProgressBarStarted = false;
-const queueProgressBar = new cliProgress.SingleBar(
-  { format: '|{bar}| {estimatedWaitTime}' },
-  cliProgress.Presets.rect
-);
-
 let statusNewSetAt: number | null = null;
 const NEW_STATUS_GRACE_PERIOD_MS = 15_000;
 
@@ -675,18 +667,6 @@ async function handleSingleBuildProgressAsync(
       text: 'Could not fetch the build status. Check your network connection.',
     });
     return { refetch: true };
-  }
-
-  if (queueProgressBarStarted && build?.status && build.status !== BuildStatus.InQueue) {
-    if (build.status === BuildStatus.InProgress) {
-      queueProgressBar.update(queueProgressBar.getTotal(), {
-        estimatedWaitTime: '',
-      });
-    }
-    queueProgressBar.stop();
-    Log.newLine();
-    queueProgressBarStarted = false;
-    spinner.start('Build is about to start');
   }
 
   switch (build.status) {
@@ -708,40 +688,9 @@ async function handleSingleBuildProgressAsync(
       }
       break;
     }
-    case BuildStatus.InQueue: {
+    case BuildStatus.InQueue:
       updateSpinnerText(spinner, { text: 'Build queued...' });
-      const progressBarPayload =
-        typeof build.estimatedWaitTimeLeftSeconds === 'number'
-          ? { estimatedWaitTime: formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds) }
-          : { estimatedWaitTime: '' };
-
-      if (
-        !queueProgressBarStarted &&
-        typeof build.initialQueuePosition === 'number' &&
-        typeof build.queuePosition === 'number' &&
-        typeof build.estimatedWaitTimeLeftSeconds === 'number'
-      ) {
-        spinner.stopAndPersist();
-        if (build.priority !== BuildPriority.High) {
-          Log.newLine();
-          Log.log('Start builds sooner in the priority queue.');
-          Log.log(`Sign up for a paid plan at ${link(getAccountBillingUrl(accountName))}`);
-        }
-
-        Log.newLine();
-        Log.log(`Waiting in ${priorityToQueueDisplayName[build.priority]}`);
-        queueProgressBar.start(
-          build.initialQueuePosition + 1,
-          build.initialQueuePosition - build.queuePosition + 1,
-          progressBarPayload
-        );
-        queueProgressBarStarted = true;
-      }
-      if (typeof build.queuePosition === 'number') {
-        queueProgressBar.update(build.queuePosition, progressBarPayload);
-      }
       break;
-    }
     case BuildStatus.PendingCancel:
     case BuildStatus.Canceled:
       spinner.fail('Build canceled');
@@ -770,12 +719,6 @@ async function handleSingleBuildProgressAsync(
   }
   return { refetch: true };
 }
-
-const priorityToQueueDisplayName: Record<BuildPriority, string> = {
-  [BuildPriority.Normal]: 'Free tier queue',
-  [BuildPriority.NormalPlus]: 'Free tier queue',
-  [BuildPriority.High]: 'priority queue',
-};
 
 const statusToDisplayName: Record<BuildStatus, string> = {
   [BuildStatus.New]: 'waiting to enter the queue',
@@ -880,41 +823,15 @@ function formatPendingBuildsText(
         showConcurrencyWarning && build?.status === BuildStatus.New
           ? ' (concurrency limit reached)'
           : '';
-      let extraInfo = '';
-      if (
-        build?.status === BuildStatus.InQueue &&
-        typeof build.initialQueuePosition === 'number' &&
-        typeof build.queuePosition === 'number'
-      ) {
-        const percent = Math.floor(
-          ((build.initialQueuePosition - build.queuePosition + 1) /
-            (build.initialQueuePosition + 1)) *
-            100
-        );
-        const estimatedWaitTime =
-          typeof build.estimatedWaitTimeLeftSeconds === 'number'
-            ? ` - ${formatEstimatedWaitTime(build.estimatedWaitTimeLeftSeconds)}`
-            : '';
-        extraInfo = ` - queue progress: ${chalk.bold(`${percent}%`)}${estimatedWaitTime}`;
-      }
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
-      } build - status: ${chalk.bold(status)}${concurrencyWarning}${extraInfo}`;
+      } build - status: ${chalk.bold(status)}${concurrencyWarning}`;
     }),
   ].join('\n  ');
 }
 
 function isBuildFragment(maybeBuild: MaybeBuildFragment): maybeBuild is BuildFragment {
   return maybeBuild !== null;
-}
-
-function formatEstimatedWaitTime(estimatedWaitTimeLeftSeconds: number): string {
-  if (estimatedWaitTimeLeftSeconds < 5 * 60) {
-    return 'starting soon...';
-  } else {
-    const n = Math.floor(estimatedWaitTimeLeftSeconds / (10 * 60)) + 1;
-    return `starting in about ${n}0 minutes...`;
-  }
 }
 
 async function computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync<T extends Platform>(

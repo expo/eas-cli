@@ -15,7 +15,7 @@ const SINGLE_BUILD_MAX_LOG_LINES = 5;
 const MULTIPLE_BUILDS_MAX_LOG_LINES = 3;
 
 async function fetchAndParseLogsForBuildAsync(build: BuildFragment): Promise<RawLogLine[] | null> {
-  const logFileUrl = build.logFiles[0];
+  const logFileUrl = build.logFileUrls[0];
   if (!logFileUrl) {
     return null;
   }

@@ -190,7 +190,7 @@ describe(WorkflowLogView, () => {
         },
       },
       platform: AppPlatform.Android,
-      logFiles: ['https://example.com/log1'],
+      logFileUrls: ['https://example.com/log1'],
     });
     let promptCalls = 0;
     let stepPrompt: any;
