@@ -550,6 +550,64 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
     }
   );
 
+  it('captures Android through serve-emu with its rotation instead of adb when available', async () => {
+    const captureAndroidScreenshotAsync = jest.fn(async (signal: AbortSignal) => {
+      signal.throwIfAborted();
+      return { image: png, displayRotation: 'landscape-left' as const };
+    });
+    const adbPng = Buffer.from('adb-png');
+    jest.mocked(spawn).mockImplementation((command, args) => {
+      if (command === 'adb') {
+        // Answer like adb so a wrong branch fails on the assertions below, not in this mock.
+        return Object.assign(Promise.resolve({ stdout: '', stderr: '' }), {
+          child: { stdout: Readable.from([adbPng]) },
+        }) as ReturnType<typeof spawn>;
+      }
+      return (async () => {
+        expect(await readFile(args[args.indexOf('-i') + 1])).toEqual(png);
+        expect(args).toContain('libwebp');
+        await writeFile(args[args.length - 1], Uint8Array.from(webp));
+        return { stdout: '', stderr: '' };
+      })() as ReturnType<typeof spawn>;
+    });
+    const signal = new AbortController().signal;
+    await expect(
+      captureDeviceRunSessionPreviewAsync({
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        device: 'selected-device',
+        captureAndroidScreenshotAsync,
+        env: {},
+        signal,
+      })
+    ).resolves.toEqual({ image: webp, displayRotation: 'landscape-left' });
+    expect(captureAndroidScreenshotAsync).toHaveBeenCalledWith(signal);
+    expect(jest.mocked(spawn).mock.calls.map(([command]) => command)).toEqual(['ffmpeg']);
+    expect(
+      (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
+    ).toEqual([]);
+  });
+
+  it('does not encode a serve-emu capture that finishes after the preview stops', async () => {
+    const controller = new AbortController();
+    jest.mocked(spawn).mockReset();
+    await expect(
+      captureDeviceRunSessionPreviewAsync({
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        device: 'selected-device',
+        captureAndroidScreenshotAsync: async () => {
+          controller.abort(new Error('session stopped'));
+          return { image: png };
+        },
+        env: {},
+        signal: controller.signal,
+      })
+    ).rejects.toThrow('session stopped');
+    expect(spawn).not.toHaveBeenCalled();
+    expect(
+      (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
+    ).toEqual([]);
+  });
+
   it('skips ambiguous Android devices instead of capturing the wrong screen', async () => {
     jest
       .mocked(spawn)

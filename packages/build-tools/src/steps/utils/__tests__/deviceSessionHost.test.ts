@@ -47,6 +47,7 @@ import {
   stageServeSimAppAsync,
 } from '../serveSimActions';
 import { startPreviewActivityPolling } from '../previewActivity';
+import { createServeEmuPreviewCapture } from '../serveEmuPreviewCapture';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
 
@@ -62,6 +63,7 @@ jest.mock('../iosAppArtifact', () => ({
   readIosApplicationIdentifierAsync: jest.fn(),
 }));
 jest.mock('../previewActivity');
+jest.mock('../serveEmuPreviewCapture');
 jest.mock('../localEgress', () => ({
   ...jest.requireActual('../localEgress'),
   readLocalEgressHandoffAsync: jest.fn().mockResolvedValue(null),
@@ -186,6 +188,10 @@ beforeEach(() => {
         },
       }),
     });
+  jest.mocked(createServeEmuPreviewCapture).mockImplementation(() => ({
+    isSupportedAsync: jest.fn().mockResolvedValue(false),
+    captureAsync: jest.fn(),
+  }));
   stopSessionPreview.mockResolvedValue(undefined);
   jest.mocked(startDeviceRunSessionPreview).mockReturnValue({ stopAsync: stopSessionPreview });
   jest.mocked(ensureFfmpegInstalledOnceAsync).mockResolvedValue(undefined);
@@ -287,6 +293,85 @@ it('uses the supplied Android serial for Hub and thumbnails without selecting an
   } finally {
     await host.finishAsync();
   }
+});
+
+describe('Android session preview capture', () => {
+  async function startAndroidPreviewAsync(
+    isSupportedAsync: jest.Mock<Promise<boolean>, [AbortSignal]>
+  ) {
+    const captureAsync = jest.fn();
+    jest
+      .mocked(createServeEmuPreviewCapture)
+      .mockReturnValueOnce({ isSupportedAsync, captureAsync });
+    const host = await startDeviceSessionHostAsync(ctx, {
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      timeoutMs: 10_000,
+      preview: { baseDomain, authtoken },
+      previewDeviceId: 'emulator-5556',
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    const previewSignal = new AbortController().signal;
+    await jest.mocked(startDeviceRunSessionPreview).mock.calls[0][0].captureAsync(previewSignal);
+    return { host, captureAsync, previewSignal };
+  }
+
+  it('captures through serve-emu when expo-device-hub supports automated screenshots', async () => {
+    const isSupportedAsync = jest.fn().mockResolvedValue(true);
+    const { host, captureAsync, previewSignal } = await startAndroidPreviewAsync(isSupportedAsync);
+    try {
+      const args = jest.mocked(spawnDetached).mock.calls[0][0].args;
+      expect(createServeEmuPreviewCapture).toHaveBeenCalledWith({
+        port: Number(args[args.indexOf('--port') + 1]),
+        token: 'hub-preview-token',
+        device: 'emulator-5556',
+      });
+      expect(isSupportedAsync).toHaveBeenCalledWith(expect.any(AbortSignal));
+      expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith({
+        captureIosScreenshotAsync: undefined,
+        captureAndroidScreenshotAsync: captureAsync,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        device: 'emulator-5556',
+        env,
+        signal: previewSignal,
+      });
+    } finally {
+      await host.finishAsync();
+    }
+  });
+
+  it('keeps capturing with adb when expo-device-hub has no automated screenshots', async () => {
+    const { host } = await startAndroidPreviewAsync(jest.fn().mockResolvedValue(false));
+    try {
+      expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ captureAndroidScreenshotAsync: undefined })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'does not support automated screenshots; capturing session previews with adb'
+        )
+      );
+    } finally {
+      await host.finishAsync();
+    }
+  });
+
+  it('keeps capturing with adb when the probe fails', async () => {
+    const err = new Error('socket hang up');
+    const { host } = await startAndroidPreviewAsync(jest.fn().mockRejectedValue(err));
+    try {
+      expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ captureAndroidScreenshotAsync: undefined })
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err },
+        expect.stringContaining('capturing session previews with adb')
+      );
+    } finally {
+      await host.finishAsync();
+    }
+  });
 });
 
 it('pins an already-booted iOS preview without taking over boot or setup', async () => {

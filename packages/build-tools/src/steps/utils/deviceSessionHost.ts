@@ -57,6 +57,7 @@ import {
   isPreinstalledExpoGoAsync,
   readIosApplicationIdentifierAsync,
 } from './iosAppArtifact';
+import { createServeEmuPreviewCapture } from './serveEmuPreviewCapture';
 import { createServeSimPreviewCapture } from './serveSimPreviewCapture';
 import { type PreviewActivityPolling, startPreviewActivityPolling } from './previewActivity';
 import { verifyLocalEgressGuardAsync } from './localEgressGuard';
@@ -632,6 +633,7 @@ async function startDeviceSessionHostInternalAsync(
   let finishTask: Promise<void> | null = null;
   let hostReady = false;
   let iosPreviewCapture: ReturnType<typeof createServeSimPreviewCapture> | undefined;
+  let androidPreviewCapture: ReturnType<typeof createServeEmuPreviewCapture> | undefined;
   let sessionPreview: ReturnType<typeof startDeviceRunSessionPreview> | null = null;
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
@@ -1038,7 +1040,32 @@ async function startDeviceSessionHostInternalAsync(
     // Android installed FFmpeg before launching the host. The optional thumbnail must not delay
     // readiness on macOS, so it starts after its encoder is installed there.
     previewSetupTask = (async () => {
-      if (!isAndroid) {
+      if (isAndroid) {
+        const capture = createServeEmuPreviewCapture({
+          port,
+          token: previewToken!,
+          device: previewDevice ?? device,
+        });
+        // adb screencap worked before serve-emu's capture, so any probe failure keeps using it.
+        const supported = await capture
+          .isSupportedAsync(previewSetupController.signal)
+          .catch(err => {
+            previewSetupController.signal.throwIfAborted();
+            logger.warn(
+              { err },
+              'Could not check expo-device-hub for automated screenshots; capturing session previews with adb.'
+            );
+            return null;
+          });
+        if (supported) {
+          androidPreviewCapture = capture;
+        } else if (supported === false) {
+          logger.info(
+            'This expo-device-hub version does not support automated screenshots; capturing ' +
+              'session previews with adb, without the display rotation.'
+          );
+        }
+      } else {
         iosPreviewCapture = createServeSimPreviewCapture({
           port,
           token: previewToken!,
@@ -1065,6 +1092,7 @@ async function startDeviceSessionHostInternalAsync(
           captureAsync: signal =>
             captureDeviceRunSessionPreviewAsync({
               captureIosScreenshotAsync: iosPreviewCapture?.captureAsync,
+              captureAndroidScreenshotAsync: androidPreviewCapture?.captureAsync,
               runtimePlatform,
               device: previewDevice ?? device,
               env,

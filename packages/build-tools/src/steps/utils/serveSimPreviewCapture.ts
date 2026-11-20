@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { DisplayRotationSchema } from './deviceRunSessionScreenshotMetadata';
-import { type IosScreenshot } from './deviceRunSessionPreview';
+import { type DeviceScreenshot } from './deviceRunSessionPreview';
 import {
   captureServeSimScreenshotAsync,
   runServeSimActionWithResultAsync,
@@ -59,7 +59,7 @@ export function createServeSimPreviewCapture({
         outputs.includes('binary')
       );
     },
-    async captureAsync(signal: AbortSignal): Promise<IosScreenshot> {
+    async captureAsync(signal: AbortSignal): Promise<DeviceScreenshot> {
       // The exec-ws client drains a sent capture before it honors the abort.
       const { image, metadata } = await captureServeSimScreenshotAsync({
         port,
