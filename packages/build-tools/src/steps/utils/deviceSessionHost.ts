@@ -1097,6 +1097,7 @@ async function startDeviceSessionHostInternalAsync(
               device: previewDevice ?? device,
               env,
               signal,
+              logger,
             }),
         });
       }

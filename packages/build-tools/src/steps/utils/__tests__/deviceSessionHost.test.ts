@@ -335,6 +335,7 @@ describe('Android session preview capture', () => {
         device: 'emulator-5556',
         env,
         signal: previewSignal,
+        logger,
       });
     } finally {
       await host.finishAsync();

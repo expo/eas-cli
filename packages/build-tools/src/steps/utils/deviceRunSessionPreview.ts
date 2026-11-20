@@ -184,14 +184,19 @@ export async function captureDeviceRunSessionPreviewAsync({
   signal,
   captureIosScreenshotAsync,
   captureAndroidScreenshotAsync,
+  logger,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
   captureIosScreenshotAsync?: ScreenshotCapture;
-  /** serve-emu's automated capture. Without it, Android uses adb screencap, with no rotation. */
+  /**
+   * serve-emu's automated capture. Without it, or when it fails, Android uses adb screencap, with
+   * no rotation.
+   */
   captureAndroidScreenshotAsync?: ScreenshotCapture;
+  logger?: bunyan;
 }): Promise<DeviceRunSessionPreviewCapture> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
@@ -217,6 +222,7 @@ export async function captureDeviceRunSessionPreviewAsync({
         directory,
         preview,
         options,
+        logger,
       }));
     }
     const image = await readFile(preview);
@@ -265,24 +271,39 @@ async function captureAndroidPreviewAsync({
   directory,
   preview,
   options,
+  logger,
 }: {
   captureAndroidScreenshotAsync?: ScreenshotCapture;
   device: string;
   directory: string;
   preview: string;
   options: CaptureOptions;
+  logger?: bunyan;
 }): Promise<CapturedDisplayRotation> {
   const screenshot = path.join(directory, 'screen.png');
-  let displayRotation: DisplayRotation | undefined;
+  let captured: DeviceScreenshot | undefined;
   if (captureAndroidScreenshotAsync) {
-    const captured = await captureAndroidScreenshotAsync(options.signal);
+    // serve-emu captures through its streaming app, which can fail to start or stop streaming
+    // while adb still works, so a failed capture uses adb for this preview.
+    const result = await asyncResult(captureAndroidScreenshotAsync(options.signal));
     options.signal.throwIfAborted();
+    if (result.ok) {
+      captured = result.value;
+    } else {
+      logger?.warn(
+        { err: result.reason },
+        'serve-emu could not capture the session preview; capturing it with adb, without the ' +
+          'display rotation.'
+      );
+    }
+  }
+  if (captured) {
     await writeFile(screenshot, captured.image);
-    displayRotation = captured.displayRotation;
   } else {
     // adb screencap reports no rotation.
     await captureAdbScreenshotAsync({ device, screenshot, options });
   }
+  const displayRotation = captured?.displayRotation;
   await spawn(
     'ffmpeg',
     [
