@@ -17,6 +17,8 @@ import {
   HooksSchema,
   JobOutputs,
   JobOutputsSchema,
+  NativeBuilder,
+  NativeJobForbiddenKeys,
   Platform,
   SshSettings,
   SshSettingsSchema,
@@ -77,6 +79,7 @@ export interface BuildSecrets {
 
 export interface Job {
   mode: BuildMode;
+  builder?: NativeBuilder.GRADLE;
   type: Workflow;
   triggeredBy: BuildTrigger;
   projectArchive: ArchiveSource;
@@ -142,7 +145,7 @@ const SecretsSchema = Joi.object({
   robotAccessToken: Joi.string(),
 });
 
-export const JobSchema = Joi.object({
+const BaseJobSchema = Joi.object({
   mode: Joi.string()
     .valid(BuildMode.BUILD, BuildMode.CUSTOM, BuildMode.REPACK)
     .default(BuildMode.BUILD),
@@ -204,4 +207,19 @@ export const JobSchema = Joi.object({
   workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)
   ),
-}).concat(CustomBuildConfigSchema);
+});
+
+const NonNativeJobSchema = BaseJobSchema.concat(CustomBuildConfigSchema);
+
+const NativeJobSchema = BaseJobSchema.keys({
+  ...NativeJobForbiddenKeys,
+  mode: Joi.string().valid(BuildMode.BUILD).default(BuildMode.BUILD),
+  type: Joi.string().valid(Workflow.GENERIC).required(),
+  builder: Joi.string().valid(NativeBuilder.GRADLE).required(),
+}).fork('buildType', schema => schema.required());
+
+export const JobSchema = Joi.object().when('.builder', {
+  is: Joi.exist(),
+  then: NativeJobSchema,
+  otherwise: NonNativeJobSchema,
+});
