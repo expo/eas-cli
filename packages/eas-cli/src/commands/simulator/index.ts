@@ -875,6 +875,9 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } finally {
       sessionInterrupt.signal.removeEventListener('abort', onSessionAbort);
+      // Paths that already disposed it are unaffected. An unexpected error, for example while
+      // printing the session instructions, must not leave the signal listeners installed.
+      sessionInterrupt.dispose();
       egressAbortController.abort();
       await egressPromise;
     }
@@ -959,13 +962,21 @@ async function waitForSessionEndOrInterruptAsync({
     while (!signal.aborted) {
       let session;
       try {
-        session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
+        // Race the abort so a stalled poll cannot delay the stop after Ctrl+C or SIGTERM. A runner
+        // can follow SIGTERM with SIGKILL soon after.
+        session = await Promise.race([
+          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
+          sessionInterrupt.abortPromise,
+        ]);
       } catch (err) {
         Log.debug(
           `Failed to poll simulator session: ${err instanceof Error ? err.message : String(err)}`
         );
         await sleepAsync(POLL_INTERVAL_MS, signal);
         continue;
+      }
+      if (!session) {
+        break;
       }
 
       const jobRunStatus = session.turtleJobRun?.status;

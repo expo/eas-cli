@@ -28,10 +28,12 @@ export async function createAppArchiveAsync(
     process.exit(143);
   };
   process.once('exit', cleanupOnExit);
+  // A caller that handles interrupts itself (simulator:start stops its session first) needs both
+  // signals: exiting here would skip that cleanup. The exit handler still removes the archive.
   if (handleInterrupt) {
     process.once('SIGINT', interrupt);
+    process.once('SIGTERM', terminate);
   }
-  process.once('SIGTERM', terminate);
   const cleanupAsync = async (): Promise<void> => {
     try {
       await fs.remove(directory);

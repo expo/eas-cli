@@ -3572,21 +3572,47 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
-  it('stops the session on SIGTERM while it is running', async () => {
+  it('stops the session on SIGTERM while it is running, without waiting for a stalled poll', async () => {
     const existingSigtermListeners = [...process.listeners('SIGTERM')];
-    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
-      process.emit('SIGTERM');
-      return makeDeviceRunSession();
+    let notifyPollStarted: () => void = () => {};
+    const pollStarted = new Promise<void>(resolve => {
+      notifyPollStarted = resolve;
     });
+    let releasePoll: (session: ReturnType<typeof makeDeviceRunSession>) => void = () => {};
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releasePoll = resolve;
+          notifyPollStarted();
+        })
+    );
 
     const { command } = createCommand(['--platform', 'ios']);
-    await command.runAsync();
+    const commandPromise = command.runAsync();
+    await pollStarted;
+    process.emit('SIGTERM');
+    await commandPromise;
 
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
       graphqlClient,
       'session-123'
     );
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+    releasePoll(makeDeviceRunSession());
+  });
+
+  it('removes its signal listeners when printing the session instructions fails', async () => {
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+    jest.mocked(Log.log).mockImplementationOnce(() => {
+      throw new Error('print failed');
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('print failed');
+
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
     expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
   });
 

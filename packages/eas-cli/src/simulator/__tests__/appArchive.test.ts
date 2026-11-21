@@ -63,6 +63,22 @@ describe(createAppArchiveAsync, () => {
     );
   });
 
+  it('leaves SIGINT and SIGTERM to a caller that handles interrupts', async () => {
+    const sigintListeners = process.listeners('SIGINT');
+    const sigtermListeners = process.listeners('SIGTERM');
+    const exitListenerCount = process.listenerCount('exit');
+    const archive = await createAppArchiveAsync(bundle, { handleInterrupt: false });
+    try {
+      expect(process.listeners('SIGINT')).toEqual(sigintListeners);
+      expect(process.listeners('SIGTERM')).toEqual(sigtermListeners);
+      // The exit handler still removes the archive when the caller exits.
+      expect(process.listenerCount('exit')).toBe(exitListenerCount + 1);
+    } finally {
+      await archive.cleanupAsync();
+    }
+    expect(process.listenerCount('exit')).toBe(exitListenerCount);
+  });
+
   it('removes its signal and exit handlers after normal cleanup', async () => {
     const before = [
       process.listeners('SIGINT'),
