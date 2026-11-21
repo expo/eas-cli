@@ -1340,6 +1340,33 @@ describe(Simulator, () => {
     }
   });
 
+  it('cancels the create request and exits with 143 on SIGTERM', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const createStarted = mockCreateThatNeverAnswers();
+      const existingSigtermListeners = [...process.listeners('SIGTERM')];
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5_000);
+      await exited;
+
+      expect(Log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Run `eas simulator:list` to check for a running session')
+      );
+      expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('warns the same way, and logs no "request failed", when the create request fails after Ctrl+C', async () => {
     mockLogEvent.mockClear();
     useFakeTimersWithRealSleep();
@@ -2503,6 +2530,40 @@ describe(Simulator, () => {
     processExitSpy.mockRestore();
   });
 
+  it('stops the simulator session and exits with 143 on SIGTERM before the session is ready', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let notifyQueryStarted: () => void = () => {};
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    mockByIdAsync.mockImplementationOnce(
+      () =>
+        new Promise(() => {
+          notifyQueryStarted();
+        })
+    );
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    const commandPromise = command.runAsync();
+    await queryStarted;
+
+    process.emit('SIGTERM');
+    await expect(commandPromise).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+    processExitSpy.mockRestore();
+  });
+
   const localEgressSessions: [
     string,
     DeviceRunSessionType,
@@ -3509,6 +3570,24 @@ describe(Simulator, () => {
       'session-123'
     );
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session on SIGTERM while it is running', async () => {
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
   });
 
   it('stops the session and reports when the stop cannot be confirmed after an interrupt before ready', async () => {

@@ -1009,11 +1009,43 @@ async function waitForSessionEndOrInterruptAsync({
   }
 }
 
+/**
+ * Signals that stop the session. Ctrl+C sends SIGINT. Package runners such as `pnpm dlx` can
+ * forward SIGTERM to the CLI instead, and without a handler Node exits at once and leaves the
+ * session running on EAS.
+ */
+const INTERRUPT_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
+type InterruptSignal = (typeof INTERRUPT_SIGNALS)[number];
+
+/** Shell convention: 128 + the signal number. */
+const EXIT_CODE_BY_INTERRUPT_SIGNAL: Record<InterruptSignal, number> = {
+  SIGINT: 130,
+  SIGTERM: 143,
+};
+
+/** Listens for every interrupt signal and returns a function that removes the listeners. */
+function addInterruptListener(listener: (signal: InterruptSignal) => void): () => void {
+  const listeners = INTERRUPT_SIGNALS.map(signal => {
+    const onSignal = (): void => {
+      listener(signal);
+    };
+    process.on(signal, onSignal);
+    return { signal, onSignal };
+  });
+  return () => {
+    for (const { signal, onSignal } of listeners) {
+      process.removeListener(signal, onSignal);
+    }
+  };
+}
+
 type SessionInterrupt = {
   signal: AbortSignal;
   abortPromise: Promise<void>;
   /** Stop the session as if the user had pressed Ctrl+C. */
   abort: () => void;
+  /** The exit code for the signal that interrupted the session. */
+  readonly exitCode: number;
   dispose: () => void;
 };
 
@@ -1029,18 +1061,20 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
       { once: true }
     );
   });
-  const sigintHandler = (): void => {
+  let exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL.SIGINT;
+  const interruptHandler = (interruptSignal: InterruptSignal): void => {
     if (signal.aborted) {
-      // Force exit on a second Ctrl+C in case cleanup is hanging. The session may still be
+      // Force exit on a second signal in case cleanup is hanging. The session may still be
       // running on EAS, so tell the user how to make sure it gets terminated.
       Log.error(
         `Aborted before the simulator session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
-      process.exit(130);
+      process.exit(EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal]);
     }
+    exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal];
     abortController.abort();
   };
-  process.on('SIGINT', sigintHandler);
+  const removeInterruptListener = addInterruptListener(interruptHandler);
 
   return {
     signal,
@@ -1048,7 +1082,10 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
     abort: () => {
       abortController.abort();
     },
-    dispose: () => process.removeListener('SIGINT', sigintHandler),
+    get exitCode() {
+      return exitCode;
+    },
+    dispose: removeInterruptListener,
   };
 }
 
@@ -1082,7 +1119,7 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   } finally {
     sessionInterrupt.dispose();
   }
-  process.exit(130);
+  process.exit(sessionInterrupt.exitCode);
 }
 
 async function stopDeviceRunSessionCreatedAfterCancelAsync(
@@ -1158,9 +1195,9 @@ class SimulatorRequestCancelledError extends Error {}
  * arrives. "Request cancelled" means the client stopped waiting; the server can still create the
  * session. So Ctrl+C stops the spinner, flushes analytics, and waits a bounded time for the
  * request: a session that comes back goes to `stopCreatedAsync`, and otherwise the user is told how
- * to check for one. Then it exits with 130, like the session's own Ctrl+C handler: going through
- * the command's error handling would print the exit as an error and report it to Sentry. A second
- * Ctrl+C exits at once.
+ * to check for one. Then it exits with 130 (143 for SIGTERM), like the session's own Ctrl+C
+ * handler: going through the command's error handling would print the exit as an error and report it
+ * to Sentry. A second Ctrl+C or SIGTERM exits at once.
  */
 async function withSimulatorRequestAnalyticsAsync<T>(
   analytics: AnalyticsWithOrchestration,
@@ -1170,18 +1207,20 @@ async function withSimulatorRequestAnalyticsAsync<T>(
   stopCreatedAsync: (created: T) => Promise<void>
 ): Promise<T> {
   let cancelRequested = false;
-  let onSigint: (() => void) | undefined;
+  let exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL.SIGINT;
+  let onInterrupt: ((signal: InterruptSignal) => void) | undefined;
   const cancelled = new Promise<never>((_, reject) => {
-    onSigint = () => {
+    onInterrupt = signal => {
       if (cancelRequested) {
         Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
-        process.exit(130);
+        process.exit(EXIT_CODE_BY_INTERRUPT_SIGNAL[signal]);
       }
       cancelRequested = true;
+      exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL[signal];
       reject(new SimulatorRequestCancelledError());
     };
   });
-  process.on('SIGINT', onSigint!);
+  const removeInterruptListener = addInterruptListener(onInterrupt!);
   analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
   let createPromise: Promise<T> | undefined;
   try {
@@ -1198,7 +1237,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
       ]);
       flushTimeout.abort();
       await stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync);
-      process.exit(130);
+      process.exit(exitCode);
     }
     const reason = simulatorRequestFailureReason(error);
     if (reason) {
@@ -1206,7 +1245,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
     }
     throw error;
   } finally {
-    process.removeListener('SIGINT', onSigint!);
+    removeInterruptListener();
   }
 }
 
