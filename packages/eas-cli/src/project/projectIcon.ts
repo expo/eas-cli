@@ -137,7 +137,11 @@ export async function validateIconAsync(imagePath: string): Promise<void> {
       `Unsupported image format "${extension}". The icon must be a PNG or JPEG file.`
     );
   }
-  const { size } = await fs.stat(imagePath);
+  const stat = await fs.stat(imagePath);
+  if (!stat.isFile()) {
+    throw new Error(`${imagePath} is not a file.`);
+  }
+  const { size } = stat;
   if (size > MAX_IMAGE_SIZE_BYTES) {
     throw new Error(
       `The image is ${(size / 1024 / 1024).toFixed(1)} MB, but the maximum allowed size is 10 MB.`
