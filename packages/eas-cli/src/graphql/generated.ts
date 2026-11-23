@@ -15524,6 +15524,14 @@ export type RemoveProfileImageMutationVariables = Exact<{
 
 export type RemoveProfileImageMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', removeProfileImage: { __typename?: 'App', id: string, fullName: string } } | null };
 
+export type SetAppDisplayNameMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  appInfo: AppInfoInput;
+}>;
+
+
+export type SetAppDisplayNameMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', setAppInfo: { __typename?: 'App', id: string, name: string, fullName: string } } | null };
+
 export type CreateAppVersionMutationVariables = Exact<{
   appVersionInput: AppVersionInput;
 }>;
