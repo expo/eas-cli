@@ -14,6 +14,7 @@ export default class ProjectNameSet extends EasCommand {
   static override args = {
     name: Args.string({
       description: 'Display name, at most 255 characters. Defaults to the name in the app config.',
+      ignoreStdin: true,
     }),
   };
 
