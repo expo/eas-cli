@@ -222,7 +222,15 @@ describe(runAgentAsync, () => {
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
   });
 
-  it('runs Claude Code with the requested model, also when it resumes', async () => {
+  it.each([
+    ['the requested model', { model: 'claude-opus-4-5' }, ['--model', 'claude-opus-4-5']],
+    ['the requested effort level', { effort: 'high' }, ['--effort', 'high']],
+    [
+      'the requested model and effort level',
+      { model: 'claude-opus-4-5', effort: 'high' },
+      ['--model', 'claude-opus-4-5', '--effort', 'high'],
+    ],
+  ])('runs Claude Code with %s, also when it resumes', async (_name, options, flags) => {
     leaseMock
       .mockResolvedValueOnce(anthropicLease)
       .mockResolvedValueOnce({ ...anthropicLease, accessToken: 'renewed-access-token' });
@@ -230,13 +238,13 @@ describe(runAgentAsync, () => {
       onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
     });
 
-    await runAgentAsync(createOptions({ model: 'opus' }));
+    await runAgentAsync(createOptions(options));
 
     expect(invocations).toHaveLength(2);
     const [first, resumed] = invocations;
-    expect(first.args.slice(-2)).toEqual(['--model', 'opus']);
+    expect(first.args.slice(-flags.length)).toEqual(flags);
     expect(resumed.args).toContain('--continue');
-    expect(resumed.args.slice(-2)).toEqual(['--model', 'opus']);
+    expect(resumed.args.slice(-flags.length)).toEqual(flags);
   });
 
   it('writes the agent output as log lines', async () => {
@@ -413,14 +421,25 @@ describe(runAgentAsync, () => {
   });
 
   it.each([
-    ['the requested model', 'gpt-5.1-codex', ['model = "gpt-5.1-codex"']],
+    ['the requested model', { model: 'gpt-5.1-codex' }, ['model = "gpt-5.1-codex"']],
     [
       'a model name that is escaped so that it cannot add settings',
-      'gpt"\nshell_tool = true\n[features]',
+      { model: 'gpt"\nshell_tool = true\n[features]' },
       ['model = "gpt\\"\\nshell_tool = true\\n[features]"'],
     ],
-    ['its default model when none is requested', undefined, []],
-  ])('runs Codex with %s, also when it resumes', async (_name, model, modelSettings) => {
+    ['the requested effort level', { effort: 'high' }, ['model_reasoning_effort = "high"']],
+    [
+      'an effort level that is escaped so that it cannot add settings',
+      { effort: 'high"\nshell_tool = true' },
+      ['model_reasoning_effort = "high\\"\\nshell_tool = true"'],
+    ],
+    [
+      'the requested model and effort level',
+      { model: 'gpt-5.1-codex', effort: 'xhigh' },
+      ['model = "gpt-5.1-codex"', 'model_reasoning_effort = "xhigh"'],
+    ],
+    ['its default model and effort level when none are requested', {}, []],
+  ])('runs Codex with %s, also when it resumes', async (_name, options, modelSettings) => {
     leaseMock
       .mockResolvedValueOnce(openaiLease)
       .mockResolvedValueOnce({ ...openaiLease, accessToken: 'renewed-access-token' });
@@ -435,7 +454,7 @@ describe(runAgentAsync, () => {
       },
     });
 
-    await runAgentAsync(createOptions({ agentKind: 'codex', model }));
+    await runAgentAsync(createOptions({ agentKind: 'codex', ...options }));
 
     expect(invocations).toHaveLength(2);
     expect(invocations[1].args).toContain('resume');

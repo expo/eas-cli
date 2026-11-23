@@ -2,4 +2,4 @@
 '@expo/build-tools': minor
 ---
 
-Add an optional `model` input to `eas/run_agent` that selects the model the agent CLI uses.
+Add optional `model` and `effort` inputs to `eas/run_agent` that select the model and the reasoning effort level the agent CLI uses.

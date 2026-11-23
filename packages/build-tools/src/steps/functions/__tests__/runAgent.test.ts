@@ -33,6 +33,7 @@ const inputs = {
   max_duration_seconds: { value: 1800 },
   prompt: { value: 'Fix the failing test.' },
   model: { value: undefined as string | undefined },
+  effort: { value: undefined as string | undefined },
 };
 const env = {
   PATH: '/usr/local/bin:/usr/bin',
@@ -132,9 +133,8 @@ describe(createRunAgentBuildFunction, () => {
 
   it.each([
     ['no model when the input is not set', undefined],
-    ['a model alias', 'opus'],
     ['a full model name', 'claude-opus-4-5'],
-    ['a model name with a context window suffix', 'sonnet[1m]'],
+    ['a model name with a context window suffix', 'claude-sonnet-4-5[1m]'],
     ['a model name with a dot', 'gpt-5.1-codex'],
     ['a model name with other punctuation', 'provider/model@2026:v1'],
   ])('hands %s to the agent run', async (_name, model) => {
@@ -143,6 +143,21 @@ describe(createRunAgentBuildFunction, () => {
       await runAsync({ inputs: { ...inputs, model: { value: model } } });
 
       expect(runAgentSpy.mock.calls[0][0].model).toBe(model);
+    } finally {
+      runAgentSpy.mockRestore();
+    }
+  });
+
+  it.each([
+    ['no effort level when the input is not set', undefined],
+    ['an effort level', 'high'],
+    ['an effort level the step does not know', 'ultra'],
+  ])('hands %s to the agent run', async (_name, effort) => {
+    const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
+    try {
+      await runAsync({ inputs: { ...inputs, effort: { value: effort } } });
+
+      expect(runAgentSpy.mock.calls[0][0].effort).toBe(effort);
     } finally {
       runAgentSpy.mockRestore();
     }
@@ -193,6 +208,8 @@ describe(createRunAgentBuildFunction, () => {
     ['an empty prompt', { inputs: { ...inputs, prompt: { value: '' } } }],
     ['an empty model', { inputs: { ...inputs, model: { value: '' } } }],
     ['a model that reads as a flag', { inputs: { ...inputs, model: { value: '--continue' } } }],
+    ['an empty effort level', { inputs: { ...inputs, effort: { value: '' } } }],
+    ['an effort level that reads as a flag', { inputs: { ...inputs, effort: { value: '-p' } } }],
     ['no EXPO_TOKEN', { env: { ...env, EXPO_TOKEN: '' } }],
     ['no PATH', { env: { ...env, PATH: '' } }],
     ['no Expo API URL', { ctx: { ...ctx, expoApiV2BaseUrl: undefined } }],

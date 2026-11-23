@@ -30,6 +30,7 @@ export async function runAgentAsync({
   agentRunId,
   prompt,
   model,
+  effort,
   expoToken,
   expoApiV2BaseUrl,
   mcpUrl,
@@ -43,6 +44,7 @@ export async function runAgentAsync({
   agentRunId: string;
   prompt: string;
   model?: string;
+  effort?: string;
   expoToken: string;
   expoApiV2BaseUrl: string;
   /** The Expo MCP server's streamable HTTP endpoint. */
@@ -109,6 +111,7 @@ export async function runAgentAsync({
             mcpServer,
             prompt,
             model,
+            effort,
             credentials,
             isResuming,
           });
@@ -120,6 +123,7 @@ export async function runAgentAsync({
             mcpServer,
             prompt,
             model,
+            effort,
             credentials,
             isResuming,
           });

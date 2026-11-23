@@ -30,6 +30,7 @@ export async function prepareClaudeCodeAsync({
   mcpServer,
   prompt,
   model,
+  effort,
   credentials,
   isResuming,
 }: {
@@ -38,6 +39,7 @@ export async function prepareClaudeCodeAsync({
   mcpServer: McpServer;
   prompt: string;
   model: string | undefined;
+  effort: string | undefined;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
 }): Promise<AgentInvocation> {
@@ -61,6 +63,7 @@ export async function prepareClaudeCodeAsync({
       ...['--tools', '', '--allowedTools', `mcp__${MCP_SERVER_NAME}`],
       ...['--mcp-config', mcpConfigPath, '--strict-mcp-config'],
       ...(model ? ['--model', model] : []),
+      ...(effort ? ['--effort', effort] : []),
     ],
     env: {
       ...minimalEnv,
