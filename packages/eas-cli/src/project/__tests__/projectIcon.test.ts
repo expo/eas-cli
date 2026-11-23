@@ -84,6 +84,19 @@ describe(resolveAppConfigIconAsync, () => {
     });
   });
 
+  it('prefers an image within the size limit over an earlier icon that is too large', async () => {
+    vol.fromJSON({
+      '/app/assets/icon.png': 'x'.repeat(10 * 1024 * 1024 + 1),
+      '/app/assets/ios-icon.png': 'fake-png-bytes',
+    });
+    mockAppConfig({ icon: './assets/icon.png', ios: { icon: './assets/ios-icon.png' } });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'ios.icon',
+      path: '/app/assets/ios-icon.png',
+    });
+  });
+
   it('falls back to the Android adaptive icon foreground', async () => {
     vol.fromJSON({ '/app/assets/foreground.png': 'fake-png-bytes' });
     mockAppConfig({

@@ -91,19 +91,21 @@ export async function resolveAppConfigIconAsync(projectDir: string): Promise<App
     ['android.icon', exp.android?.icon],
   ];
 
-  const icons: AppConfigIcon[] = [];
+  let firstInvalidIcon: AppConfigIcon | null = null;
   for (const [field, value] of candidates) {
     const iconPath = resolveLocalIconPath(projectDir, value);
     if (iconPath && (await fs.pathExists(iconPath))) {
-      icons.push({ field, path: iconPath });
+      const icon = { field, path: iconPath };
+      try {
+        await validateIconAsync(iconPath);
+        return icon;
+      } catch {
+        firstInvalidIcon ??= icon;
+      }
     }
   }
 
-  return (
-    icons.find(icon => ALLOWED_EXTENSIONS.includes(path.extname(icon.path).toLowerCase())) ??
-    icons[0] ??
-    null
-  );
+  return firstInvalidIcon;
 }
 
 function resolveLocalIconPath(projectDir: string, value: unknown): string | null {
