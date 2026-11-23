@@ -387,6 +387,9 @@ export async function startAndroidEmulatorAsync({
           ...(emulatorCaptureLibrary && launch
             ? {
                 consolePort: launch.consolePort,
+                // No `-gpu` here. The GPU mode switch belongs in the emulator capture agent
+                // (expo-emulator-capture), so every user of the library gets the best
+                // performance out of the box, not only EAS build-tools.
                 extraEnv: {
                   // A library that the job already preloads stays preloaded, after the agent.
                   LD_PRELOAD: [emulatorCaptureLibrary, env.LD_PRELOAD].filter(Boolean).join(':'),
