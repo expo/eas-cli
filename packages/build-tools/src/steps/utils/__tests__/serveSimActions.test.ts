@@ -80,7 +80,20 @@ it('returns stdout from an authenticated action for catalog inspection', async (
   });
   await expect(
     runServeSimActionWithResultAsync({ ...request(), action: 'actions.describe', params: {} })
-  ).resolves.toBe('{"actions":[]}');
+  ).resolves.toEqual({ stdout: '{"actions":[]}' });
+});
+
+it('returns the reply metadata with stdout', async () => {
+  const metadata = { width: 1179, height: 2556, displayRotation: 'portrait' };
+  server.on('connection', socket => {
+    socket.on('message', () =>
+      socket.send(JSON.stringify({ id: 1, stdout: '/tmp/shot.png', exitCode: 0, metadata }))
+    );
+    socket.send(JSON.stringify({ ready: true }));
+  });
+  await expect(
+    runServeSimActionWithResultAsync({ ...request(), action: 'screenshot.capture', params: {} })
+  ).resolves.toEqual({ stdout: '/tmp/shot.png', metadata });
 });
 
 it.each([
