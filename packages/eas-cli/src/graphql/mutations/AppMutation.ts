@@ -19,11 +19,26 @@ import { BackgroundJobReceiptNode } from '../types/BackgroundJobReceipt';
 export const AppMutation = {
   async createAppAsync(
     graphqlClient: ExpoGraphqlClient,
-    appInput: {
+    {
+      accountId,
+      projectName,
+      displayName,
+    }: {
       accountId: string;
       projectName: string;
+      displayName?: string;
     }
   ): Promise<string> {
+    const trimmedDisplayName = displayName?.trim();
+    const appInput = {
+      accountId,
+      projectName,
+      ...(trimmedDisplayName &&
+      trimmedDisplayName !== projectName &&
+      trimmedDisplayName.length <= 255
+        ? { appInfo: { displayName: trimmedDisplayName } }
+        : {}),
+    };
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<CreateAppMutation, CreateAppMutationVariables>(

@@ -384,7 +384,7 @@ describe(getProjectIdAsync, () => {
       expect(Log.warn).toHaveBeenCalledWith('EAS project not configured.');
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
         expect.anything(),
-        { accountName: 'dominik', projectName: 'test' },
+        { accountName: 'dominik', projectName: 'test', displayName: 'test' },
         { nonInteractive: false },
         expect.anything()
       );
@@ -406,7 +406,7 @@ describe(getProjectIdAsync, () => {
       expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
         expect.anything(),
-        { accountName: 'dominik', projectName: 'test' },
+        { accountName: 'dominik', projectName: 'test', displayName: 'test' },
         { nonInteractive: false },
         expect.anything()
       );
@@ -445,7 +445,7 @@ describe(getProjectIdAsync, () => {
       expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
         expect.anything(),
-        { accountName: 'notnotbrent', projectName: 'test' },
+        { accountName: 'notnotbrent', projectName: 'test', displayName: 'test' },
         { nonInteractive: false },
         expect.anything()
       );
@@ -546,7 +546,7 @@ describe(getProjectIdAsync, () => {
       expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
         expect.anything(),
-        { accountName: 'notnotbrent', projectName: 'test' },
+        { accountName: 'notnotbrent', projectName: 'test', displayName: 'test' },
         { nonInteractive: true },
         expect.anything()
       );
