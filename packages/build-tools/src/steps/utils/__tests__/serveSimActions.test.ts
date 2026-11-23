@@ -1,3 +1,4 @@
+import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
 import { once } from 'node:events';
 import {
   access,
@@ -99,6 +100,49 @@ it.each([
   });
   await expect(runServeSimActionAsync(request())).rejects.toThrow(message);
   expect(attempts).toBe(1);
+});
+
+// Shaped like `xcrun simctl install` output for an app whose minimum iOS version is above the Simulator runtime.
+const NEWER_IOS_REQUIRED_STDERR = [
+  'An error was encountered processing the command (domain=IXUserPresentableErrorDomain):',
+  'Requires a Newer Version of iOS',
+  '“Example” requires a newer version of iOS.',
+].join('\n');
+
+async function rejectActionAsync(action: string, stderr: string): Promise<ExpoError> {
+  server.on('connection', socket => {
+    socket.send(JSON.stringify({ ready: true }));
+    socket.on('message', () => socket.send(JSON.stringify({ id: 1, exitCode: 1, stderr })));
+  });
+  const error = await runServeSimActionAsync({ ...request(), action }).catch(err => err);
+  expect(error).toBeInstanceOf(ExpoError);
+  return error;
+}
+
+it('classifies an app install that requires a newer iOS version as a user error', async () => {
+  const error = await rejectActionAsync('app.install', NEWER_IOS_REQUIRED_STDERR);
+  expect(error).toBeInstanceOf(UserError);
+  expect(error.toExternalExpoError()).toMatchObject({
+    errorCode: 'EAS_INSTALL_APPLICATION_REQUIRES_NEWER_IOS',
+    message: expect.stringContaining('Choose an iOS Simulator device whose iOS version meets'),
+  });
+  expect((error.cause as Error).message).toContain('Requires a Newer Version of iOS');
+});
+
+it.each([
+  [
+    'app.install',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain):\nThis app could not be installed at this time.',
+  ],
+  ['app.install', 'install refused'],
+  ['app.launch', NEWER_IOS_REQUIRED_STDERR],
+])('keeps other %s failures as server errors', async (action, stderr) => {
+  const error = await rejectActionAsync(action, stderr);
+  expect(error).toBeInstanceOf(SystemError);
+  expect(error.toExternalExpoError()).toMatchObject({
+    errorCode: 'SERVER_ERROR',
+    message: `serve-sim ${action} failed: ${stderr}`,
+  });
 });
 
 it('rejects a connection that closes before its action finishes', async () => {
