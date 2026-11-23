@@ -4,6 +4,7 @@ import { getPrivateExpoConfigAsync } from '../expoConfig';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppUploadSessionType } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
+import Log from '../../log';
 import { uploadAppScopedFileAtPathToGCSAsync } from '../../uploads';
 import { maybeSetProjectIconFromAppConfigAsync, resolveAppConfigIconAsync } from '../projectIcon';
 
@@ -126,6 +127,7 @@ describe(maybeSetProjectIconFromAppConfigAsync, () => {
       maybeSetProjectIconFromAppConfigAsync(graphqlClient, { projectId, projectDir })
     ).resolves.toEqual({ status: 'skipped', reason: 'icon-already-set' });
     expect(mockUploadAsync).not.toHaveBeenCalled();
+    expect(jest.mocked(Log.log).mock.calls.flat().join()).toContain('eas project:icon:set');
   });
 
   it('skips without a server round-trip when the app config has no icon', async () => {

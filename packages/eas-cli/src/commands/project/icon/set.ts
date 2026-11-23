@@ -9,6 +9,7 @@ import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
 import {
   pollForProfileImageChangeAsync,
+  resolveAppConfigIconAsync,
   uploadProjectIconAsync,
   validateIconAsync,
 } from '../../../project/projectIcon';
@@ -19,9 +20,8 @@ export default class ProjectIconSet extends EasCommand {
 
   static override args = {
     path: Args.string({
-      required: true,
       description:
-        'Path to the icon image (PNG or JPEG, at most 10 MB). The image is resized to a 1024x1024 PNG, and a non-square image is center-cropped.',
+        'Path to the icon image (PNG or JPEG, at most 10 MB). The image is resized to a 1024x1024 PNG, and a non-square image is center-cropped. Defaults to the icon in the app config.',
     }),
   };
 
@@ -31,21 +31,24 @@ export default class ProjectIconSet extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
 
   async runAsync(): Promise<void> {
     const {
-      args: { path: imagePath },
+      args: { path: pathArgument },
       flags,
     } = await this.parse(ProjectIconSet);
     const {
       projectId,
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ProjectIconSet, {
       nonInteractive: flags['non-interactive'],
     });
 
+    const imagePath = pathArgument ?? (await getAppConfigIconPathAsync(projectDir));
     await validateIconAsync(imagePath);
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
@@ -74,4 +77,15 @@ export default class ProjectIconSet extends EasCommand {
       throw error;
     }
   }
+}
+
+async function getAppConfigIconPathAsync(projectDir: string): Promise<string> {
+  const icon = await resolveAppConfigIconAsync(projectDir);
+  if (!icon) {
+    throw new Error(
+      'No local icon found in the app config (icon, ios.icon or android.adaptiveIcon.foregroundImage). Pass the path to an image instead.'
+    );
+  }
+  Log.log(`Using "${icon.field}" from your app config: ${icon.path}`);
+  return icon.path;
 }

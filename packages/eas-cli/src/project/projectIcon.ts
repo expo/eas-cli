@@ -54,7 +54,9 @@ export async function maybeSetProjectIconFromAppConfigAsync(
 
   const existingIconUrl = await AppQuery.byIdProfileImageUrlAsync(graphqlClient, projectId);
   if (existingIconUrl) {
-    Log.debug('The project already has an icon, skipping the icon from the app config.');
+    Log.log(
+      `The project already has an icon. To replace it with "${icon.field}" from your app config, run ${chalk.bold('eas project:icon:set')}.`
+    );
     return { status: 'skipped', reason: 'icon-already-set' };
   }
 

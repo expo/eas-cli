@@ -15517,6 +15517,13 @@ export type ScheduleAppDeletionMutationVariables = Exact<{
 
 export type ScheduleAppDeletionMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', scheduleAppDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } | null };
 
+export type RemoveProfileImageMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type RemoveProfileImageMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', removeProfileImage: { __typename?: 'App', id: string, fullName: string } } | null };
+
 export type CreateAppVersionMutationVariables = Exact<{
   appVersionInput: AppVersionInput;
 }>;
