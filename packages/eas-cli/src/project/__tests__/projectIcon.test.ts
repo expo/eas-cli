@@ -186,6 +186,17 @@ describe(maybeSetProjectIconFromAppConfigAsync, () => {
     expect(mockUploadAsync).not.toHaveBeenCalled();
   });
 
+  it('does not propagate a failure to read the current icon', async () => {
+    vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
+    mockAppConfig({ icon: './assets/icon.png' });
+    mockByIdProfileImageUrlAsync.mockRejectedValue(new Error('timeout'));
+
+    await expect(
+      maybeSetProjectIconFromAppConfigAsync(graphqlClient, { projectId, projectDir })
+    ).resolves.toEqual({ status: 'skipped', reason: 'upload-failed' });
+    expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
   it('does not propagate an upload failure', async () => {
     vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
     mockAppConfig({ icon: './assets/icon.png' });
