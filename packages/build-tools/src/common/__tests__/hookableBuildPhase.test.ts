@@ -1,10 +1,10 @@
-import { BuildPhase, BuildTrigger, Hooks, Ios } from '@expo/eas-build-job';
+import { BuildPhase, BuildTrigger, HookKey, Hooks, Ios } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { executeHookStepsAsync } from '@expo/steps';
 
 import { createTestIosJob } from '../../__tests__/utils/job';
 import { BuildContext } from '../../context';
-import { runHookableBuildPhaseAsync } from '../hookableBuildPhase';
+import { runHookEntriesAsync, runHookableBuildPhaseAsync } from '../hookableBuildPhase';
 import { ParsedJobHooks, parseJobHooksAsync } from '../jobHooks';
 
 // The primitive's step-execution rules (failure()/success(), no-if continuation,
@@ -16,7 +16,10 @@ jest.mock('@expo/steps', () => ({
 }));
 const executeHookStepsMock = jest.mocked(executeHookStepsAsync);
 
-async function setup(hooks: Hooks | undefined): Promise<{
+async function setup(
+  hooks: Hooks | undefined,
+  hookKeys: readonly HookKey[] = ['before_install_node_modules', 'after_install_node_modules']
+): Promise<{
   ctx: BuildContext<Ios.Job>;
   hooks: ParsedJobHooks | null;
 }> {
@@ -40,7 +43,7 @@ async function setup(hooks: Hooks | undefined): Promise<{
   jest
     .spyOn(ctx, 'runBuildPhase')
     .mockImplementation((_phase: BuildPhase, fn: () => Promise<unknown>) => fn() as never);
-  return { ctx, hooks: await parseJobHooksAsync(ctx, ['install_node_modules']) };
+  return { ctx, hooks: await parseJobHooksAsync(ctx, hookKeys) };
 }
 
 const runArgs = <TJob extends Ios.Job>(
@@ -160,5 +163,25 @@ describe(runHookableBuildPhaseAsync, () => {
     expect(hooks!.customBuildContext.job).toBe(ctx.job);
     expect(hooks!.customBuildContext.metadata).toBe(ctx.metadata);
     expect(writeBack).toHaveBeenCalled();
+  });
+});
+
+describe(runHookEntriesAsync, () => {
+  beforeEach(() => {
+    executeHookStepsMock.mockReset();
+    executeHookStepsMock.mockResolvedValue({ failedLocally: false, firstError: undefined });
+  });
+
+  it('runs the after_checkout entries that the parser built', async () => {
+    const { ctx, hooks } = await setup({ after_checkout: [{ run: 'echo after' }] }, [
+      'after_checkout',
+    ]);
+    await runHookEntriesAsync({ ctx, hooks: hooks!, timing: 'after', anchor: 'checkout' });
+    expect(hooks!.hookEntriesByKey.after_checkout).toHaveLength(1);
+    expect(executeHookStepsMock).toHaveBeenCalledWith(
+      hooks!.globalContext,
+      hooks!.hookEntriesByKey.after_checkout,
+      { anchor: 'checkout', timing: 'after', anchorResult: 'success' }
+    );
   });
 });

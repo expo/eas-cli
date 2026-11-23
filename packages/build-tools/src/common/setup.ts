@@ -3,7 +3,6 @@ import {
   BuildJob,
   BuildPhase,
   BuildTrigger,
-  HookAnchorId,
   Ios,
   Job,
   Platform,
@@ -15,7 +14,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from './easBuildInternal';
-import { runHookableBuildPhaseAsync } from './hookableBuildPhase';
+import { runHookEntriesAsync, runHookableBuildPhaseAsync } from './hookableBuildPhase';
 import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
 import { ParsedJobHooks, parseJobHooksAsync } from './jobHooks';
 import { prepareProjectSourcesAsync } from './projectSources';
@@ -50,10 +49,7 @@ export interface JobHooksRef {
 
 export async function setupAsync<TJob extends BuildJob>(
   ctx: BuildContext<TJob>,
-  {
-    wrappedAnchors,
-    jobHooksRef,
-  }: { wrappedAnchors: readonly HookAnchorId[]; jobHooksRef: JobHooksRef }
+  { jobHooksRef }: { jobHooksRef: JobHooksRef }
 ): Promise<void> {
   await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
     await retryAsync(
@@ -111,7 +107,19 @@ export async function setupAsync<TJob extends BuildJob>(
   // Parse hooks unconditionally, after every pre-install env mutation
   // (PREPARE_PROJECT, the git-based profile-env block, PRE_INSTALL_HOOK) and
   // before the first wrapped phase.
-  jobHooksRef.current = await parseJobHooksAsync(ctx, wrappedAnchors);
+  jobHooksRef.current = await parseJobHooksAsync(ctx, [
+    'after_checkout',
+    'before_install_node_modules',
+    'after_install_node_modules',
+  ]);
+  if (jobHooksRef.current) {
+    await runHookEntriesAsync({
+      ctx,
+      hooks: jobHooksRef.current,
+      timing: 'after',
+      anchor: 'checkout',
+    });
+  }
 
   await runHookableBuildPhaseAsync({
     ctx,

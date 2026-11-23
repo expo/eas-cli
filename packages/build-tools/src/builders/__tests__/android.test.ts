@@ -91,7 +91,7 @@ describe(androidBuilder, () => {
     );
   });
 
-  it('passes the install_node_modules anchor and a hooks ref to setupAsync', async () => {
+  it('passes a hooks ref to setupAsync', async () => {
     const ctx = new BuildContext(createTestAndroidJob(), {
       workingdir: '/workingdir',
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
@@ -105,7 +105,6 @@ describe(androidBuilder, () => {
     expect(setupAsync).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        wrappedAnchors: ['install_node_modules'],
         jobHooksRef: expect.objectContaining({ current: null }),
       })
     );
