@@ -238,7 +238,7 @@ function toSubmissionSummary(
     platform: submission.platform,
     status: submission.status,
     appIdentifier:
-      submission.androidConfig?.applicationIdentifier ??
+      (submission.androidConfig ? submission.submittedBuild?.appIdentifier : null) ??
       submission.iosConfig?.ascAppIdentifier ??
       null,
     androidTrack: submission.androidConfig?.track ?? null,

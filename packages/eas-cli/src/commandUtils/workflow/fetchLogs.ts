@@ -19,7 +19,7 @@ export async function fetchRawLogsForJobAsync(
   const buildFragment = await BuildQuery.byIdAsync(state.graphqlClient, buildId, {
     useCache: false,
   });
-  const firstLogFileUrl = buildFragment.logFiles?.[0];
+  const firstLogFileUrl = buildFragment.logFileUrls?.[0];
   if (!firstLogFileUrl) {
     return null;
   }

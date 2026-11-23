@@ -26,7 +26,7 @@ function createBuildFragment(overrides: Partial<BuildFragment> = {}): BuildFragm
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     platform: AppPlatform.Android,
-    logFiles: [],
+    logFileUrls: [],
     priority: BuildPriority.Normal,
     app: {
       __typename: 'App',
@@ -98,7 +98,7 @@ describe(logSourceForBuild, () => {
       } as any);
 
       const source = logSourceForBuild(
-        createBuildFragment({ logFiles: ['https://logs.test/first', 'https://logs.test/second'] })
+        createBuildFragment({ logFileUrls: ['https://logs.test/first', 'https://logs.test/second'] })
       );
 
       await expect(source.fetchRawLogLinesAsync()).resolves.toEqual([
@@ -113,7 +113,7 @@ describe(logSourceForBuild, () => {
 
     it('returns null when the build has no log file', async () => {
       await expect(
-        logSourceForBuild(createBuildFragment({ logFiles: [] })).fetchRawLogLinesAsync()
+        logSourceForBuild(createBuildFragment({ logFileUrls: [] })).fetchRawLogLinesAsync()
       ).resolves.toBeNull();
       expect(fetch).not.toHaveBeenCalled();
     });
