@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { copyFile, rm } from 'node:fs/promises';
+import { copyFile, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import { runServeSimActionAsync, runServeSimActionWithResultAsync } from './serveSimActions';
+import { runServeSimActionWithResultAsync } from './serveSimActions';
 
 export function createServeSimPreviewCapture({
   port,
@@ -38,7 +38,7 @@ export function createServeSimPreviewCapture({
       ownedFiles.add(staged);
       // Closing exec-ws does not cancel its host action. Drain a sent capture before honoring
       // cancellation; on timeout/disconnect, leave its file alone until the host has stopped.
-      await runServeSimActionAsync({
+      const result = await runServeSimActionWithResultAsync({
         port,
         token,
         action: 'screenshot.capture',
@@ -49,7 +49,21 @@ export function createServeSimPreviewCapture({
       });
       try {
         signal.throwIfAborted();
-        await copyFile(staged, destination);
+        const captured = result.trim();
+        // serve-sim stages under its resolved temp dir, and on macOS $TMPDIR is behind a symlink
+        // (/var -> /private/var). Accept the file this capture requested in either spelling.
+        const resolvedStaged = path.join(
+          await realpath(tmpdir).catch(() => tmpdir),
+          'serve-sim-screenshots',
+          fileName
+        );
+        if (
+          !path.isAbsolute(captured) ||
+          ![staged, resolvedStaged].includes(path.normalize(captured))
+        ) {
+          throw new Error('serve-sim returned an unexpected screenshot path.');
+        }
+        await copyFile(captured, destination);
       } finally {
         await rm(staged, { force: true });
         ownedFiles.delete(staged);
