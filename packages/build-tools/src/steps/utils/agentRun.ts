@@ -8,7 +8,12 @@ import path from 'node:path';
 import readline from 'node:readline';
 
 import { leaseAgentRunProviderCredentialsAsync } from './agentRunLease';
-import { type AgentCli, type AgentInvocation, type AgentLogMessage } from './agents/agent';
+import {
+  type AgentCli,
+  type AgentInvocation,
+  type AgentLogMessage,
+  createProjectContextPrompt,
+} from './agents/agent';
 import { CLAUDE_CODE_CLI, prepareClaudeCodeAsync } from './agents/claude';
 import { CODEX_CLI, prepareCodexAsync } from './agents/codex';
 import { Sentry } from '../../sentry';
@@ -28,6 +33,7 @@ const OUTPUT_CLOSE_GRACE_PERIOD_MS = 5_000;
 export async function runAgentAsync({
   agentKind,
   agentRunId,
+  appId,
   prompt,
   expoToken,
   expoApiV2BaseUrl,
@@ -40,6 +46,7 @@ export async function runAgentAsync({
 }: {
   agentKind: AgentKind;
   agentRunId: string;
+  appId: string;
   prompt: string;
   expoToken: string;
   expoApiV2BaseUrl: string;
@@ -95,6 +102,7 @@ export async function runAgentAsync({
       url: mcpUrl,
       headers: { Authorization: `Bearer ${expoToken}`, 'X-Expo-Agent-Run-Id': agentRunId },
     };
+    const systemPrompt = createProjectContextPrompt(appId);
     logger.info('Starting the agent.');
     for (let isResuming = false; ; isResuming = true) {
       signal.throwIfAborted();
@@ -105,6 +113,7 @@ export async function runAgentAsync({
             homeDirectory,
             minimalEnv,
             mcpServer,
+            systemPrompt,
             prompt,
             credentials,
             isResuming,
@@ -115,6 +124,7 @@ export async function runAgentAsync({
             homeDirectory,
             minimalEnv,
             mcpServer,
+            systemPrompt,
             prompt,
             credentials,
             isResuming,

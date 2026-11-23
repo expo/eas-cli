@@ -27,6 +27,7 @@ export async function prepareCodexAsync({
   homeDirectory,
   minimalEnv,
   mcpServer,
+  systemPrompt,
   prompt,
   credentials,
   isResuming,
@@ -34,6 +35,7 @@ export async function prepareCodexAsync({
   homeDirectory: string;
   minimalEnv: Record<string, string>;
   mcpServer: McpServer;
+  systemPrompt: string;
   prompt: string;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
@@ -51,6 +53,8 @@ export async function prepareCodexAsync({
       'sandbox_mode = "read-only"',
       'web_search = "disabled"',
       'check_for_update_on_startup = false',
+      // JSON strings are valid TOML basic strings.
+      `developer_instructions = ${JSON.stringify(systemPrompt)}`,
       '',
       '[features]',
       'shell_tool = false',
@@ -68,7 +72,6 @@ export async function prepareCodexAsync({
       'enabled = false',
       '',
       `[mcp_servers.${MCP_SERVER_NAME}]`,
-      // JSON strings are valid TOML basic strings.
       `url = ${JSON.stringify(mcpServer.url)}`,
       // `approval_policy` would otherwise refuse the server's tools that are not read-only.
       'default_tools_approval_mode = "approve"',

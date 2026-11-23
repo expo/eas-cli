@@ -22,7 +22,9 @@ const installMock = jest.mocked(turtleSpawn);
 const spawnMock = jest.mocked(spawn);
 const leaseMock = jest.mocked(leaseAgentRunProviderCredentialsAsync);
 
+const appId = '5d2f1c9e-7a3b-4e68-9b0c-2f4a6d8e1c35';
 const ctx = {
+  job: { appId },
   expoApiV2BaseUrl: 'https://staging-api.expo.test/v2/',
   mcpServerUrl: 'wss://staging-mcp.expo.test',
   runtimeApi: { addBuildLogMask: jest.fn() },
@@ -114,6 +116,17 @@ describe(createRunAgentBuildFunction, () => {
     ]);
     expect(agentEnv.PATH).toBe('/usr/local/bin:/usr/bin');
     expect(agentEnv.HOME).not.toBe('/home/expo');
+  });
+
+  it('tells the agent the project ID of its job', async () => {
+    mockSuccessfulRun();
+
+    await runAsync();
+
+    const agentArgs = spawnMock.mock.calls[0][1];
+    expect(agentArgs[agentArgs.indexOf('--append-system-prompt') + 1]).toContain(
+      `the Expo project with ID ${appId}.`
+    );
   });
 
   it('hands the build log secrets filter to the agent run', async () => {

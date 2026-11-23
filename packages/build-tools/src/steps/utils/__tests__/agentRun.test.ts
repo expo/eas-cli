@@ -35,6 +35,8 @@ const leaseMock = jest.mocked(leaseAgentRunProviderCredentialsAsync);
 const killProcessGroupMock = jest.mocked(killProcessGroup);
 
 const agentRunId = '0199b0a0-1111-7222-8333-444455556666';
+const appId = '5d2f1c9e-7a3b-4e68-9b0c-2f4a6d8e1c35';
+const projectContext = `This agent run belongs to the Expo project with ID ${appId}. When an Expo MCP tool takes \`appId\` or \`appFullName\`, pass this ID as \`appId\`, unless the task names a different project.`;
 const anthropicLease: AgentRunProviderCredentials = {
   provider: 'anthropic',
   accessToken: 'anthropic-access-token',
@@ -133,6 +135,7 @@ function createOptions(
   return {
     agentKind: 'claude-code',
     agentRunId,
+    appId,
     prompt: 'Fix the failing test.',
     expoToken: 'expo-token',
     expoApiV2BaseUrl: 'https://staging-api.expo.test/v2/',
@@ -209,6 +212,8 @@ describe(runAgentAsync, () => {
       '--mcp-config',
       path.join(agent.env.HOME, 'mcp.json'),
       '--strict-mcp-config',
+      '--append-system-prompt',
+      projectContext,
     ]);
     expect(agent.env).toEqual({
       PATH: '/usr/local/bin:/usr/bin',
@@ -341,6 +346,9 @@ describe(runAgentAsync, () => {
           '[features]\nshell_tool = false\nview_image = false\nimage_generation = false\napps = false\nplugins = false\n'
         );
         expect(config.content).toContain('sandbox_mode = "read-only"');
+        expect(config.content).toContain(
+          `check_for_update_on_startup = false\ndeveloper_instructions = ${JSON.stringify(projectContext)}\n\n[features]\n`
+        );
         expect(config.content).toContain('[agents]\nenabled = false\n');
         expect(config.content).toContain(
           [
@@ -480,6 +488,7 @@ describe(runAgentAsync, () => {
     expect(invocations).toHaveLength(2);
     const [first, resumed] = invocations;
     expect(resumed.args).toEqual(['-p', '--continue', ...first.args.slice(1)]);
+    expect(resumed.args.slice(-2)).toEqual(['--append-system-prompt', projectContext]);
     expect(resumed.env.CLAUDE_CODE_OAUTH_TOKEN).toBe('renewed-access-token');
     expect(resumed.stdin).toHaveBeenCalledWith(
       expect.stringMatching(/^Your previous run of this task stopped.*\n\nFix the failing test\.$/s)
@@ -510,6 +519,9 @@ describe(runAgentAsync, () => {
           id_token: 'renewed-id-token',
           access_token: 'renewed-access-token',
         });
+        expect(agent.readHomeFile('.codex/config.toml').content).toContain(
+          `developer_instructions = ${JSON.stringify(projectContext)}\n`
+        );
         agent.exit(0);
       },
     });

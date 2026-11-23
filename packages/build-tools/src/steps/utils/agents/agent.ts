@@ -54,6 +54,10 @@ export function contentBlocksText(blocks: z.output<typeof ContentBlocksSchema>):
   return blocks.map(block => block.text).join('\n');
 }
 
+export function createProjectContextPrompt(appId: string): string {
+  return `This agent run belongs to the Expo project with ID ${appId}. When an Expo MCP tool takes \`appId\` or \`appFullName\`, pass this ID as \`appId\`, unless the task names a different project.`;
+}
+
 // Repeats the task because Codex's `resume --last` starts a new session when none was saved,
 // and that session would otherwise have no task.
 export function createContinuationPrompt(prompt: string): string {
