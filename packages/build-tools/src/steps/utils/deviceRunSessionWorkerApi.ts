@@ -63,6 +63,9 @@ export type CreateDeviceRunSessionArtifactUploadSessionInput = {
   metadata?: Record<string, unknown> | null;
 };
 
+/** Why the worker stops a session; www stores it as the session's end reason. */
+export type DeviceRunSessionStopReason = 'idle_timeout' | 'max_duration';
+
 /**
  * Client for the www routes under `/v2/device-run-session-worker/`. These routes act only on the
  * session that the token names.
@@ -96,8 +99,14 @@ export class DeviceRunSessionWorkerApi {
     });
   }
 
-  public async stopAsync(options: WorkerApiRequestOptions = {}): Promise<DeviceRunSessionStatus> {
-    return await this.client.requestAsync('POST', 'stop', DeviceRunSessionStatusSchema, options);
+  public async stopAsync(
+    { reason }: { reason?: DeviceRunSessionStopReason } = {},
+    options: WorkerApiRequestOptions = {}
+  ): Promise<DeviceRunSessionStatus> {
+    return await this.client.requestAsync('POST', 'stop', DeviceRunSessionStatusSchema, {
+      ...options,
+      ...(reason ? { json: { reason } } : {}),
+    });
   }
 
   public async createArtifactUploadSessionAsync(

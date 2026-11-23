@@ -29,6 +29,7 @@ import { createProcessOutput } from './processOutput';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
+  type DeviceRunSessionStopReason,
   requireDeviceRunSessionWorkerApi,
 } from './deviceRunSessionWorkerApi';
 import { WorkerApiError } from './workerApi';
@@ -193,7 +194,12 @@ export async function waitForDeviceRunSessionStoppedAsync({
             `Device run session ${deviceRunSessionId} had no activity for ` +
               `${idleTimeout.maxIdleTimeMinutes} minute(s) (max idle time). Stopping the session.`
           );
-          await ensureDeviceRunSessionStoppedSafelyAsync({ ctx, deviceRunSessionId, logger });
+          await ensureDeviceRunSessionStoppedSafelyAsync({
+            ctx,
+            deviceRunSessionId,
+            logger,
+            reason: 'idle_timeout',
+          });
           return;
         }
       }
@@ -212,7 +218,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
           throw err;
         }
         if (signal.aborted) {
-          return;
+          break;
         }
 
         const error = err instanceof Error ? err : new Error(String(err));
@@ -226,6 +232,15 @@ export async function waitForDeviceRunSessionStoppedAsync({
         }
       }
       await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    }
+    // Stop through the worker route so www records the reason; a canceled step is not a max-duration end.
+    if (durationAbortController.signal.aborted && !cancelSignal?.aborted) {
+      await ensureDeviceRunSessionStoppedSafelyAsync({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        reason: 'max_duration',
+      });
     }
   } finally {
     if (durationTimeout !== undefined) {
@@ -254,20 +269,23 @@ async function ensureDeviceRunSessionStoppedSafelyAsync({
   ctx,
   deviceRunSessionId,
   logger,
+  reason,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   logger: bunyan;
+  reason: DeviceRunSessionStopReason;
 }): Promise<void> {
   try {
-    await requireDeviceRunSessionWorkerApi(ctx).stopAsync({
-      timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS,
-    });
+    await requireDeviceRunSessionWorkerApi(ctx).stopAsync(
+      { reason },
+      { timeoutMs: DEVICE_RUN_SESSION_WORKER_REQUEST_TIMEOUT_MS }
+    );
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    Sentry.capture('Could not mark idle device run session as stopped', error, {
+    Sentry.capture('Could not mark device run session as stopped', error, {
       level: 'warning',
-      extras: { deviceRunSessionId },
+      extras: { deviceRunSessionId, reason },
     });
     logger.warn(
       { err: error },
