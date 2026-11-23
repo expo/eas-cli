@@ -510,7 +510,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-5554'));
     });
 
-    it('preloads the agent, leaves the GPU mode to the agent, and turns the capture on for expo-device-hub', async () => {
+    it('preloads the agent and turns the capture on for expo-device-hub', async () => {
       const step = createStep(
         { experimental_emulator_capture_version: '0.1.0' },
         { TMPDIR: '/tmp/job' }
@@ -524,8 +524,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         logger: expect.anything(),
       });
       expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(captureStart(5554));
-      // The capture agent (expo-emulator-capture) chooses the GPU mode, not build-tools.
-      expect(mockedAndroidUtils.startAsync.mock.calls[0][0]).not.toHaveProperty('extraArgs');
       expect(step.globalCtx.env).toMatchObject({
         EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE: '1',
         EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: LIBRARY,

@@ -332,7 +332,6 @@ export namespace AndroidEmulatorUtils {
     launchGate,
     logCapture,
     consolePort,
-    extraArgs = [],
     extraEnv = {},
   }: {
     deviceName: AndroidVirtualDeviceName;
@@ -345,8 +344,6 @@ export namespace AndroidEmulatorUtils {
      * before the start. Without it, the emulator picks a free port itself.
      */
     consolePort?: number;
-    /** Emulator arguments before $ANDROID_EMULATOR_EXTRA_ARGS, which can still override them. */
-    extraArgs?: string[];
     /** Environment variables for the emulator process only. */
     extraEnv?: Record<string, string>;
   }): Promise<{
@@ -390,7 +387,6 @@ export namespace AndroidEmulatorUtils {
       '-accel',
       'on',
       ...(consolePort !== undefined ? ['-port', String(consolePort)] : []),
-      ...extraArgs,
       ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
         ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
         : []),
