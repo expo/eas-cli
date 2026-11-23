@@ -32,6 +32,8 @@ export type AndroidLogcatOutput = {
 export type AndroidEmulatorLogCapture = {
   readonly sources: readonly AndroidEmulatorLogSource[];
   attach(input: Readable, filePath: string, source: AndroidEmulatorLogSource): void;
+  /** Adds a line from the worker, such as how the emulator exited, to a launch file that is still open. */
+  appendLine(filePath: string, line: string): void;
   finishFileAsync(filePath: string): Promise<void>;
   finishAsync(): Promise<readonly FinalizedAndroidEmulatorLog[]>;
   prepareLogcatOutputAsync(filePath: string): Promise<AndroidLogcatOutput>;
@@ -96,6 +98,13 @@ export class AndroidEmulatorLogRing implements AndroidEmulatorLogCapture {
     }
     launch.inputs.add(input);
     input.pipe(launch.stream, { end: false });
+  }
+
+  appendLine(filePath: string, line: string): void {
+    const launch = this.launches.get(filePath);
+    if (launch?.stream.writable) {
+      launch.stream.write(`${line}\n`);
+    }
   }
 
   async finishFileAsync(filePath: string): Promise<void> {

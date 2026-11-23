@@ -47,6 +47,13 @@ export class AndroidEmulatorLogFiles implements AndroidEmulatorLogCapture {
     input.pipe(file.stream, { end: false });
   }
 
+  appendLine(filePath: string, line: string): void {
+    const file = this.files.get(filePath);
+    if (file?.stream.writable) {
+      file.stream.write(`${line}\n`);
+    }
+  }
+
   async finishFileAsync(filePath: string): Promise<void> {
     const file = this.files.get(filePath);
     if (!file) {

@@ -163,6 +163,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
       if (count > 1) {
         logger.info(`Requested ${count} emulators, shutting down ${deviceName} for cloning.`);
+        AndroidEmulatorUtils.expectExit({ serialId });
         await spawn('adb', ['-s', serialId, 'shell', 'reboot', '-p'], {
           logger,
           env,
@@ -195,6 +196,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   env,
                   logcatDirectory,
                   logCapture,
+                  logger,
                 });
                 cloneSerialId = startResult.serialId;
 
@@ -383,6 +385,7 @@ export async function startAndroidEmulatorAsync({
           env,
           logcatDirectory,
           logCapture,
+          logger,
           ...(localEgress ? { launchGate: localEgress.launchGate } : {}),
           ...(emulatorCaptureLibrary && launch
             ? {

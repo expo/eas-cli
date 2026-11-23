@@ -37,6 +37,8 @@ export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
   const FIRST_CONSOLE_PORT = 5554;
   const LAST_CONSOLE_PORT = 5584;
+  /** The emulators that this process started, by serial, so `expectExit` can mark a stop. */
+  const launchesBySerialId = new Map<AndroidDeviceSerialId, { exitExpected: boolean }>();
 
   export const defaultSystemImagePackage = `system-images;android-30;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
@@ -334,6 +336,7 @@ export namespace AndroidEmulatorUtils {
     consolePort,
     extraArgs = [],
     extraEnv = {},
+    logger,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
@@ -349,6 +352,8 @@ export namespace AndroidEmulatorUtils {
     extraArgs?: string[];
     /** Environment variables for the emulator process only. */
     extraEnv?: Record<string, string>;
+    /** Gets a warning when the emulator exits and the worker did not stop it. */
+    logger?: bunyan;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
@@ -419,6 +424,23 @@ export namespace AndroidEmulatorUtils {
           ignoreStdio: true,
           env: emulatorEnv,
         });
+    // The worker marks the exits that it causes. Any other exit, such as a crash or a kill by
+    // the host, gets one line in the job log and in the emulator output.
+    const launch = { exitExpected: false };
+    let launchSerialId: AndroidDeviceSerialId | undefined;
+    emulatorPromise.child.once('exit', (code, signal) => {
+      if (launchSerialId && launchesBySerialId.get(launchSerialId) === launch) {
+        launchesBySerialId.delete(launchSerialId);
+      }
+      if (launch.exitExpected) {
+        return;
+      }
+      const line = `Android Emulator ${launchSerialId ?? deviceName} exited unexpectedly at ${new Date().toISOString()} (exit code: ${code ?? 'none'}, signal: ${signal ?? 'none'}).`;
+      logger?.warn(line);
+      if (emulatorOutputPath) {
+        logCapture.appendLine(emulatorOutputPath, line);
+      }
+    });
     if (logcatOutput) {
       emulatorPromise.child.once('close', logcatOutput.close);
     }
@@ -451,6 +473,7 @@ export namespace AndroidEmulatorUtils {
       try {
         await launchGate.admitAsync(emulatorPromise.child.pid);
       } catch (err) {
+        launch.exitExpected = true;
         emulatorPromise.child.kill('SIGKILL');
         await asyncResult(emulatorPromise);
         throw err;
@@ -477,7 +500,13 @@ export namespace AndroidEmulatorUtils {
           retryIntervalMs: 1_000,
         },
       }
-    );
+    ).catch(error => {
+      // The caller deletes a launch that has no serial, so a later exit is expected.
+      launch.exitExpected = true;
+      throw error;
+    });
+    launchSerialId = serialId;
+    launchesBySerialId.set(serialId, launch);
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
@@ -655,6 +684,17 @@ export namespace AndroidEmulatorUtils {
     });
   }
 
+  /**
+   * Call before the worker stops the emulator with this serial, so its exit is not logged as
+   * unexpected. `stopAsync` calls it; a guest power-off must call it too.
+   */
+  export function expectExit({ serialId }: { serialId: AndroidDeviceSerialId }): void {
+    const launch = launchesBySerialId.get(serialId);
+    if (launch) {
+      launch.exitExpected = true;
+    }
+  }
+
   export async function stopAsync({
     serialId,
     env,
@@ -662,6 +702,7 @@ export namespace AndroidEmulatorUtils {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
+    expectExit({ serialId });
     await spawn('adb', ['-s', serialId, 'emu', 'kill'], { env });
 
     await retryAsync(
