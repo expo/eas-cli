@@ -222,6 +222,23 @@ describe(runAgentAsync, () => {
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
   });
 
+  it('runs Claude Code with the requested model, also when it resumes', async () => {
+    leaseMock
+      .mockResolvedValueOnce(anthropicLease)
+      .mockResolvedValueOnce({ ...anthropicLease, accessToken: 'renewed-access-token' });
+    const invocations = mockSpawn({
+      onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
+    });
+
+    await runAgentAsync(createOptions({ model: 'opus' }));
+
+    expect(invocations).toHaveLength(2);
+    const [first, resumed] = invocations;
+    expect(first.args.slice(-2)).toEqual(['--model', 'opus']);
+    expect(resumed.args).toContain('--continue');
+    expect(resumed.args.slice(-2)).toEqual(['--model', 'opus']);
+  });
+
   it('writes the agent output as log lines', async () => {
     leaseMock.mockResolvedValue(anthropicLease);
     const logger = createMockLogger();
@@ -393,6 +410,35 @@ describe(runAgentAsync, () => {
       LANG: 'C.UTF-8',
     });
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it.each([
+    ['the requested model', 'gpt-5.1-codex', ['model = "gpt-5.1-codex"']],
+    [
+      'a model name that is escaped so that it cannot add settings',
+      'gpt"\nshell_tool = true\n[features]',
+      ['model = "gpt\\"\\nshell_tool = true\\n[features]"'],
+    ],
+    ['its default model when none is requested', undefined, []],
+  ])('runs Codex with %s, also when it resumes', async (_name, model, modelSettings) => {
+    leaseMock
+      .mockResolvedValueOnce(openaiLease)
+      .mockResolvedValueOnce({ ...openaiLease, accessToken: 'renewed-access-token' });
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        const config = agent.readHomeFile('.codex/config.toml').content;
+        const rootSettings = config.slice(0, config.indexOf('\n['));
+        expect(rootSettings.split('\n').filter(line => line.startsWith('model'))).toEqual(
+          modelSettings
+        );
+        agent.exit(invocations.length === 1 ? 1 : 0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ agentKind: 'codex', model }));
+
+    expect(invocations).toHaveLength(2);
+    expect(invocations[1].args).toContain('resume');
   });
 
   it('escalates to SIGKILL when the agent ignores the stop', async () => {

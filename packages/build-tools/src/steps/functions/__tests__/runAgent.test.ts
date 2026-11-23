@@ -32,6 +32,7 @@ const inputs = {
   agent_run_id: { value: '0199b0a0-1111-7222-8333-444455556666' },
   max_duration_seconds: { value: 1800 },
   prompt: { value: 'Fix the failing test.' },
+  model: { value: undefined as string | undefined },
 };
 const env = {
   PATH: '/usr/local/bin:/usr/bin',
@@ -130,6 +131,24 @@ describe(createRunAgentBuildFunction, () => {
   });
 
   it.each([
+    ['no model when the input is not set', undefined],
+    ['a model alias', 'opus'],
+    ['a full model name', 'claude-opus-4-5'],
+    ['a model name with a context window suffix', 'sonnet[1m]'],
+    ['a model name with a dot', 'gpt-5.1-codex'],
+    ['a model name with other punctuation', 'provider/model@2026:v1'],
+  ])('hands %s to the agent run', async (_name, model) => {
+    const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
+    try {
+      await runAsync({ inputs: { ...inputs, model: { value: model } } });
+
+      expect(runAgentSpy.mock.calls[0][0].model).toBe(model);
+    } finally {
+      runAgentSpy.mockRestore();
+    }
+  });
+
+  it.each([
     ['wss://staging-mcp.expo.test', 'https://staging-mcp.expo.test/mcp'],
     ['ws://localhost:8787', 'http://localhost:8787/mcp'],
   ])('points the agent at the HTTP endpoint of %s', async (mcpServerUrl, mcpUrl) => {
@@ -172,6 +191,8 @@ describe(createRunAgentBuildFunction, () => {
     ['a negative duration', { inputs: { ...inputs, max_duration_seconds: { value: -300 } } }],
     ['a fractional duration', { inputs: { ...inputs, max_duration_seconds: { value: 12.5 } } }],
     ['an empty prompt', { inputs: { ...inputs, prompt: { value: '' } } }],
+    ['an empty model', { inputs: { ...inputs, model: { value: '' } } }],
+    ['a model that reads as a flag', { inputs: { ...inputs, model: { value: '--continue' } } }],
     ['no EXPO_TOKEN', { env: { ...env, EXPO_TOKEN: '' } }],
     ['no PATH', { env: { ...env, PATH: '' } }],
     ['no Expo API URL', { ctx: { ...ctx, expoApiV2BaseUrl: undefined } }],
