@@ -68,6 +68,22 @@ describe(resolveAppConfigIconAsync, () => {
     });
   });
 
+  it('prefers a supported image over an earlier icon in an unsupported format', async () => {
+    vol.fromJSON({
+      '/app/assets/app.icon/icon.json': '{}',
+      '/app/assets/foreground.png': 'fake-png-bytes',
+    });
+    mockAppConfig({
+      ios: { icon: './assets/app.icon' },
+      android: { adaptiveIcon: { foregroundImage: './assets/foreground.png' } },
+    });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'android.adaptiveIcon.foregroundImage',
+      path: '/app/assets/foreground.png',
+    });
+  });
+
   it('falls back to the Android adaptive icon foreground', async () => {
     vol.fromJSON({ '/app/assets/foreground.png': 'fake-png-bytes' });
     mockAppConfig({

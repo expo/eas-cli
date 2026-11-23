@@ -22,6 +22,7 @@ export default class ProjectIconSet extends EasCommand {
     path: Args.string({
       description:
         'Path to the icon image (PNG or JPEG, at most 10 MB). The image is resized to a 1024x1024 PNG, and a non-square image is center-cropped. Defaults to the icon in the app config.',
+      ignoreStdin: true,
     }),
   };
 

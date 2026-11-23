@@ -28,6 +28,6 @@ export default class ProjectIconUnset extends EasCommand {
     });
 
     const { fullName } = await AppMutation.removeProfileImageAsync(graphqlClient, projectId);
-    Log.withTick(`Removed the icon for ${chalk.bold(fullName)}`);
+    Log.withTick(`${chalk.bold(fullName)} now has no icon`);
   }
 }
