@@ -84,7 +84,7 @@ async function getAppConfigIconPathAsync(projectDir: string): Promise<string> {
   const icon = await resolveAppConfigIconAsync(projectDir);
   if (!icon) {
     throw new Error(
-      'No local icon found in the app config (icon, ios.icon or android.adaptiveIcon.foregroundImage). Pass the path to an image instead.'
+      'No local icon found in the app config (icon, ios.icon, android.adaptiveIcon.foregroundImage or android.icon). Pass the path to an image instead.'
     );
   }
   Log.log(`Using "${icon.field}" from your app config: ${icon.path}`);

@@ -90,6 +90,7 @@ export async function resolveAppConfigIconAsync(projectDir: string): Promise<App
     ['icon', exp.icon],
     ['ios.icon', exp.ios?.icon],
     ['android.adaptiveIcon.foregroundImage', exp.android?.adaptiveIcon?.foregroundImage],
+    ['android.icon', exp.android?.icon],
   ];
 
   const icons: AppConfigIcon[] = [];

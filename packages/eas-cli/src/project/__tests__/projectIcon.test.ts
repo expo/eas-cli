@@ -96,6 +96,16 @@ describe(resolveAppConfigIconAsync, () => {
     });
   });
 
+  it('falls back to the Android icon', async () => {
+    vol.fromJSON({ '/app/assets/android-icon.png': 'fake-png-bytes' });
+    mockAppConfig({ android: { icon: './assets/android-icon.png' } });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'android.icon',
+      path: '/app/assets/android-icon.png',
+    });
+  });
+
   it('ignores a remote icon URL', async () => {
     mockAppConfig({ icon: 'https://example.com/icon.png' });
 
