@@ -131,15 +131,15 @@ export async function validateIconAsync(imagePath: string): Promise<void> {
   if (!(await fs.pathExists(imagePath))) {
     throw new Error(`No file found at ${imagePath}`);
   }
+  const stat = await fs.stat(imagePath);
+  if (!stat.isFile()) {
+    throw new Error(`${imagePath} is not a file.`);
+  }
   const extension = path.extname(imagePath).toLowerCase();
   if (!ALLOWED_EXTENSIONS.includes(extension)) {
     throw new Error(
       `Unsupported image format "${extension}". The icon must be a PNG or JPEG file.`
     );
-  }
-  const stat = await fs.stat(imagePath);
-  if (!stat.isFile()) {
-    throw new Error(`${imagePath} is not a file.`);
   }
   const { size } = stat;
   if (size > MAX_IMAGE_SIZE_BYTES) {

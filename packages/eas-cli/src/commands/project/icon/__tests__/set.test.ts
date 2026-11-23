@@ -149,6 +149,14 @@ describe(ProjectIconSet, () => {
     expect(mockUploadAsync).not.toHaveBeenCalled();
   });
 
+  it('throws for a directory', async () => {
+    vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
+    const command = createCommand(['/app/assets']);
+
+    await expect(command.runAsync()).rejects.toThrow('/app/assets is not a file.');
+    expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
   it('throws for an unsupported image format', async () => {
     vol.fromJSON({ '/app/icon.gif': 'fake-gif-bytes' });
 
