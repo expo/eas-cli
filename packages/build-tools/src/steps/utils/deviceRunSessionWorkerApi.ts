@@ -61,6 +61,7 @@ export type CreateDeviceRunSessionArtifactUploadSessionInput = {
   kind?: string | null;
   size: number;
   metadata?: Record<string, unknown> | null;
+  idempotencyKey: string;
 };
 
 /** Why the worker stops a session; www stores it as the session's end reason. */
@@ -110,14 +111,14 @@ export class DeviceRunSessionWorkerApi {
   }
 
   public async createArtifactUploadSessionAsync(
-    input: CreateDeviceRunSessionArtifactUploadSessionInput,
+    { idempotencyKey, ...input }: CreateDeviceRunSessionArtifactUploadSessionInput,
     options: WorkerApiRequestOptions = {}
   ): Promise<DeviceRunSessionUploadSession> {
     const { uploadSession } = await this.client.requestAsync(
       'POST',
       'artifact-upload-sessions',
       UploadSessionSchema,
-      { ...options, json: input }
+      { ...options, json: input, idempotencyKey }
     );
     return uploadSession;
   }

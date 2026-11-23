@@ -1,9 +1,13 @@
+import { SystemError } from '@expo/eas-build-job';
 import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { turtleFetch } from '../../../utils/turtleFetch';
-import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
+import {
+  DeviceRunSessionArtifactRejectedError,
+  uploadDeviceRunSessionArtifactAsync,
+} from '../deviceRunSessionArtifacts';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 
 jest.mock('node-fetch');
@@ -13,12 +17,25 @@ const { Response } = jest.requireActual('node-fetch') as typeof import('node-fet
 
 const TOKEN = 'device-run-session-token-value';
 
-function jsonResponse(body: unknown): InstanceType<typeof Response> {
+function jsonResponse(body: unknown, status = 200): InstanceType<typeof Response> {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+const uploadSessionResponse = () =>
+  jsonResponse({ data: { uploadSession: { url: 'https://uploads.expo.test/a', headers: {} } } });
+
+const artifact = {
+  deviceRunSessionId: 'drs-id',
+  artifactId: 'artifact-id',
+  name: 'Screenshot',
+  filename: 'screenshot.png',
+  kind: 'screenshot',
+  size: 0,
+  openStream: () => Readable.from([]),
+};
 
 function createCtx(): CustomBuildContext {
   return {
@@ -60,13 +77,17 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       metadata: { firstFrameRecordAt: 'test-time' },
       size: reportedSize,
       openStream: () => stream,
+      idempotencyKey: 'idempotency-key',
     });
 
     expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
       'https://api.expo.test/v2/device-run-session-worker/artifact-upload-sessions',
       'POST',
       expect.objectContaining({
-        headers: { [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN },
+        headers: {
+          [DEVICE_RUN_SESSION_TOKEN_HEADER]: TOKEN,
+          'Idempotency-Key': 'idempotency-key',
+        },
         json: {
           name: 'Artifact report.json (artifact-id)',
           filename: 'report.json',
@@ -115,5 +136,85 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
     const allocationSignal = jest.mocked(turtleFetch).mock.calls[0][2].signal;
     expect(allocationSignal).toBeInstanceOf(AbortSignal);
     expect(allocationSignal?.aborted).toBe(true);
+  });
+
+  it('sends a new idempotency key for each upload without one', async () => {
+    jest
+      .mocked(turtleFetch)
+      .mockResolvedValueOnce(uploadSessionResponse())
+      .mockResolvedValueOnce(uploadSessionResponse());
+    jest.mocked(fetch).mockResolvedValue(new Response('', { status: 200 }));
+
+    await uploadDeviceRunSessionArtifactAsync(createCtx(), artifact);
+    await uploadDeviceRunSessionArtifactAsync(createCtx(), artifact);
+
+    const [first, second] = jest
+      .mocked(turtleFetch)
+      .mock.calls.map(
+        ([, , options]) => (options.headers as Record<string, string>)['Idempotency-Key']
+      );
+    expect(first).toEqual(expect.any(String));
+    expect(second).toEqual(expect.any(String));
+    expect(second).not.toBe(first);
+  });
+
+  it.each([
+    {
+      status: 409,
+      code: 'ARTIFACT_NAME_CONFLICT',
+      message:
+        'Device run session already has an artifact named "Screenshot". Use a different name for this artifact.',
+    },
+    {
+      status: 400,
+      code: 'VALIDATION_ERROR',
+      message: 'Device run session backing job run has finished.',
+    },
+    {
+      status: 403,
+      code: 'UNAUTHORIZED',
+      message:
+        'You are not authorized to create artifact upload sessions for this device run session.',
+    },
+    { status: 409, code: 'OTHER_CONFLICT', message: 'Failed.' },
+  ])(
+    'reports HTTP $status $code as a rejected upload session',
+    async ({ status, code, message }) => {
+      jest
+        .mocked(turtleFetch)
+        .mockResolvedValueOnce(jsonResponse({ errors: [{ code, message }] }, status));
+
+      await expect(
+        uploadDeviceRunSessionArtifactAsync(createCtx(), artifact)
+      ).rejects.toBeInstanceOf(DeviceRunSessionArtifactRejectedError);
+      expect(fetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    {
+      description: 'HTTP 429',
+      respond: async () => jsonResponse({ errors: [{ message: 'Too many requests.' }] }, 429),
+    },
+    {
+      description: 'HTTP 500',
+      respond: async () =>
+        jsonResponse({ errors: [{ code: 'UNEXPECTED_ERROR', message: 'Failed.' }] }, 500),
+    },
+    {
+      description: 'no response',
+      respond: async () => {
+        throw new Error('socket hang up');
+      },
+    },
+  ])('does not report $description as a rejected upload session', async ({ respond }) => {
+    jest.mocked(turtleFetch).mockImplementationOnce(respond);
+
+    const error = await uploadDeviceRunSessionArtifactAsync(createCtx(), artifact).catch(
+      (err: unknown) => err
+    );
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error).not.toBeInstanceOf(DeviceRunSessionArtifactRejectedError);
   });
 });
