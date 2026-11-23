@@ -14976,13 +14976,6 @@ export type ResumeUpdateChannelMutationVariables = Exact<{
 
 export type ResumeUpdateChannelMutation = { __typename?: 'RootMutation', updateChannel: { __typename?: 'UpdateChannelMutation', resumeUpdateChannel: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string, isProtected: boolean } } };
 
-export type AppInfoQueryVariables = Exact<{
-  appId: Scalars['String']['input'];
-}>;
-
-
-export type AppInfoQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string } } };
-
 export type CreateAndroidAppBuildCredentialsMutationVariables = Exact<{
   androidAppBuildCredentialsInput: AndroidAppBuildCredentialsInput;
   androidAppCredentialsId: Scalars['ID']['input'];

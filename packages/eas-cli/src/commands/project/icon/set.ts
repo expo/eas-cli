@@ -14,13 +14,14 @@ import {
 } from '../../../project/projectIcon';
 
 export default class ProjectIconSet extends EasCommand {
-  static override description = 'set the project icon displayed on the EAS dashboard';
+  static override description =
+    'set the project icon displayed on the EAS dashboard (requires the Admin role)';
 
   static override args = {
     path: Args.string({
       required: true,
       description:
-        'Path to the icon image (PNG or JPEG, at most 10 MB). Non-square images are center-cropped to a square.',
+        'Path to the icon image (PNG or JPEG, at most 10 MB). The image is resized to a 1024x1024 PNG, and a non-square image is center-cropped.',
     }),
   };
 
