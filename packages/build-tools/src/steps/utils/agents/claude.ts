@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
@@ -22,12 +23,14 @@ export const CLAUDE_CODE_CLI: AgentCli = {
   packageSpec: '@anthropic-ai/claude-code@2.1.291',
   bin: 'claude',
   formatOutputLine: formatClaudeCodeOutputLine,
+  findFatalError: findUnconnectedMcpServersError,
 };
 
 export async function prepareClaudeCodeAsync({
   homeDirectory,
   minimalEnv,
   mcpServer,
+  userMcpServers,
   prompt,
   credentials,
   isResuming,
@@ -35,6 +38,7 @@ export async function prepareClaudeCodeAsync({
   homeDirectory: string;
   minimalEnv: Record<string, string>;
   mcpServer: McpServer;
+  userMcpServers: Record<string, McpServer>;
   prompt: string;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
@@ -42,10 +46,15 @@ export async function prepareClaudeCodeAsync({
   if (credentials.provider !== 'anthropic') {
     throw createProviderMismatchError('Claude Code', credentials);
   }
+  const mcpServers = { [MCP_SERVER_NAME]: mcpServer, ...userMcpServers };
   const mcpConfigPath = path.join(homeDirectory, 'mcp.json');
   await fs.writeFile(
     mcpConfigPath,
-    JSON.stringify({ mcpServers: { [MCP_SERVER_NAME]: { type: 'http', ...mcpServer } } }),
+    JSON.stringify({
+      mcpServers: Object.fromEntries(
+        Object.entries(mcpServers).map(([name, server]) => [name, { type: 'http', ...server }])
+      ),
+    }),
     { mode: 0o600 }
   );
   return {
@@ -54,9 +63,14 @@ export async function prepareClaudeCodeAsync({
       ...(isResuming ? ['--continue'] : []),
       // Print mode requires `--verbose` for `stream-json`.
       ...['--output-format', 'stream-json', '--verbose'],
-      // No built-in tools. Print mode denies any tool without an allow rule, so the MCP server
+      // No built-in tools. Print mode denies any tool without an allow rule, so each MCP server
       // gets one.
-      ...['--tools', '', '--allowedTools', `mcp__${MCP_SERVER_NAME}`],
+      ...[
+        '--tools',
+        '',
+        '--allowedTools',
+        ...Object.keys(mcpServers).map(name => `mcp__${name}__*`),
+      ],
       ...['--mcp-config', mcpConfigPath, '--strict-mcp-config'],
     ],
     env: {
@@ -67,6 +81,26 @@ export async function prepareClaudeCodeAsync({
     stdin: isResuming ? createContinuationPrompt(prompt) : prompt,
     secrets: [credentials.accessToken],
   };
+}
+
+function findUnconnectedMcpServersError(outputLine: string): Error | undefined {
+  const event = ClaudeCodeEventSchema.safeParse(parseJsonLine(outputLine));
+  if (!event.success || event.data.type !== 'system') {
+    return undefined;
+  }
+  const unconnectedServers = event.data.mcp_servers.filter(
+    server => server.name !== MCP_SERVER_NAME && server.status !== 'connected'
+  );
+  if (unconnectedServers.length === 0) {
+    return undefined;
+  }
+  const unconnectedServersFormatted = unconnectedServers
+    .map(server => `${server.name} (${server.status})`)
+    .join(', ');
+  return new UserError(
+    'EAS_RUN_AGENT_MCP_SERVER_NOT_CONNECTED',
+    `The agent could not connect to the following MCP servers: ${unconnectedServersFormatted}. Check each server's URL and headers for errors, then start the agent run again.`
+  );
 }
 
 const AssistantBlockSchema = z.discriminatedUnion('type', [

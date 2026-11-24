@@ -26,6 +26,7 @@ export interface AgentCli {
   packageSpec: string;
   bin: string;
   formatOutputLine(line: string): AgentLogMessage[];
+  findFatalError?(outputLine: string): Error | undefined;
 }
 
 export function parseJsonLine(line: string): unknown {

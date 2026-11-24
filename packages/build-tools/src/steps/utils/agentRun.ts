@@ -8,7 +8,12 @@ import path from 'node:path';
 import readline from 'node:readline';
 
 import { leaseAgentRunProviderCredentialsAsync } from './agentRunLease';
-import { type AgentCli, type AgentInvocation, type AgentLogMessage } from './agents/agent';
+import {
+  type AgentCli,
+  type AgentInvocation,
+  type AgentLogMessage,
+  type McpServer,
+} from './agents/agent';
 import { CLAUDE_CODE_CLI, prepareClaudeCodeAsync } from './agents/claude';
 import { CODEX_CLI, prepareCodexAsync } from './agents/codex';
 import { Sentry } from '../../sentry';
@@ -32,6 +37,7 @@ export async function runAgentAsync({
   expoToken,
   expoApiV2BaseUrl,
   mcpUrl,
+  userMcpServers,
   pathEnv,
   npmCacheUrl,
   logger,
@@ -45,6 +51,7 @@ export async function runAgentAsync({
   expoApiV2BaseUrl: string;
   /** The Expo MCP server's streamable HTTP endpoint. */
   mcpUrl: string;
+  userMcpServers: Record<string, McpServer>;
   pathEnv: string;
   npmCacheUrl?: string;
   logger: bunyan;
@@ -73,7 +80,7 @@ export async function runAgentAsync({
       LANG: 'C.UTF-8',
     };
 
-    const { packageSpec, bin, formatOutputLine } = AGENT_CLIS[agentKind];
+    const { packageSpec, bin, formatOutputLine, findFatalError } = AGENT_CLIS[agentKind];
     logger.info(`Installing ${packageSpec}.`);
     try {
       await installIsolatedNpmPackageAsync({
@@ -105,6 +112,7 @@ export async function runAgentAsync({
             homeDirectory,
             minimalEnv,
             mcpServer,
+            userMcpServers,
             prompt,
             credentials,
             isResuming,
@@ -115,6 +123,7 @@ export async function runAgentAsync({
             homeDirectory,
             minimalEnv,
             mcpServer,
+            userMcpServers,
             prompt,
             credentials,
             isResuming,
@@ -130,6 +139,7 @@ export async function runAgentAsync({
         ...invocation,
         cwd: workingDirectory,
         formatOutputLine,
+        findFatalError,
         logger,
         signal,
       });
@@ -165,6 +175,7 @@ async function runAgentProcessAsync({
   env,
   cwd,
   stdin,
+  findFatalError,
   formatOutputLine,
   logger,
   signal,
@@ -174,6 +185,7 @@ async function runAgentProcessAsync({
   env: Record<string, string>;
   cwd: string;
   stdin: string;
+  findFatalError: AgentCli['findFatalError'];
   formatOutputLine: AgentCli['formatOutputLine'];
   logger: bunyan;
   signal: AbortSignal;
@@ -182,11 +194,24 @@ async function runAgentProcessAsync({
   // Detached, so the agent leads a process group that can be signaled as a whole.
   const child = spawn(command, args, { cwd, env, detached: true });
   const outputClosed = new Promise<void>(resolve => child.once('close', () => resolve()));
+
+  let killTimer: NodeJS.Timeout | undefined;
+  let fatalError: Error | undefined;
+
+  const stop = (): void => {
+    if (killTimer) {
+      return;
+    }
+    killProcessGroup(child, 'SIGTERM');
+    killTimer = setTimeout(() => killProcessGroup(child, 'SIGKILL'), KILL_GRACE_PERIOD_MS);
+  };
+
   const stdoutLogger = logger.child({ source: 'stdout' });
   readline.createInterface({ input: child.stdout }).on('line', line => {
     let messages: AgentLogMessage[];
     try {
       messages = formatOutputLine(line);
+      fatalError ??= findFatalError?.(line);
     } catch (error) {
       // An exception in a readline listener is uncaught and would end the worker process.
       Sentry.capture('Could not format a line of the agent output', error as Error);
@@ -195,23 +220,19 @@ async function runAgentProcessAsync({
     for (const { level, message } of messages) {
       stdoutLogger[level](message.trimEnd());
     }
+    if (fatalError) {
+      stop();
+    }
   });
   const stderrLogger = logger.child({ source: 'stderr' });
   readline.createInterface({ input: child.stderr }).on('line', line => {
     stderrLogger.info(line);
   });
+
   // The agent may exit before it reads the prompt; its exit status reports that.
   child.stdin.on('error', () => {});
   child.stdin.end(stdin);
 
-  let killTimer: NodeJS.Timeout | undefined;
-  const stop = (): void => {
-    if (killTimer) {
-      return;
-    }
-    killProcessGroup(child, 'SIGTERM');
-    killTimer = setTimeout(() => killProcessGroup(child, 'SIGKILL'), KILL_GRACE_PERIOD_MS);
-  };
   signal.addEventListener('abort', stop);
   let exitCode: number | null;
   let exitSignal: NodeJS.Signals | null;
@@ -241,5 +262,8 @@ async function runAgentProcessAsync({
   clearTimeout(outputGraceTimer);
 
   signal.throwIfAborted();
+  if (fatalError) {
+    throw fatalError;
+  }
   return { exitCode, exitSignal };
 }
