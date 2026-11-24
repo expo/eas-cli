@@ -14,6 +14,7 @@ import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadDebugSymbolsAsync,
   uploadSourceMapAsync,
   uploadWithAnalyticsAsync,
   uploadWorkflowArtifactAsync,
@@ -79,6 +80,13 @@ export async function createBuildContext<TJob extends Job>({
         assert(job.platform, 'Uploading source maps outside of builds is not supported.');
         return await uploadWithAnalyticsAsync(
           () => uploadSourceMapAsync(ctx, { sourceMapPath: paths[0], buildId, logger }),
+          analytics
+        );
+      }
+      case ManagedArtifactType.DEBUG_SYMBOLS: {
+        assert(job.platform, 'Uploading debug symbols outside of builds is not supported.');
+        return await uploadWithAnalyticsAsync(
+          () => uploadDebugSymbolsAsync(ctx, { debugSymbolsPath: paths[0], logger }),
           analytics
         );
       }

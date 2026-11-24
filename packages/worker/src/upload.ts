@@ -190,6 +190,58 @@ export async function uploadSourceMapAsync(
   }
 }
 
+export async function uploadDebugSymbolsAsync(
+  ctx: BuildContext,
+  {
+    debugSymbolsPath,
+    logger,
+  }: {
+    debugSymbolsPath: string;
+    logger: bunyan;
+  }
+): Promise<{ filename: string | null }> {
+  const { localPath, filename, size } = await prepareArtifactsForUploadAsync(logger, [
+    debugSymbolsPath,
+  ]);
+
+  let uploadSession: SignedUrl | null = null;
+
+  try {
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Debug Symbols',
+      size,
+      artifactType: 'debugSymbols',
+    });
+
+    uploadSession = signedUrl;
+
+    await uploadWithSignedUrl({
+      signedUrl,
+      srcGeneratorAsync: async () => {
+        return fs.createReadStream(localPath);
+      },
+    });
+
+    await saveArtifactAsync(ctx, { bucketKey, type: 'debugSymbols', storageType });
+
+    return { filename: null };
+  } catch (err: any) {
+    logger.error({ err, filename, size }, 'Debug symbols upload failed');
+
+    throw new errors.SystemError(`Failed to upload debug symbols. ${err.message}`, {
+      trackingCode: 'EAS_BUILD_UPLOAD_DEBUG_SYMBOLS_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
+      cause: err,
+    });
+  }
+}
+
 export async function uploadWorkflowArtifactAsync(
   ctx: BuildContext,
   {
@@ -305,7 +357,7 @@ async function createUploadSessionAsync(
     name: string;
     size: number;
     metadata?: Record<string, unknown>;
-    artifactType?: 'sourceMap';
+    artifactType?: 'sourceMap' | 'debugSymbols';
   }
 ): Promise<{
   bucketKey: string;
@@ -443,7 +495,7 @@ async function saveArtifactAsync(
     storageType,
   }: {
     bucketKey: string;
-    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap';
+    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap' | 'debugSymbols';
     storageType: ArchiveSourceType | null;
   }
 ): Promise<void> {

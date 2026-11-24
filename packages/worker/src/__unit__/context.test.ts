@@ -6,7 +6,11 @@ import { createBuildContext } from '../context';
 import { getBuildEnv } from '../env';
 import { maybeStopWarmSimulatorAsync } from '../warmSimulator';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
-import { uploadSourceMapAsync, uploadWorkflowArtifactAsync } from '../upload';
+import {
+  uploadDebugSymbolsAsync,
+  uploadSourceMapAsync,
+  uploadWorkflowArtifactAsync,
+} from '../upload';
 
 jest.mock('../warmSimulator');
 jest.mock('../env', () => ({
@@ -22,6 +26,7 @@ jest.mock('../upload', () => ({
   ...jest.requireActual('../upload'),
   uploadWorkflowArtifactAsync: jest.fn(async () => ({ artifactId: 'artifact-id' })),
   uploadSourceMapAsync: jest.fn(async () => ({ filename: null })),
+  uploadDebugSymbolsAsync: jest.fn(async () => ({ filename: null })),
   uploadWithAnalyticsAsync: jest.fn(async fn => await fn()),
 }));
 
@@ -198,6 +203,30 @@ describe(createBuildContext.name, () => {
       logger: childLogger,
     });
   });
+  it('routes managed debug symbols to the debug symbols uploader', async () => {
+    const ctx = await createBuildContext({
+      ...baseOptions,
+      job: {
+        platform: Platform.IOS,
+        type: Workflow.GENERIC,
+        secrets: { environmentSecrets: [] },
+      } as any,
+    });
+
+    await ctx.uploadArtifact({
+      artifact: {
+        type: ManagedArtifactType.DEBUG_SYMBOLS,
+        paths: ['/workingdir/ios/build/Remember.app.dSYM.zip'],
+      },
+      logger: childLogger,
+    });
+
+    expect(uploadDebugSymbolsAsync).toHaveBeenCalledWith(ctx, {
+      debugSymbolsPath: '/workingdir/ios/build/Remember.app.dSYM.zip',
+      logger: childLogger,
+    });
+  });
+
   it('uploads named artifacts to workflow storage and returns their ID', async () => {
     const ctx = await createBuildContext({
       ...baseOptions,
