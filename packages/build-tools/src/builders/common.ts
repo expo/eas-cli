@@ -3,6 +3,7 @@ import { BuildJob, BuildPhase, Ios, Platform } from '@expo/eas-build-job';
 import { Artifacts, BuildContext } from '../context';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { maybeFindAndUploadBuildArtifacts } from '../utils/artifacts';
+import { maybeUploadDebugSymbolsAsync } from '../utils/debugSymbols';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { maybeUploadSourceMapAsync } from '../utils/sourceMaps';
 
@@ -41,6 +42,7 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
       await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
         if (buildSuccess) {
           await maybeUploadSourceMapAsync(ctx);
+          await maybeUploadDebugSymbolsAsync(ctx);
         }
         await maybeFindAndUploadBuildArtifacts(ctx, {
           logger: ctx.logger,
