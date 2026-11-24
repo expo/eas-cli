@@ -71,6 +71,10 @@ async function ensureEasCliIsNotInDependenciesAsync(projectDir: string): Promise
 
 async function isEasCliInDependenciesAsync(dir: string): Promise<boolean> {
   const packageJsonPath = path.join(dir, 'package.json');
+  // A pnpm workspace root can use package.json5 or package.yaml instead of package.json.
+  if (!(await fs.pathExists(packageJsonPath))) {
+    return false;
+  }
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
   return (
     packageJson?.dependencies?.['eas-cli'] !== undefined ||
