@@ -14,7 +14,7 @@ import {
   getPrivateExpoConfigAsync,
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
-import { getUnconfiguredProjectError } from '../../../project/projectNotConfiguredError';
+import { ProjectNotConfiguredError } from '../../../project/projectNotConfiguredError';
 import { promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
 import { Actor, getActorUsername } from '../../../user/User';
@@ -230,7 +230,7 @@ async function chooseAccountNameForEASProjectAsync(
   }
 
   if (actor.__typename === 'Robot') {
-    throw getUnconfiguredProjectError({
+    throw new ProjectNotConfiguredError({
       actor,
       reason: 'A robot access token cannot configure it interactively.',
       additionalFix: 'Alternatively, set the "owner" field in your app config.',
@@ -243,7 +243,7 @@ async function chooseAccountNameForEASProjectAsync(
   }
 
   if (options.nonInteractive) {
-    throw getUnconfiguredProjectError({ actor });
+    throw new ProjectNotConfiguredError({ actor });
   }
 
   const choices = getAccountChoices(actor);

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { getUnconfiguredProjectError } from './projectNotConfiguredError';
+import { ProjectNotConfiguredError } from './projectNotConfiguredError';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppMutation } from '../graphql/mutations/AppMutation';
@@ -33,7 +33,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   const allAccounts = actor.accounts;
 
   if (options.nonInteractive) {
-    throw getUnconfiguredProjectError({ actor, accountName });
+    throw new ProjectNotConfiguredError({ actor, accountName });
   }
   const account = allAccounts.find(a => a.name === accountName);
   if (!account) {
