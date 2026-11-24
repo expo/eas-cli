@@ -15,9 +15,10 @@ import {
 import { AppPlatform, BuildStatus as GraphQLBuildStatus } from '../../graphql/generated';
 import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
+import { ProjectNotConfiguredError } from '../../project/projectNotConfiguredError';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { buildDistributionTypeToGraphQLDistributionType } from '../../utils/buildDistribution';
-import { enableJsonOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BuildList extends EasCommand {
   static override description = 'list all builds for your project';
@@ -87,6 +88,9 @@ export default class BuildList extends EasCommand {
     const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const {
       platform: requestedPlatform,
       status: buildStatus,
@@ -108,10 +112,18 @@ export default class BuildList extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive,
+    }).catch((error: unknown) => {
+      if (jsonFlag && error instanceof ProjectNotConfiguredError) {
+        printJsonOnlyOutput({
+          error: {
+            code: 'EAS_PROJECT_NOT_CONFIGURED',
+            accountName: error.accountName,
+            eligibleAccounts: error.eligibleAccounts,
+          },
+        });
+      }
+      throw error;
     });
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
