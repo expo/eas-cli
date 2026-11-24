@@ -161,7 +161,7 @@ export default class GitClient extends Client {
   public async makeShallowCopyAsync(destinationPath: string): Promise<void> {
     if (await this.isCommitRequiredAsync()) {
       // it should already be checked before this function is called, but in case it wasn't
-      // we want to ensure that any changes were introduced by call to `setGitCaseSensitivityAsync`
+      // we stop here, because with `requireCommit` the copy contains only committed changes
       throw new Error('You have some uncommitted changes in your repository.');
     }
 
@@ -191,79 +191,72 @@ export default class GitClient extends Client {
 
     await assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(rootPath);
 
-    const isCaseSensitive = await isGitCaseSensitiveAsync(rootPath);
-    try {
-      await setGitCaseSensitivityAsync(true, rootPath);
-      await spawnAsync(
-        'git',
-        [
-          'clone',
-          // If we do not require a commit, we are going to later
-          // copy the working directory into the destination path,
-          // so we can skip the checkout step (which also adds files
-          // that have been removed in the working directory).
-          this.requireCommit ? null : '--no-checkout',
-          '--no-hardlinks',
-          '--depth',
-          '1',
-          gitRepoUri,
-          destinationPath,
-        ].flatMap(e => e ?? []),
-        { cwd: rootPath }
+    await spawnAsync(
+      'git',
+      [
+        'clone',
+        // If we do not require a commit, we are going to later
+        // copy the working directory into the destination path,
+        // so we can skip the checkout step (which also adds files
+        // that have been removed in the working directory).
+        this.requireCommit ? null : '--no-checkout',
+        '--no-hardlinks',
+        '--depth',
+        '1',
+        gitRepoUri,
+        destinationPath,
+      ].flatMap(e => e ?? []),
+      { cwd: rootPath }
+    );
+
+    if (await fs.exists(sourceEasignorePath)) {
+      Log.debug('.easignore exists, deleting files that should be ignored', {
+        sourceEasignorePath,
+      });
+
+      const cachedFilesWeShouldHaveIgnored = (
+        await spawnAsync(
+          'git',
+          [
+            'ls-files',
+            '--exclude-from',
+            sourceEasignorePath,
+            // `--ignored --cached` makes git print files that should be
+            // ignored by rules from `--exclude-from`, but instead are currently cached.
+            '--ignored',
+            '--cached',
+            // separates file names with null characters
+            '-z',
+          ],
+          { cwd: destinationPath }
+        )
+      ).stdout
+        .split('\0')
+        // ls-files' output is terminated by a null character
+        .filter(file => file !== '');
+
+      Log.debug('cachedFilesWeShouldHaveIgnored', {
+        cachedFilesWeShouldHaveIgnored,
+      });
+
+      await Promise.all(
+        cachedFilesWeShouldHaveIgnored.map(file =>
+          // `ls-files` does not go over files within submodules. If submodule is
+          // ignored, it is listed as a single path, so we need to `rm -rf` it.
+          fs.rm(path.join(destinationPath, file), { recursive: true, force: true })
+        )
       );
 
-      const sourceEasignorePath = path.join(rootPath, EASIGNORE_FILENAME);
-      if (await fs.exists(sourceEasignorePath)) {
-        Log.debug('.easignore exists, deleting files that should be ignored', {
-          sourceEasignorePath,
+      // Special-case `.git` which `git ls-files` will never consider ignored.
+      // We don't want to ignore anything by default. We want to know what does
+      // the user want to ignore.
+      const ignore = await Ignore.createForCheckingAsync(rootPath);
+      if (ignore.ignores('.git')) {
+        await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
+        Log.debug('deleted .git', {
+          destinationPath,
         });
-
-        const cachedFilesWeShouldHaveIgnored = (
-          await spawnAsync(
-            'git',
-            [
-              'ls-files',
-              '--exclude-from',
-              sourceEasignorePath,
-              // `--ignored --cached` makes git print files that should be
-              // ignored by rules from `--exclude-from`, but instead are currently cached.
-              '--ignored',
-              '--cached',
-              // separates file names with null characters
-              '-z',
-            ],
-            { cwd: destinationPath }
-          )
-        ).stdout
-          .split('\0')
-          // ls-files' output is terminated by a null character
-          .filter(file => file !== '');
-
-        Log.debug('cachedFilesWeShouldHaveIgnored', {
-          cachedFilesWeShouldHaveIgnored,
-        });
-
-        await Promise.all(
-          cachedFilesWeShouldHaveIgnored.map(file =>
-            // `ls-files` does not go over files within submodules. If submodule is
-            // ignored, it is listed as a single path, so we need to `rm -rf` it.
-            fs.rm(path.join(destinationPath, file), { recursive: true, force: true })
-          )
-        );
-
-        // Special-case `.git` which `git ls-files` will never consider ignored.
-        // We don't want to ignore anything by default. We want to know what does
-        // the user want to ignore.
-        const ignore = await Ignore.createForCheckingAsync(rootPath);
-        if (ignore.ignores('.git')) {
-          await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
-          Log.debug('deleted .git', {
-            destinationPath,
-          });
-        }
       }
-    } finally {
-      await setGitCaseSensitivityAsync(isCaseSensitive, rootPath);
     }
 
     if (!this.requireCommit) {
@@ -473,100 +466,56 @@ export default class GitClient extends Client {
   }
 }
 
-/**
- * Checks if git is configured to be case sensitive
- * @returns {boolean | undefined}
- *    - boolean - is git case sensitive
- *    - undefined - case sensitivity is not configured and git is using default behavior
- */
-export async function isGitCaseSensitiveAsync(
-  cwd: string | undefined
-): Promise<boolean | undefined> {
-  if (process.platform !== 'darwin') {
-    return undefined;
-  }
-
-  try {
-    const result = await spawnAsync('git', ['config', '--get', 'core.ignorecase'], {
-      cwd,
-    });
-    const isIgnoreCaseEnabled = result.stdout.trim();
-    if (isIgnoreCaseEnabled === '') {
-      return undefined;
-    } else if (isIgnoreCaseEnabled === 'true') {
-      return false;
-    } else {
-      return true;
-    }
-  } catch {
-    return undefined;
-  }
-}
-
-async function setGitCaseSensitivityAsync(
-  enable: boolean | undefined,
-  cwd: string | undefined
+async function assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(
+  cwd: string
 ): Promise<void> {
   // we are assuming that if someone sets that on non-macos device then
   // they know what they are doing
   if (process.platform !== 'darwin') {
     return;
   }
-  if (enable === undefined) {
-    await spawnAsync('git', ['config', '--unset', 'core.ignorecase'], {
-      cwd,
-    });
-  } else {
-    await spawnAsync('git', ['config', 'core.ignorecase', String(!enable)], {
-      cwd,
-    });
-  }
-}
 
-async function assertEnablingGitCaseSensitivityDoesNotCauseNewUncommittedChangesAsync(
-  cwd: string
-): Promise<void> {
   // Remember uncommited changes before case sensitivity change
   // for later comparison so we log to the user only the files
   // that were marked as changed after the case sensitivity change.
+  //
+  // Git passes `-c core.ignorecase=false` on to the status it runs inside each submodule.
+  // Both calls ignore dirty submodules so that the check covers only this repository.
   const uncommittedChangesBeforeCaseSensitivityChange = await gitStatusAsync({
     showUntracked: true,
     cwd,
+    ignoreDirtySubmodules: true,
   });
 
-  const isCaseSensitive = await isGitCaseSensitiveAsync(cwd);
-  await setGitCaseSensitivityAsync(true, cwd);
-  try {
-    const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
-      showUntracked: true,
-      cwd,
-    });
+  const uncommitedChangesAfterCaseSensitivityChange = await gitStatusAsync({
+    showUntracked: true,
+    cwd,
+    caseSensitive: true,
+    ignoreDirtySubmodules: true,
+  });
 
-    if (
-      uncommitedChangesAfterCaseSensitivityChange !== uncommittedChangesBeforeCaseSensitivityChange
-    ) {
-      const baseUncommitedChangesSet = new Set(
-        uncommittedChangesBeforeCaseSensitivityChange.split('\n')
-      );
+  if (
+    uncommitedChangesAfterCaseSensitivityChange !== uncommittedChangesBeforeCaseSensitivityChange
+  ) {
+    const baseUncommitedChangesSet = new Set(
+      uncommittedChangesBeforeCaseSensitivityChange.split('\n')
+    );
 
-      const errorMessage = [
-        'Detected inconsistent filename casing between your local filesystem and git.',
-        'This will likely cause your job to fail. Impacted files:',
-        ...uncommitedChangesAfterCaseSensitivityChange.split('\n').flatMap(changedFile => {
-          // This file was changed before the case sensitivity change too.
-          if (baseUncommitedChangesSet.has(changedFile)) {
-            return [];
-          }
-          return [changedFile];
-        }),
-        `Resolve filename casing inconsistencies before proceeding. ${learnMore(
-          'https://expo.fyi/macos-ignorecase'
-        )}`,
-      ];
+    const errorMessage = [
+      'Detected inconsistent filename casing between your local filesystem and git.',
+      'This will likely cause your job to fail. Impacted files:',
+      ...uncommitedChangesAfterCaseSensitivityChange.split('\n').flatMap(changedFile => {
+        // This file was changed before the case sensitivity change too.
+        if (baseUncommitedChangesSet.has(changedFile)) {
+          return [];
+        }
+        return [changedFile];
+      }),
+      `Resolve filename casing inconsistencies before proceeding. ${learnMore(
+        'https://expo.fyi/macos-ignorecase'
+      )}`,
+    ];
 
-      throw new Error(errorMessage.join('\n'));
-    }
-  } finally {
-    await setGitCaseSensitivityAsync(isCaseSensitive, cwd);
+    throw new Error(errorMessage.join('\n'));
   }
 }

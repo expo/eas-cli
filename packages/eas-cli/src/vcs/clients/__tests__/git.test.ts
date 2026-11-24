@@ -243,6 +243,67 @@ describe('git', () => {
     ).resolves.not.toThrow();
   });
 
+  (process.platform === 'darwin' ? it : it.skip)(
+    'detects inconsistent filename casing without writing to .git/config',
+    async () => {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/File.txt`, 'file');
+      await spawnAsync('git', ['add', 'File.txt'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'add file'], { cwd: repoRoot });
+      await fs.rename(`${repoRoot}/File.txt`, `${repoRoot}/file.txt`);
+
+      // Git refuses to write .git/config while this lock file exists, like a sandbox that
+      // protects the file.
+      await fs.writeFile(path.join(repoRoot, '.git', 'config.lock'), '');
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).rejects.toThrow(
+        /inconsistent filename casing[\s\S]*file\.txt/
+      );
+    }
+  );
+
+  (process.platform === 'darwin' ? it : it.skip)(
+    'does not report inconsistent filename casing inside a submodule',
+    async () => {
+      const submoduleSource = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: submoduleSource });
+      await fs.writeFile(`${submoduleSource}/File.txt`, 'file');
+      await spawnAsync('git', ['add', 'File.txt'], { cwd: submoduleSource });
+      await spawnAsync('git', ['commit', '-m', 'add file'], { cwd: submoduleSource });
+
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await spawnAsync(
+        'git',
+        // Git does not clone a submodule from a local path unless the file protocol is allowed.
+        ['-c', 'protocol.file.allow=always', 'submodule', 'add', submoduleSource, 'submodule'],
+        { cwd: repoRoot }
+      );
+      await spawnAsync('git', ['commit', '-m', 'add submodule'], { cwd: repoRoot });
+      await fs.rename(`${repoRoot}/submodule/File.txt`, `${repoRoot}/submodule/file.txt`);
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, 'submodule', 'file.txt'))).resolves.not.toThrow();
+
+      vcs.requireCommit = true;
+      const requireCommitClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(requireCommitClone)).resolves.not.toThrow();
+    }
+  );
+
   describe('when requireCommit is true', () => {
     it('adheres to .easignore', async () => {
       const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
