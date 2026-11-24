@@ -100,6 +100,7 @@ export async function prepareJobAsync(
     experimental: {
       prebuildCommand: buildProfile.prebuildCommand,
       uploadSourceMaps: buildProfile.uploadSourceMaps,
+      uploadDebugSymbols: buildProfile.uploadDebugSymbols,
     },
     mode: buildMode,
     triggeredBy: BuildTrigger.EAS_CLI,

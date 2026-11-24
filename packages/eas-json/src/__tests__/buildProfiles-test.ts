@@ -61,6 +61,41 @@ test('source map uploads can be enabled for both platforms', async () => {
   expect(iosProfile.uploadSourceMaps).toBe(true);
 });
 
+test('debug symbols uploads can be enabled for iOS', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: {
+        ios: { uploadDebugSymbols: true },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production');
+
+  expect(iosProfile.uploadDebugSymbols).toBe(true);
+});
+
+test.each([
+  ['the profile root', { uploadDebugSymbols: true }, 'build.production.uploadDebugSymbols'],
+  [
+    'the android profile',
+    { android: { uploadDebugSymbols: true } },
+    'build.production.android.uploadDebugSymbols',
+  ],
+])('debug symbols uploads cannot be enabled in %s', async (_location, profile, key) => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      production: profile,
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  await expect(
+    EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'production')
+  ).rejects.toThrow(`"${key}" is not allowed`);
+});
+
 test('minimal valid eas.json for both platforms when reading eas.json from string', async () => {
   const accessor = EasJsonAccessor.fromRawString(
     JSON.stringify({
