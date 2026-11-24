@@ -40,5 +40,32 @@ describe('noVcs', () => {
       process.env.EAS_PROJECT_ROOT = '/app';
       expect(await vcs.getRootPathAsync()).toBe('/app');
     });
+
+    it('isFileIgnoredAsync reads .easignore next to the project, not only at the git root', async () => {
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(projectDir, '.easignore'), 'secret.txt\n');
+      await fs.writeFile(path.join(repoRoot, 'secret.txt'), 'secret');
+      await fs.writeFile(path.join(repoRoot, 'kept.txt'), 'kept');
+
+      vcs = new NoVcsClient({ cwdOverride: repoRoot, projectDir });
+
+      expect(await vcs.isFileIgnoredAsync('secret.txt')).toBe(true);
+      expect(await vcs.isFileIgnoredAsync('kept.txt')).toBe(false);
+    });
+
+    it('isFileIgnoredAsync prefers the project .easignore when both project and root files exist', async () => {
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const projectDir = path.join(repoRoot, 'apps', 'app-a');
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(path.join(repoRoot, '.easignore'), 'from-root.txt\n');
+      await fs.writeFile(path.join(projectDir, '.easignore'), 'from-app.txt\n');
+
+      vcs = new NoVcsClient({ cwdOverride: repoRoot, projectDir });
+
+      expect(await vcs.isFileIgnoredAsync('from-app.txt')).toBe(true);
+      expect(await vcs.isFileIgnoredAsync('from-root.txt')).toBe(false);
+    });
   });
 });
