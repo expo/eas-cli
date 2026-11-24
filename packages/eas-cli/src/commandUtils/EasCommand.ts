@@ -279,9 +279,7 @@ export default abstract class EasCommand extends Command {
     const commandId = this.id ?? 'unknown';
     let baseMessage = `${commandId} command failed.`;
     if (err instanceof EasCommandError) {
-      if (!err.messageAlreadyPrinted) {
-        Log.errorToStderr(err.message);
-      }
+      Log.errorToStderr(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
