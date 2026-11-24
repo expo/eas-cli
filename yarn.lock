@@ -2534,7 +2534,7 @@ __metadata:
     "@expo/template-file": "npm:27.11.0"
     "@expo/turtle-spawn": "npm:27.11.0"
     "@expo/xcpretty": "npm:^4.4.7"
-    "@ngrok/ngrok": "npm:1.7.0"
+    "@ngrok/ngrok": "npm:1.8.0"
     "@sentry/node": "npm:7.77.0"
     "@types/content-disposition": "npm:0.5.9"
     "@types/fs-extra": "npm:^11.0.4"
@@ -5328,114 +5328,114 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-android-arm64@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-android-arm64@npm:1.7.0"
+"@ngrok/ngrok-android-arm64@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-android-arm64@npm:1.8.0"
   conditions: os=android & cpu=arm64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-darwin-arm64@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-darwin-arm64@npm:1.7.0"
+"@ngrok/ngrok-darwin-arm64@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-darwin-arm64@npm:1.8.0"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-darwin-universal@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-darwin-universal@npm:1.7.0"
+"@ngrok/ngrok-darwin-universal@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-darwin-universal@npm:1.8.0"
   conditions: os=darwin
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-darwin-x64@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-darwin-x64@npm:1.7.0"
+"@ngrok/ngrok-darwin-x64@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-darwin-x64@npm:1.8.0"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-freebsd-x64@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-freebsd-x64@npm:1.7.0"
+"@ngrok/ngrok-freebsd-x64@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-freebsd-x64@npm:1.8.0"
   conditions: os=freebsd & cpu=x64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-linux-arm-gnueabihf@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-linux-arm-gnueabihf@npm:1.7.0"
+"@ngrok/ngrok-linux-arm-gnueabihf@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-linux-arm-gnueabihf@npm:1.8.0"
   conditions: os=linux & cpu=arm
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-linux-arm64-gnu@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-linux-arm64-gnu@npm:1.7.0"
+"@ngrok/ngrok-linux-arm64-gnu@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-linux-arm64-gnu@npm:1.8.0"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-linux-arm64-musl@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-linux-arm64-musl@npm:1.7.0"
+"@ngrok/ngrok-linux-arm64-musl@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-linux-arm64-musl@npm:1.8.0"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-linux-x64-gnu@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-linux-x64-gnu@npm:1.7.0"
+"@ngrok/ngrok-linux-x64-gnu@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-linux-x64-gnu@npm:1.8.0"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-linux-x64-musl@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-linux-x64-musl@npm:1.7.0"
+"@ngrok/ngrok-linux-x64-musl@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-linux-x64-musl@npm:1.8.0"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-win32-arm64-msvc@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-win32-arm64-msvc@npm:1.7.0"
+"@ngrok/ngrok-win32-arm64-msvc@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-win32-arm64-msvc@npm:1.8.0"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-win32-ia32-msvc@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-win32-ia32-msvc@npm:1.7.0"
+"@ngrok/ngrok-win32-ia32-msvc@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-win32-ia32-msvc@npm:1.8.0"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok-win32-x64-msvc@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok-win32-x64-msvc@npm:1.7.0"
+"@ngrok/ngrok-win32-x64-msvc@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok-win32-x64-msvc@npm:1.8.0"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@ngrok/ngrok@npm:1.7.0":
-  version: 1.7.0
-  resolution: "@ngrok/ngrok@npm:1.7.0"
+"@ngrok/ngrok@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@ngrok/ngrok@npm:1.8.0"
   dependencies:
-    "@ngrok/ngrok-android-arm64": "npm:1.7.0"
-    "@ngrok/ngrok-darwin-arm64": "npm:1.7.0"
-    "@ngrok/ngrok-darwin-universal": "npm:1.7.0"
-    "@ngrok/ngrok-darwin-x64": "npm:1.7.0"
-    "@ngrok/ngrok-freebsd-x64": "npm:1.7.0"
-    "@ngrok/ngrok-linux-arm-gnueabihf": "npm:1.7.0"
-    "@ngrok/ngrok-linux-arm64-gnu": "npm:1.7.0"
-    "@ngrok/ngrok-linux-arm64-musl": "npm:1.7.0"
-    "@ngrok/ngrok-linux-x64-gnu": "npm:1.7.0"
-    "@ngrok/ngrok-linux-x64-musl": "npm:1.7.0"
-    "@ngrok/ngrok-win32-arm64-msvc": "npm:1.7.0"
-    "@ngrok/ngrok-win32-ia32-msvc": "npm:1.7.0"
-    "@ngrok/ngrok-win32-x64-msvc": "npm:1.7.0"
+    "@ngrok/ngrok-android-arm64": "npm:1.8.0"
+    "@ngrok/ngrok-darwin-arm64": "npm:1.8.0"
+    "@ngrok/ngrok-darwin-universal": "npm:1.8.0"
+    "@ngrok/ngrok-darwin-x64": "npm:1.8.0"
+    "@ngrok/ngrok-freebsd-x64": "npm:1.8.0"
+    "@ngrok/ngrok-linux-arm-gnueabihf": "npm:1.8.0"
+    "@ngrok/ngrok-linux-arm64-gnu": "npm:1.8.0"
+    "@ngrok/ngrok-linux-arm64-musl": "npm:1.8.0"
+    "@ngrok/ngrok-linux-x64-gnu": "npm:1.8.0"
+    "@ngrok/ngrok-linux-x64-musl": "npm:1.8.0"
+    "@ngrok/ngrok-win32-arm64-msvc": "npm:1.8.0"
+    "@ngrok/ngrok-win32-ia32-msvc": "npm:1.8.0"
+    "@ngrok/ngrok-win32-x64-msvc": "npm:1.8.0"
   dependenciesMeta:
     "@ngrok/ngrok-android-arm64":
       optional: true
@@ -5463,7 +5463,7 @@ __metadata:
       optional: true
     "@ngrok/ngrok-win32-x64-msvc":
       optional: true
-  checksum: 10c0/67ad258efd5797bb1bcbe75344d6fa930eab69ac7c6d72c4d9ed1e507c2e2953f5e856d803d23eeec22227adeb66f959982709dc0c73d3cb76630ac450980a06
+  checksum: 10c0/65aca8981045e45adc17c97b26e9688ba269a072b4810a0d5857a5c011503342326b5cca96a1eb94a2bd854af8dacf2f2ba0e348af7637af145c4849e5057f45
   languageName: node
   linkType: hard
 
