@@ -130,7 +130,7 @@ it('shows the effective permissions when they do not match a role', async () => 
 it('identifies the actor independently of their first account', async () => {
   const actor = userActor([account('acme', ownerPermissions), personalAccount(ownerPermissions)]);
   jest.spyOn(SessionManager.prototype, 'getUserAsync').mockResolvedValue(actor);
-  await new AccountView(['--json'], getMockOclifConfig()).run();
+  await AccountView.run(['--non-interactive', '--json'], getMockOclifConfig());
   expect(printJsonOnlyOutput).toHaveBeenCalledWith({
     status: 'signed-in',
     actor: { id: 'user-id', type: 'User', displayName: 'jane' },
@@ -139,19 +139,54 @@ it('identifies the actor independently of their first account', async () => {
   expect(Log.log).not.toHaveBeenCalled();
 });
 
-it('propagates an indeterminate lookup failure without publishing an identity', async () => {
-  const error = new CombinedError({ networkError: new Error('connection reset') });
-  jest.spyOn(SessionManager.prototype, 'getUserAsync').mockRejectedValue(error);
-  jest.spyOn(SessionManager.prototype, 'getAccessToken').mockReturnValue('fixture-token');
-  await expect(new AccountView(['--json'], getMockOclifConfig()).run()).rejects.toBe(error);
-  expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'indeterminate' });
+const authError = { message: 'Rejected credential', code: 'AUTHENTICATION_ERROR' };
+const permissionError = { message: 'Permission denied', code: 'UNAUTHORIZED_ERROR' };
+
+it.each([
+  [
+    new CombinedError({ networkError: new Error('HTTP 401'), graphQLErrors: [authError] }),
+    'HTTP 401',
+  ],
+  [new CombinedError({ graphQLErrors: [permissionError] }), 'Permission denied'],
+  [new CombinedError({ graphQLErrors: [authError, permissionError] }), 'Permission denied'],
+  [
+    new CombinedError({ graphQLErrors: ['The bearer token is invalid.'] }),
+    'The bearer token is invalid.',
+  ],
+  [undefined, 'The server returned no actor for EXPO_TOKEN.'],
+] as const)(
+  'reports an indeterminate lookup and preserves its diagnostic: %s',
+  async (error, diagnostic) => {
+    process.env.EXPO_TOKEN = 'fixture-token';
+    const lookup = jest.spyOn(SessionManager.prototype, 'getUserAsync');
+    if (error) {
+      lookup.mockRejectedValue(error);
+    } else {
+      lookup.mockResolvedValue(undefined);
+    }
+    await expect(AccountView.run(['--json'], getMockOclifConfig())).rejects.toThrow();
+    expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'indeterminate' });
+    expect(Log.errorToStderr).toHaveBeenCalledWith(expect.stringContaining(diagnostic));
+  }
+);
+
+it('keeps the argument diagnostic when startup has not initialized analytics', async () => {
+  await expect(AccountView.run(['--json', '--bogus'], getMockOclifConfig())).rejects.toThrow(
+    'command failed'
+  );
+  expect(Log.errorToStderr).toHaveBeenCalledWith(
+    expect.stringContaining('Nonexistent flag: --bogus')
+  );
+  expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+  expect(Sentry.flush).toHaveBeenCalled();
 });
 
 it('records an anonymous action when signed out', async () => {
   const originalExitCode = process.exitCode;
   jest.spyOn(SessionManager.prototype, 'getUserAsync').mockResolvedValue(undefined);
   try {
-    await new AccountView(['--json'], getMockOclifConfig()).run();
+    await AccountView.run(['--non-interactive', '--json'], getMockOclifConfig());
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'signed-out' });
     expect(process.exitCode).toBe(1);
     expect(Sentry.setUser).not.toHaveBeenCalled();
@@ -161,15 +196,23 @@ it('records an anonymous action when signed out', async () => {
   }
 });
 
-it('exits after reporting a rejected token during startup', async () => {
-  const lookup = jest
-    .spyOn(SessionManager.prototype, 'getUserAsync')
-    .mockRejectedValue(new CombinedError({ graphQLErrors: ['The bearer token is invalid.'] }));
-  jest.spyOn(SessionManager.prototype, 'getAccessToken').mockReturnValue('fixture-token');
-  await expect(AccountView.run(['--json'], getMockOclifConfig())).rejects.toMatchObject({
-    oclif: { exit: 1 },
-  });
-  expect(lookup).toHaveBeenCalledTimes(1);
-  expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'token-rejected' });
-  expect(mockLogEvent).not.toHaveBeenCalled();
-});
+it.each(['The bearer token is invalid.', 'The bearer token is revoked.'])(
+  'reports explicit token rejection: %s',
+  async message => {
+    const originalExitCode = process.exitCode;
+    process.env.EXPO_TOKEN = 'fixture-token';
+    const lookup = jest
+      .spyOn(SessionManager.prototype, 'getUserAsync')
+      .mockRejectedValue(new CombinedError({ graphQLErrors: [{ ...authError, message }] }));
+    try {
+      await AccountView.run(['--json'], getMockOclifConfig());
+      expect(process.exitCode).toBe(1);
+      expect(lookup).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'token-rejected' });
+      expect(mockLogEvent).not.toHaveBeenCalled();
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  }
+);
