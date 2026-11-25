@@ -7,7 +7,7 @@ import { Actor, getCreatableAccountNames } from '../user/User';
  */
 export class ProjectNotConfiguredError extends Error {
   readonly accountName?: string;
-  readonly eligibleAccounts: string[];
+  readonly accountsWithProjectCreationPermission: string[];
 
   constructor({
     actor,
@@ -20,12 +20,14 @@ export class ProjectNotConfiguredError extends Error {
     reason?: string;
     additionalFix?: string;
   }) {
-    const eligibleAccounts = getCreatableAccountNames(actor);
-    const accountsMessage = eligibleAccounts.length
-      ? `Accounts you can create projects in: ${eligibleAccounts.join(', ')}`
+    const accountsWithProjectCreationPermission = getCreatableAccountNames(actor);
+    const accountsMessage = accountsWithProjectCreationPermission.length
+      ? `Accounts you can create projects in: ${accountsWithProjectCreationPermission.join(', ')}`
       : 'Your current credential cannot create projects in any account.';
     const targetMessage =
-      accountName && eligibleAccounts.length && !eligibleAccounts.includes(accountName)
+      accountName &&
+      accountsWithProjectCreationPermission.length &&
+      !accountsWithProjectCreationPermission.includes(accountName)
         ? `\nCreating a project in ${accountName} requires a credential with permission to create projects there.`
         : '';
     super(
@@ -37,6 +39,6 @@ export class ProjectNotConfiguredError extends Error {
         (additionalFix ? `\n\n${additionalFix}` : '')
     );
     this.accountName = accountName;
-    this.eligibleAccounts = eligibleAccounts;
+    this.accountsWithProjectCreationPermission = accountsWithProjectCreationPermission;
   }
 }

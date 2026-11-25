@@ -8,18 +8,18 @@ describe(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync, () => {
   it.each([
     {
       accounts: jester.accounts,
-      eligibleAccounts: ['jester'],
+      accountsWithProjectCreationPermission: ['jester'],
       permission:
         'Accounts you can create projects in: jester\nCreating a project in fake requires a credential with permission to create projects there.',
     },
     {
       accounts: [],
-      eligibleAccounts: [],
+      accountsWithProjectCreationPermission: [],
       permission: 'Your current credential cannot create projects in any account.',
     },
   ])(
-    'shows both commands and explains create permissions: $eligibleAccounts',
-    async ({ accounts, eligibleAccounts, permission }) => {
+    'shows both commands and explains create permissions: $accountsWithProjectCreationPermission',
+    async ({ accounts, accountsWithProjectCreationPermission, permission }) => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
       await expect(
         fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
@@ -30,7 +30,7 @@ describe(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync, () => {
         )
       ).rejects.toMatchObject({
         accountName: 'fake',
-        eligibleAccounts,
+        accountsWithProjectCreationPermission,
         message:
           `EAS project not configured. This command cannot configure it in non-interactive mode. ` +
           `Run one of the following, then re-run this command:\n\nTo link an existing project:\n\n` +
