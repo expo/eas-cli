@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import { Client, CombinedError } from '@urql/core';
 import { graphql } from 'gql.tada';
-import fetch from 'node-fetch';
+import fetch, { FetchError } from 'node-fetch';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
   describeError,
+  findErrorCode,
   isTransferFailure,
   isTransientGraphqlError,
 } from '../../utils/networkErrors';
@@ -152,10 +153,9 @@ export async function downloadSandboxArtifactAsync(
     );
   } catch (error) {
     signal?.throwIfAborted();
-    if (isTransferFailure(error)) {
+    if (isTransferFailure(error) || error instanceof FetchError) {
       throw new SystemError(
-        `Could not download sandbox artifact ${artifactId}: ${describeError(error)}`,
-        { cause: error }
+        `Could not download sandbox artifact ${artifactId}: ${findErrorCode(error) ?? 'network error'}.`
       );
     }
     throw error;

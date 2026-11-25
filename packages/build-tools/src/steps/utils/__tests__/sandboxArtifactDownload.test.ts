@@ -1,7 +1,16 @@
+jest.mock('node-fetch', () => {
+  const actual = jest.requireActual('node-fetch');
+  return {
+    __esModule: true,
+    ...actual,
+    default: jest.fn(),
+  };
+});
+
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { Client, CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql';
-import fetch, { Response } from 'node-fetch';
+import fetch, { FetchError, Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -379,11 +388,13 @@ describe(downloadSandboxArtifactAsync, () => {
     expect(graphqlClient.query).toHaveBeenCalledTimes(1);
   });
 
-  it('throws SystemError when the transfer keeps failing', async () => {
+  it('throws SystemError without the signed URL when the transfer keeps failing', async () => {
     const artifact = createArtifact();
-    jest
-      .mocked(fetch)
-      .mockRejectedValue(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }));
+    jest.mocked(fetch).mockRejectedValue(
+      new FetchError(`request to ${DOWNLOAD_URL} failed, reason: socket hang up`, 'system', {
+        code: 'ECONNRESET',
+      } as any)
+    );
 
     const download = downloadSandboxArtifactAsync({
       logger: createMockLogger(),
@@ -395,10 +406,32 @@ describe(downloadSandboxArtifactAsync, () => {
     const error = await settled;
 
     expect(error).toBeInstanceOf(SystemError);
-    expect(error.message).toBe(
-      `Could not download sandbox artifact ${artifact.id}: socket hang up (ECONNRESET)`
-    );
+    expect(error.message).toBe(`Could not download sandbox artifact ${artifact.id}: ECONNRESET.`);
+    expect(error.cause).toBeUndefined();
     expect(fetch).toHaveBeenCalledTimes(6);
+  });
+
+  it('throws SystemError without the signed URL on a node-fetch error that is not a transfer failure', async () => {
+    const artifact = createArtifact();
+    jest
+      .mocked(fetch)
+      .mockRejectedValue(
+        new FetchError(`maximum redirect reached at: ${DOWNLOAD_URL}`, 'max-redirect')
+      );
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient: createMockGraphqlClient({ artifact: artifact }),
+      artifactId: artifact.id,
+    });
+    const error = await download.catch(error => error);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      `Could not download sandbox artifact ${artifact.id}: network error.`
+    );
+    expect(error.cause).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('throws UserError when GraphQL rejects the lookup', async () => {
