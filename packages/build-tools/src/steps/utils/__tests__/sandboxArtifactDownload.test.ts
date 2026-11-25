@@ -348,7 +348,7 @@ describe(downloadSandboxArtifactAsync, () => {
     const artifact = createArtifact();
     jest
       .mocked(fetch)
-      .mockResolvedValue({ ok: false, status: 500, text: async () => 'Internal Error' } as any);
+      .mockResolvedValue({ ok: false, status: 403, text: async () => 'AccessDenied' } as any);
 
     const download = downloadSandboxArtifactAsync({
       logger: createMockLogger(),
@@ -357,10 +357,63 @@ describe(downloadSandboxArtifactAsync, () => {
     });
 
     await expect(download).rejects.toThrow(
-      `Failed to download sandbox artifact ${artifact.id} (HTTP 500): Internal Error`
+      `Failed to download sandbox artifact ${artifact.id} (HTTP 403): AccessDenied`
     );
+    await expect(download).rejects.not.toBeInstanceOf(SystemError);
     await expect(download).rejects.not.toThrow('signature');
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries the download after an HTTP 5xx response', async () => {
+    const artifact = createArtifact();
+    const graphqlClient = createMockGraphqlClient({ artifact: artifact });
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => 'Service Unavailable',
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: Readable.from('bundle content'),
+      } as unknown as Response);
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient,
+      artifactId: artifact.id,
+    });
+    await jest.advanceTimersByTimeAsync(60_000);
+    const result = await download;
+
+    expect(await fs.promises.readFile(result.artifactPath, 'utf8')).toBe('bundle content');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws SystemError without the signed URL when the storage keeps responding with HTTP 5xx', async () => {
+    const artifact = createArtifact();
+    jest
+      .mocked(fetch)
+      .mockResolvedValue({ ok: false, status: 500, text: async () => 'Internal Error' } as any);
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient: createMockGraphqlClient({ artifact: artifact }),
+      artifactId: artifact.id,
+    });
+    const settled = download.catch(error => error);
+    await jest.advanceTimersByTimeAsync(120_000);
+    const error = await settled;
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      `Failed to download sandbox artifact ${artifact.id} (HTTP 500): Internal Error`
+    );
+    expect(error.message).not.toContain('signature');
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 
   it('retries the download after a transfer failure', async () => {

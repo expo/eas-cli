@@ -139,16 +139,15 @@ export async function downloadSandboxArtifactAsync(
             );
           }
           const textResult = await asyncResult(response.text());
-          throw new Error(
-            `Failed to download sandbox artifact ${artifactId} (HTTP ${response.status}): ${textResult.value}`
-          );
+          const message = `Failed to download sandbox artifact ${artifactId} (HTTP ${response.status}): ${textResult.value}`;
+          throw response.status >= 500 ? new SystemError(message) : new Error(message);
         }
         await streamPipeline(response.body, fs.createWriteStream(artifactPath));
       },
       {
         operation: 'download_sandbox_artifact.file_download',
         signal,
-        isRetryable: isTransferFailure,
+        isRetryable: error => isTransferFailure(error) || error instanceof SystemError,
       }
     );
   } catch (error) {
