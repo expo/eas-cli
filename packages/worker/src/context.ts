@@ -1,4 +1,10 @@
-import { BuildContext, BuildContextOptions, LogBuffer, RuntimeSettings } from '@expo/build-tools';
+import {
+  BuildContext,
+  BuildContextOptions,
+  LogBuffer,
+  RuntimeSettings,
+  getDeviceRunSessionTokenFromEnvironmentSecrets,
+} from '@expo/build-tools';
 import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
@@ -113,5 +119,22 @@ export async function createBuildContext<TJob extends Job>({
     mcpServerUrl: config.mcpServerUrl,
     addBuildLogMask,
   });
+  setDeviceRunSessionSentryTags(ctx, buildId);
   return ctx;
+}
+
+/**
+ * Tags every later Sentry event from this worker with the device run session and its job run, so
+ * an error in Sentry can be traced to one session. A worker runs one job, so the tags stay correct.
+ */
+function setDeviceRunSessionSentryTags(ctx: BuildContext<Job>, jobRunId: string): void {
+  const deviceRunSessionId = ctx.env.DEVICE_RUN_SESSION_ID;
+  // Same check as the Datadog setup in service.ts: only the job of a device run session has a
+  // session token, and only a job run (no platform) has a job run ID.
+  const isDeviceRunSessionJob =
+    !ctx.job.platform &&
+    Boolean(getDeviceRunSessionTokenFromEnvironmentSecrets(ctx.job.secrets?.environmentSecrets));
+  if (isDeviceRunSessionJob && deviceRunSessionId) {
+    sentry.setTags({ deviceRunSessionId, jobRunId });
+  }
 }

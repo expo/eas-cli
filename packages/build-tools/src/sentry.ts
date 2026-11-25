@@ -8,6 +8,8 @@ type CaptureOptions = {
 
 type SentryAPI = {
   setup(opts: { dsn: string | null; environment: string; tags?: Record<string, string> }): void;
+  /** Adds tags to every later event from this process. */
+  setTags(tags: Record<string, string>): void;
   capture(msg: string, options?: CaptureOptions): void;
   capture(msg: string, err: Error | undefined, options?: CaptureOptions): void;
   capture(err: Error, options?: CaptureOptions): void;
@@ -23,6 +25,10 @@ export const Sentry: SentryAPI = {
         ...(tags ? { initialScope: { tags } } : {}),
       });
     }
+  },
+
+  setTags(tags) {
+    sentryNode.setTags(tags);
   },
 
   capture(arg1: string | Error, arg2?: Error | CaptureOptions, arg3?: CaptureOptions): void {
