@@ -423,7 +423,10 @@ describe('EasCommand', () => {
           });
         });
 
-        it('prints the GraphQL request ID, not the server error code', async () => {
+        it.each([
+          ['UNAUTHORIZED_ERROR', 'EAS_PERMISSION_DENIED'],
+          ['UNKNOWN_GRAPHQL_ERROR', undefined],
+        ])('maps %s to the CLI code %s and preserves the request ID', async (errorCode, code) => {
           const TestEasCommand = createJsonTestEasCommand();
           const { printJsonErrorOutput } = jest.requireMock('../../utils/json');
           const { CombinedError } = require('@urql/core');
@@ -432,7 +435,7 @@ describe('EasCommand', () => {
             throw new CombinedError({
               graphQLErrors: [
                 new GraphQLError('Entity not authorized', null, null, null, null, null, {
-                  errorCode: 'UNAUTHORIZED_ERROR',
+                  errorCode,
                   requestId: mockRequestId,
                 }),
               ],
@@ -442,9 +445,8 @@ describe('EasCommand', () => {
           await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
 
           expect(printJsonErrorOutput).toHaveBeenCalledWith(
-            expect.objectContaining({ requestId: mockRequestId })
+            expect.objectContaining({ requestId: mockRequestId, code })
           );
-          expect(printJsonErrorOutput.mock.calls[0][0].code).toBeUndefined();
         });
 
         it.each([

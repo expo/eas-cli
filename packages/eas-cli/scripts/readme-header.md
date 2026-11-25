@@ -88,6 +88,15 @@ New to EAS? Follow [Create your first build](https://docs.expo.dev/build/setup/)
 - **[EAS Metadata](https://docs.expo.dev/eas/metadata/)** (`eas metadata:push`): maintain your app store presence from the command line (in preview).
 - **Project operations** (`eas env`, `eas credentials`, `eas device`, `eas channel`, …): manage environment variables, signing credentials, Apple devices, update channels, webhooks, and project settings.
 
+## Handling JSON command failures
+
+When an EAS command exits unsuccessfully with `--json`, read the optional `error.code` from stdout to choose a recovery. Display the diagnostic for unknown codes or for older CLI versions that omit the code or JSON output.
+
+| Code                    | Recovery                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `EAS_LOGIN_REQUIRED`    | Sign in with `eas login` or provide an Expo access token in `EXPO_TOKEN`.                                               |
+| `EAS_PERMISSION_DENIED` | Verify the account and token have access to the requested resource. Ask the project owner for the required permissions. |
+
 ## Version policy
 
 EAS CLI is designed to be installed globally or run with `npx`. Installing `eas-cli` into project dependencies is strongly discouraged because it can cause dependency conflicts that are difficult to debug.
