@@ -1,4 +1,4 @@
-import { Command } from '@oclif/core';
+import { Command, Errors } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 import { GraphQLError } from 'graphql/error';
@@ -32,6 +32,7 @@ import Log, { link } from '../log';
 import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
 import { getActorDisplayName } from '../user/User';
+import { enableJsonOutput, printJsonErrorOutput } from '../utils/json';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -239,6 +240,10 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
+    if (this.jsonOutputRequested()) {
+      enableJsonOutput();
+    }
+
     // id is assigned by oclif in constructor based on the filepath:
     // commands/submit === submit, commands/build/list === build:list
     const command = `eas ${this.id}`;
@@ -268,6 +273,16 @@ export default abstract class EasCommand extends Command {
     }
   }
 
+  /** Mirrors oclif's `jsonEnabled`, for commands that declare their own `json` flag. */
+  private jsonOutputRequested(): boolean {
+    if (!this.ctor.flags?.json) {
+      return false;
+    }
+    const jsonIndex = this.argv.indexOf('--json');
+    const passThroughIndex = this.argv.indexOf('--');
+    return jsonIndex !== -1 && (passThroughIndex === -1 || jsonIndex < passThroughIndex);
+  }
+
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
@@ -278,10 +293,19 @@ export default abstract class EasCommand extends Command {
   protected override catch(err: Error): Promise<any> {
     const commandId = this.id ?? 'unknown';
     let baseMessage = `${commandId} command failed.`;
-    if (err instanceof EasCommandError) {
-      if (!err.messageAlreadyPrinted) {
+    let message = err.message;
+    let code: string | undefined;
+    let requestId: string | undefined;
+    if (err instanceof Errors.ExitError) {
+      // Errors.exit(1) carries no reason; the code that called it printed the reason already.
+      Log.errorToStderr(err.message);
+      message = baseMessage;
+    } else if (err instanceof EasCommandError || err instanceof Errors.CLIError) {
+      if (!(err instanceof EasCommandError && err.messageAlreadyPrinted)) {
         Log.errorToStderr(err.message);
       }
+      // Only codes that eas-cli sets. GraphQL error codes belong to the server and stay out.
+      code = err.code;
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
@@ -331,8 +355,13 @@ export default abstract class EasCommand extends Command {
         : cleanGQLErrorsMessage;
       Log.errorToStderr(cleanMessage);
       baseMessage = BASE_GRAPHQL_ERROR_MESSAGE;
+      message = cleanMessage;
+      requestId = err.graphQLErrors[0]?.extensions?.requestId as string | undefined;
     } else {
       Log.errorToStderr(err.message);
+    }
+    if (this.jsonOutputRequested()) {
+      printJsonErrorOutput({ message, errorCode: code, requestId });
     }
     Log.debug(err);
     Sentry.withScope(scope => {
