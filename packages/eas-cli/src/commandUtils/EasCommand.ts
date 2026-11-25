@@ -313,6 +313,13 @@ export default abstract class EasCommand extends Command {
       // Only codes that eas-cli sets. GraphQL error codes belong to the server and stay out.
       code = err.code;
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
+      if (
+        !err.networkError &&
+        err.graphQLErrors.length > 0 &&
+        err.graphQLErrors.every(error => error.extensions?.errorCode === 'UNAUTHORIZED_ERROR')
+      ) {
+        code = 'EAS_PERMISSION_DENIED';
+      }
       const cleanGQLErrorsMessage = err?.graphQLErrors
         .map((graphQLError: GraphQLError) => {
           const messageLine = graphQLError.message.replace('[GraphQL] ', '');

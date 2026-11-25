@@ -387,6 +387,30 @@ describe('EasCommand', () => {
         expect(logDebugSpy).toBeCalledWith(error);
       });
 
+      it.each([
+        { codes: ['UNAUTHORIZED_ERROR'], expected: 'EAS_PERMISSION_DENIED' },
+        { codes: ['UNAUTHORIZED_ERROR', 'OTHER_ERROR'], expected: undefined },
+        { codes: ['UNAUTHORIZED_ERROR'], networkError: new Error('offline'), expected: undefined },
+      ])(
+        'classifies GraphQL failures with $codes and network error $networkError',
+        async ({ codes, expected, networkError }) => {
+          const TestEasCommand = createTestEasCommand(jsonFlags);
+          const { CombinedError } = require('@urql/core');
+          const graphQLErrors = codes.map(errorCode => ({
+            message: 'Request failed',
+            extensions: { errorCode },
+          }));
+          jest
+            .spyOn(TestEasCommand.prototype, 'runAsync')
+            .mockRejectedValue(new CombinedError({ graphQLErrors, networkError }));
+
+          await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+          expect(printJsonErrorOutput).toHaveBeenCalledWith(
+            expect.objectContaining({ errorCode: expected })
+          );
+        }
+      );
+
       it('enables JSON before authentication and reports login failures', async () => {
         const TestEasCommand = createTestEasCommand(jsonFlags);
         const SessionManager = jest.requireMock('../../user/SessionManager').default;
