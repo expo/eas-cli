@@ -2,6 +2,7 @@ import { loadEnvFiles, loadProjectEnv } from '@expo/env';
 import { parse as parseDotenv } from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
+import lockfile from 'proper-lockfile';
 
 import Log from '../log';
 
@@ -75,7 +76,9 @@ export async function writeSimulatorEnvAsync(
       .join('\n') +
     '\n';
 
-  await fs.writeFile(simulatorDotenvFilePath, simulatorDotenvContent);
+  await withSimulatorEnvLockAsync(simulatorDotenvFilePath, async () => {
+    await fs.writeFile(simulatorDotenvFilePath, simulatorDotenvContent);
+  });
 }
 
 export async function resetSimulatorEnvAsync(
@@ -85,25 +88,46 @@ export async function resetSimulatorEnvAsync(
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
 
   try {
-    const currentEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
-    if (currentEnv[EAS_SIMULATOR_SESSION_ID] !== expectedDeviceRunSessionId) {
-      // The file was overwritten by a newer simulator session, so it is no longer
-      // ours to reset. This is expected when sessions overlap; log at debug level
-      // for troubleshooting without surfacing noise during normal use.
-      Log.debug(
-        `Skipping ${SIMULATOR_DOTENV_FILE_NAME} reset: it belongs to simulator session ${
-          currentEnv[EAS_SIMULATOR_SESSION_ID] ?? '(unknown)'
-        }, not ${expectedDeviceRunSessionId}.`
-      );
-      return;
-    }
-    await fs.writeFile(simulatorDotenvFilePath, SIMULATOR_DOTENV_FILE_HEADER, { flag: 'r+' });
-    await fs.truncate(simulatorDotenvFilePath, Buffer.byteLength(SIMULATOR_DOTENV_FILE_HEADER));
+    // A missing file needs no reset, including in a read-only project directory.
+    await fs.access(simulatorDotenvFilePath);
+    await withSimulatorEnvLockAsync(simulatorDotenvFilePath, async () => {
+      const currentEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
+      if (currentEnv[EAS_SIMULATOR_SESSION_ID] !== expectedDeviceRunSessionId) {
+        // The file was overwritten by a newer simulator session, so it is no longer
+        // ours to reset. This is expected when sessions overlap; log at debug level
+        // for troubleshooting without surfacing noise during normal use.
+        Log.debug(
+          `Skipping ${SIMULATOR_DOTENV_FILE_NAME} reset: it belongs to simulator session ${
+            currentEnv[EAS_SIMULATOR_SESSION_ID] ?? '(unknown)'
+          }, not ${expectedDeviceRunSessionId}.`
+        );
+        return;
+      }
+      await fs.writeFile(simulatorDotenvFilePath, SIMULATOR_DOTENV_FILE_HEADER, { flag: 'r+' });
+      await fs.truncate(simulatorDotenvFilePath, Buffer.byteLength(SIMULATOR_DOTENV_FILE_HEADER));
+    });
   } catch (err) {
     if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT') {
       return;
     }
 
     throw err;
+  }
+}
+
+// The dotenv may not exist yet. Lock the same sibling path for creation and for the
+// entire ownership check and reset, so another eas process cannot write between them.
+async function withSimulatorEnvLockAsync(
+  file: string,
+  updateAsync: () => Promise<void>
+): Promise<void> {
+  const release = await lockfile.lock(file, {
+    realpath: false,
+    retries: { retries: 60, minTimeout: 50, maxTimeout: 200 },
+  });
+  try {
+    await updateAsync();
+  } finally {
+    await release();
   }
 }

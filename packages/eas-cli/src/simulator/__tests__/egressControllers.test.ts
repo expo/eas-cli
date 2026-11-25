@@ -11,6 +11,7 @@ import {
 } from '../utils';
 
 jest.mock('fs-extra');
+jest.mock('proper-lockfile', () => ({ lock: async () => async () => {} }));
 
 const configs: DeviceRunSessionRemoteConfig[] = [
   {
