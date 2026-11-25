@@ -8,6 +8,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { fetchBuildsAsync, formatBuild } from '../../commandUtils/builds';
 import { GetServerSideEnvironmentVariablesFn } from '../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasEnvironmentFlagParameters,
   EasNonInteractiveAndJsonFlags,
@@ -343,8 +344,9 @@ async function getFingerprintInfoAsync(
   }
 
   if (nonInteractive) {
-    throw new Error(
-      'Insufficent arguments provided for fingerprint comparison in non-interactive mode'
+    throw new EasCommandError(
+      'Pass a fingerprint hash, --build-id, or --update-id to compare in non-interactive mode.',
+      { code: 'EAS_INPUT_REQUIRED' }
     );
   }
   return await getFingerprintInfoInteractiveAsync({
@@ -572,8 +574,9 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
       const updateUrl =
         getExpoWebsiteBaseUrl() +
         `/accounts/${project.ownerAccount.name}/projects/${project.slug}/updates/${maybeUpdateGroupId}`;
-      throw new Error(
-        `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`
+      throw new EasCommandError(
+        `Please pass in your update ID from ${updateUrl} or use interactive mode to select the update ID.`,
+        { code: 'EAS_INPUT_REQUIRED' }
       );
     }
     const update = await selectAsync<UpdateFragment>(

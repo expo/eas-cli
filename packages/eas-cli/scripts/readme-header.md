@@ -97,6 +97,7 @@ When an EAS command exits unsuccessfully with `--json`, read the optional `error
 | `EAS_PROJECT_NOT_CONFIGURED` | Link an existing project with `eas init --id`, or use `eas init --account` to create one. Check `accountName` and `accountsWithProjectCreationPermission` before choosing an account. |
 | `EAS_LOGIN_REQUIRED`         | Sign in with `eas login` or provide an Expo access token in `EXPO_TOKEN`.                                                                                                             |
 | `EAS_PERMISSION_DENIED`      | Verify the account and token have access to the requested resource. Ask the project owner for the required permissions.                                                               |
+| `EAS_INPUT_REQUIRED`         | For `fingerprint:compare`, provide a fingerprint hash, build ID, or individual update ID, or rerun interactively to choose.                                                           |
 
 ## Version policy
 
