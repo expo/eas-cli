@@ -5,7 +5,11 @@ import { finished } from 'node:stream/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { AbortUtils } from '../utils/AbortUtils';
-import { isConnectFailure, isConnectionInterruptedError } from '../utils/networkErrors';
+import {
+  RETRYABLE_HTTP_STATUSES,
+  isConnectFailure,
+  isConnectionInterruptedError,
+} from '../utils/networkErrors';
 
 export type SignedUrl = {
   url: string;
@@ -80,9 +84,8 @@ export async function uploadContentWithSignedUrl(
   );
 }
 
-const RETRYABLE_STATUSES = [408, 429, 500, 502, 503, 504];
 function isRetryableError(error: unknown): boolean {
-  if (error instanceof SignedUrlUploadApiError && RETRYABLE_STATUSES.includes(error.status)) {
+  if (error instanceof SignedUrlUploadApiError && RETRYABLE_HTTP_STATUSES.includes(error.status)) {
     return true;
   }
   return isConnectFailure(error) || isConnectionInterruptedError(error);
