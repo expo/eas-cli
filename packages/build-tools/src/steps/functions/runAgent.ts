@@ -67,6 +67,8 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
             .int({ error: inputErrors.maxDurationSeconds })
             .positive({ error: inputErrors.maxDurationSeconds }),
           prompt: z.string({ error: inputErrors.prompt }).min(1, { error: inputErrors.prompt }),
+          // Claude Code receives `model` and `effort` as CLI arguments, so a value starting with '-'
+          // would be read as a flag
           model: z
             .string({ error: inputErrors.model })
             .min(1, { error: inputErrors.model })
