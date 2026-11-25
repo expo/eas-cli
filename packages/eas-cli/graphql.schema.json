@@ -16698,6 +16698,22 @@
             "deprecationReason": "Use overview.stability instead."
           },
           {
+            "name": "queryAccess",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AppObserveQueryAccess",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "session",
             "description": "One session's metrics, logs and spans for the timeline (ENG-26160). Unknown session ids yield empty lists.",
             "args": [
@@ -27579,6 +27595,41 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AppObserveQueryAccess",
+        "description": null,
+        "fields": [
+          {
+            "name": "earliestAccessibleTime",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "DateTime",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "maxLookbackDays",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -105757,15 +105808,6 @@
             "deprecationReason": null
           }
         ]
-      },
-      {
-        "name": "oneOf",
-        "description": "Indicates exactly one field must be supplied and this field must not be `null`.",
-        "isRepeatable": false,
-        "locations": [
-          "INPUT_OBJECT"
-        ],
-        "args": []
       },
       {
         "name": "skip",

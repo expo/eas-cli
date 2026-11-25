@@ -338,7 +338,44 @@ type AppObserveByIdQueryVariables = {
   id: string;
 };
 
+export type ObserveQueryAccess = {
+  maxLookbackDays: number | null;
+  earliestAccessibleTime: string | null;
+};
+
 export const ObserveQuery = {
+  async queryAccessAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<ObserveQueryAccess> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          { app: { byId: { observe: { queryAccess: ObserveQueryAccess } } } },
+          { appId: string }
+        >(
+          gql`
+            query ObserveQueryAccess($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    queryAccess {
+                      maxLookbackDays
+                      earliestAccessibleTime
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { appId },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.app.byId.observe.queryAccess;
+  },
   async appVersionsAsync(
     graphqlClient: ExpoGraphqlClient,
     {

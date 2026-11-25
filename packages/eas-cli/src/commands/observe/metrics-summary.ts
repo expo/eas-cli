@@ -22,7 +22,7 @@ import {
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformTargetsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_METRICS = [
@@ -92,7 +92,11 @@ export default class ObserveMetricsSummary extends EasCommand {
       ? flags.metric.map(resolveMetricName)
       : DEFAULT_METRICS;
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
 
     const targets = observePlatformTargetsFromFlag(flags.platform);
 

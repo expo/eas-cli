@@ -30,6 +30,7 @@ jest.mock('../../../observe/formatSessions', () => {
 });
 jest.mock('../../../graphql/queries/ObserveQuery', () => ({
   ObserveQuery: {
+    queryAccessAsync: jest.fn(),
     customEventNamesAsync: jest.fn(),
   },
 }));
@@ -106,6 +107,9 @@ describe(ObserveSession, () => {
   const projectId = 'test-project-id';
 
   beforeEach(() => {
+    jest
+      .spyOn(ObserveQuery, 'queryAccessAsync')
+      .mockResolvedValue({ maxLookbackDays: null, earliestAccessibleTime: null });
     jest.clearAllMocks();
     mockFetchObserveSessionEventsAsync.mockResolvedValue({
       entries: [],

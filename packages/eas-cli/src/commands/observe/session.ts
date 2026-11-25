@@ -30,7 +30,7 @@ import {
   isKnownMetricName,
   resolveMetricName,
 } from '../../observe/metricNames';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { ExpoChoice, selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -182,7 +182,11 @@ async function pickSessionIdInteractivelyAsync({
   timeRangeFlags: { days: number | undefined; start: string | undefined; end: string | undefined };
   environment: string | undefined;
 }): Promise<string> {
-  const { startTime, endTime } = resolveTimeRange(timeRangeFlags);
+  const { startTime, endTime } = await resolveObserveTimeRangeAsync(
+    graphqlClient,
+    projectId,
+    timeRangeFlags
+  );
 
   const eventNameChoice: EventNameChoice = eventNameFlag
     ? { name: eventNameFlag, isMetric: isKnownMetricName(eventNameFlag) }

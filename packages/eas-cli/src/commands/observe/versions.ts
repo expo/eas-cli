@@ -13,7 +13,7 @@ import {
 } from '../../observe/flags';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
 import { observePlatformTargetsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ObserveVersions extends EasCommand {
@@ -48,7 +48,11 @@ export default class ObserveVersions extends EasCommand {
       enableJsonOutput();
     }
 
-    const { startTime, endTime } = resolveTimeRange(flags);
+    const { startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
 
     const targets = observePlatformTargetsFromFlag(flags.platform);
 

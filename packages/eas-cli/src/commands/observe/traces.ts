@@ -33,7 +33,7 @@ import {
   spanKindsFromFlag,
   spanStatusCodesFromFlag,
 } from '../../observe/spanFilters';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_SPANS_LIMIT = 20;
@@ -117,7 +117,11 @@ export default class ObserveTraces extends EasCommand {
       enableJsonOutput();
     }
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
     const platforms = observePlatformsFromFlag(flags.platform);
 
     const hasSpanFilter =

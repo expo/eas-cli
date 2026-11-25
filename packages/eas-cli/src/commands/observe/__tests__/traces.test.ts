@@ -29,6 +29,7 @@ jest.mock('../../../observe/formatSpans', () => ({
 }));
 jest.mock('../../../graphql/queries/ObserveQuery', () => ({
   ObserveQuery: {
+    queryAccessAsync: jest.fn(),
     spanNamesAsync: jest.fn(),
   },
 }));
@@ -50,6 +51,9 @@ describe(ObserveTraces, () => {
   const projectId = 'test-project-id';
 
   beforeEach(() => {
+    jest
+      .spyOn(ObserveQuery, 'queryAccessAsync')
+      .mockResolvedValue({ maxLookbackDays: null, earliestAccessibleTime: null });
     jest.clearAllMocks();
     mockFetchObserveSpansAsync.mockResolvedValue({
       spans: [],
