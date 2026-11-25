@@ -329,7 +329,12 @@ async function queryAsync<TData>({
   } catch (error) {
     signal?.throwIfAborted();
     const message = `${failureMessage}: ${describeError(error)}`;
-    throw error instanceof CombinedError && !isTransientGraphqlError(error)
+    const isUserError =
+      error instanceof CombinedError &&
+      !isTransientGraphqlError(error) &&
+      error.graphQLErrors.length > 0 &&
+      error.graphQLErrors.every(graphqlError => graphqlError.extensions.errorType === 'USER');
+    throw isUserError
       ? new UserError('EAS_DOWNLOAD_SANDBOX_ARTIFACT_FETCH_FAILED', message, { cause: error })
       : new SystemError(message, { cause: error });
   }

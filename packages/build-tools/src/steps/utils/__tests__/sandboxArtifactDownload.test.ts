@@ -490,7 +490,13 @@ describe(downloadSandboxArtifactAsync, () => {
   it('throws UserError when GraphQL rejects the lookup', async () => {
     const artifactId = randomUUID();
     const graphqlClient = createMockGraphqlClient({
-      error: new CombinedError({ graphQLErrors: [new GraphQLError('Entity not authorized')] }),
+      error: new CombinedError({
+        graphQLErrors: [
+          new GraphQLError('Entity not authorized', {
+            extensions: { errorType: 'USER', isTransient: false },
+          }),
+        ],
+      }),
     });
 
     const download = downloadSandboxArtifactAsync({
@@ -503,6 +509,30 @@ describe(downloadSandboxArtifactAsync, () => {
     await expect(download).rejects.toMatchObject({
       errorCode: 'EAS_DOWNLOAD_SANDBOX_ARTIFACT_FETCH_FAILED',
       message: `Could not fetch sandbox artifact ${artifactId}: [GraphQL] Entity not authorized`,
+    });
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['a SYSTEM error', { errorType: 'SYSTEM', isTransient: false }],
+    ['an error with no errorType', undefined],
+  ])('throws SystemError when GraphQL fails the lookup with %s', async (_label, extensions) => {
+    const artifactId = randomUUID();
+    const graphqlClient = createMockGraphqlClient({
+      error: new CombinedError({
+        graphQLErrors: [new GraphQLError('Unexpected server error', { extensions })],
+      }),
+    });
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient,
+      artifactId,
+    });
+
+    await expect(download).rejects.toBeInstanceOf(SystemError);
+    await expect(download).rejects.toMatchObject({
+      message: `Could not fetch sandbox artifact ${artifactId}: [GraphQL] Unexpected server error`,
     });
     expect(graphqlClient.query).toHaveBeenCalledTimes(1);
   });
