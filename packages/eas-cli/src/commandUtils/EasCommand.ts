@@ -368,7 +368,12 @@ export default abstract class EasCommand extends Command {
     }
     const json = this.jsonOutputRequested();
     if (json) {
-      printJsonErrorOutput({ message, errorCode: code, requestId });
+      printJsonErrorOutput({
+        message,
+        errorCode: code,
+        requestId,
+        ...(err instanceof EasCommandError ? err.details : undefined),
+      });
     }
     Log.debug(err);
     Sentry.withScope(scope => {

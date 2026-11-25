@@ -22,6 +22,16 @@ export function getUnconfiguredProjectError({
   reason?: string;
   additionalFix?: string;
 }): EasCommandError {
+  const accountsWithProjectCreationPermission = getCreatableAccountNames(actor);
+  const accountsMessage = accountsWithProjectCreationPermission.length
+    ? `Accounts you can create projects in: ${accountsWithProjectCreationPermission.join(', ')}`
+    : 'Your current credential cannot create projects in any account.';
+  const targetMessage =
+    accountName &&
+    accountsWithProjectCreationPermission.length &&
+    !accountsWithProjectCreationPermission.includes(accountName)
+      ? `\nCreating a project in ${accountName} requires a credential with permission to create projects there.`
+      : '';
   return new EasCommandError(
     `EAS project not configured. ${reason} ` +
       `Run one of the following, then re-run this command:\n\n` +
@@ -29,8 +39,12 @@ export function getUnconfiguredProjectError({
       `  eas init --id <project-id> --non-interactive\n\n` +
       `To create a new project:\n\n` +
       `  eas init --account ${accountName ?? '<account-name>'} --non-interactive\n\n` +
-      `Accounts you can create projects in: ${getCreatableAccountNames(actor).join(', ')}` +
+      accountsMessage +
+      targetMessage +
       (additionalFix ? `\n\n${additionalFix}` : ''),
-    { code: 'EAS_PROJECT_NOT_CONFIGURED' }
+    {
+      code: 'EAS_PROJECT_NOT_CONFIGURED',
+      details: { accountName, accountsWithProjectCreationPermission },
+    }
   );
 }
