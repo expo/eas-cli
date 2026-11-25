@@ -18,12 +18,15 @@ export type DownloadToFileOptions = {
   operation: string;
   /** Stops the request and the file write when aborted. */
   signal?: AbortSignal;
+  retries?: number;
+  /** The wait before the first retry. Each later wait is two times the wait before it. */
+  minTimeoutMs?: number;
 };
 
 /** Downloads the URL to a file and returns the path of the file. */
 export async function downloadToFileAsync(
   { url, headers, destinationPath }: DownloadToFileParams,
-  { operation, signal }: DownloadToFileOptions
+  { operation, signal, retries, minTimeoutMs }: DownloadToFileOptions
 ): Promise<string> {
   signal?.throwIfAborted();
   let filePath: string;
@@ -50,7 +53,7 @@ export async function downloadToFileAsync(
         }
         return attemptFilePath;
       },
-      { operation, signal, isRetryable: isRetryableError }
+      { operation, signal, retries, minTimeoutMs, isRetryable: isRetryableError }
     );
   } catch (error) {
     signal?.throwIfAborted();

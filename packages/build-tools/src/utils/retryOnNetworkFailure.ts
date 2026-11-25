@@ -8,10 +8,15 @@ export async function retryOnNetworkFailureAsync<T>(
     operation,
     signal,
     isRetryable,
+    retries = 5,
+    minTimeoutMs = 1_000,
   }: {
     operation: string;
     signal?: AbortSignal;
     isRetryable: (error: unknown) => boolean;
+    retries?: number;
+    /** The wait before the first retry. Each later wait is two times the wait before it. */
+    minTimeoutMs?: number;
   }
 ): Promise<T> {
   const shouldRetry = (error: unknown): boolean => !signal?.aborted && isRetryable(error);
@@ -34,7 +39,7 @@ export async function retryOnNetworkFailureAsync<T>(
         return await attemptAsync();
       },
       shouldRetry,
-      { retries: 5, minTimeout: 1_000, factor: 2 },
+      { retries, minTimeout: minTimeoutMs, factor: 2 },
       ({ attemptNumber, error }) => {
         attempts = attemptNumber;
         lastError = error;
