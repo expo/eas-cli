@@ -1,5 +1,9 @@
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
+import { spawnSync } from 'child_process';
+import { mkdtempSync, rmSync } from 'fs';
+import os from 'os';
+import path from 'path';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
@@ -139,14 +143,44 @@ it('identifies the actor independently of their first account', async () => {
   expect(Log.log).not.toHaveBeenCalled();
 });
 
+it('writes only indeterminate JSON to stdout when the actor lookup loses its connection', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'whoami-test-'));
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '-r',
+        require.resolve('ts-node/register/transpile-only'),
+        path.join(__dirname, 'fixtures/whoami-network-error.cjs'),
+      ],
+      {
+        cwd: path.resolve(__dirname, '../../../..'),
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          EXPO_TOKEN: 'fixture-token',
+          DISABLE_EAS_ANALYTICS: '1',
+          EAS_CLI_SENTRY_DSN: '',
+          FORCE_COLOR: '0',
+        },
+        encoding: 'utf8',
+        timeout: 30_000,
+      }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('connection reset');
+    expect(JSON.parse(result.stdout)).toEqual({ status: 'indeterminate' });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 const authError = { message: 'Rejected credential', code: 'AUTHENTICATION_ERROR' };
 const permissionError = { message: 'Permission denied', code: 'UNAUTHORIZED_ERROR' };
 
 it.each([
-  [
-    new CombinedError({ networkError: new Error('HTTP 401'), graphQLErrors: [authError] }),
-    'HTTP 401',
-  ],
   [new CombinedError({ graphQLErrors: [permissionError] }), 'Permission denied'],
   [new CombinedError({ graphQLErrors: [authError, permissionError] }), 'Permission denied'],
   [

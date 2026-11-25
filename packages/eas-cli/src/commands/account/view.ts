@@ -26,7 +26,11 @@ function isBearerTokenRejected(error: Error): boolean {
 }
 
 export default class AccountView extends EasCommand {
-  static override description = 'show the username you are logged in as';
+  static override description = `show the username you are logged in as
+
+With --json, a successful lookup exits 0 with status "signed-in", an actor, and a list of accounts. Use actor.id as the identifier. actor.displayName is display text and can be "robot". actor.type can gain new values. Each entry in accounts names an account the actor belongs to.
+
+An unsuccessful lookup exits 1 with status "signed-out", "token-rejected", or "indeterminate". For "indeterminate", stderr explains why the lookup failed. Invalid arguments also exit 1, with a diagnostic on stderr and empty stdout.`;
   static override aliases = ['whoami'];
 
   static override flags = EasNonInteractiveAndJsonFlags;
