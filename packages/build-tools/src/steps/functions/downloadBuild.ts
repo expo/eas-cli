@@ -350,7 +350,7 @@ export async function downloadBuildAsync(
 
   const { size } = await fs.promises.stat(archivePath);
 
-  logger.info(`Downloaded ${archivePath} (${formatBytes(size)} bytes).`);
+  logger.info(`Downloaded ${archivePath} (${formatBytes(size)}).`);
 
   const isFileATarGzArchive = await isFileTarGzAsync(archivePath);
 
