@@ -424,30 +424,37 @@ describe('EasCommand', () => {
         });
 
         it.each([
-          ['UNAUTHORIZED_ERROR', 'EAS_PERMISSION_DENIED'],
-          ['UNKNOWN_GRAPHQL_ERROR', undefined],
-        ])('maps %s to the CLI code %s and preserves the request ID', async (errorCode, code) => {
-          const TestEasCommand = createJsonTestEasCommand();
-          const { printJsonErrorOutput } = jest.requireMock('../../utils/json');
-          const { CombinedError } = require('@urql/core');
-          const { GraphQLError } = require('graphql/error');
-          jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(() => {
-            throw new CombinedError({
-              graphQLErrors: [
-                new GraphQLError('Entity not authorized', null, null, null, null, null, {
-                  errorCode,
-                  requestId: mockRequestId,
-                }),
-              ],
+          { errors: ['UNAUTHORIZED_ERROR'], code: 'EAS_PERMISSION_DENIED' },
+          { errors: ['UNKNOWN_GRAPHQL_ERROR'], code: undefined },
+          { errors: ['UNAUTHORIZED_ERROR', 'UNKNOWN_GRAPHQL_ERROR'], code: undefined },
+          { errors: ['UNAUTHORIZED_ERROR'], networkError: new Error('offline'), code: undefined },
+        ])(
+          'maps $errors (network error: $networkError) to $code',
+          async ({ errors, code, networkError }) => {
+            const TestEasCommand = createJsonTestEasCommand();
+            const { printJsonErrorOutput } = jest.requireMock('../../utils/json');
+            const { CombinedError } = require('@urql/core');
+            const { GraphQLError } = require('graphql/error');
+            jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(() => {
+              throw new CombinedError({
+                networkError,
+                graphQLErrors: errors.map(
+                  errorCode =>
+                    new GraphQLError('Request failed', null, null, null, null, null, {
+                      errorCode,
+                      requestId: mockRequestId,
+                    })
+                ),
+              });
             });
-          });
 
-          await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+            await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
 
-          expect(printJsonErrorOutput).toHaveBeenCalledWith(
-            expect.objectContaining({ requestId: mockRequestId, code })
-          );
-        });
+            expect(printJsonErrorOutput).toHaveBeenCalledWith(
+              expect.objectContaining({ requestId: mockRequestId, code })
+            );
+          }
+        );
 
         it.each([
           ['without --json', []],
