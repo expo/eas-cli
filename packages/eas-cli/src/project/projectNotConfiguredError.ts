@@ -21,19 +21,19 @@ export class ProjectNotConfiguredError extends Error {
     additionalFix?: string;
   }) {
     const eligibleAccounts = getCreatableAccountNames(actor);
-    const canCreate =
-      accountName === undefined
-        ? eligibleAccounts.length > 0
-        : eligibleAccounts.includes(accountName);
-    const linkExisting =
-      'To link an existing project:\n\n  eas init --id <project-id> --non-interactive';
-    const guidance = canCreate
-      ? `Run one of the following, then re-run this command:\n\n${linkExisting}\n\n` +
-        `To create a new project:\n\n  eas init --account ${accountName ?? '<account-name>'} --non-interactive\n\n` +
-        `Accounts you can create projects in: ${eligibleAccounts.join(', ')}`
-      : linkExisting;
+    const accountsMessage = eligibleAccounts.length
+      ? `Accounts you can create projects in: ${eligibleAccounts.join(', ')}`
+      : 'Your current credential cannot create projects in any account.';
+    const targetMessage =
+      accountName && eligibleAccounts.length && !eligibleAccounts.includes(accountName)
+        ? `\nCreating a project in ${accountName} requires a credential with permission to create projects there.`
+        : '';
     super(
-      `EAS project not configured. ${reason} ${guidance}` +
+      `EAS project not configured. ${reason} Run one of the following, then re-run this command:\n\n` +
+        'To link an existing project:\n\n  eas init --id <project-id> --non-interactive\n\n' +
+        `To create a new project:\n\n  eas init --account ${accountName ?? '<account-name>'} --non-interactive\n\n` +
+        accountsMessage +
+        targetMessage +
         (additionalFix ? `\n\n${additionalFix}` : '')
     );
     this.accountName = accountName;

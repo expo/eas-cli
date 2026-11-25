@@ -2,4 +2,4 @@
 'eas-cli': patch
 ---
 
-When a project is unconfigured, only suggest creating it if the current credential can create projects on the target account.
+Show both project setup commands and explain when the current credential lacks permission to create a project.
