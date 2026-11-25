@@ -1,6 +1,5 @@
 import { SystemError, UserError, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
@@ -11,25 +10,24 @@ import { Client, CombinedError } from '@urql/core';
 import contentDisposition from 'content-disposition';
 import { glob } from 'fast-glob';
 import { graphql } from 'gql.tada';
-import fetch from 'node-fetch';
+import { type Response } from 'node-fetch';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import stream from 'stream';
-import { promisify } from 'util';
 import { z } from 'zod';
 import bplistParser from 'bplist-parser';
 import plist from 'plist';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import {
+  DownloadApiError,
+  DownloadNetworkError,
+  downloadToFileAsync,
+} from '../../storage/downloadToFile';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
-import {
-  describeError,
-  isTransferFailure,
-  isTransientGraphqlError,
-} from '../../utils/networkErrors';
+import { describeError, isTransientGraphqlError } from '../../utils/networkErrors';
 import { retryOnNetworkFailureAsync } from '../../utils/retryOnNetworkFailure';
 import { pluralize } from '../../utils/strings';
 import {
@@ -37,8 +35,6 @@ import {
   getDeviceRunSessionWorkerApi,
 } from '../utils/deviceRunSessionWorkerApi';
 import { WorkerApiError } from '../utils/workerApi';
-
-const streamPipeline = promisify(stream.pipeline);
 
 type DownloadBuildSource =
   | { buildId: string; applicationArchiveUrl?: never }
@@ -303,50 +299,45 @@ export async function downloadBuildAsync(
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  signal?.throwIfAborted();
   let archivePath: string;
   try {
-    archivePath = await retryOnNetworkFailureAsync(
-      async () => {
-        const response = await fetch(downloadUrl, { headers, signal });
-        if (!response.ok) {
-          const textResult = await asyncResult(response.text());
-          const archiveUrl = new URL(downloadUrl);
-          const source = params.buildId
-            ? `application archive for build ${params.buildId}`
-            : `archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
-          if (response.status === 404 || response.status === 410) {
-            throw new UserError(
-              'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
-              `Failed to download the ${source} (HTTP ${response.status}). ` +
-                'The archive is unavailable. ' +
-                (params.buildId
-                  ? 'Check that the archive still exists and try again.'
-                  : 'Check that the URL is correct and the archive still exists, then try again.')
-            );
-          }
-          throw new Error(
-            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
-          );
-        }
-        const archiveFilename = resolveArchiveFilename({ response, extensions });
-        const attemptArchivePath = path.join(downloadDestinationDirectory, archiveFilename);
-        // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
-        await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
-        return attemptArchivePath;
+    archivePath = await downloadToFileAsync(
+      {
+        url: downloadUrl,
+        headers,
+        destinationPath: response =>
+          path.join(downloadDestinationDirectory, resolveArchiveFilename({ response, extensions })),
       },
-      { operation: 'download_build.archive_download', signal, isRetryable: isTransferFailure }
+      { operation: 'download_build.archive_download', signal }
     );
   } catch (error) {
-    signal?.throwIfAborted();
-    if (params.buildId && isTransferFailure(error)) {
-      throw new SystemError(`Could not download the application archive: ${describeError(error)}`, {
-        cause: error,
-      });
+    if (!(error instanceof DownloadApiError) && !(error instanceof DownloadNetworkError)) {
+      throw error;
     }
-    throw error;
+    const archiveUrl = new URL(downloadUrl);
+    const source = params.buildId
+      ? `application archive for build ${params.buildId}`
+      : `archive at ${archiveUrl.origin}${archiveUrl.pathname}`;
+    // A URL from the user points to a server that is not ours, so only the failures of a build
+    // archive are system errors.
+    if (error instanceof DownloadNetworkError) {
+      throw params.buildId
+        ? new SystemError(`Could not download the application archive: ${error.reason}.`)
+        : new Error(`Failed to download the ${source}: ${error.reason}.`);
+    }
+    if (error.status === 404 || error.status === 410) {
+      throw new UserError(
+        'EAS_DOWNLOAD_BUILD_ARCHIVE_UNAVAILABLE',
+        `Failed to download the ${source} (HTTP ${error.status}). ` +
+          'The archive is unavailable. ' +
+          (params.buildId
+            ? 'Check that the archive still exists and try again.'
+            : 'Check that the URL is correct and the archive still exists, then try again.')
+      );
+    }
+    const message = `Failed to download the ${source} (HTTP ${error.status}): ${error.responseText}`;
+    throw params.buildId && error.status >= 500 ? new SystemError(message) : new Error(message);
   }
-  signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(archivePath);
 
@@ -442,7 +433,7 @@ function resolveArchiveFilename({
   response,
   extensions,
 }: {
-  response: Awaited<ReturnType<typeof fetch>>;
+  response: Response;
   extensions: string[];
 }): string {
   const contentDispositionHeader = response.headers.get('content-disposition');
