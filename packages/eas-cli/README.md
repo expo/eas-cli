@@ -92,10 +92,11 @@ New to EAS? Follow [Create your first build](https://docs.expo.dev/build/setup/)
 
 When an EAS command exits unsuccessfully with `--json`, read the optional `error.code` from stdout to choose a recovery. Display the diagnostic for unknown codes or for older CLI versions that omit the code or JSON output.
 
-| Code | Recovery |
-| --- | --- |
-| `EAS_LOGIN_REQUIRED` | Sign in with `eas login` or provide an Expo access token in `EXPO_TOKEN`. |
-| `EAS_PERMISSION_DENIED` | Verify the account and token have access to the requested resource. Ask the project owner for the required permissions. |
+| Code                    | Recovery                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `EAS_LOGIN_REQUIRED`    | Sign in with `eas login` or provide an Expo access token in `EXPO_TOKEN`.                                                   |
+| `EAS_PERMISSION_DENIED` | Verify the account and token have access to the requested resource. Ask the project owner for the required permissions.     |
+| `EAS_INPUT_REQUIRED`    | For `fingerprint:compare`, provide a fingerprint hash, build ID, or individual update ID, or rerun interactively to choose. |
 
 ## Version policy
 
