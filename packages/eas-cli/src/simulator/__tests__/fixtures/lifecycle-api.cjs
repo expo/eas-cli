@@ -42,6 +42,9 @@ nock('http://127.0.0.1:3000')
       case 'DeviceRunSessionByIdQuery': {
         // Same pipe as lifecycle events so the parent can check ordering across the process boundary.
         process.stderr.write('fixture: polling readiness\n');
+        if (scenario === 'errored') {
+          return { data: { deviceRunSessions: { byId: { ...session, status: 'ERRORED' } } } };
+        }
         if (scenario !== 'ready') {
           return { errors: [{ message: 'fixture readiness error' }] };
         }
@@ -58,7 +61,7 @@ nock('http://127.0.0.1:3000')
         }
         const stop = {
           id: session.id,
-          status: scenario === 'still-running' ? 'IN_PROGRESS' : 'STOPPED',
+          status: scenario === 'errored' ? 'ERRORED' : scenario === 'still-running' ? 'IN_PROGRESS' : 'STOPPED',
         };
         return { data: { deviceRunSession: { ensureDeviceRunSessionStopped: stop } } };
       }

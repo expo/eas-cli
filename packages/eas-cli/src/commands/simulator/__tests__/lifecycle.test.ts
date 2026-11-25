@@ -7,7 +7,7 @@ import path from 'node:path';
 // use the dev entrypoint so a stale build cannot hide changes to the TypeScript source.
 const cli = path.resolve(__dirname, '../../../..');
 const bin = path.join(cli, 'bin', process.env.GITHUB_ACTIONS === 'true' ? 'run' : 'dev');
-const api = path.join(__dirname, 'fixtures/lifecycle-api.cjs');
+const api = path.join(cli, 'src/simulator/__tests__/fixtures/lifecycle-api.cjs');
 const start = { event: 'start' };
 const allocated = { event: 'allocated', id: 'session-123' };
 const requestId = '86c52eaa-ef2c-42b0-b638-d93c68c6af5a';
@@ -100,12 +100,15 @@ it('reports the allocation even when the create response is missing the job', ()
 
 it.each([
   ['poll-error', 'stopped'],
+  ['errored', 'stopped'],
   ['stop-error', 'unknown'],
   ['still-running', 'unknown'],
 ])('reports the allocation before polling and the cleanup outcome on %s', (scenario, outcome) => {
   const json = scenario === 'still-running';
   const result = runStart(scenario, { json });
-  expect(result.stderr).toContain('fixture readiness error');
+  expect(result.stderr).toContain(
+    scenario === 'errored' ? 'session-123 errored before' : 'fixture readiness error'
+  );
   expect(result.status).toBe(1);
   if (json) {
     expect(result.stdout).toBe('');
