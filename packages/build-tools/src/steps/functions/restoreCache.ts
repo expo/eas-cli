@@ -8,21 +8,16 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import fs from 'fs';
-import fetch from 'node-fetch';
 import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
-import stream from 'stream';
 import * as tar from 'tar';
-import { promisify } from 'util';
 import z from 'zod';
 
+import { DownloadApiError, downloadToFileAsync } from '../../storage/downloadToFile';
 import { PUBLIC_CACHE_KEY_PREFIX_BY_PLATFORM } from '../../utils/cacheKey';
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';
 import { getCacheVersion } from '../utils/cache';
-
-const streamPipeline = promisify(stream.pipeline);
 
 export function createRestoreCacheFunction(): BuildFunction {
   return new BuildFunction({
@@ -160,25 +155,10 @@ export async function downloadCacheAsync({
 
     logger.info(`Matched cache key: ${matchedKey}. Downloading...`);
 
-    const downloadDestinationDirectory = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'restore-cache-')
-    );
-
-    const downloadResponse = await retryOnDNSFailure(fetch)(downloadUrl);
-    if (!downloadResponse.ok) {
-      throw new Error(
-        `Unexpected response from cache server (${downloadResponse.status}): ${downloadResponse.statusText}`
-      );
-    }
-
-    // URL may contain percent-encoded characters, e.g. my%20file.apk
-    // this replaces all non-alphanumeric characters (excluding dot) with underscore
-    const archiveFilename = path
-      .basename(new URL(downloadUrl).pathname)
-      .replace(/([^a-z0-9.-]+)/gi, '_');
-    const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
-
-    await streamPipeline(downloadResponse.body, fs.createWriteStream(archivePath));
+    const archivePath = await downloadCacheArchiveAsync({
+      downloadUrl,
+      operation: 'restore_cache.archive_download',
+    });
 
     return { archivePath, matchedKey };
   } catch (err: any) {
@@ -232,23 +212,10 @@ export async function downloadPublicCacheAsync({
 
     logger.info(`Matched public cache key: ${matchedKey}. Downloading...`);
 
-    const downloadDestinationDirectory = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'restore-cache-')
-    );
-
-    const downloadResponse = await retryOnDNSFailure(fetch)(downloadUrl);
-    if (!downloadResponse.ok) {
-      throw new Error(
-        `Unexpected response from cache server (${downloadResponse.status}): ${downloadResponse.statusText}`
-      );
-    }
-
-    const archiveFilename = path
-      .basename(new URL(downloadUrl).pathname)
-      .replace(/([^a-z0-9.-]+)/gi, '_');
-    const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
-
-    await streamPipeline(downloadResponse.body, fs.createWriteStream(archivePath));
+    const archivePath = await downloadCacheArchiveAsync({
+      downloadUrl,
+      operation: 'restore_cache.public_archive_download',
+    });
 
     return { archivePath, matchedKey };
   } catch (err: any) {
@@ -259,6 +226,43 @@ export async function downloadPublicCacheAsync({
       );
     }
     throw err;
+  }
+}
+
+async function downloadCacheArchiveAsync({
+  downloadUrl,
+  operation,
+}: {
+  downloadUrl: string;
+  operation: string;
+}): Promise<string> {
+  const downloadDestinationDirectory = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'restore-cache-')
+  );
+
+  // URL may contain percent-encoded characters, e.g. my%20file.apk
+  // this replaces all non-alphanumeric characters (excluding dot) with underscore
+  const archiveFilename = path
+    .basename(new URL(downloadUrl).pathname)
+    .replace(/([^a-z0-9.-]+)/gi, '_');
+
+  try {
+    return await downloadToFileAsync(
+      {
+        url: downloadUrl,
+        destinationPath: path.join(downloadDestinationDirectory, archiveFilename),
+      },
+      // A build continues without the cache, so a failing download must not hold it for long.
+      { operation, retries: 3, minTimeoutMs: 100 }
+    );
+  } catch (error) {
+    if (error instanceof DownloadApiError) {
+      // No `response` on this error: callers read `response.status === 404` as a cache miss.
+      throw new Error(
+        `Unexpected response from cache server (${error.status}): ${error.statusText}`
+      );
+    }
+    throw error;
   }
 }
 
