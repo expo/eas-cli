@@ -77,6 +77,7 @@ import {
   getLocalEgressConfig,
   getPreviewApiAccess,
   getRemoteSessionEnvironmentVariables,
+  isSimulatorStopConfirmed,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -1119,11 +1120,11 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
   deviceRunSessionId: string
 ): Promise<boolean> {
   try {
-    await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
+    const stopped = await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
       graphqlClient,
       deviceRunSessionId
     );
-    return true;
+    return isSimulatorStopConfirmed(stopped, deviceRunSessionId);
   } catch (err) {
     // Cleanup is best-effort; surface the failure but don't mask the original error.
     Log.warn(

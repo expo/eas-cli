@@ -13,6 +13,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../simulator/env';
+import { isSimulatorStopConfirmed } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   getSimulatorCommandAliases,
@@ -67,6 +68,9 @@ export default class SimulatorStop extends EasCommand {
         graphqlClient,
         flagId
       );
+      if (!isSimulatorStopConfirmed(session, flagId)) {
+        throw new Error(`EAS could not confirm that simulator session ${flagId} stopped.`);
+      }
       stopSpinner.succeed(`🎉 Simulator session ${session.id} is ${session.status.toLowerCase()}`);
     } catch (err) {
       stopSpinner.fail(`Failed to stop simulator session ${flagId}`);

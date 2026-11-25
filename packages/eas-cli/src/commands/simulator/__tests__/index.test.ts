@@ -3495,6 +3495,31 @@ describe(Simulator, () => {
     );
   });
 
+  it.each([
+    { id: 'session-123', status: DeviceRunSessionStatus.InProgress },
+    { id: 'another-session', status: DeviceRunSessionStatus.Stopped },
+  ])(
+    'keeps local credentials when the stop response does not confirm this session: %j',
+    async response => {
+      mockByIdAsync
+        .mockResolvedValueOnce(makeDeviceRunSession())
+        .mockImplementationOnce(async () => {
+          process.emit('SIGINT');
+          return makeDeviceRunSession();
+        });
+      mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValueOnce(response);
+
+      const { command } = createCommand(['--platform', 'ios']);
+      await command.runAsync();
+
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
+    }
+  );
+
   it('stops the session when interrupted while it is running', async () => {
     mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
       process.emit('SIGINT');

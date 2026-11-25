@@ -135,6 +135,20 @@ describe(SimulatorStop, () => {
     }
   });
 
+  it.each([{ status: DeviceRunSessionStatus.InProgress }, { id: 'another-session' }])(
+    'preserves credentials when the stop is unconfirmed: %j',
+    async response => {
+      mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValueOnce(
+        makeStoppedDeviceRunSession(response)
+      );
+      const { command } = createCommand(['--id', 'session-123', '--json']);
+
+      await expect(command.runAsync()).rejects.toThrow('could not confirm');
+      expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
+      expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+    }
+  );
+
   it('throws a helpful error when no simulator session ID is available', async () => {
     const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
     delete process.env[EAS_SIMULATOR_SESSION_ID];
