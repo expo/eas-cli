@@ -235,7 +235,10 @@ export default abstract class EasCommand extends Command {
     return nullthrows(this.analyticsInternal);
   }
 
-  /** The actor at command startup. A login during runAsync does not update this snapshot. */
+  protected async resolveActorAsync(sessionManager: SessionManager): Promise<Actor | undefined> {
+    return await sessionManager.getUserAsync();
+  }
+
   protected abstract runAsync(actor: Actor | undefined): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
@@ -249,8 +252,7 @@ export default abstract class EasCommand extends Command {
       this.analyticsInternal = await createAnalyticsAsync(parentCommand);
       this.sessionManagerInternal = new SessionManager(this.analytics);
 
-      // getUserAsync identifies the analytics actor before the command action is recorded.
-      const actor = await this.sessionManager.getUserAsync();
+      const actor = await this.resolveActorAsync(this.sessionManager);
       if (actor) {
         Sentry.setUser({ id: actor.id, username: getActorDisplayName(actor) });
       }
