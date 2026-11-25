@@ -10,6 +10,9 @@ import { Actor, getActorDisplayName } from '../../user/User';
 import { logAccountPermissions } from '../../user/accountPermissions';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
+// The API uses the generic AUTHENTICATION_ERROR code for this response.
+const INVALID_BEARER_TOKEN_MESSAGE = 'The bearer token is invalid.';
+
 export default class AccountView extends EasCommand {
   static override description = 'show the username you are logged in as';
   static override aliases = ['whoami'];
@@ -34,12 +37,12 @@ export default class AccountView extends EasCommand {
     try {
       return await super.resolveActorAsync(sessionManager);
     } catch (error) {
-      if (
-        sessionManager.getAccessToken() &&
+      const isAccessTokenRejected =
+        !!sessionManager.getAccessToken() &&
         error instanceof CombinedError &&
         !error.networkError &&
-        error.graphQLErrors.some(e => e.message === 'The bearer token is invalid.')
-      ) {
+        error.graphQLErrors.some(e => e.message === INVALID_BEARER_TOKEN_MESSAGE);
+      if (isAccessTokenRejected) {
         printJsonOnlyOutput({ status: 'token-rejected' });
         this.exit(1);
       }
