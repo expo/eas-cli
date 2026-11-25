@@ -57,6 +57,9 @@ type GetContextType<Type> = {
 
 const BASE_GRAPHQL_ERROR_MESSAGE: string = 'GraphQL request failed.';
 
+// A nested command (e.g. update:republish inside update:rollback) already reported this failure.
+class ReportedJsonError extends Error {}
+
 interface BaseGetContextAsyncArgs {
   nonInteractive: boolean;
   vcsClientOverride?: Client;
@@ -291,6 +294,9 @@ export default abstract class EasCommand extends Command {
   }
 
   protected override catch(err: Error): Promise<any> {
+    if (err instanceof ReportedJsonError) {
+      throw err;
+    }
     const commandId = this.id ?? 'unknown';
     let baseMessage = `${commandId} command failed.`;
     let message = err.message;
@@ -360,7 +366,8 @@ export default abstract class EasCommand extends Command {
     } else {
       Log.errorToStderr(err.message);
     }
-    if (this.jsonOutputRequested()) {
+    const json = this.jsonOutputRequested();
+    if (json) {
       printJsonErrorOutput({ message, errorCode: code, requestId });
     }
     Log.debug(err);
@@ -375,7 +382,7 @@ export default abstract class EasCommand extends Command {
       }
       Sentry.captureException(err);
     });
-    const sanitizedError = new Error(baseMessage);
+    const sanitizedError = json ? new ReportedJsonError(baseMessage) : new Error(baseMessage);
     sanitizedError.stack = err.stack;
     throw sanitizedError;
   }

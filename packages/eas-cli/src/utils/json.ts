@@ -29,19 +29,7 @@ export interface JsonErrorOutput {
   requestId?: string;
 }
 
-let jsonErrorPrinted = false;
-
-/**
- * Print `{ "error": { message, errorCode?, requestId? } }` on stdout for a command that failed with --json.
- *
- * Once per process: `update:rollback` runs other commands in-process, and the innermost error is the one
- * that says what went wrong.
- */
 export function printJsonErrorOutput(error: JsonErrorOutput): void {
-  if (jsonErrorPrinted) {
-    return;
-  }
-  jsonErrorPrinted = true;
   // The command may have failed before it could enable JSON output.
   enableJsonOutput();
   printJsonOnlyOutput({ error: { ...error, message: stripVTControlCharacters(error.message) } });
