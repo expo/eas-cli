@@ -2,6 +2,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
+import { getAccessToken } from '../../user/SessionManager';
 import { Actor, getActorDisplayName } from '../../user/User';
 import { logAccountPermissions } from '../../user/accountPermissions';
 
@@ -9,16 +10,10 @@ export default class AccountView extends EasCommand {
   static override description = 'show the username you are logged in as';
   static override aliases = ['whoami'];
 
-  static override contextDefinition = {
-    ...this.ContextOptions.SessionManagment,
-  };
-
   async runAsync(actor: Actor | undefined): Promise<void> {
-    const { sessionManager } = await this.getContextAsync(AccountView, { nonInteractive: true });
-    const accessToken = sessionManager.getAccessToken();
     if (actor) {
       const displayName = getActorDisplayName(actor);
-      const loggedInAs = accessToken
+      const loggedInAs = getAccessToken()
         ? `${displayName} (authenticated using EXPO_TOKEN)`
         : displayName;
       Log.log(chalk.green(loggedInAs));

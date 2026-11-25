@@ -63,7 +63,7 @@ afterEach(() => jest.restoreAllMocks());
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.spyOn(SessionManager.prototype, 'getAccessToken').mockReturnValue(null);
+  jest.replaceProperty(process, 'env', { ...process.env, EXPO_TOKEN: '' });
 });
 
 it('does not list accounts when only the unlimited personal account exists', async () => {
