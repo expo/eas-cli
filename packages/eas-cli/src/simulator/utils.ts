@@ -26,7 +26,11 @@ export function isSimulatorStopConfirmed(
   session: Pick<DeviceRunSessionByIdResult, 'id' | 'status'>,
   requestedId: string
 ): boolean {
-  return session.id === requestedId && session.status === DeviceRunSessionStatus.Stopped;
+  return (
+    session.id === requestedId &&
+    (session.status === DeviceRunSessionStatus.Stopped ||
+      session.status === DeviceRunSessionStatus.Errored)
+  );
 }
 
 /**

@@ -89,25 +89,31 @@ describe(SimulatorStop, () => {
     return { command, getContextAsync };
   }
 
-  it('emits JSON when --json is passed', async () => {
-    const { command, getContextAsync } = createCommand(['--id', 'session-123', '--json']);
-    await command.runAsync();
+  it.each([DeviceRunSessionStatus.Stopped, DeviceRunSessionStatus.Errored])(
+    'clears credentials and emits the terminal %s status with --json',
+    async status => {
+      mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValueOnce(
+        makeStoppedDeviceRunSession({ status })
+      );
+      const { command, getContextAsync } = createCommand(['--id', 'session-123', '--json']);
+      await command.runAsync();
 
-    expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
-    expect(getContextAsync).toHaveBeenCalledWith(SimulatorStop, {
-      nonInteractive: true,
-    });
-    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      'session-123'
-    );
-    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      id: 'session-123',
-      status: DeviceRunSessionStatus.Stopped,
-    });
-  });
+      expect(mockEnableJsonOutput).toHaveBeenCalled();
+      expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
+      expect(getContextAsync).toHaveBeenCalledWith(SimulatorStop, {
+        nonInteractive: true,
+      });
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
+      );
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+        id: 'session-123',
+        status,
+      });
+    }
+  );
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
     const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
