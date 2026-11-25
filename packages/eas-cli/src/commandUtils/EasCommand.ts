@@ -31,7 +31,7 @@ import { markAsParentCommand } from '../analytics/parentCommand';
 import Log, { link } from '../log';
 import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
-import { getActorDisplayName } from '../user/User';
+import { Actor, getActorDisplayName } from '../user/User';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -235,7 +235,7 @@ export default abstract class EasCommand extends Command {
     return nullthrows(this.analyticsInternal);
   }
 
-  protected abstract runAsync(): Promise<any>;
+  protected abstract runAsync(actor: Actor | undefined): Promise<any>;
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
@@ -248,19 +248,12 @@ export default abstract class EasCommand extends Command {
       this.analyticsInternal = await createAnalyticsAsync(parentCommand);
       this.sessionManagerInternal = new SessionManager(this.analytics);
 
-      // this is needed for logEvent call below as it identifies the user in the analytics system
-      // if possible
       const actor = await this.sessionManager.getUserAsync();
       if (actor) {
-        Sentry.setUser({
-          id: actor.id,
-          username: getActorDisplayName(actor),
-        });
+        Sentry.setUser({ id: actor.id, username: getActorDisplayName(actor) });
       }
-
       this.analytics.logEvent(CommandEvent.ACTION, { action: command });
-
-      return await this.runAsync();
+      return await this.runAsync(actor);
     } finally {
       // Commands can run inside each other, for example `eas open` runs `eas browse`.
       // The outer command is the parent command again after the inner one ends.

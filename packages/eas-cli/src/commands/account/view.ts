@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
-import { getActorDisplayName } from '../../user/User';
+import { Actor, getActorDisplayName } from '../../user/User';
 import { logAccountPermissions } from '../../user/accountPermissions';
 
 export default class AccountView extends EasCommand {
@@ -10,16 +10,15 @@ export default class AccountView extends EasCommand {
   static override aliases = ['whoami'];
 
   static override contextDefinition = {
-    ...this.ContextOptions.MaybeLoggedIn,
+    ...this.ContextOptions.SessionManagment,
   };
 
-  async runAsync(): Promise<void> {
-    const {
-      maybeLoggedIn: { actor, authenticationInfo },
-    } = await this.getContextAsync(AccountView, { nonInteractive: true });
+  async runAsync(actor: Actor | undefined): Promise<void> {
+    const { sessionManager } = await this.getContextAsync(AccountView, { nonInteractive: true });
+    const accessToken = sessionManager.getAccessToken();
     if (actor) {
       const displayName = getActorDisplayName(actor);
-      const loggedInAs = authenticationInfo.accessToken
+      const loggedInAs = accessToken
         ? `${displayName} (authenticated using EXPO_TOKEN)`
         : displayName;
       Log.log(chalk.green(loggedInAs));
