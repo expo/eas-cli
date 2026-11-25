@@ -12,6 +12,7 @@ import { createVerifyNativeIosBuildFunction } from '../verifyNativeIos';
 
 const IPA_PATH = path.join(__dirname, '../../../__tests__/fixtures/SmallestAppExample.ipa');
 const IPA_BUNDLE_IDENTIFIER = 'dev.expo.SmallestAppExample';
+const IPA_BUILD_NUMBER = '1';
 
 async function writeAppAsync(bundleIdentifier: string, platformName: string): Promise<string> {
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'verify-native-ios-'));
@@ -28,21 +29,39 @@ async function writeAppAsync(bundleIdentifier: string, platformName: string): Pr
   return appPath;
 }
 
-async function verifyAsync({
-  simulator,
-  archivePath,
-  expectedIdentifier,
-}: {
+interface VerifyOptions {
   simulator: boolean;
   archivePath: string;
   expectedIdentifier?: string;
-}): Promise<void> {
+  expectedBuildNumber?: string;
+}
+
+function createVerifyStep({
+  simulator,
+  archivePath,
+  expectedIdentifier,
+  expectedBuildNumber,
+}: VerifyOptions): ReturnType<
+  ReturnType<typeof createVerifyNativeIosBuildFunction>['createBuildStepFromFunctionCall']
+> {
   const globalCtx = createGlobalContextMock({ staticContextContent: { job: { simulator } } });
-  await createVerifyNativeIosBuildFunction()
-    .createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: { archive_path: archivePath, expected_identifier: expectedIdentifier },
-    })
-    .executeAsync();
+  return createVerifyNativeIosBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+    callInputs: {
+      archive_path: archivePath,
+      expected_identifier: expectedIdentifier,
+      expected_build_number: expectedBuildNumber,
+    },
+  });
+}
+
+async function verifyAsync(options: VerifyOptions): Promise<void> {
+  await createVerifyStep(options).executeAsync();
+}
+
+async function verifyAndReadWarningsAsync(options: VerifyOptions): Promise<unknown[][]> {
+  const step = createVerifyStep(options);
+  await step.executeAsync();
+  return jest.mocked(step.ctx.logger.warn).mock.calls;
 }
 
 describe(createVerifyNativeIosBuildFunction, () => {
@@ -68,6 +87,49 @@ describe(createVerifyNativeIosBuildFunction, () => {
 
   it('accepts an artifact when no identifier is expected', async () => {
     await expect(verifyAsync({ simulator: false, archivePath: IPA_PATH })).resolves.toBeUndefined();
+  });
+
+  it('says nothing about the build number when the artifact has the expected one, or when none is expected', async () => {
+    await expect(
+      verifyAndReadWarningsAsync({
+        simulator: false,
+        archivePath: IPA_PATH,
+        expectedBuildNumber: IPA_BUILD_NUMBER,
+      })
+    ).resolves.toEqual([]);
+    await expect(
+      verifyAndReadWarningsAsync({ simulator: false, archivePath: IPA_PATH })
+    ).resolves.toEqual([]);
+  });
+
+  it('warns with both numbers and the way out, and does not fail, when the artifact has another build number', async () => {
+    await expect(
+      verifyAndReadWarningsAsync({
+        simulator: false,
+        archivePath: IPA_PATH,
+        expectedBuildNumber: '43',
+      })
+    ).resolves.toEqual([
+      [
+        'EAS set the build number to 43, but the built app has 1. The build of the project does not use the number that EAS set; a build phase script or a preprocessed Info.plist file can cause this. To build with the number of the project, set "auto_increment: false".',
+      ],
+    ]);
+  });
+
+  it('warns when a build number is expected and the simulator app has none', async () => {
+    await expect(
+      verifyAndReadWarningsAsync({
+        simulator: true,
+        archivePath: await writeAppAsync('dev.expo.nativeapp', 'iphonesimulator'),
+        expectedBuildNumber: '43',
+      })
+    ).resolves.toEqual([
+      [
+        expect.stringContaining(
+          'EAS set the build number to 43, but the built app has no build number.'
+        ),
+      ],
+    ]);
   });
 
   it('fails when the identifier of the artifact differs', async () => {

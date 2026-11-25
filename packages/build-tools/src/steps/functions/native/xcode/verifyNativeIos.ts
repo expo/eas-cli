@@ -22,14 +22,21 @@ export function createVerifyNativeIosBuildFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'expected_build_number',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     fn: async (stepsCtx, { inputs }) => {
       const job = stepsCtx.global.staticContext.job as Ios.Job;
       const archivePath = inputs.archive_path.value as string;
       const expectedIdentifier = inputs.expected_identifier.value as string | undefined;
+      const expectedBuildNumber = inputs.expected_build_number.value as string | undefined;
       const expectedPlatformName = job.simulator ? 'iphonesimulator' : 'iphoneos';
 
-      const { bundleIdentifier, platformName } = await readArtifactInfoAsync(archivePath);
+      const { bundleIdentifier, platformName, buildNumber } =
+        await readArtifactInfoAsync(archivePath);
       if (platformName !== expectedPlatformName) {
         throw new UserError(
           'NATIVE_XCODE_ARTIFACT_PLATFORM_MISMATCH',
@@ -44,6 +51,13 @@ export function createVerifyNativeIosBuildFunction(): BuildFunction {
           `The build artifact "${path.basename(archivePath)}" has the bundle identifier "${bundleIdentifier}", but "app_identifier" is "${expectedIdentifier}". Set "app_identifier" to "${bundleIdentifier}", or set "xcode_scheme" and "xcode_configuration" to the ones that build "${expectedIdentifier}".`
         );
       }
+      if (expectedBuildNumber && String(buildNumber) !== expectedBuildNumber) {
+        stepsCtx.logger.warn(
+          `EAS set the build number to ${expectedBuildNumber}, but the built app has ${
+            buildNumber === undefined ? 'no build number' : String(buildNumber)
+          }. The build of the project does not use the number that EAS set; a build phase script or a preprocessed Info.plist file can cause this. To build with the number of the project, set "auto_increment: false".`
+        );
+      }
       stepsCtx.logger.info(
         `Verified "${path.basename(archivePath)}": ${bundleIdentifier}, built for ${platformName}.`
       );
@@ -53,7 +67,7 @@ export function createVerifyNativeIosBuildFunction(): BuildFunction {
 
 async function readArtifactInfoAsync(
   archivePath: string
-): Promise<{ bundleIdentifier: unknown; platformName: unknown }> {
+): Promise<{ bundleIdentifier: unknown; platformName: unknown; buildNumber: unknown }> {
   if ((await fs.promises.stat(archivePath)).isDirectory()) {
     const infoPlist = parseInfoPlistBuffer(
       await fs.promises.readFile(path.join(archivePath, 'Info.plist'))
@@ -61,8 +75,9 @@ async function readArtifactInfoAsync(
     return {
       bundleIdentifier: infoPlist.CFBundleIdentifier,
       platformName: infoPlist.DTPlatformName,
+      buildNumber: infoPlist.CFBundleVersion,
     };
   }
-  const { bundleIdentifier, dtPlatformName } = await readIpaInfoAsync(archivePath);
-  return { bundleIdentifier, platformName: dtPlatformName };
+  const { bundleIdentifier, dtPlatformName, bundleVersion } = await readIpaInfoAsync(archivePath);
+  return { bundleIdentifier, platformName: dtPlatformName, buildNumber: bundleVersion };
 }

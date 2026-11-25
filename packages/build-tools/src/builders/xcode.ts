@@ -13,11 +13,13 @@ import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { getEasFunctions } from '../steps/easFunctions';
+import { createIncrementRemoteBuildNumberBuildFunction } from '../steps/functions/native/incrementRemoteBuildNumber';
 import { createPrepareIosCredentialsBuildFunction } from '../steps/functions/native/prepareIosCredentials';
 import { createBuildNativeIosBuildFunction } from '../steps/functions/native/xcode/buildNativeIos';
 import { createConfigureXcodeSigningBuildFunction } from '../steps/functions/native/xcode/configureXcodeSigning';
 import { createDetectNativeXcodeBuildFunction } from '../steps/functions/native/xcode/detectNativeXcode';
 import { createInstallNativePodsBuildFunction } from '../steps/functions/native/xcode/installNativePods';
+import { createSetNativeXcodeBuildNumberBuildFunction } from '../steps/functions/native/xcode/setNativeXcodeBuildNumber';
 import { createVerifyNativeIosBuildFunction } from '../steps/functions/native/xcode/verifyNativeIos';
 
 export async function runXcodeBuildAsync(ctx: BuildContext<Ios.Job>): Promise<Artifacts> {
@@ -80,6 +82,7 @@ export async function createXcodeWorkflowAsync(
         scheme: job.scheme,
         build_configuration: job.buildConfiguration,
         expected_identifier: job.appIdentifier,
+        read_version: job.autoIncrement,
       },
     },
     ...(job.simulator
@@ -94,6 +97,35 @@ export async function createXcodeWorkflowAsync(
               enterprise_provisioning: job.enterpriseProvisioning,
             },
           },
+        ]),
+    ...(job.autoIncrement
+      ? [
+          {
+            id: 'increment_remote_build_number',
+            uses: 'eas/increment_remote_build_number',
+            with: {
+              application_identifier:
+                '${{ steps.detect_native_xcode.outputs.application_identifier }}',
+              current_build_number: '${{ steps.detect_native_xcode.outputs.build_number }}',
+              app_version: '${{ steps.detect_native_xcode.outputs.app_version }}',
+            },
+          },
+          {
+            uses: 'eas/set_native_xcode_build_number',
+            with: {
+              xcodeproj_path: '${{ steps.detect_native_xcode.outputs.xcodeproj_path }}',
+              build_configuration: '${{ steps.detect_native_xcode.outputs.build_configuration }}',
+              targets: '${{ steps.detect_native_xcode.outputs.targets }}',
+              editable_info_plist_paths:
+                '${{ steps.detect_native_xcode.outputs.editable_info_plist_paths }}',
+              build_number: '${{ steps.increment_remote_build_number.outputs.build_number }}',
+            },
+          },
+        ]
+      : []),
+    ...(job.simulator
+      ? []
+      : [
           {
             id: 'configure_xcode_signing',
             uses: 'eas/configure_xcode_signing',
@@ -129,6 +161,9 @@ export async function createXcodeWorkflowAsync(
       with: {
         archive_path: '${{ steps.build_native_ios.outputs.archive_path }}',
         expected_identifier: job.appIdentifier,
+        expected_build_number: job.autoIncrement
+          ? '${{ steps.increment_remote_build_number.outputs.build_number }}'
+          : undefined,
       },
     },
     {
@@ -152,6 +187,8 @@ export async function createXcodeWorkflowAsync(
       createInstallNativePodsBuildFunction(),
       createDetectNativeXcodeBuildFunction(),
       createPrepareIosCredentialsBuildFunction(customBuildCtx),
+      createIncrementRemoteBuildNumberBuildFunction(customBuildCtx),
+      createSetNativeXcodeBuildNumberBuildFunction(),
       createConfigureXcodeSigningBuildFunction(),
       createBuildNativeIosBuildFunction(),
       createVerifyNativeIosBuildFunction(),

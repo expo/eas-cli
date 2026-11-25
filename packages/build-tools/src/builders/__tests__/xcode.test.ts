@@ -122,6 +122,65 @@ describe(createXcodeWorkflowAsync, () => {
     });
   });
 
+  it('increments and sets the build number after the credentials are installed and before signing is configured, and has verification compare it, when the job asks for it', async () => {
+    const workflow = await createWorkflowAsync(createTestXcodeJob({ autoIncrement: true }));
+
+    expect(workflow.buildSteps.map(step => step.__metricsId)).toEqual([
+      'eas/checkout',
+      'eas/install_native_pods',
+      'eas/detect_native_xcode',
+      'eas/prepare_ios_credentials',
+      'eas/increment_remote_build_number',
+      'eas/set_native_xcode_build_number',
+      'eas/configure_xcode_signing',
+      'eas/build_native_ios',
+      'eas/verify_native_ios',
+      'eas/update_resolved_version',
+      'eas/upload_artifact',
+    ]);
+    const rawInputsOf = (metricsId: string): Record<string, unknown> =>
+      Object.fromEntries(
+        (workflow.buildSteps.find(step => step.__metricsId === metricsId)!.inputs ?? []).map(
+          input => [input.id, input.rawValue]
+        )
+      );
+    expect(rawInputsOf('eas/detect_native_xcode')).toMatchObject({ read_version: true });
+    expect(rawInputsOf('eas/increment_remote_build_number')).toEqual({
+      application_identifier: '${{ steps.detect_native_xcode.outputs.application_identifier }}',
+      current_build_number: '${{ steps.detect_native_xcode.outputs.build_number }}',
+      app_version: '${{ steps.detect_native_xcode.outputs.app_version }}',
+    });
+    const buildNumber = '${{ steps.increment_remote_build_number.outputs.build_number }}';
+    expect(rawInputsOf('eas/set_native_xcode_build_number')).toEqual({
+      xcodeproj_path: '${{ steps.detect_native_xcode.outputs.xcodeproj_path }}',
+      build_configuration: '${{ steps.detect_native_xcode.outputs.build_configuration }}',
+      targets: '${{ steps.detect_native_xcode.outputs.targets }}',
+      editable_info_plist_paths:
+        '${{ steps.detect_native_xcode.outputs.editable_info_plist_paths }}',
+      build_number: buildNumber,
+    });
+    expect(rawInputsOf('eas/verify_native_ios')).toMatchObject({
+      expected_build_number: buildNumber,
+    });
+  });
+
+  it.each([false, undefined])(
+    'gives verification no build number to compare when autoIncrement is %s',
+    async autoIncrement => {
+      const workflow = await createWorkflowAsync(createTestXcodeJob({ autoIncrement }));
+
+      const verifyStep = workflow.buildSteps.find(
+        step => step.__metricsId === 'eas/verify_native_ios'
+      )!;
+      expect(
+        verifyStep.inputs!.find(input => input.id === 'expected_build_number')!.rawValue
+      ).toBeUndefined();
+      const metricsIds = workflow.buildSteps.map(step => step.__metricsId);
+      expect(metricsIds).not.toContain('eas/increment_remote_build_number');
+      expect(metricsIds).not.toContain('eas/set_native_xcode_build_number');
+    }
+  );
+
   it('passes the values known from the job to detection and verification', async () => {
     const workflow = await createWorkflowAsync(
       createTestXcodeJob({
@@ -142,6 +201,7 @@ describe(createXcodeWorkflowAsync, () => {
       scheme: 'App',
       build_configuration: 'Staging',
       expected_identifier: 'dev.expo.nativeapp',
+      read_version: undefined,
     });
     expect(rawInputsByMetricsId['eas/verify_native_ios']).toMatchObject({
       expected_identifier: 'dev.expo.nativeapp',

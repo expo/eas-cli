@@ -1,5 +1,6 @@
 import { IOSConfig } from '@expo/config-plugins';
 import { UserError } from '@expo/eas-build-job';
+import assert from 'node:assert';
 import path from 'path';
 import {
   PBXNativeTarget,
@@ -84,6 +85,41 @@ export function getBuildConfigurations(
         ([, buildConfiguration]) => buildConfiguration
       )
     : [];
+}
+
+export function overrideTargetBuildSettings(
+  project: XcodeProject,
+  {
+    target,
+    buildConfiguration,
+    overrides,
+  }: { target: XcodeTarget; buildConfiguration: string; overrides: Record<string, string> }
+): void {
+  const targetBuildSettings = getBuildConfigurations(project, target.id).find(
+    ({ name }) => unquote(name) === buildConfiguration
+  )?.buildSettings;
+  assert(
+    targetBuildSettings,
+    `Target "${target.name}" has no build configuration named "${buildConfiguration}"`
+  );
+  const overriddenNames = Object.keys(overrides);
+  for (const key of Object.keys(targetBuildSettings)) {
+    if (isConditionalVariantOfAny(key, overriddenNames)) {
+      delete targetBuildSettings[key];
+    }
+  }
+  for (const name of overriddenNames) {
+    targetBuildSettings[name] = quote(overrides[name]);
+  }
+}
+
+function isConditionalVariantOfAny(buildSettingKey: string, names: string[]): boolean {
+  const key = unquote(buildSettingKey);
+  return names.some(name => key.startsWith(`${name}[`));
+}
+
+export function quote(value: string): string {
+  return `"${value.replace(/[\\"]/g, '\\$&')}"`;
 }
 
 function findNativeTarget(project: XcodeProject, targetId: string): PBXNativeTarget | undefined {

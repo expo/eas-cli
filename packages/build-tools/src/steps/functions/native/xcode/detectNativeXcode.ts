@@ -9,6 +9,10 @@ import {
 import path from 'node:path';
 import { XcodeProject } from 'xcode';
 
+import {
+  readEditableInfoPlistsAsync,
+  readProjectVersion,
+} from '../../../utils/ios/xcodeProject/buildNumber';
 import { readBuildSettingsByTargetNameAsync } from '../../../utils/ios/xcodeProject/buildSettings';
 import {
   XcodeTarget,
@@ -53,6 +57,11 @@ export function createDetectNativeXcodeBuildFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'read_version',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({ id: 'project_file', required: true }),
@@ -60,6 +69,10 @@ export function createDetectNativeXcodeBuildFunction(): BuildFunction {
       BuildStepOutput.createProvider({ id: 'build_configuration', required: true }),
       BuildStepOutput.createProvider({ id: 'xcodeproj_path', required: true }),
       BuildStepOutput.createProvider({ id: 'targets', required: true }),
+      BuildStepOutput.createProvider({ id: 'application_identifier', required: true }),
+      BuildStepOutput.createProvider({ id: 'app_version', required: false }),
+      BuildStepOutput.createProvider({ id: 'build_number', required: false }),
+      BuildStepOutput.createProvider({ id: 'editable_info_plist_paths', required: false }),
     ],
     fn: async (stepsCtx, { inputs, outputs, env }) => {
       const { logger, workingDirectory } = stepsCtx;
@@ -162,6 +175,22 @@ export function createDetectNativeXcodeBuildFunction(): BuildFunction {
       outputs.build_configuration.set(buildConfiguration);
       outputs.xcodeproj_path.set(xcodeprojPath);
       outputs.targets.set(JSON.stringify(targets));
+      outputs.application_identifier.set(applicationIdentifier);
+
+      if (inputs.read_version.value) {
+        const editableInfoPlistByPath = await readEditableInfoPlistsAsync(
+          targets.map(({ name }) => buildSettingsByTargetName[name]),
+          { env, logger }
+        );
+        const { shortVersion, buildNumber } = readProjectVersion(
+          buildSettingsByTargetName[applicationTarget.name],
+          editableInfoPlistByPath
+        );
+        logger.info(`Version: ${shortVersion ?? 'none'}. Build number: ${buildNumber ?? 'none'}.`);
+        outputs.app_version.set(shortVersion);
+        outputs.build_number.set(buildNumber);
+        outputs.editable_info_plist_paths.set(JSON.stringify([...editableInfoPlistByPath.keys()]));
+      }
     },
   });
 }
