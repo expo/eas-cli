@@ -31,20 +31,20 @@ export default class AccountView extends EasCommand {
 
   static override flags = EasNonInteractiveAndJsonFlags;
 
-  private output: 'human' | 'json-startup' | 'json-result' = 'human';
+  private json = false;
 
   // eslint-disable-next-line async-protect/async-suffix
   protected override async init(): Promise<void> {
     await super.init();
     const { flags } = await this.parse(AccountView);
-    if (flags.json) {
+    this.json = flags.json;
+    if (this.json) {
       enableJsonOutput();
-      this.output = 'json-startup';
     }
   }
 
   protected override catch(error: Error): Promise<void> {
-    if (this.output === 'json-startup') {
+    if (this.json) {
       if (isBearerTokenRejected(error)) {
         printJsonOnlyOutput({ status: 'token-rejected' });
         process.exitCode = 1;
@@ -56,8 +56,7 @@ export default class AccountView extends EasCommand {
   }
 
   async runAsync(actor: Actor | undefined): Promise<void> {
-    if (this.output === 'json-startup') {
-      this.output = 'json-result';
+    if (this.json) {
       if (actor) {
         printJsonOnlyOutput({
           status: 'signed-in',
@@ -65,7 +64,6 @@ export default class AccountView extends EasCommand {
           accounts: actor.accounts.map(({ name }) => ({ name })),
         });
       } else if (getAccessToken()) {
-        printJsonOnlyOutput({ status: 'indeterminate' });
         throw new Error('The server returned no actor for EXPO_TOKEN.');
       } else {
         printJsonOnlyOutput({ status: 'signed-out' });
