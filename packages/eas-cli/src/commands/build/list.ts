@@ -116,7 +116,7 @@ export default class BuildList extends EasCommand {
       if (jsonFlag && error instanceof ProjectNotConfiguredError) {
         printJsonOnlyOutput({
           error: {
-            code: 'EAS_PROJECT_NOT_CONFIGURED',
+            errorCode: 'EAS_PROJECT_NOT_CONFIGURED',
             accountName: error.accountName,
             accountsWithProjectCreationPermission: error.accountsWithProjectCreationPermission,
           },
