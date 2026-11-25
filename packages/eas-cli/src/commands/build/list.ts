@@ -118,7 +118,7 @@ export default class BuildList extends EasCommand {
           error: {
             code: 'EAS_PROJECT_NOT_CONFIGURED',
             accountName: error.accountName,
-            eligibleAccounts: error.eligibleAccounts,
+            accountsWithProjectCreationPermission: error.accountsWithProjectCreationPermission,
           },
         });
       }

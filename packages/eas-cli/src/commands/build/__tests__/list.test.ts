@@ -50,7 +50,10 @@ describe('build:list on an unlinked project', () => {
       if (json) {
         expect(result.stderr).toContain(configLog);
         expect(JSON.parse(result.stdout)).toStrictEqual({
-          error: { code: 'EAS_PROJECT_NOT_CONFIGURED', eligibleAccounts: ['creator'] },
+          error: {
+            code: 'EAS_PROJECT_NOT_CONFIGURED',
+            accountsWithProjectCreationPermission: ['creator'],
+          },
         });
       } else {
         expect(result.stdout).toContain(configLog);
