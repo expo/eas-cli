@@ -1153,6 +1153,24 @@ describe('metrics', () => {
     ]);
   });
 
+  it('opens and stops the tunnel when a metric cannot be reported', async () => {
+    jest.mocked(Datadog.distribution).mockImplementation(() => {
+      throw new Error('metrics are down');
+    });
+    try {
+      const tunnel = await startNgrokTunnelAsync({ ...options, healthCheck: undefined });
+      expect(tunnel.url).toBe(url);
+      await tunnel.stopAsync();
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: expect.objectContaining({ message: 'metrics are down' }) },
+        expect.stringContaining('Could not report the stop metric')
+      );
+      expect(logger.warn).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.mocked(Datadog.distribution).mockReset();
+    }
+  });
+
   it('reports a startup that a retry saved', async () => {
     jest
       .mocked(ngrok.forward)

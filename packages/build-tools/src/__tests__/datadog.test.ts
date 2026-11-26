@@ -493,9 +493,11 @@ describe('Datadog singleton', () => {
     try {
       // turtleFetch waits 1 second after the last failed attempt, so a final HTTP 500 at 9.5 s
       // rejects at 10.5 s, after the deadline aborted the signal.
+      let signal: AbortSignal | undefined;
       turtleFetchMock.mockImplementationOnce(
-        () =>
+        (_url, _method, options) =>
           new Promise((_resolve, reject) => {
+            signal = options.signal ?? undefined;
             setTimeout(() => {
               reject(new Error('Request failed with status 500'));
             }, 10_500);
@@ -512,6 +514,8 @@ describe('Datadog singleton', () => {
       await jest.advanceTimersByTimeAsync(10_500);
       await flushing;
 
+      // The deadline fired before the request failed.
+      expect(signal?.aborted).toBe(true);
       expect(sentryCaptureMock).toHaveBeenCalledWith(
         'Failed to report turtle deviceRunSession metric',
         expect.objectContaining({ message: 'Request failed with status 500' }),
