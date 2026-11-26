@@ -116,6 +116,7 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         await runAgentAsync({
           agentKind,
           agentRunId,
+          appId: ctx.job.appId,
           prompt,
           expoToken,
           expoApiV2BaseUrl: ctx.expoApiV2BaseUrl,

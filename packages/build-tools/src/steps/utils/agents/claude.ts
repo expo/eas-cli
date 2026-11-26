@@ -28,6 +28,7 @@ export async function prepareClaudeCodeAsync({
   homeDirectory,
   minimalEnv,
   mcpServer,
+  systemPrompt,
   prompt,
   credentials,
   isResuming,
@@ -35,6 +36,7 @@ export async function prepareClaudeCodeAsync({
   homeDirectory: string;
   minimalEnv: Record<string, string>;
   mcpServer: McpServer;
+  systemPrompt: string;
   prompt: string;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
@@ -58,6 +60,9 @@ export async function prepareClaudeCodeAsync({
       // gets one.
       ...['--tools', '', '--allowedTools', `mcp__${MCP_SERVER_NAME}`],
       ...['--mcp-config', mcpConfigPath, '--strict-mcp-config'],
+      // Also on resume: Claude Code restores the system prompt of the first start only where it
+      // records it.
+      ...['--append-system-prompt', systemPrompt],
     ],
     env: {
       ...minimalEnv,
