@@ -226,7 +226,7 @@ export async function startNgrokTunnelAsync({
       if (forwarding) {
         reportMetric('open', Date.now() - startedAt, {
           kind,
-          outcome,
+          result: outcome,
           error_code: errorCodeTag(outcome, err),
         });
       }
@@ -264,7 +264,7 @@ export async function startNgrokTunnelAsync({
             const elapsedMs = Date.now() - startedAt;
             reportMetric('late_open', elapsedMs, {
               kind,
-              outcome,
+              result: outcome,
               error_code: errorCodeTag(outcome, err),
             });
             logger.info(
@@ -366,14 +366,17 @@ export async function startNgrokTunnelAsync({
       throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
     }
     // The value is the number of calls to ngrok.
-    reportMetric('startup', forwardCalls, { outcome: 'started', error_code: 'none' });
+    reportMetric('startup', forwardCalls, { result: 'started', error_code: 'none' });
   } catch (error) {
     const outcome = signal.aborted
       ? 'cancelled'
       : error instanceof DeviceRunSessionTimeoutError
         ? 'timed_out'
         : 'failed';
-    reportMetric('startup', forwardCalls, { outcome, error_code: errorCodeTag(outcome, error) });
+    reportMetric('startup', forwardCalls, {
+      result: outcome,
+      error_code: errorCodeTag(outcome, error),
+    });
     controller.abort();
     releaseTarget();
     throw error;
@@ -512,11 +515,11 @@ export async function startNgrokTunnelAsync({
           );
         } catch (err) {
           reportMetric('stop', Date.now() - stopStartedAt, {
-            outcome: err instanceof DeviceRunSessionTimeoutError ? 'timed_out' : 'failed',
+            result: err instanceof DeviceRunSessionTimeoutError ? 'timed_out' : 'failed',
           });
           throw err;
         }
-        reportMetric('stop', Date.now() - stopStartedAt, { outcome: 'stopped' });
+        reportMetric('stop', Date.now() - stopStartedAt, { result: 'stopped' });
         releaseTarget();
       })()),
   };

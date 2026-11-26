@@ -1142,18 +1142,14 @@ describe('metrics', () => {
       [
         'eas.device_run_session.ngrok_tunnel.open',
         0,
-        { tunnel: 'web-preview', kind: 'initial_1', outcome: 'opened', error_code: 'none' },
+        { tunnel: 'web-preview', kind: 'initial_1', result: 'opened', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         1,
-        { tunnel: 'web-preview', outcome: 'started', error_code: 'none' },
+        { tunnel: 'web-preview', result: 'started', error_code: 'none' },
       ],
-      [
-        'eas.device_run_session.ngrok_tunnel.stop',
-        0,
-        { tunnel: 'web-preview', outcome: 'stopped' },
-      ],
+      ['eas.device_run_session.ngrok_tunnel.stop', 0, { tunnel: 'web-preview', result: 'stopped' }],
     ]);
   });
 
@@ -1174,19 +1170,19 @@ describe('metrics', () => {
         {
           tunnel: 'web-preview',
           kind: 'initial_1',
-          outcome: 'failed',
+          result: 'failed',
           error_code: 'ERR_NGROK_802',
         },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.open',
         0,
-        { tunnel: 'web-preview', kind: 'initial_2', outcome: 'opened', error_code: 'none' },
+        { tunnel: 'web-preview', kind: 'initial_2', result: 'opened', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         2,
-        { tunnel: 'web-preview', outcome: 'started', error_code: 'none' },
+        { tunnel: 'web-preview', result: 'started', error_code: 'none' },
       ],
     ]);
   });
@@ -1207,7 +1203,7 @@ describe('metrics', () => {
     ]);
     expect(metrics()[3][2]).toEqual({
       tunnel: 'web-preview',
-      outcome: 'failed',
+      result: 'failed',
       error_code: 'ERR_NGROK_802',
     });
   });
@@ -1229,17 +1225,17 @@ describe('metrics', () => {
       [
         'eas.device_run_session.ngrok_tunnel.open',
         19_000,
-        { tunnel: 'web-preview', kind: 'initial_1', outcome: 'timed_out', error_code: 'none' },
+        { tunnel: 'web-preview', kind: 'initial_1', result: 'timed_out', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         1,
-        { tunnel: 'web-preview', outcome: 'timed_out', error_code: 'none' },
+        { tunnel: 'web-preview', result: 'timed_out', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.late_open',
         25_000,
-        { tunnel: 'web-preview', kind: 'initial_1', outcome: 'opened', error_code: 'none' },
+        { tunnel: 'web-preview', kind: 'initial_1', result: 'opened', error_code: 'none' },
       ],
     ]);
   });
@@ -1261,12 +1257,12 @@ describe('metrics', () => {
       [
         'eas.device_run_session.ngrok_tunnel.open',
         2_000,
-        { tunnel: 'web-preview', kind: 'initial_1', outcome: 'cancelled', error_code: 'none' },
+        { tunnel: 'web-preview', kind: 'initial_1', result: 'cancelled', error_code: 'none' },
       ],
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         1,
-        { tunnel: 'web-preview', outcome: 'cancelled', error_code: 'none' },
+        { tunnel: 'web-preview', result: 'cancelled', error_code: 'none' },
       ],
     ]);
   });
@@ -1281,7 +1277,7 @@ describe('metrics', () => {
       [
         'eas.device_run_session.ngrok_tunnel.startup',
         0,
-        { tunnel: 'web-preview', outcome: 'cancelled', error_code: 'none' },
+        { tunnel: 'web-preview', result: 'cancelled', error_code: 'none' },
       ],
     ]);
   });
@@ -1295,7 +1291,7 @@ describe('metrics', () => {
     expect(metrics().at(-1)).toEqual([
       'eas.device_run_session.ngrok_tunnel.startup',
       1,
-      { tunnel: 'web-preview', outcome: 'failed', error_code: 'none' },
+      { tunnel: 'web-preview', result: 'failed', error_code: 'none' },
     ]);
   });
 
@@ -1315,7 +1311,7 @@ describe('metrics', () => {
     expect(metrics().at(-1)).toEqual([
       'eas.device_run_session.ngrok_tunnel.late_open',
       21_000,
-      { tunnel: 'web-preview', kind: 'initial_1', outcome: 'failed', error_code: 'ERR_NGROK_802' },
+      { tunnel: 'web-preview', kind: 'initial_1', result: 'failed', error_code: 'ERR_NGROK_802' },
     ]);
   });
 
@@ -1331,7 +1327,7 @@ describe('metrics', () => {
     expect(metrics()).toContainEqual([
       'eas.device_run_session.ngrok_tunnel.open',
       0,
-      { tunnel: 'web-preview', kind: 'reopen', outcome: 'opened', error_code: 'none' },
+      { tunnel: 'web-preview', kind: 'reopen', result: 'opened', error_code: 'none' },
     ]);
   });
 
@@ -1344,7 +1340,7 @@ describe('metrics', () => {
     expect(metrics().at(-1)).toEqual([
       'eas.device_run_session.ngrok_tunnel.stop',
       4_000,
-      { tunnel: 'web-preview', outcome: 'timed_out' },
+      { tunnel: 'web-preview', result: 'timed_out' },
     ]);
   });
 });
