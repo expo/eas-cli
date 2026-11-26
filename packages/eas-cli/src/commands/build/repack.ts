@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+import { BuildProfile, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
@@ -181,6 +181,21 @@ export default class BuildRepack extends EasCommand {
         buildProfile: flags.sourceProfile,
       }));
 
+    const targetProfileName = flags.profile ?? build.buildProfile ?? undefined;
+    const targetProfile = await readBuildProfileAsync({
+      projectDir,
+      platform,
+      profileName: targetProfileName,
+    });
+    if (targetProfile) {
+      assertProfileMatchesSourceBuild({
+        build,
+        platform,
+        profile: targetProfile,
+        profileName: targetProfileName,
+      });
+    }
+
     const yamlConfig = createRepackWorkflowYamlConfig({
       buildId: build.id,
       profile: flags.profile,
@@ -188,11 +203,7 @@ export default class BuildRepack extends EasCommand {
       jsBundleOnly: flags.jsBundleOnly,
       iosSigningBackend: flags.iosSigningBackend,
       message: flags.message,
-      env: await resolveRepackJobEnvAsync({
-        projectDir,
-        platform,
-        profileName: flags.profile ?? build.buildProfile ?? undefined,
-      }),
+      env: getRepackJobEnv(targetProfile),
     });
     Log.debug(`Repack workflow:\n${yamlConfig}`);
 
@@ -322,11 +333,6 @@ export async function getRepackableBuildAsync(
   if (!build.artifacts?.applicationArchiveUrl) {
     throw new Error(`Build with ID ${buildId} has no application archive to repack.`);
   }
-  if (build.isForIosSimulator) {
-    throw new Error(
-      `Build with ID ${buildId} is an iOS simulator build. Repacking only supports device builds.`
-    );
-  }
   if (platform && build.platform !== toAppPlatform(platform)) {
     throw new Error(
       `Build with ID ${buildId} was not created for platform ${requestedPlatformDisplayNames[platform]}.`
@@ -367,10 +373,8 @@ async function selectBuildToRepackAsync(
       status: BuildStatus.Finished,
       buildProfile,
     },
-    selectPromptDisabledFunction: build =>
-      !build.artifacts?.applicationArchiveUrl || Boolean(build.isForIosSimulator),
-    selectPromptWarningMessage:
-      'Only device builds with an application archive can be repacked. iOS simulator builds are not supported.',
+    selectPromptDisabledFunction: build => !build.artifacts?.applicationArchiveUrl,
+    selectPromptWarningMessage: 'Only builds with an application archive can be repacked.',
   });
   if (!build) {
     throw new Error('There are no builds that can be repacked on this project.');
@@ -378,12 +382,7 @@ async function selectBuildToRepackAsync(
   return build;
 }
 
-/**
- * The repack job bundles JavaScript with `--dev false`, but Babel and Metro transforms still key
- * off NODE_ENV. When the build profile does not set it, a release app would get a development
- * bundle (with React Refresh code) that crashes on launch, so default it to "production".
- */
-export async function resolveRepackJobEnvAsync({
+async function readBuildProfileAsync({
   projectDir,
   platform,
   profileName,
@@ -391,17 +390,58 @@ export async function resolveRepackJobEnvAsync({
   projectDir: string;
   platform: Platform;
   profileName: string | undefined;
-}): Promise<Record<string, string> | undefined> {
-  let profileNodeEnv: string | undefined;
+}): Promise<BuildProfile | undefined> {
   try {
-    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+    return await EasJsonUtils.getBuildProfileAsync(
       EasJsonAccessor.fromProjectPath(projectDir),
       platform,
       profileName
     );
-    profileNodeEnv = buildProfile.env?.NODE_ENV;
   } catch (err) {
     Log.debug(`Could not read build profile "${profileName}" from eas.json: ${err}`);
+    return undefined;
   }
-  return profileNodeEnv ? undefined : { NODE_ENV: 'production' };
+}
+
+/**
+ * A simulator build can only be repacked with a simulator profile and a device build only with a
+ * device profile. Otherwise the job fails late, for example when it tries to sign a simulator app.
+ */
+export function assertProfileMatchesSourceBuild({
+  build,
+  platform,
+  profile,
+  profileName,
+}: {
+  build: BuildFragment;
+  platform: Platform;
+  profile: BuildProfile;
+  profileName: string | undefined;
+}): void {
+  if (platform !== Platform.IOS) {
+    return;
+  }
+  const profileIsForSimulator = 'simulator' in profile && Boolean(profile.simulator);
+  const buildIsForSimulator = Boolean(build.isForIosSimulator);
+  if (profileIsForSimulator === buildIsForSimulator) {
+    return;
+  }
+  const profileLabel = profileName ? `build profile "${profileName}"` : 'the build profile';
+  const [buildKind, profileKind, suggestedKind] = buildIsForSimulator
+    ? ['simulator', 'devices', 'a simulator']
+    : ['device', 'the simulator', 'a device'];
+  throw new Error(
+    `Build with ID ${build.id} is an iOS ${buildKind} build, but ${profileLabel} is for ${profileKind}. Pass ${suggestedKind} profile with --profile, or leave it out to use the source build's profile.`
+  );
+}
+
+/**
+ * The repack job bundles JavaScript with `--dev false`, but Babel and Metro transforms still key
+ * off NODE_ENV. When the build profile does not set it, a release app would get a development
+ * bundle (with React Refresh code) that crashes on launch, so default it to "production".
+ */
+export function getRepackJobEnv(
+  profile: BuildProfile | undefined
+): Record<string, string> | undefined {
+  return profile?.env?.NODE_ENV ? undefined : { NODE_ENV: 'production' };
 }

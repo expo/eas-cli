@@ -179,16 +179,6 @@ describe(BuildRepack, () => {
         }),
       })
     );
-    expect(listAndSelectBuildOnAppAsync).toHaveBeenCalledWith(
-      {},
-      expect.objectContaining({
-        selectPromptDisabledFunction: expect.any(Function),
-      })
-    );
-    const [[, { selectPromptDisabledFunction }]] = jest.mocked(listAndSelectBuildOnAppAsync).mock
-      .calls;
-    expect(selectPromptDisabledFunction?.(mockBuild())).toBe(false);
-    expect(selectPromptDisabledFunction?.(mockBuild({ isForIosSimulator: true }))).toBe(true);
     expect(createdWorkflowYaml().jobs.repack.params).toEqual({ build_id: 'build-2' });
   });
 
@@ -235,13 +225,38 @@ describe(BuildRepack, () => {
     );
   });
 
-  it('rejects iOS simulator builds', async () => {
+  it('repacks an iOS simulator build with a simulator profile', async () => {
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValue(mockBuild({ isForIosSimulator: true }));
+    jest
+      .mocked(EasJsonUtils.getBuildProfileAsync)
+      .mockResolvedValue({ simulator: true, env: {} } as any);
+
+    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
+
+    expect(WorkflowRunMutation.createWorkflowRunAsync).toHaveBeenCalled();
+  });
+
+  it('rejects a device profile for an iOS simulator build', async () => {
     jest.mocked(BuildQuery.byIdAsync).mockResolvedValue(mockBuild({ isForIosSimulator: true }));
 
-    await expect(createCommand(['--id', 'build-1']).runAsync()).rejects.toThrow(
-      'is an iOS simulator build'
+    await expect(
+      createCommand(['--id', 'build-1', '--profile', 'preview']).runAsync()
+    ).rejects.toThrow(
+      'Build with ID build-1 is an iOS simulator build, but build profile "preview" is for devices.'
     );
     expect(WorkflowRunMutation.createWorkflowRunAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a simulator profile for an iOS device build', async () => {
+    jest
+      .mocked(EasJsonUtils.getBuildProfileAsync)
+      .mockResolvedValue({ simulator: true, env: {} } as any);
+
+    await expect(
+      createCommand(['--id', 'build-1', '--profile', 'preview']).runAsync()
+    ).rejects.toThrow(
+      'Build with ID build-1 is an iOS device build, but build profile "preview" is for the simulator.'
+    );
   });
 
   it('rejects a build profile missing from eas.json', async () => {
