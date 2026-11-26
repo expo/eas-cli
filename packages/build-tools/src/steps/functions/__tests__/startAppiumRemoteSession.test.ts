@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { type WarmIosSession } from '../../utils/warmIosSession';
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -1114,6 +1115,47 @@ describe('createStartAppiumRemoteSessionBuildFunction session lifecycle', () => 
       expect(fs.existsSync(preparedRunner)).toBe(true);
     }
   );
+
+  it('falls back to a cold Simulator with the original device request when a claimed warm UDID disappears', async () => {
+    const stopWarm = mockWarmSession();
+    stopAppium.mockResolvedValue(undefined);
+    jest
+      .mocked(IosSimulatorUtils.resolveUdidAsync)
+      .mockRejectedValueOnce(
+        new UserError('EAS_IOS_SIMULATOR_NOT_FOUND', 'Warm Simulator disappeared.')
+      )
+      .mockResolvedValueOnce('COLD-IOS-UDID' as never);
+
+    await expect(
+      runSessionAsync(
+        logger,
+        undefined,
+        BuildRuntimePlatform.DARWIN,
+        {
+          boot_simulator: { value: true },
+          device_identifier: { value: 'iPhone 17' },
+        },
+        true
+      )
+    ).resolves.toBeUndefined();
+
+    expect(stopWarm).toHaveBeenCalledTimes(1);
+    expect(IosSimulatorUtils.resolveUdidAsync).toHaveBeenNthCalledWith(1, {
+      deviceIdentifier: 'CHOSEN-IOS-UDID',
+      env: expect.any(Object),
+      signal: expect.any(AbortSignal),
+    });
+    expect(IosSimulatorUtils.resolveUdidAsync).toHaveBeenNthCalledWith(2, {
+      deviceIdentifier: 'iPhone 17',
+      env: expect.any(Object),
+      signal: expect.any(AbortSignal),
+    });
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledTimes(1);
+    expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ iosSimulatorUdid: 'COLD-IOS-UDID' })
+    );
+  });
 
   it.each(['event collection', 'Appium process'])(
     'waits for warm %s teardown before finishing the session host',

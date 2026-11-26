@@ -238,7 +238,8 @@ export function createStartAgentDeviceSessionBuildFunction(
             ? await resolveIosSessionStartupAsync({
                 runtimePlatform,
                 bootSimulator: true,
-                deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
+                deviceIdentifier,
+                warmDeviceUdid: warmSession?.device.udid,
                 installAppPath,
                 launchAppIdentifier,
                 // A downloaded app gets its launch options after the download.

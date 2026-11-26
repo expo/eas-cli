@@ -19,6 +19,7 @@ import {
   parseServeSimLaunchInputs,
   validateServeSimLaunchOptions,
 } from './remoteDeviceRunSession';
+import { WarmSessionAdoptionError } from './warmDeviceSessionHost';
 
 export type IosSessionStartup = {
   iosSimulatorUdid: string;
@@ -30,6 +31,7 @@ export async function resolveIosSessionStartupAsync({
   runtimePlatform,
   bootSimulator,
   deviceIdentifier,
+  warmDeviceUdid,
   installAppPath,
   launchAppIdentifier,
   launchArgs,
@@ -41,6 +43,7 @@ export async function resolveIosSessionStartupAsync({
   runtimePlatform: BuildRuntimePlatform;
   bootSimulator?: boolean;
   deviceIdentifier?: string;
+  warmDeviceUdid?: string;
   installAppPath?: string;
   launchAppIdentifier?: unknown;
   launchArgs?: unknown;
@@ -67,29 +70,64 @@ export async function resolveIosSessionStartupAsync({
   );
   if (
     runtimePlatform !== BuildRuntimePlatform.DARWIN ||
-    (!bootSimulator && !deviceIdentifier && !installAppPath)
+    (!bootSimulator && !deviceIdentifier && !warmDeviceUdid && !installAppPath)
   ) {
     return { launch };
   }
   validateServeSimLaunchOptions(launch);
   signal?.throwIfAborted();
-  let selectedIdentifier = (deviceIdentifier ?? undefined) as
-    | IosSimulatorUuid
-    | IosSimulatorName
-    | undefined;
-  if (selectedIdentifier === undefined) {
-    const devices = await IosSimulatorUtils.getAvailableDevicesAsync({ env, filter: 'available' });
-    selectedIdentifier = minBy(
-      devices.filter(device => device.name.startsWith('iPhone')),
+  let iosSimulatorUdid: IosSimulatorUuid;
+  if (warmDeviceUdid !== undefined) {
+    try {
+      iosSimulatorUdid = (
+        await IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: warmDeviceUdid as IosSimulatorUuid,
+          env,
+          ...(signal ? { signal } : {}),
+        })
+      ).toUpperCase() as IosSimulatorUuid;
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (error instanceof UserError && error.errorCode === 'EAS_IOS_SIMULATOR_NOT_FOUND') {
+        throw new WarmSessionAdoptionError();
+      }
+      throw error;
+    }
+  } else if (deviceIdentifier !== undefined) {
+    try {
+      iosSimulatorUdid = (
+        await IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: deviceIdentifier as IosSimulatorUuid | IosSimulatorName,
+          env,
+          ...(signal ? { signal } : {}),
+        })
+      ).toUpperCase() as IosSimulatorUuid;
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw error;
+    }
+  } else {
+    let devices: IosSimulatorUtils.SimulatorDevice[];
+    try {
+      devices = await IosSimulatorUtils.getAvailableDevicesAsync({
+        env,
+        filter: 'available',
+        ...(signal ? { signal } : {}),
+      });
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw error;
+    }
+    signal?.throwIfAborted();
+    const defaultUdid = minBy(
+      devices.filter(device => device.isAvailable !== false && device.name.startsWith('iPhone')),
       device => device.name.length
     )?.udid;
+    if (!defaultUdid) {
+      throw new Error('Could not find an iPhone among available simulator devices.');
+    }
+    iosSimulatorUdid = defaultUdid.toUpperCase() as IosSimulatorUuid;
   }
-  if (!selectedIdentifier) {
-    throw new Error('Could not find an iPhone among available simulator devices.');
-  }
-  const iosSimulatorUdid = (
-    await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier: selectedIdentifier, env })
-  ).toUpperCase() as IosSimulatorUuid;
   const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync();
   signal?.throwIfAborted();
   if (bootEnv) {

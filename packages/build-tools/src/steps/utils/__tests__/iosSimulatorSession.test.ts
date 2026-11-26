@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
@@ -9,6 +10,7 @@ import {
   resolveLocalEgressServeSimBootEnvironmentAsync,
   startLocalEgressGuardRelayAsync,
 } from '../localEgressGuard';
+import { WarmSessionAdoptionError } from '../warmDeviceSessionHost';
 
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../../../utils/IosSimulatorUtils');
@@ -218,21 +220,77 @@ describe('serve-sim Simulator preparation', () => {
     expect(mockedUtils.enableAccessibilitySettingsAsync).not.toHaveBeenCalled();
   });
 
-  it('selects the default iPhone without booting', async () => {
+  it('selects the default iPhone without booting or re-resolving', async () => {
     mockedUtils.getAvailableDevicesAsync.mockResolvedValue([
-      { name: 'iPad', udid: 'ipad' },
-      { name: 'iPhone 17 Pro', udid: 'pro' },
-      { name: 'iPhone 17', udid: 'base' },
+      { name: 'iPad', udid: 'ipad', isAvailable: true },
+      { name: 'iPhone 17', udid: 'unavailable', isAvailable: false },
+      { name: 'iPhone 17 Pro', udid: 'pro', isAvailable: true },
+      { name: 'iPhone 17', udid: 'base', isAvailable: true },
     ] as never);
-    await resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true });
-    expect(mockedUtils.resolveUdidAsync).toHaveBeenCalledWith({
-      deviceIdentifier: 'base',
-      env: {},
-    });
+    const startup = await resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true });
+    expect(startup.iosStartup?.iosSimulatorUdid).toBe('BASE');
+    expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
     expect(mockedUtils.bootAsync).not.toHaveBeenCalled();
     mockedUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     await expect(
       resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true })
     ).rejects.toThrow('Could not find an iPhone');
+  });
+
+  it('converts a missing warm Simulator UDID into WarmSessionAdoptionError for cold fallback', async () => {
+    mockedUtils.resolveUdidAsync.mockRejectedValueOnce(
+      new UserError('EAS_IOS_SIMULATOR_NOT_FOUND', 'No available iOS Simulator with UDID "WARM".')
+    );
+
+    await expect(
+      resolveIosSessionStartupAsync({
+        ...hostOptions,
+        bootSimulator: true,
+        deviceIdentifier: 'iPhone 17',
+        warmDeviceUdid: 'WARM',
+      })
+    ).rejects.toThrow(WarmSessionAdoptionError);
+    expect(mockedUtils.resolveUdidAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'WARM',
+      env: {},
+    });
+  });
+
+  it('propagates EAS_IOS_SIMULATOR_NOT_FOUND for an explicit caller identifier without warm fallback', async () => {
+    const missing = new UserError(
+      'EAS_IOS_SIMULATOR_NOT_FOUND',
+      'No available iOS Simulator with UDID "LOCAL".'
+    );
+    mockedUtils.resolveUdidAsync.mockRejectedValueOnce(missing);
+
+    await expect(
+      resolveIosSessionStartupAsync({
+        ...hostOptions,
+        bootSimulator: true,
+        deviceIdentifier: 'LOCAL',
+      })
+    ).rejects.toBe(missing);
+  });
+
+  it('forwards the abort signal to resolveUdidAsync and preserves the Stop reason', async () => {
+    const controller = new AbortController();
+    const stopped = new Error('Session stopped');
+    mockedUtils.resolveUdidAsync.mockImplementationOnce(
+      ({ signal }) =>
+        new Promise((_resolve, reject) =>
+          signal!.addEventListener('abort', () => reject(new Error('wrapped abort')), {
+            once: true,
+          })
+        )
+    );
+
+    const running = resolveIosSessionStartupAsync({
+      ...hostOptions,
+      bootSimulator: true,
+      deviceIdentifier: '8027F627-9534-4679-85BF-0F14AFF228E8',
+      signal: controller.signal,
+    });
+    controller.abort(stopped);
+    await expect(running).rejects.toBe(stopped);
   });
 });

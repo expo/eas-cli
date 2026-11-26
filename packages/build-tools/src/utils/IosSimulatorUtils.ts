@@ -37,7 +37,7 @@ export namespace IosSimulatorUtils {
     lastBootedAt?: string;
   };
 
-  type SimulatorDevice = XcrunSimctlDevice & {
+  export type SimulatorDevice = XcrunSimctlDevice & {
     runtime: string;
     runtimeDisplayName: string;
     displayName: string;
@@ -232,21 +232,50 @@ export namespace IosSimulatorUtils {
   const UDID_PATTERN = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
   /**
-   * The UDID for a device name or UDID. A name picks the first available
-   * device with that name, as `simctl` itself does.
+   * The UDID for an available device name or UDID. A name picks the first
+   * available device with that name, as `simctl` itself does.
    */
   export async function resolveUdidAsync({
     deviceIdentifier,
     env,
+    signal,
+    availableDevices,
   }: {
     deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
     env: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+    availableDevices?: SimulatorDevice[];
   }): Promise<IosSimulatorUuid> {
-    if (UDID_PATTERN.test(deviceIdentifier)) {
-      return deviceIdentifier.toUpperCase() as IosSimulatorUuid;
+    signal?.throwIfAborted();
+    let devices: SimulatorDevice[];
+    if (availableDevices !== undefined) {
+      devices = availableDevices;
+    } else {
+      try {
+        devices = await getAvailableDevicesAsync({ env, filter: 'available', signal });
+      } catch (error) {
+        signal?.throwIfAborted();
+        throw error;
+      }
     }
-    const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
-    const device = devices.find(candidate => candidate.name === deviceIdentifier);
+    signal?.throwIfAborted();
+    if (UDID_PATTERN.test(deviceIdentifier)) {
+      const normalizedUdid = deviceIdentifier.toUpperCase();
+      const device = devices.find(
+        candidate =>
+          candidate.isAvailable !== false && candidate.udid.toUpperCase() === normalizedUdid
+      );
+      if (!device) {
+        throw new UserError(
+          'EAS_IOS_SIMULATOR_NOT_FOUND',
+          `No available iOS Simulator with UDID "${deviceIdentifier}" exists on the device host. Local machine simulator UDIDs do not exist on cloud workers; pass a simulator device name (for example, "iPhone 16") or run \`xcrun simctl list devices available\` on the device host to see the devices it offers.`
+        );
+      }
+      return device.udid.toUpperCase() as IosSimulatorUuid;
+    }
+    const device = devices.find(
+      candidate => candidate.isAvailable !== false && candidate.name === deviceIdentifier
+    );
     if (!device) {
       throw new UserError(
         'EAS_IOS_SIMULATOR_NOT_FOUND',
