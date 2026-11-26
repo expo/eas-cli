@@ -408,7 +408,7 @@ describe('AndroidEmulatorUtils', () => {
       ).toEqual([]);
     });
 
-    it('adds the console port and extra arguments before $ANDROID_EMULATOR_EXTRA_ARGS', async () => {
+    it('adds the console port before $ANDROID_EMULATOR_EXTRA_ARGS', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
@@ -421,20 +421,17 @@ describe('AndroidEmulatorUtils', () => {
         env,
         logcatDirectory: outputDir,
         consolePort: 5556,
-        extraArgs: ['-gpu', 'lavapipe'],
         extraEnv: { LD_PRELOAD: '/tmp/libexpo_emulator_capture.so' },
       });
 
       const [, args, options] = mockedSpawn.mock.calls.find(([command]) =>
         command.endsWith('/emulator/emulator')
       )!;
-      expect(args.slice(-8)).toEqual([
+      expect(args.slice(-6)).toEqual([
         '-accel',
         'on',
         '-port',
         '5556',
-        '-gpu',
-        'lavapipe',
         '-gpu',
         'swiftshader_indirect',
       ]);

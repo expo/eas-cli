@@ -157,7 +157,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           EXPO_DEVICE_HUB_EMULATOR_CAPTURE_LIBRARY: emulatorCaptureLibrary,
         });
         logger.info(
-          `${serialId} preloads expo-emulator-capture@${emulatorCaptureVersion} with -gpu lavapipe, and its agent socket is ${emulatorCaptureSocketPath}. Later steps start expo-device-hub with the emulator capture on.`
+          `${serialId} preloads expo-emulator-capture@${emulatorCaptureVersion}, and its agent socket is ${emulatorCaptureSocketPath}. Later steps start expo-device-hub with the emulator capture on.`
         );
       }
 
@@ -387,8 +387,6 @@ export async function startAndroidEmulatorAsync({
           ...(emulatorCaptureLibrary && launch
             ? {
                 consolePort: launch.consolePort,
-                // The Linux agent kept 60 fps with the lavapipe renderer.
-                extraArgs: ['-gpu', 'lavapipe'],
                 extraEnv: {
                   // A library that the job already preloads stays preloaded, after the agent.
                   LD_PRELOAD: [emulatorCaptureLibrary, env.LD_PRELOAD].filter(Boolean).join(':'),
