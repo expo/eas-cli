@@ -79,9 +79,13 @@ export const BuildFragmentWithSubmissionsNode = gql`
   fragment BuildWithSubmissionsFragment on Build {
     id
     ...BuildFragment
-    submissions {
-      id
-      ...SubmissionFragment
+    submissionsPaginated(first: 100) {
+      edges {
+        node {
+          id
+          ...SubmissionFragment
+        }
+      }
     }
   }
 `;

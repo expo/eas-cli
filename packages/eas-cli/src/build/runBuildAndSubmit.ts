@@ -40,10 +40,9 @@ import {
   AppPlatform,
   BuildFragment,
   BuildStatus,
-  BuildWithSubmissionsFragment,
   SubmissionFragment,
 } from '../graphql/generated';
-import { BuildQuery } from '../graphql/queries/BuildQuery';
+import { BuildQuery, BuildWithSubmissions } from '../graphql/queries/BuildQuery';
 import { toAppPlatform, toPlatform } from '../graphql/types/AppPlatform';
 import Log, { learnMore } from '../log';
 import {
@@ -221,7 +220,7 @@ export async function runBuildAndSubmitAsync({
   }
 
   const startedBuilds: {
-    build: BuildWithSubmissionsFragment | BuildFragment;
+    build: BuildWithSubmissions | BuildFragment;
     buildProfile: ProfileData<'build'>;
   }[] = [];
   const buildCtxByPlatform: { [p in AppPlatform]?: BuildContext<Platform> } = {};
@@ -371,7 +370,7 @@ export async function runBuildAndSubmitAsync({
       printJsonOnlyOutput(
         await Promise.all(
           builds
-            .filter((i): i is BuildWithSubmissionsFragment => !!i)
+            .filter((i): i is BuildWithSubmissions => !!i)
             .map(build => BuildQuery.withSubmissionsByIdAsync(graphqlClient, build.id))
         )
       );
