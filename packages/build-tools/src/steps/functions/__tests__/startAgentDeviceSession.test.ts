@@ -793,6 +793,35 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     );
   });
 
+  it('forwards --user from Android launch_args into installBuildAsync for launcher resolution', async () => {
+    const launchArgs = [
+      '--task-display-area-feature-id',
+      '1',
+      '--user',
+      '10',
+      '--es',
+      'env',
+      'work',
+    ];
+    await runStep(BuildRuntimePlatform.LINUX, {
+      install_app_path: '/tmp/App.apk',
+      launch_args: launchArgs,
+    });
+    expect(installBuildAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactPath: '/tmp/App.apk',
+        androidUser: '10',
+      })
+    );
+    expect(launchApplicationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applicationIdentifier: 'dev.example.app',
+        activityName: '.Main',
+        launchArgs,
+      })
+    );
+  });
+
   it('passes network capture to the session', async () => {
     await runStep(BuildRuntimePlatform.DARWIN, {
       network_capture: true,

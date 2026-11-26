@@ -144,7 +144,15 @@ describe(launchApplicationAsync, () => {
 
     expect(mockedSpawn).toHaveBeenCalledWith(
       'adb',
-      ['shell', 'am', 'start', '-n', 'com.example.app/com.example.app.MainActivity'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
       { env: {}, logger }
     );
   });
@@ -169,6 +177,8 @@ describe(launchApplicationAsync, () => {
         'shell',
         'am',
         'start',
+        '-a',
+        'android.intent.action.MAIN',
         '--ez',
         'isTest',
         'true',
@@ -189,7 +199,437 @@ describe(launchApplicationAsync, () => {
     );
   });
 
-  it('requires an activity when launching an Android application', async () => {
+  it.each([
+    [
+      'explicit -a flag',
+      ['-a', 'com.example.CUSTOM_ACTION', '--es', 'flag', '1'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'com.example.CUSTOM_ACTION',
+        '--es',
+        'flag',
+        '1',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+    ],
+    [
+      'attached -a value',
+      ['-acom.example.CUSTOM_ACTION'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-acom.example.CUSTOM_ACTION',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+    ],
+    [
+      'attached -d value',
+      ['-dexample://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-dexample://open',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+    ],
+    [
+      'positional URI',
+      ['example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        'example://open',
+      ],
+    ],
+    [
+      'positional component',
+      ['com.example.app/.MainActivity'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        'com.example.app/.MainActivity',
+      ],
+    ],
+    [
+      'positional package',
+      ['com.example.app'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        'com.example.app',
+      ],
+    ],
+    [
+      'selector without trailing argument',
+      ['--selector', '-a', 'android.intent.action.VIEW'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        '--selector',
+        '-a',
+        'android.intent.action.VIEW',
+      ],
+    ],
+    [
+      'double-dash followed by positional URI',
+      ['--', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        '--',
+        'example://open',
+      ],
+    ],
+    [
+      'options followed by positional URI',
+      ['--es', 'flag', '1', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '--es',
+        'flag',
+        '1',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        'example://open',
+      ],
+    ],
+    [
+      'zero-arg --streaming before -d',
+      ['--streaming', '-d', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '--streaming',
+        '-d',
+        'example://open',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+    ],
+    [
+      'wait flag followed by attached -d value',
+      ['-W', '-dexample://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-dexample://open',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+    ],
+    [
+      'positional URI after --selector',
+      ['--selector', '-a', 'android.intent.action.VIEW', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        '--selector',
+        '-a',
+        'android.intent.action.VIEW',
+        'example://open',
+      ],
+    ],
+    [
+      'double-dash positional URI after --selector',
+      ['--selector', '-a', 'android.intent.action.VIEW', '--', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+        '--selector',
+        '-a',
+        'android.intent.action.VIEW',
+        '--',
+        'example://open',
+      ],
+    ],
+  ])(
+    'preserves Android action/data semantics without adding MAIN for %s',
+    async (_label, launchArgs, expectedArgs) => {
+      const logger = createMockLogger();
+
+      await launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger,
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith('adb', expectedArgs, { env: {}, logger });
+    }
+  );
+
+  it.each([
+    ['--es values', ['--es', 'flag', '-a', '--es', 'other', '-d']],
+    ['--ed key', ['--ed', '-a', '1.0']],
+    ['--eda key', ['--eda', '-a', '1.0,2.0']],
+    ['--edal key', ['--edal', '-d', '1.0,2.0']],
+    ['attached -e key', ['-e-a', 'value']],
+  ])('still adds MAIN when -a or -d is consumed by %s', async (_label, launchArgs) => {
+    const logger = createMockLogger();
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      activityName: 'com.example.app.MainActivity',
+      launchArgs,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        ...launchArgs,
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
+      { env: {}, logger }
+    );
+  });
+
+  it.each([
+    [
+      'leading --user',
+      ['--user', '10', '--es', 'env', 'work'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '--user',
+        '10',
+        '--es',
+        'env',
+        'work',
+        '-n',
+        'com.example.app/com.example.app.WorkActivity',
+      ],
+    ],
+    [
+      'one-arg --task-display-area-feature-id before --user and -d',
+      ['--task-display-area-feature-id', '1', '--user', '10', '-d', 'example://open'],
+      [
+        'shell',
+        'am',
+        'start',
+        '--task-display-area-feature-id',
+        '1',
+        '--user',
+        '10',
+        '-d',
+        'example://open',
+        '-n',
+        'com.example.app/com.example.app.WorkActivity',
+      ],
+    ],
+    [
+      'one-arg --clock-type before --user',
+      ['--clock-type', 'wall', '--user', '10'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '--clock-type',
+        'wall',
+        '--user',
+        '10',
+        '-n',
+        'com.example.app/com.example.app.WorkActivity',
+      ],
+    ],
+    [
+      'one-arg --profiler-output-version before --user',
+      ['--profiler-output-version', '1', '--user', '10'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '--profiler-output-version',
+        '1',
+        '--user',
+        '10',
+        '-n',
+        'com.example.app/com.example.app.WorkActivity',
+      ],
+    ],
+    [
+      'one-arg --allow-fgs-start-reason before --user',
+      ['--allow-fgs-start-reason', '1', '--user', '10'],
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '--allow-fgs-start-reason',
+        '1',
+        '--user',
+        '10',
+        '-n',
+        'com.example.app/com.example.app.WorkActivity',
+      ],
+    ],
+  ])(
+    'forwards --user from launch_args when resolving a missing Android activity (%s)',
+    async (_label, launchArgs, expectedLaunchArgs) => {
+      const logger = createMockLogger();
+      mockedSpawn.mockResolvedValueOnce({
+        stdout:
+          'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\ncom.example.app/.WorkActivity\n',
+        stderr: '',
+      } as any);
+
+      await launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        launchArgs,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger,
+      });
+
+      expect(mockedSpawn.mock.calls).toEqual([
+        [
+          'adb',
+          [
+            'shell',
+            'cmd',
+            'package',
+            'resolve-activity',
+            '--brief',
+            '--user',
+            '10',
+            '-a',
+            'android.intent.action.MAIN',
+            '-c',
+            'android.intent.category.LAUNCHER',
+            '-p',
+            'com.example.app',
+          ],
+          { stdio: 'pipe', env: {} },
+        ],
+        ['adb', expectedLaunchArgs, { env: {}, logger }],
+      ]);
+    }
+  );
+
+  it('resolves the Android launcher activity when activity_name is omitted and preserves launch_args and open_url', async () => {
+    const logger = createMockLogger();
+    mockedSpawn.mockResolvedValueOnce({
+      stdout:
+        'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\ncom.example.app/.LauncherAlias\n',
+      stderr: '',
+    } as any);
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      launchArgs: ['--es', 'env', 'hello world'],
+      openUrl: 'exp://example.test/path?a=1&b=2',
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn.mock.calls).toEqual([
+      [
+        'adb',
+        [
+          'shell',
+          'cmd',
+          'package',
+          'resolve-activity',
+          '--brief',
+          '-a',
+          'android.intent.action.MAIN',
+          '-c',
+          'android.intent.category.LAUNCHER',
+          '-p',
+          'com.example.app',
+        ],
+        { stdio: 'pipe', env: {} },
+      ],
+      [
+        'adb',
+        [
+          'shell',
+          'am',
+          'start',
+          '-a',
+          'android.intent.action.MAIN',
+          '--es',
+          'env',
+          "'hello world'",
+          '-n',
+          'com.example.app/com.example.app.LauncherAlias',
+        ],
+        { env: {}, logger },
+      ],
+      [
+        'adb',
+        [
+          'shell',
+          'am',
+          'start',
+          '-a',
+          'android.intent.action.VIEW',
+          '-d',
+          "'exp://example.test/path?a=1&b=2'",
+        ],
+        { env: {}, logger },
+      ],
+    ]);
+  });
+
+  it('throws EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY when Android launcher resolution finds no activity', async () => {
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: 'No activity found\n', stderr: '' } as any)
+      .mockResolvedValueOnce({ stdout: 'No activity found\n', stderr: '' } as any);
+
     await expect(
       launchApplicationAsync({
         applicationIdentifier: 'com.example.app',
@@ -197,9 +637,47 @@ describe(launchApplicationAsync, () => {
         env: {},
         logger: createMockLogger(),
       })
-    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY' });
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY',
+      message: expect.stringContaining('com.example.app'),
+    });
 
-    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls).toEqual([
+      [
+        'adb',
+        [
+          'shell',
+          'cmd',
+          'package',
+          'resolve-activity',
+          '--brief',
+          '-a',
+          'android.intent.action.MAIN',
+          '-c',
+          'android.intent.category.LAUNCHER',
+          '-p',
+          'com.example.app',
+        ],
+        { stdio: 'pipe', env: {} },
+      ],
+      [
+        'adb',
+        [
+          'shell',
+          'cmd',
+          'package',
+          'resolve-activity',
+          '--brief',
+          '-a',
+          'android.intent.action.MAIN',
+          '-c',
+          'android.intent.category.LEANBACK_LAUNCHER',
+          '-p',
+          'com.example.app',
+        ],
+        { stdio: 'pipe', env: {} },
+      ],
+    ]);
   });
 
   it('quotes Android launch arguments and URLs for the device shell', async () => {
@@ -324,14 +802,24 @@ describe(launchApplicationAsync, () => {
       return stdout.split('\0').slice(0, -1);
     });
     expect(parsedCommands).toEqual([
-      ['start', ...launchArgs, '-n', component],
+      ['start', '-a', 'android.intent.action.MAIN', ...launchArgs, '-n', component],
       ['start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
     ]);
   });
 
-  it.each([[['--es', 'key', '']], [['-e', 'key', '']], [['-d', '']]])(
+  it.each([
+    [
+      ['--es', 'key', ''],
+      ['-a', 'android.intent.action.MAIN'],
+    ],
+    [
+      ['-e', 'key', ''],
+      ['-a', 'android.intent.action.MAIN'],
+    ],
+    [['-d', ''], []],
+  ])(
     'passes empty Android option values as empty arguments (%j)',
-    async launchArgs => {
+    async (launchArgs, expectedDefaultActionArgs) => {
       await launchApplicationAsync({
         applicationIdentifier: 'com.example.app',
         activityName: 'com.example.app.MainActivity',
@@ -347,6 +835,7 @@ describe(launchApplicationAsync, () => {
           'shell',
           'am',
           'start',
+          ...expectedDefaultActionArgs,
           ...launchArgs.map(argument => (argument === '' ? "''" : argument)),
           '-n',
           'com.example.app/com.example.app.MainActivity',
@@ -415,7 +904,9 @@ describe(launchApplicationAsync, () => {
   });
 
   it('accepts an Android launch command of exactly 65,000 bytes', async () => {
-    const fixedLength = 'am start --es key  -n com.example.app/com.example.app.MainActivity'.length;
+    const fixedLength =
+      'am start -a android.intent.action.MAIN --es key  -n com.example.app/com.example.app.MainActivity'
+        .length;
 
     await launchApplicationAsync({
       applicationIdentifier: 'com.example.app',
@@ -480,6 +971,8 @@ describe(launchApplicationAsync, () => {
         'shell',
         'am',
         'start',
+        '-a',
+        'android.intent.action.MAIN',
         '--ez',
         'isTest',
         'true',
@@ -491,6 +984,58 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).toHaveBeenCalledWith(
       'adb',
       ['shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', 'exp://example.test'],
+      expect.any(Object)
+    );
+  });
+
+  it('resolves the Android launcher activity when activity_name is omitted in the build step', async () => {
+    mockedSpawn.mockResolvedValueOnce({
+      stdout:
+        'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\ncom.example.app/.MainActivity\n',
+      stderr: '',
+    } as any);
+
+    const launchApplication = createLaunchApplicationFunction();
+    const buildStep = launchApplication.createBuildStepFromFunctionCall(
+      createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX }),
+      {
+        callInputs: {
+          application_identifier: 'com.example.app',
+        },
+      }
+    );
+    await buildStep.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      1,
+      'adb',
+      [
+        'shell',
+        'cmd',
+        'package',
+        'resolve-activity',
+        '--brief',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        'android.intent.category.LAUNCHER',
+        '-p',
+        'com.example.app',
+      ],
+      { stdio: 'pipe', env: expect.any(Object) }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      2,
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '-n',
+        'com.example.app/com.example.app.MainActivity',
+      ],
       expect.any(Object)
     );
   });
@@ -515,6 +1060,8 @@ describe(launchApplicationAsync, () => {
         'shell',
         'am',
         'start',
+        '-a',
+        'android.intent.action.MAIN',
         '--es',
         'probe',
         "'hello world'",

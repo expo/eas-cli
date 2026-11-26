@@ -13,6 +13,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
+import {
+  parseLaunchableActivityFromBadging,
+  parseLeanbackLaunchableActivityFromBadging,
+  resolveAndroidLauncherActivityAsync,
+} from '../utils/android/launcherActivity';
+
 export function createInstallBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -55,11 +61,13 @@ export function createInstallBuildFunction(): BuildFunction {
 export async function installBuildAsync({
   artifactPath,
   runtimePlatform,
+  androidUser,
   env,
   logger,
 }: {
   artifactPath: string;
   runtimePlatform: BuildRuntimePlatform;
+  androidUser?: string;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<{ applicationIdentifier: string; activityName?: string }> {
@@ -110,7 +118,7 @@ export async function installBuildAsync({
     env,
   });
   const applicationIdentifier = stdout.match(/package: name='([^']+)'/)?.[1];
-  const activityName = stdout.match(/launchable-activity: name='([^']+)'/)?.[1];
+  let activityName = parseLaunchableActivityFromBadging(stdout);
   if (!applicationIdentifier) {
     throw new UserError(
       'EAS_INSTALL_BUILD_MISSING_IDENTIFIER',
@@ -120,5 +128,25 @@ export async function installBuildAsync({
 
   logger.info(`Installing ${artifactPath} on the Android Emulator.`);
   await spawn('adb', ['install', '-r', artifactPath], { env, logger });
+  if (!activityName) {
+    try {
+      activityName = await resolveAndroidLauncherActivityAsync({
+        applicationIdentifier,
+        user: androidUser,
+        env,
+      });
+      if (activityName) {
+        logger.info(
+          `Resolved launchable activity ${activityName} for ${applicationIdentifier} via Android package manager.`
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        { err },
+        `Could not resolve a launchable activity for ${applicationIdentifier} via Android package manager.`
+      );
+      activityName = parseLeanbackLaunchableActivityFromBadging(stdout);
+    }
+  }
   return { applicationIdentifier, activityName };
 }
