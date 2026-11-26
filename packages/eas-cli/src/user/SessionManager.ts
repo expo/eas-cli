@@ -44,6 +44,10 @@ export type LoggedInAuthenticationInfo =
 
 type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
+export function getAccessToken(): string | null {
+  return process.env.EXPO_TOKEN ?? null;
+}
+
 export default class SessionManager {
   private currentActor: Actor | undefined;
   private graphqlClient: { credential: string | null; client: ExpoGraphqlClient } | undefined;
@@ -51,7 +55,7 @@ export default class SessionManager {
   constructor(private readonly analytics: AnalyticsWithOrchestration) {}
 
   public getAccessToken(): string | null {
-    return process.env.EXPO_TOKEN ?? null;
+    return getAccessToken();
   }
 
   public getSessionSecret(): string | null {
