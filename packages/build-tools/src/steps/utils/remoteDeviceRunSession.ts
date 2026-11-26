@@ -26,6 +26,7 @@ import { Sentry } from '../../sentry';
 import { isProcessGroupRunning, killProcessGroup } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { createProcessOutput } from './processOutput';
+import { endDeviceAppsAsync } from './endDeviceApps';
 import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
 import {
   type DeviceRunSessionStatus,
@@ -689,25 +690,37 @@ export type RemoteSessionTeardown = [
 ];
 
 /**
- * Runs every named teardown to completion and logs each failure. The first failure of a task that
- * fails the session is rethrown only when the session body succeeded, so a teardown error cannot
- * replace the error that ended it.
+ * Runs every named teardown to completion, then ends the apps on the device, and logs each
+ * failure. The first failure of a task that fails the session is rethrown only when the session
+ * body succeeded, so a teardown error cannot replace the error that ended it.
  */
 export async function finishRemoteSessionAsync({
   teardown,
+  device,
   sessionFailed,
   logger,
 }: {
   teardown: RemoteSessionTeardown[];
+  device: { runtimePlatform: BuildRuntimePlatform; env: BuildStepEnv };
   sessionFailed: boolean;
   logger: bunyan;
 }): Promise<void> {
-  const results = await Promise.allSettled(teardown.map(([, task]) => task));
+  const others = Promise.allSettled(teardown.map(([, task]) => task));
+  const tasks: RemoteSessionTeardown[] = [
+    ...teardown,
+    // Last, because the tools above may still read the app.
+    [
+      'device apps',
+      others.then(() => endDeviceAppsAsync({ ...device, logger })),
+      { failsSession: false },
+    ],
+  ];
+  const results = await Promise.allSettled(tasks.map(([, task]) => task));
   const failures = results.flatMap((result, index) => {
     if (result.status !== 'rejected') {
       return [];
     }
-    const [name, , options] = teardown[index];
+    const [name, , options] = tasks[index];
     return [{ name, err: result.reason, failsSession: options?.failsSession ?? true }];
   });
   for (const { name, err, failsSession } of failures) {
