@@ -121,6 +121,10 @@ export function createRepackBuildFunction(): BuildFunction {
         : undefined;
       const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
+      // The repack bundles JavaScript with `--dev false`, but Babel and Metro transforms still key
+      // off NODE_ENV. Without it, the bundle includes development-only code such as React Refresh.
+      const repackEnv = env.NODE_ENV ? env : { ...env, NODE_ENV: 'production' };
+
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
         versionSpec: inputs.repack_version.value as string,
@@ -158,7 +162,7 @@ export function createRepackBuildFunction(): BuildFunction {
             verbose,
             env: {
               ...COMMON_FASTLANE_ENV,
-              ...env,
+              ...repackEnv,
             },
           });
           break;
@@ -182,7 +186,7 @@ export function createRepackBuildFunction(): BuildFunction {
                 logger: stepsCtx.logger,
                 spawnAsync: repackSpawnAsync,
                 verbose,
-                env,
+                env: repackEnv,
               });
             } finally {
               const keyStorePath = androidSigningOptions?.keyStorePath;
