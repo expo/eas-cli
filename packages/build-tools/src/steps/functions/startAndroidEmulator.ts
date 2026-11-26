@@ -17,6 +17,7 @@ import path from 'node:path';
 import {
   AndroidDeviceName,
   AndroidDeviceSerialId,
+  AndroidEmulatorExitedError,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
@@ -34,6 +35,180 @@ import { parseLogSourcesInput } from '../utils/logSourcesInput';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
+
+const ANDROID_SYSTEM_IMAGE_PACKAGE_REGEX =
+  /^system-images;android-[A-Za-z0-9._-]+;[A-Za-z0-9._-]+;[A-Za-z0-9._-]+$/;
+
+const HOST_ARCH_SUPPORTED_ABIS: Record<
+  string,
+  { supported: readonly string[]; recommended: string } | undefined
+> = {
+  x64: { supported: ['x86_64', 'x86'], recommended: 'x86_64' },
+  arm64: { supported: ['arm64-v8a'], recommended: 'arm64-v8a' },
+  ia32: { supported: ['x86'], recommended: 'x86' },
+};
+
+const SDKMANAGER_TRANSIENT_FAILURE_PATTERNS = [
+  /failed to download any source lists/i,
+  /io exception while downloading/i,
+  /connection (?:reset|refused|timed out)/i,
+  /sockettimeoutexception/i,
+  /unknownhostexception/i,
+  /connectexception/i,
+  /sslhandshakeexception/i,
+  /temporary failure in name resolution/i,
+  /could not resolve host/i,
+  /http(?: error| status)?\s*(?:429|5\d{2})/i,
+];
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getSdkManagerPackageNotFoundPatterns(systemImagePackage: string): RegExp[] {
+  const escapedPackage = escapeRegExp(systemImagePackage);
+  const exactPackagePattern = `(?:'${escapedPackage}'|"${escapedPackage}"|${escapedPackage}(?=$|[\\s,;:!?)]|\\.(?:$|\\s)))`;
+  return [
+    new RegExp(`failed to find package\\s+${exactPackagePattern}`, 'i'),
+    new RegExp(`package\\s+${exactPackagePattern}(?:\\s+with revision\\s+\\S+)?\\s+not found`, 'i'),
+    new RegExp(`(?:unknown|invalid) package[:\\s]+${exactPackagePattern}`, 'i'),
+  ];
+}
+
+export function validateAndroidSystemImagePackage(
+  systemImagePackage: string,
+  hostArch: string = os.arch()
+): void {
+  const hostAbiConfig = HOST_ARCH_SUPPORTED_ABIS[hostArch];
+  const exampleAbi = hostAbiConfig?.recommended ?? 'x86_64';
+
+  if (!ANDROID_SYSTEM_IMAGE_PACKAGE_REGEX.test(systemImagePackage)) {
+    throw new UserError(
+      'EAS_ANDROID_EMULATOR_INVALID_SYSTEM_IMAGE',
+      `Invalid Android system image package "${systemImagePackage}". Expected a package in the format "system-images;android-<api-level>;<tag>;<abi>", for example "system-images;android-35;default;${exampleAbi}".`
+    );
+  }
+
+  const [prefix, apiLevel, tag, abi] = systemImagePackage.split(';');
+  if (hostAbiConfig && !hostAbiConfig.supported.includes(abi)) {
+    const suggestedPackage = `${prefix};${apiLevel};${tag};${hostAbiConfig.recommended}`;
+    throw new UserError(
+      'EAS_ANDROID_EMULATOR_INVALID_SYSTEM_IMAGE',
+      `Android system image "${systemImagePackage}" uses ABI "${abi}", which is incompatible with this ${hostArch} runner. Use an image matching the runner architecture (${hostAbiConfig.supported.join(' or ')}), for example "${suggestedPackage}".`
+    );
+  }
+}
+
+function getSpawnOutput(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+  const candidate = value as {
+    stdout?: unknown;
+    stderr?: unknown;
+    output?: unknown;
+    message?: unknown;
+  };
+  const parts: string[] = [];
+  if (typeof candidate.stdout === 'string' && candidate.stdout) {
+    parts.push(candidate.stdout);
+  }
+  if (typeof candidate.stderr === 'string' && candidate.stderr) {
+    parts.push(candidate.stderr);
+  }
+  if (parts.length === 0 && Array.isArray(candidate.output)) {
+    for (const entry of candidate.output) {
+      if (typeof entry === 'string' && entry) {
+        parts.push(entry);
+      }
+    }
+  }
+  if (typeof candidate.message === 'string' && candidate.message) {
+    parts.push(candidate.message);
+  }
+  return parts.join('\n');
+}
+
+function matchesSdkManagerPackageNotFoundOutput(
+  output: string,
+  systemImagePackage: string
+): boolean {
+  return getSdkManagerPackageNotFoundPatterns(systemImagePackage).some(pattern =>
+    pattern.test(output)
+  );
+}
+
+function isSdkManagerPackageNotFoundOutput(output: string, systemImagePackage: string): boolean {
+  return (
+    matchesSdkManagerPackageNotFoundOutput(output, systemImagePackage) &&
+    !SDKMANAGER_TRANSIENT_FAILURE_PATTERNS.some(pattern => pattern.test(output))
+  );
+}
+
+function isRetryableEmulatorStartupError(err: unknown): boolean {
+  if (err instanceof UserError) {
+    return false;
+  }
+  if (err instanceof AndroidEmulatorExitedError) {
+    return err.isRetryable;
+  }
+  return true;
+}
+
+async function installAndroidSystemImageAsync({
+  systemImagePackage,
+  env,
+  logger,
+}: {
+  systemImagePackage: string;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  logger.info('Making sure system image is installed');
+  await retryAsync(
+    async () => {
+      try {
+        const result = await spawn('sdkmanager', [systemImagePackage], {
+          env,
+          logger,
+        });
+        const output = getSpawnOutput(result);
+        if (isSdkManagerPackageNotFoundOutput(output, systemImagePackage)) {
+          throw new UserError(
+            'EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND',
+            `Android system image "${systemImagePackage}" was not found by sdkmanager. Verify that the package exists in the Android SDK repository (run \`sdkmanager --list\` to see available system images).`
+          );
+        }
+        if (matchesSdkManagerPackageNotFoundOutput(output, systemImagePackage)) {
+          throw new Error(
+            `sdkmanager failed to fetch package manifests while installing "${systemImagePackage}".`
+          );
+        }
+      } catch (err) {
+        if (err instanceof UserError) {
+          throw err;
+        }
+        const output = getSpawnOutput(err);
+        if (isSdkManagerPackageNotFoundOutput(output, systemImagePackage)) {
+          throw new UserError(
+            'EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND',
+            `Android system image "${systemImagePackage}" was not found by sdkmanager. Verify that the package exists in the Android SDK repository (run \`sdkmanager --list\` to see available system images).`,
+            { cause: err }
+          );
+        }
+        throw err;
+      }
+    },
+    {
+      logger,
+      retryOptions: {
+        retries: 3, // Retry 3 times
+        retryIntervalMs: 1_000,
+      },
+      shouldRetry: err => !(err instanceof UserError),
+    }
+  );
+}
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -114,6 +289,8 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         runtimePlatform: global.runtimePlatform,
         fallback: ALL_ANDROID_EMULATOR_LOG_SOURCES,
       });
+      const systemImagePackage = `${inputs.system_image_package.value}`;
+      validateAndroidSystemImagePackage(systemImagePackage);
       if (emulatorCaptureVersion) {
         // Marks the request for the session step, which rejects session types that cannot use
         // the capture. The mark does not depend on the install, so the rejection does not either.
@@ -136,7 +313,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const { serialId, emulatorPromise, shouldAdjustAnimationScale, emulatorCaptureSocketPath } =
         await startAndroidEmulatorAsync({
           deviceName,
-          systemImagePackage: `${inputs.system_image_package.value}`,
+          systemImagePackage,
           // We can cast because allowedValueTypeName validated this is a string.
           deviceIdentifier: inputs.device_identifier.value as AndroidDeviceName | undefined,
           lcdWidth: inputs.lcd_width.value as number | undefined,
@@ -204,6 +381,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   env,
                   timeoutMs,
                   logger,
+                  emulatorPromise: startResult.emulatorPromise,
                 });
                 if (shouldAdjustAnimationScale) {
                   await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
@@ -220,7 +398,13 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   `${cloneIdentifier} failed to start on attempt ${attempt}/${maxAttempts}.`
                 );
                 try {
-                  if (cloneSerialId) {
+                  if (err instanceof AndroidEmulatorExitedError) {
+                    await AndroidEmulatorUtils.deleteAsync({
+                      deviceName: cloneIdentifier,
+                      env,
+                      skipStop: true,
+                    });
+                  } else if (cloneSerialId) {
                     await AndroidEmulatorUtils.deleteAsync({
                       serialId: cloneSerialId,
                       deviceName: cloneIdentifier,
@@ -244,6 +428,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                 retries: ANDROID_STARTUP_RETRIES_COUNT,
                 retryIntervalMs: 1_000,
               },
+              shouldRetry: isRetryableEmulatorStartupError,
             }
           );
         }
@@ -288,6 +473,8 @@ export async function startAndroidEmulatorAsync({
   /** The capture agent's socket, when the emulator preloads the agent on the expected serial. */
   emulatorCaptureSocketPath?: string;
 }> {
+  validateAndroidSystemImagePackage(systemImagePackage);
+
   if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
     await assertAndroidEmulatorHostSupportAsync({ env });
   } else {
@@ -317,22 +504,7 @@ export async function startAndroidEmulatorAsync({
 
   const localEgress = await resolveAndroidEmulatorLocalEgressAsync();
 
-  logger.info('Making sure system image is installed');
-  await retryAsync(
-    async () => {
-      await spawn('sdkmanager', [systemImagePackage], {
-        env,
-        logger,
-      });
-    },
-    {
-      logger,
-      retryOptions: {
-        retries: 3, // Retry 3 times
-        retryIntervalMs: 1_000,
-      },
-    }
-  );
+  await installAndroidSystemImageAsync({ systemImagePackage, env, logger });
 
   // expo-device-hub gets the job env and finds the agent sockets in `<tmpdir>/expo-emulator-capture`,
   // where Node's os.tmpdir() applies this rule to that env. On EAS, TMPDIR is not set.
@@ -402,6 +574,7 @@ export async function startAndroidEmulatorAsync({
           serialId: attemptSerialId,
           timeoutMs,
           logger,
+          emulatorPromise: startResult.emulatorPromise,
           ...(localEgress ? { networkReadyTarget: localEgress.networkReadyTarget } : {}),
         });
         if (shouldAdjustAnimationScale) {
@@ -420,7 +593,13 @@ export async function startAndroidEmulatorAsync({
       } catch (err) {
         logger.warn({ err }, `${deviceName} failed to start on attempt ${attempt}/${maxAttempts}.`);
         try {
-          if (attemptSerialId) {
+          if (err instanceof AndroidEmulatorExitedError) {
+            await AndroidEmulatorUtils.deleteAsync({
+              deviceName,
+              env,
+              skipStop: true,
+            });
+          } else if (attemptSerialId) {
             await AndroidEmulatorUtils.deleteAsync({
               serialId: attemptSerialId,
               deviceName,
@@ -444,6 +623,7 @@ export async function startAndroidEmulatorAsync({
         retries: ANDROID_STARTUP_RETRIES_COUNT,
         retryIntervalMs: 1_000,
       },
+      shouldRetry: isRetryableEmulatorStartupError,
     }
   );
 

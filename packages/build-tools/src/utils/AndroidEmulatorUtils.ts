@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
@@ -32,6 +32,319 @@ export type AndroidEmulatorLaunchGate = {
   wrapperArgs: string[];
   admitAsync: (pid: number) => Promise<void>;
 };
+
+const EMULATOR_STDIO_CLOSE_WAIT_MS = 100;
+const MAX_STARTUP_OUTPUT_BUFFER_CHARS = 16_384;
+const MAX_EMULATOR_OUTPUT_TAIL_LINES = 30;
+const MAX_EMULATOR_OUTPUT_TAIL_CHARS = 4_000;
+
+const NON_RETRYABLE_EMULATOR_EXIT_PATTERNS = [
+  /kvm is required to run this avd/i,
+  /emulation currently requires hardware acceleration/i,
+  /could not access kvm kernel module/i,
+  /\/dev\/kvm.*permission denied/i,
+  /panic:\s*missing emulator engine program/i,
+  /panic:\s*broken avd system path/i,
+  /panic:\s*cannot find avd system path/i,
+  /unknown avd name/i,
+  /unsupported cpu architecture/i,
+  /running .* on .* is not supported/i,
+  /this avd(?:'s)? configuration is missing a kernel file/i,
+];
+
+export class AndroidEmulatorExitedError extends Error {
+  public readonly exitCode: number | null;
+  public readonly signal: NodeJS.Signals | string | null;
+  public readonly outputTail: string;
+  public readonly isRetryable: boolean;
+
+  constructor(
+    message: string,
+    {
+      exitCode,
+      signal,
+      outputTail,
+      isRetryable,
+      cause,
+    }: {
+      exitCode: number | null;
+      signal: NodeJS.Signals | string | null;
+      outputTail: string;
+      isRetryable: boolean;
+      cause?: unknown;
+    }
+  ) {
+    super(message, { cause });
+    this.name = 'AndroidEmulatorExitedError';
+    this.exitCode = exitCode;
+    this.signal = signal;
+    this.outputTail = outputTail;
+    this.isRetryable = isRetryable;
+  }
+}
+
+type EmulatorExitInfo = {
+  exitCode: number | null;
+  signal: NodeJS.Signals | string | null;
+  cause?: unknown;
+  spawnOutput: string;
+};
+
+type EmulatorProcessTracker = {
+  hasExited: () => boolean;
+  onExit: (listener: () => void) => () => void;
+  getOutputTail: () => string;
+  createExitedErrorAsync: (target: string) => Promise<AndroidEmulatorExitedError>;
+  stopOutputCapture: () => void;
+};
+
+const emulatorProcessTrackers = new WeakMap<Promise<unknown>, EmulatorProcessTracker>();
+
+function formatSpawnResultOutput(value: unknown): string {
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+  const candidate = value as {
+    stdout?: unknown;
+    stderr?: unknown;
+    output?: unknown;
+  };
+  const parts: string[] = [];
+  if (typeof candidate.stdout === 'string' && candidate.stdout) {
+    parts.push(candidate.stdout);
+  }
+  if (typeof candidate.stderr === 'string' && candidate.stderr) {
+    parts.push(candidate.stderr);
+  }
+  if (parts.length === 0 && Array.isArray(candidate.output)) {
+    for (const entry of candidate.output) {
+      if (typeof entry === 'string' && entry) {
+        parts.push(entry);
+      }
+    }
+  }
+  return parts.join('\n');
+}
+
+function formatEmulatorOutputTail(rawOutput: string): string {
+  const normalized = rawOutput.replace(/\r\n/g, '\n').trim();
+  if (!normalized) {
+    return '';
+  }
+  const lines = normalized.split('\n');
+  let tail = lines.slice(-MAX_EMULATOR_OUTPUT_TAIL_LINES).join('\n');
+  if (tail.length > MAX_EMULATOR_OUTPUT_TAIL_CHARS) {
+    tail = tail.slice(-MAX_EMULATOR_OUTPUT_TAIL_CHARS);
+    const firstNewline = tail.indexOf('\n');
+    if (firstNewline !== -1 && firstNewline < tail.length - 1) {
+      tail = tail.slice(firstNewline + 1);
+    }
+  }
+  return tail.trim();
+}
+
+function isNonRetryableEmulatorExitOutput(output: string): boolean {
+  return NON_RETRYABLE_EMULATOR_EXIT_PATTERNS.some(pattern => pattern.test(output));
+}
+
+function appendEmulatorOutputTail(err: unknown, outputTail: string): unknown {
+  if (!outputTail || err instanceof ExpoError || err instanceof AndroidEmulatorExitedError) {
+    return err;
+  }
+  const baseMessage = err instanceof Error ? err.message : String(err);
+  return new Error(`${baseMessage}\n\nLast emulator output:\n${outputTail}`, { cause: err });
+}
+
+function trackEmulatorProcess(
+  emulatorPromise: Promise<unknown>,
+  { capturePipedStdio }: { capturePipedStdio: boolean }
+): EmulatorProcessTracker {
+  const existing = emulatorProcessTrackers.get(emulatorPromise);
+  if (existing) {
+    return existing;
+  }
+
+  let exitInfo: EmulatorExitInfo | null = null;
+  let outputBuffer = '';
+  let isClosed = !capturePipedStdio;
+  const exitListeners = new Set<() => void>();
+  const child = (emulatorPromise as Partial<SpawnPromise<SpawnResult>>).child;
+
+  const onData = (chunk: Buffer | string): void => {
+    outputBuffer += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+    if (outputBuffer.length > MAX_STARTUP_OUTPUT_BUFFER_CHARS) {
+      outputBuffer = outputBuffer.slice(-MAX_STARTUP_OUTPUT_BUFFER_CHARS);
+    }
+  };
+
+  const stopOutputCapture = (): void => {
+    child?.stdout?.off('data', onData);
+    child?.stderr?.off('data', onData);
+  };
+
+  let closePromise: Promise<void> | undefined;
+  if (capturePipedStdio && child) {
+    child.stdout?.on('data', onData);
+    child.stderr?.on('data', onData);
+    if (typeof child.once === 'function') {
+      closePromise = new Promise<void>(resolve => {
+        child.once('close', () => {
+          isClosed = true;
+          stopOutputCapture();
+          resolve();
+        });
+      });
+    } else {
+      isClosed = true;
+    }
+  }
+
+  const notifyExit = (): void => {
+    for (const listener of [...exitListeners]) {
+      listener();
+    }
+    exitListeners.clear();
+  };
+
+  // Observe the process promise immediately so expected exits during retry cleanup
+  // never become unhandled rejections, and so polling can fail fast on premature exit.
+  void Promise.resolve(emulatorPromise).then(
+    result => {
+      const spawnResult = result as Partial<SpawnResult> | undefined;
+      exitInfo = {
+        exitCode: typeof spawnResult?.status === 'number' ? spawnResult.status : 0,
+        signal: spawnResult?.signal ?? null,
+        spawnOutput: formatSpawnResultOutput(spawnResult),
+      };
+      notifyExit();
+    },
+    err => {
+      const spawnErr = err as Partial<SpawnResult> | undefined;
+      exitInfo = {
+        exitCode: typeof spawnErr?.status === 'number' ? spawnErr.status : null,
+        signal: spawnErr?.signal ?? null,
+        cause: err,
+        spawnOutput: formatSpawnResultOutput(spawnErr),
+      };
+      notifyExit();
+    }
+  );
+
+  const waitForStdioFlushAsync = async (): Promise<void> => {
+    if (isClosed || !closePromise) {
+      return;
+    }
+    await new Promise<void>(resolve => {
+      const timer = globalThis.setTimeout(resolve, EMULATOR_STDIO_CLOSE_WAIT_MS);
+      timer.unref();
+      void closePromise.then(() => {
+        globalThis.clearTimeout(timer);
+        resolve();
+      });
+    });
+  };
+
+  const hasExited = (): boolean =>
+    exitInfo !== null ||
+    (child !== undefined &&
+      ((typeof child.exitCode === 'number' && child.exitCode !== null) ||
+        child.signalCode != null));
+
+  const tracker: EmulatorProcessTracker = {
+    hasExited,
+    onExit: listener => {
+      if (hasExited()) {
+        listener();
+        return () => {};
+      }
+      exitListeners.add(listener);
+      return () => {
+        exitListeners.delete(listener);
+      };
+    },
+    getOutputTail: () => formatEmulatorOutputTail(outputBuffer || exitInfo?.spawnOutput || ''),
+    createExitedErrorAsync: async target => {
+      await waitForStdioFlushAsync();
+      stopOutputCapture();
+      const info: EmulatorExitInfo = exitInfo ?? {
+        exitCode: typeof child?.exitCode === 'number' ? child.exitCode : null,
+        signal: child?.signalCode ?? null,
+        spawnOutput: '',
+      };
+      const rawOutput = outputBuffer || info.spawnOutput;
+      const outputTail = formatEmulatorOutputTail(rawOutput);
+      const causeMessage =
+        info.cause instanceof Error && info.cause.message ? info.cause.message : undefined;
+      let reason: string;
+      if (info.signal) {
+        reason = `with signal ${info.signal}`;
+      } else if (info.exitCode !== null) {
+        reason = `with exit code ${info.exitCode}`;
+      } else if (causeMessage) {
+        reason = `(${causeMessage})`;
+      } else {
+        reason = 'unexpectedly';
+      }
+      const message = outputTail
+        ? `Android emulator (${target}) exited prematurely during startup ${reason}.\n\nLast emulator output:\n${outputTail}`
+        : `Android emulator (${target}) exited prematurely during startup ${reason}.`;
+      return new AndroidEmulatorExitedError(message, {
+        exitCode: info.exitCode,
+        signal: info.signal,
+        outputTail,
+        isRetryable: !isNonRetryableEmulatorExitOutput(rawOutput),
+        cause: info.cause,
+      });
+    },
+    stopOutputCapture,
+  };
+
+  emulatorProcessTrackers.set(emulatorPromise, tracker);
+  return tracker;
+}
+
+function raceWithEmulatorExitAsync<T>(
+  promise: Promise<T>,
+  tracker: EmulatorProcessTracker,
+  target: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    let unsubscribe: (() => void) | undefined;
+    const finish = (cb: () => void): void => {
+      if (!settled) {
+        settled = true;
+        unsubscribe?.();
+        unsubscribe = undefined;
+        cb();
+      }
+    };
+    const failWithExit = (): void => {
+      finish(() => {
+        void tracker.createExitedErrorAsync(target).then(reject, reject);
+      });
+    };
+
+    // Attach handlers to `promise` before checking exit state so a rejected probe
+    // never becomes an unhandled rejection when the emulator has already exited.
+    promise.then(
+      value => finish(() => resolve(value)),
+      err => {
+        if (tracker.hasExited()) {
+          failWithExit();
+        } else {
+          finish(() => reject(err));
+        }
+      }
+    );
+
+    if (tracker.hasExited()) {
+      failWithExit();
+      return;
+    }
+    unsubscribe = tracker.onExit(failWithExit);
+  });
+}
 
 export namespace AndroidEmulatorUtils {
   const RETRY_INTERVAL_MS = 1_000;
@@ -150,7 +463,19 @@ export namespace AndroidEmulatorUtils {
     // We answer "no".
     avdManager.child.stdin?.write('no');
     avdManager.child.stdin?.end();
-    await avdManager;
+    try {
+      await avdManager;
+    } catch (err) {
+      const output = formatSpawnResultOutput(err);
+      if (/package path is not valid/i.test(output)) {
+        throw new UserError(
+          'EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND',
+          `Android system image "${systemImagePackage}" is not installed or is not a valid AVD system image package.`,
+          { cause: err }
+        );
+      }
+      throw err;
+    }
 
     // Add extra config to the device's ini file.
     const configIniFile = `${env.HOME}/.android/avd/${deviceName}.avd/config.ini`;
@@ -439,14 +764,21 @@ export namespace AndroidEmulatorUtils {
     if (emulatorPromise.child.stderr instanceof Socket) {
       emulatorPromise.child.stderr.unref();
     }
+    // Track exit and capture a bounded startup output tail after logCapture.attach
+    // so pipes stay in the right order and we never miss early fatal stderr lines.
+    const tracker = trackEmulatorProcess(emulatorPromise, {
+      capturePipedStdio: Boolean(emulatorOutputPath),
+    });
     // If emulator fails to start, throw its error.
     if (!emulatorPromise.child.pid) {
+      tracker.stopOutputCapture();
       await emulatorPromise;
     }
     if (launchGate && emulatorPromise.child.pid) {
       try {
         await launchGate.admitAsync(emulatorPromise.child.pid);
       } catch (err) {
+        tracker.stopOutputCapture();
         emulatorPromise.child.kill('SIGKILL');
         await asyncResult(emulatorPromise);
         throw err;
@@ -454,26 +786,59 @@ export namespace AndroidEmulatorUtils {
       emulatorPromise.child.stdin?.end('go\n');
     }
     emulatorPromise.child.unref();
-    // The emulator is detached and managed through adb. Observe its process promise
-    // immediately so expected exits during retry cleanup do not become unhandled rejections.
-    void asyncResult(emulatorPromise);
 
-    const serialId = await retryAsync(
-      async () => {
-        const serialId = await getSerialIdAsync({ deviceName, env });
-        assert(
-          serialId,
-          `Failed to configure emulator (${serialId}): emulator with required ID not found.`
-        );
-        return serialId;
-      },
-      {
-        retryOptions: {
-          retries: 3 * 60,
-          retryIntervalMs: 1_000,
+    // Yield one microtask so an already-settled emulatorPromise updates exit state before polling adb.
+    await Promise.resolve();
+
+    const abortController = new AbortController();
+    const unsubscribeAbort = tracker.onExit(() => abortController.abort());
+    let serialId: AndroidDeviceSerialId;
+    try {
+      serialId = await retryAsync(
+        async () => {
+          if (tracker.hasExited()) {
+            throw await tracker.createExitedErrorAsync(deviceName);
+          }
+          const foundSerialId = await raceWithEmulatorExitAsync(
+            getSerialIdAsync({ deviceName, env }),
+            tracker,
+            deviceName
+          );
+          assert(
+            foundSerialId,
+            `Failed to configure emulator (${foundSerialId}): emulator with required ID not found.`
+          );
+          return foundSerialId;
         },
+        {
+          retryOptions: {
+            retries: 3 * 60,
+            retryIntervalMs: 1_000,
+          },
+          shouldRetry: err => !(err instanceof AndroidEmulatorExitedError),
+          signal: abortController.signal,
+        }
+      );
+    } catch (err) {
+      if (err instanceof AndroidEmulatorExitedError) {
+        throw err;
       }
-    );
+      if (tracker.hasExited()) {
+        throw await tracker.createExitedErrorAsync(deviceName);
+      }
+      const outputTail = tracker.getOutputTail();
+      tracker.stopOutputCapture();
+      if (typeof emulatorPromise.child.kill === 'function') {
+        try {
+          emulatorPromise.child.kill('SIGKILL');
+        } catch {
+          // Ignore errors when killing an already-terminated process.
+        }
+      }
+      throw appendEmulatorOutputTail(err, outputTail);
+    } finally {
+      unsubscribeAbort();
+    }
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
@@ -486,6 +851,7 @@ export namespace AndroidEmulatorUtils {
     timeoutMs = 3 * 60 * 1_000,
     logger,
     networkReadyTarget,
+    emulatorPromise,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
@@ -493,37 +859,80 @@ export namespace AndroidEmulatorUtils {
     logger?: bunyan;
     /** Host and port the guest must reach; 1.1.1.1:443 unless set. */
     networkReadyTarget?: { host: string; port: number };
+    /** Running emulator process promise; when provided, polling fails fast if the emulator exits. */
+    emulatorPromise?: Promise<unknown>;
   }): Promise<void> {
     const retries = Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1);
-    await retryAsync(
-      async () => {
-        const { stdout } = await spawn(
-          'adb',
-          ['-s', serialId, 'shell', 'getprop', 'sys.boot_completed'],
-          { env }
-        );
+    const tracker = emulatorPromise
+      ? trackEmulatorProcess(emulatorPromise, { capturePipedStdio: false })
+      : undefined;
+    if (tracker) {
+      // Yield one microtask so an already-settled emulatorPromise updates exit state before polling adb.
+      await Promise.resolve();
+    }
+    const abortController = tracker ? new AbortController() : undefined;
+    const unsubscribeAbort =
+      tracker && abortController ? tracker.onExit(() => abortController.abort()) : undefined;
 
-        if (!stdout.startsWith('1')) {
-          throw new Error(`Emulator (${serialId}) boot has not completed.`);
-        }
+    try {
+      await retryAsync(
+        async () => {
+          if (tracker?.hasExited()) {
+            throw await tracker.createExitedErrorAsync(serialId);
+          }
 
-        const hasNetworkConnection = await hasNetworkConnectionAsync({
-          serialId,
-          env,
-          target: networkReadyTarget,
-        });
-        if (!hasNetworkConnection) {
-          throw new Error(`Emulator (${serialId}) network is not ready.`);
-        }
-      },
-      {
-        retryOptions: {
-          retries,
-          retryIntervalMs: RETRY_INTERVAL_MS,
+          const bootCheck = spawn(
+            'adb',
+            ['-s', serialId, 'shell', 'getprop', 'sys.boot_completed'],
+            { env }
+          );
+          const { stdout } = tracker
+            ? await raceWithEmulatorExitAsync(bootCheck, tracker, serialId)
+            : await bootCheck;
+
+          if (!stdout.startsWith('1')) {
+            throw new Error(`Emulator (${serialId}) boot has not completed.`);
+          }
+
+          const networkCheck = hasNetworkConnectionAsync({
+            serialId,
+            env,
+            target: networkReadyTarget,
+          });
+          const hasNetworkConnection = tracker
+            ? await raceWithEmulatorExitAsync(networkCheck, tracker, serialId)
+            : await networkCheck;
+          if (!hasNetworkConnection) {
+            throw new Error(`Emulator (${serialId}) network is not ready.`);
+          }
         },
-        logger,
+        {
+          retryOptions: {
+            retries,
+            retryIntervalMs: RETRY_INTERVAL_MS,
+          },
+          logger,
+          ...(tracker
+            ? {
+                shouldRetry: (err: unknown) => !(err instanceof AndroidEmulatorExitedError),
+                signal: abortController?.signal,
+              }
+            : {}),
+        }
+      );
+    } catch (err) {
+      if (err instanceof AndroidEmulatorExitedError) {
+        throw err;
       }
-    );
+      if (tracker?.hasExited()) {
+        throw await tracker.createExitedErrorAsync(serialId);
+      }
+      const outputTail = tracker?.getOutputTail() ?? '';
+      throw appendEmulatorOutputTail(err, outputTail);
+    } finally {
+      unsubscribeAbort?.();
+      tracker?.stopOutputCapture();
+    }
   }
 
   export async function disableWindowAndTransitionAnimationsAsync({
@@ -680,10 +1089,13 @@ export namespace AndroidEmulatorUtils {
     serialId,
     deviceName,
     env,
+    skipStop = false,
   }: {
     serialId?: AndroidDeviceSerialId;
     deviceName?: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
+    /** Skip stopping via adb when the emulator process is already known to have exited. */
+    skipStop?: boolean;
   }): Promise<void> {
     let resolvedDeviceName = deviceName;
     if (!resolvedDeviceName && serialId) {
@@ -697,10 +1109,12 @@ export namespace AndroidEmulatorUtils {
 
     assert(resolvedDeviceName, 'Either "serialId" or "deviceName" must resolve to a device name.');
 
-    const serialIdToStop =
-      serialId ?? (await getSerialIdAsync({ deviceName: resolvedDeviceName, env })) ?? undefined;
-    if (serialIdToStop) {
-      await stopAsync({ serialId: serialIdToStop, env });
+    if (!skipStop) {
+      const serialIdToStop =
+        serialId ?? (await getSerialIdAsync({ deviceName: resolvedDeviceName, env })) ?? undefined;
+      if (serialIdToStop) {
+        await stopAsync({ serialId: serialIdToStop, env });
+      }
     }
 
     await spawn('avdmanager', ['delete', 'avd', '-n', resolvedDeviceName], { env });
