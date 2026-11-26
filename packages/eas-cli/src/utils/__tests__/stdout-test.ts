@@ -43,42 +43,62 @@ describe(writeToStdoutAsync, () => {
   });
 });
 
-describe('closed stdout pipe', () => {
-  async function runChildAsync(mode: string): Promise<{ code: number | null; stderr: string }> {
+describe('closed output pipe', () => {
+  async function runChildAsync(
+    stream: 'stdout' | 'stderr',
+    guard: 'guard' | 'no-guard'
+  ): Promise<{ code: number | null; output: string }> {
     const child = spawn(
       process.execPath,
       [
         '-r',
         require.resolve('ts-node/register/transpile-only'),
         path.join(__dirname, 'fixtures/stdout-closed-pipe.cjs'),
-        mode,
+        stream,
+        guard,
       ],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     );
-    // The reader exits before the child writes.
-    child.stdout.destroy();
-    let stderr = '';
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', chunk => {
-      stderr += chunk;
+    // The reader of one stream exits before the child writes; the child reports on the other one.
+    const [closed, open] =
+      stream === 'stdout' ? [child.stdout, child.stderr] : [child.stderr, child.stdout];
+    closed.destroy();
+    let output = '';
+    open.setEncoding('utf8');
+    open.on('data', chunk => {
+      output += chunk;
     });
     const code = await new Promise<number | null>(resolve => {
       child.on('close', resolve);
     });
-    return { code, stderr };
+    return { code, output };
   }
 
-  it('reports the failed write, and with ignoreStdoutErrors later output does not crash', async () => {
-    const { code, stderr } = await runChildAsync('guard');
+  it('reports a failed stdout write, and with ignoreOutputErrors later output does not crash', async () => {
+    const { code, output } = await runChildAsync('stdout', 'guard');
 
-    expect(stderr).toContain('result:EPIPE');
+    expect(output).toContain('result:EPIPE');
     expect(code).toBe(0);
   }, 20_000);
 
-  it('crashes on later output without ignoreStdoutErrors', async () => {
-    const { code, stderr } = await runChildAsync('no-guard');
+  it('crashes on later stdout output without ignoreOutputErrors', async () => {
+    const { code, output } = await runChildAsync('stdout', 'no-guard');
 
-    expect(stderr).toContain('EPIPE');
+    expect(output).toContain('EPIPE');
+    expect(code).not.toBe(0);
+  }, 20_000);
+
+  it('does not crash on stderr output to a closed pipe with ignoreOutputErrors', async () => {
+    const { code, output } = await runChildAsync('stderr', 'guard');
+
+    expect(output).toContain('done');
+    expect(code).toBe(0);
+  }, 20_000);
+
+  it('crashes on stderr output to a closed pipe without ignoreOutputErrors', async () => {
+    const { code, output } = await runChildAsync('stderr', 'no-guard');
+
+    expect(output).not.toContain('done');
     expect(code).not.toBe(0);
   }, 20_000);
 });

@@ -1,14 +1,20 @@
 /**
- * Keeps a failed stdout write from crashing the process. Without an `error` listener, a write to a
- * closed pipe (for example after the reader exited) emits an unhandled `error` event, and Node exits
- * before cleanup finishes. Install it while cleanup must run; it returns a function that removes it.
- * `writeToStdoutAsync` still reports the failure to its caller.
+ * Keeps a failed stdout or stderr write from crashing the process. Without an `error` listener, a
+ * write to a closed pipe (for example after the reader exited) emits an unhandled `error` event,
+ * and Node exits before cleanup finishes. Both streams count: with `--json`, progress output goes to
+ * stderr. Install it while cleanup must run; it returns a function that removes it.
+ * `writeToStdoutAsync` still reports a failed stdout write to its caller.
  */
-export function ignoreStdoutErrors(): () => void {
+export function ignoreOutputErrors(): () => void {
   const onError = (): void => {};
   process.stdout.on('error', onError);
+  process.stderr.on('error', onError);
   return () => {
-    process.stdout.removeListener('error', onError);
+    // A write just before removal reports its error on a later tick; keep the listener until then.
+    setImmediate(() => {
+      process.stdout.removeListener('error', onError);
+      process.stderr.removeListener('error', onError);
+    });
   };
 }
 

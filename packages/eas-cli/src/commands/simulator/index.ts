@@ -80,7 +80,7 @@ import {
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput, printJsonOnlyOutputAsync } from '../../utils/json';
-import { ignoreStdoutErrors, writeToStdoutAsync } from '../../utils/stdout';
+import { ignoreOutputErrors, writeToStdoutAsync } from '../../utils/stdout';
 import { sleepAsync } from '../../utils/promise';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
@@ -671,8 +671,10 @@ With local egress, actions wait for the connection and require interactive mode.
 
       if (!jsonFlag) {
         Log.newLine();
-        Log.log(
-          formatRemoteSessionInstructions(remoteConfig, flags['out-config-type'], {
+        const instructions = formatRemoteSessionInstructions(
+          remoteConfig,
+          flags['out-config-type'],
+          {
             egressAllow,
             egressClientRunsInline: !nonInteractive,
             sessionUrl: deviceRunSessionUrl,
@@ -681,24 +683,29 @@ With local egress, actions wait for the connection and require interactive mode.
             frameAncestors,
             corsOrigins,
             platform,
-          })
+          }
         );
+        if (nonInteractive && flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env) {
+          // stdout is the only handoff in this mode: the caller gets the session only from the
+          // printed exports. Write them with a checked write and hand the session off when stdout
+          // accepted them, for example not when the reading end of a pipe closed. Later output,
+          // which the caller may not read, does not count.
+          await Promise.race([
+            writeToStdoutAsync(`${instructions}\n`),
+            sessionInterrupt.abortPromise,
+          ]);
+          if (sessionInterrupt.signal.aborted) {
+            await stopAfterInterruptAsync(pollSpinner);
+            return;
+          }
+        } else {
+          Log.log(instructions);
+        }
         Log.newLine();
         if (nonInteractive) {
           Log.log(
             `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
           );
-        }
-        if (nonInteractive && flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env) {
-          // stdout is the only handoff in this mode: the caller gets the session only from the
-          // printed exports. Confirm that stdout accepted them, for example not when the reading
-          // end of a pipe closed. Writes are ordered, so an empty write reports a failed export
-          // write; later output, which the caller may not read, does not count.
-          await Promise.race([writeToStdoutAsync(''), sessionInterrupt.abortPromise]);
-          if (sessionInterrupt.signal.aborted) {
-            await stopAfterInterruptAsync(pollSpinner);
-            return;
-          }
         }
       }
 
@@ -801,6 +808,7 @@ With local egress, actions wait for the connection and require interactive mode.
           } else {
             setupSpinner.fail('Simulator configuration import failed');
           }
+          sessionInterrupt.markCleanupHandled();
           const stopped = await sessionInterrupt.stopSessionAsync();
           if (stopped) {
             if (!jsonFlag) {
@@ -816,6 +824,7 @@ With local egress, actions wait for the connection and require interactive mode.
               `Could not confirm cleanup. Run eas simulator:stop --id ${deviceRunSessionId} to stop the session.`
             );
           }
+          sessionInterrupt.exitIfSignalReceived();
           sessionInterrupt.dispose();
           if (jsonFlag) {
             printJsonOnlyOutput({
@@ -901,7 +910,7 @@ With local egress, actions wait for the connection and require interactive mode.
     } catch (error) {
       // Paths that stop the session themselves, or that saw it end, have already started the stop.
       // Any other error means the user never received the session, so stop it here.
-      if (!sessionInterrupt.stopStarted) {
+      if (!sessionInterrupt.cleanupHandled) {
         await stopDeviceRunSessionAfterStartupErrorAsync({
           sessionInterrupt,
           projectDir,
@@ -1050,6 +1059,7 @@ async function waitForSessionEndOrInterruptAsync({
     }
 
     spinner.text = 'Stopping simulator session...';
+    sessionInterrupt.markCleanupHandled();
     const stopped = await sessionInterrupt.stopSessionAsync();
     if (stopped) {
       spinner.succeed('Simulator session stopped');
@@ -1107,8 +1117,14 @@ type SessionInterrupt = {
    * stopping the session twice. Resolves to whether the stop was confirmed.
    */
   stopSessionAsync: () => Promise<boolean>;
-  /** Whether a path has already started stopping the session, or the session already ended. */
-  readonly stopStarted: boolean;
+  /**
+   * Whether a path has taken over the full cleanup (the stop, the dotenv cleanup and the messages),
+   * or the session already ended. A stop that a signal started early does not count: it does not
+   * clean up the dotenv file or warn when the stop fails.
+   */
+  readonly cleanupHandled: boolean;
+  /** Records that the calling path does the full cleanup. */
+  markCleanupHandled: () => void;
   /** Records that the session ended on EAS, so no path needs to stop it. */
   markSessionEnded: () => void;
   /**
@@ -1138,6 +1154,7 @@ function registerSessionInterrupt(
   // Tracked apart from `signal.aborted`: a local egress failure also aborts the session, and the
   // first real signal after that must not force an exit while the stop is running.
   let signalReceived = false;
+  let cleanupHandled = false;
   let stopPromise: Promise<boolean> | undefined;
   const stopSessionAsync = async (): Promise<boolean> =>
     // Store the promise before the request starts, so a signal during the call cannot start a
@@ -1162,8 +1179,9 @@ function registerSessionInterrupt(
     void stopSessionAsync();
   };
   const removeInterruptListener = addInterruptListener(interruptHandler);
-  // While the session exists, a closed stdout pipe must not crash the process before the stop.
-  const removeStdoutErrorGuard = ignoreStdoutErrors();
+  // While the session exists, a closed stdout or stderr pipe must not crash the process before the
+  // stop.
+  const removeOutputErrorGuard = ignoreOutputErrors();
 
   return {
     deviceRunSessionId,
@@ -1176,22 +1194,26 @@ function registerSessionInterrupt(
       return exitCode;
     },
     stopSessionAsync,
-    get stopStarted() {
-      return stopPromise !== undefined;
+    get cleanupHandled() {
+      return cleanupHandled;
+    },
+    markCleanupHandled: () => {
+      cleanupHandled = true;
     },
     markSessionEnded: () => {
+      cleanupHandled = true;
       stopPromise ??= Promise.resolve(true);
     },
     exitIfSignalReceived: () => {
       if (signalReceived) {
         removeInterruptListener();
-        removeStdoutErrorGuard();
+        removeOutputErrorGuard();
         process.exit(exitCode);
       }
     },
     dispose: () => {
       removeInterruptListener();
-      removeStdoutErrorGuard();
+      removeOutputErrorGuard();
     },
   };
 }
@@ -1206,6 +1228,7 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   sessionInterrupt: SessionInterrupt;
 }): Promise<void> {
   const { deviceRunSessionId } = sessionInterrupt;
+  sessionInterrupt.markCleanupHandled();
   try {
     spinner.text = 'Stopping simulator session...';
     const stopped = await sessionInterrupt.stopSessionAsync();
@@ -1242,6 +1265,7 @@ async function stopDeviceRunSessionAfterStartupErrorAsync({
   jsonFlag: boolean;
 }): Promise<void> {
   const { deviceRunSessionId } = sessionInterrupt;
+  sessionInterrupt.markCleanupHandled();
   const stopped = await sessionInterrupt.stopSessionAsync();
   if (!stopped) {
     Log.warn(
@@ -1359,9 +1383,9 @@ async function withSimulatorRequestAnalyticsAsync<T>(
     };
   });
   const removeInterruptListener = addInterruptListener(onInterrupt!);
-  // A closed stdout pipe must not crash the process before a session created after the cancel is
-  // stopped.
-  const removeStdoutErrorGuard = ignoreStdoutErrors();
+  // A closed stdout or stderr pipe must not crash the process before a session created after the
+  // cancel is stopped.
+  const removeOutputErrorGuard = ignoreOutputErrors();
   analytics.logEvent(SimulatorEvent.REQUEST_SENT, properties);
   let createPromise: Promise<T> | undefined;
   try {
@@ -1372,12 +1396,17 @@ async function withSimulatorRequestAnalyticsAsync<T>(
       analytics.logEvent(SimulatorEvent.REQUEST_CANCELLED, { ...properties, reason: 'user_abort' });
       spinner.fail('Simulator session request canceled');
       const flushTimeout = new AbortController();
-      await Promise.race([
-        analytics.flushAsync(),
-        sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
+      // Run both at once: a session that the request returns must not wait for analytics before
+      // its stop starts.
+      await Promise.all([
+        Promise.race([
+          analytics.flushAsync(),
+          sleepAsync(CANCEL_FLUSH_TIMEOUT_MS, flushTimeout.signal),
+        ]).finally(() => {
+          flushTimeout.abort();
+        }),
+        stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync),
       ]);
-      flushTimeout.abort();
-      await stopSessionCreatedAfterCancelAsync(createPromise, stopCreatedAsync);
       process.exit(exitCode);
     }
     const reason = simulatorRequestFailureReason(error);
@@ -1387,7 +1416,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
     throw error;
   } finally {
     removeInterruptListener();
-    removeStdoutErrorGuard();
+    removeOutputErrorGuard();
   }
 }
 
