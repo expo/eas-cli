@@ -271,6 +271,23 @@ describe(downloadToFileAsync, () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the given number of retries and the given first wait', async () => {
+    jest.mocked(fetch).mockRejectedValue(createSocketFetchError('ECONNRESET'));
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+    const download = downloadToFileAsync(
+      { url: DOWNLOAD_URL, destinationPath },
+      { operation: OPERATION, retries: 3, minTimeoutMs: 100 }
+    );
+    const settled = download.catch(error => error);
+    await fireBackoffTimersAsync(3);
+    const error = await settled;
+
+    expect(error).toBeInstanceOf(DownloadNetworkError);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(setTimeoutSpy.mock.calls.map(([, delayMs]) => delayMs)).toEqual([100, 200, 400]);
+  });
+
   it('does not start the request when already aborted', async () => {
     const reason = new Error('step timed out');
 

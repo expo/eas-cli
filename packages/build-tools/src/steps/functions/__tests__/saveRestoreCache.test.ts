@@ -4,13 +4,24 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
+import { Readable } from 'stream';
 
+import {
+  fireBackoffTimersAsync,
+  useFakeBackoffTimers,
+  waitForBackoffTimerAsync,
+} from '../../../__tests__/utils/backoffTimers';
+import { DownloadNetworkError } from '../../../storage/downloadToFile';
 import { compressCacheAsync, uploadCacheAsync } from '../saveCache';
-import { decompressCacheAsync } from '../restoreCache';
+import {
+  decompressCacheAsync,
+  downloadCacheAsync,
+  downloadPublicCacheAsync,
+} from '../restoreCache';
 
 jest.mock('node-fetch');
 
-const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+const { FetchError, Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
 function createLoggerMock(): bunyan {
   return { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as bunyan;
@@ -154,4 +165,135 @@ describe(uploadCacheAsync, () => {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
     }
   });
+});
+
+describe('cache archive download', () => {
+  const DOWNLOAD_URL = 'https://storage.expo.test/caches/my%20cache.tar.gz?signature=secret';
+
+  function mockDownloadUrlResponse(): void {
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { matchedKey: 'cache-key', downloadUrl: DOWNLOAD_URL } }),
+          { status: 200 }
+        )
+      );
+  }
+
+  function createSocketFetchError(): Error {
+    return new FetchError(`request to ${DOWNLOAD_URL} failed, reason: read ECONNRESET`, 'system', {
+      code: 'ECONNRESET',
+    } as any);
+  }
+
+  async function downloadAsync(): Promise<{ archivePath: string; matchedKey: string }> {
+    return await downloadCacheAsync({
+      logger: createLoggerMock(),
+      jobId: 'build-id',
+      expoApiServerURL: 'https://api.expo.test',
+      robotAccessToken: 'robot-token',
+      paths: ['/cache/path'],
+      key: 'cache-key',
+      keyPrefixes: [],
+      platform: Platform.ANDROID,
+    });
+  }
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.mocked(fetch).mockReset();
+  });
+
+  it('downloads the cache archive from the signed URL', async () => {
+    mockDownloadUrlResponse();
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response(Readable.from('cache archive'), { status: 200 }));
+
+    const { archivePath, matchedKey } = await downloadAsync();
+
+    expect(matchedKey).toBe('cache-key');
+    expect(path.basename(archivePath)).toBe('my_20cache.tar.gz');
+    expect(await fs.promises.readFile(archivePath, 'utf8')).toBe('cache archive');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(fetch).mock.calls[0][0].toString()).toBe(
+      'https://api.expo.test/v2/turtle-builds/caches/download'
+    );
+    expect(jest.mocked(fetch).mock.calls[1][0]).toBe(DOWNLOAD_URL);
+  });
+
+  it('downloads the public cache archive from the signed URL', async () => {
+    mockDownloadUrlResponse();
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response(Readable.from('cache archive'), { status: 200 }));
+
+    const { archivePath } = await downloadPublicCacheAsync({
+      logger: createLoggerMock(),
+      expoApiServerURL: 'https://api.expo.test',
+      robotAccessToken: 'robot-token',
+      paths: ['/cache/path'],
+      platform: Platform.ANDROID,
+    });
+
+    expect(await fs.promises.readFile(archivePath, 'utf8')).toBe('cache archive');
+    expect(jest.mocked(fetch).mock.calls[0][0].toString()).toBe(
+      'https://api.expo.test/v2/public-turtle-caches/download'
+    );
+    expect(jest.mocked(fetch).mock.calls[1][0]).toBe(DOWNLOAD_URL);
+  });
+
+  it('downloads again 100 ms after a socket error', async () => {
+    useFakeBackoffTimers();
+    mockDownloadUrlResponse();
+    jest
+      .mocked(fetch)
+      .mockRejectedValueOnce(createSocketFetchError())
+      .mockResolvedValueOnce(new Response(Readable.from('cache archive'), { status: 200 }));
+
+    const download = downloadAsync();
+    await waitForBackoffTimerAsync();
+    await jest.advanceTimersByTimeAsync(100);
+
+    const { archivePath } = await download;
+    expect(await fs.promises.readFile(archivePath, 'utf8')).toBe('cache archive');
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops after three retries and throws without the signed URL', async () => {
+    useFakeBackoffTimers();
+    mockDownloadUrlResponse();
+    jest.mocked(fetch).mockRejectedValue(createSocketFetchError());
+
+    const settled = downloadAsync().catch(error => error);
+    await fireBackoffTimersAsync(3);
+    const error = await settled;
+
+    expect(error).toBeInstanceOf(DownloadNetworkError);
+    expect(error.message).toBe('Download failed: ECONNRESET.');
+    expect(fetch).toHaveBeenCalledTimes(5);
+  });
+
+  it.each([
+    [403, 'Forbidden'],
+    [404, 'Not Found'],
+  ])(
+    'throws an error that is not a cache miss on HTTP %s from the storage',
+    async (status, statusText) => {
+      mockDownloadUrlResponse();
+      jest
+        .mocked(fetch)
+        .mockResolvedValueOnce(new Response('<Error></Error>', { status, statusText }));
+
+      const error = await downloadAsync().catch(error => error);
+
+      expect(error.message).toBe(
+        `Unexpected response from cache server (${status}): ${statusText}`
+      );
+      // Callers read `error.response.status === 404` as a cache miss.
+      expect(error).not.toHaveProperty('response');
+      expect(fetch).toHaveBeenCalledTimes(2);
+    }
+  );
 });
