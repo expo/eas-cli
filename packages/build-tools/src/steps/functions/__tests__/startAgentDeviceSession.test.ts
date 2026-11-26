@@ -771,6 +771,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   it.each([
     ['NUL argument', { launch_args: ['a\u0000b'] }],
     ['command length', { launch_args: ['--es', 'quotes', "'".repeat(20_000)] }],
+    ['invalid am start option', { launch_args: ['-EXDevMenuIsOnboardingFinished', 'YES'] }],
     ['NUL URL', { open_url: 'example:\u0000screen' }],
   ])('rejects Android launch %s before startup work', async (_name, inputs) => {
     const step = runStep(BuildRuntimePlatform.LINUX, {
@@ -784,7 +785,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
   });
 
   it('keeps Android launch inputs on its existing direct path', async () => {
-    const launchArgs = ['a'.repeat(9000)];
+    const launchArgs = ['--es', 'payload', 'a'.repeat(9000)];
     await runStep(BuildRuntimePlatform.LINUX, {
       install_app_path: '/tmp/App.app',
       launch_args: launchArgs,

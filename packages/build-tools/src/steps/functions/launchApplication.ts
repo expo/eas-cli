@@ -1,4 +1,8 @@
-import { UserError, quoteAndroidShellCommand } from '@expo/eas-build-job';
+import {
+  UserError,
+  quoteAndroidShellCommand,
+  validateAndroidLaunchOptions,
+} from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -7,10 +11,16 @@ import {
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
+import spawn, { SpawnResult } from '@expo/turtle-spawn';
 
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
+// Match recognizable diagnostic/exception lines only so echoed `Starting: Intent { ... }` output
+// containing exception-like action names or extra values cannot trigger misclassification.
+const ANDROID_AM_START_INVALID_INPUT_LINE_PATTERN =
+  /^(?:(?:[\w.$]*\.)?(?:IllegalArgumentException|NumberFormatException)(?::|$|\s)|(?:Error:\s*)?(?:Unknown option:|Invalid argument\b|Missing argument\b|Argument expected after\b|Can't start (?:activity|service) with user\b))/i;
+const ANDROID_AM_START_UNRESOLVED_INTENT_LINE_PATTERN =
+  /^(?:(?:Error:\s*|(?:[\w.$]+Exception:\s*))?(?:Activity not started,\s*)?(?:unable to resolve Intent|No Activity found to handle Intent)\b)/i;
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -103,6 +113,8 @@ export async function launchApplicationAsync({
     );
   }
 
+  validateAndroidLaunchOptions({ launchArgs, openUrl });
+
   logApplicationLaunch(logger, applicationIdentifier, launchArgs);
   // Android does not support process arguments like iOS. Pass raw `am start` Intent
   // arguments instead, such as `--es key value` or `--ez key true`.
@@ -112,32 +124,98 @@ export async function launchApplicationAsync({
       { env, logger }
     );
   } catch (err) {
-    // An empty argument that is not an option value reaches `am start` as an empty package, and
-    // `am start` then fails to resolve the Intent without saying why.
-    const emptyArgumentIndex = launchArgs.indexOf('');
-    if (emptyArgumentIndex === -1 || err instanceof UserError) {
+    if (err instanceof UserError) {
       throw err;
     }
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_FAILED',
-      `Launching ${applicationIdentifier} failed. Input "launch_args" has an empty argument at position ${emptyArgumentIndex + 1}, which Android passes to "am start" as an empty argument. Remove it unless it is an option value, such as "--es", "key", "".`,
-      { cause: err }
-    );
+    const output = getSpawnOutput(err);
+    const detail = findMatchingOutputLine(output, ANDROID_AM_START_INVALID_INPUT_LINE_PATTERN);
+    if (detail) {
+      const subject = launchArgs.length > 0 ? '"launch_args"' : 'the launch arguments';
+      throw new UserError(
+        'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+        `Launching ${applicationIdentifier} failed because Android "am start" rejected ${subject} (${detail}). Android expects "am start" Intent options (for example, ["--es", "key", "value"] or ["--ez", "isTest", "true"]), not iOS launch flags.`,
+        { cause: err }
+      );
+    }
+    throw err;
   }
   if (openUrl) {
     logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
-    await spawnAndroidShellCommandAsync(
-      ['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
-      { env, logger }
-    );
+    let openUrlResult: SpawnResult;
+    try {
+      openUrlResult = await spawnAndroidShellCommandAsync(
+        ['am', 'start', '-a', 'android.intent.action.VIEW', '-d', openUrl],
+        { env, logger }
+      );
+    } catch (err) {
+      if (err instanceof UserError) {
+        throw err;
+      }
+      const output = getSpawnOutput(err);
+      if (findMatchingOutputLine(output, ANDROID_AM_START_UNRESOLVED_INTENT_LINE_PATTERN)) {
+        throw createUnregisteredUrlSchemeError(openUrl, err);
+      }
+      throw err;
+    }
+    // Older Android images (including API 30 and Android 14) print the unresolved-Intent error
+    // for `am start` and still exit with status 0.
+    if (
+      findMatchingOutputLine(
+        getSpawnOutput(openUrlResult),
+        ANDROID_AM_START_UNRESOLVED_INTENT_LINE_PATTERN
+      )
+    ) {
+      throw createUnregisteredUrlSchemeError(openUrl);
+    }
   }
 }
 
 async function spawnAndroidShellCommandAsync(
   command: string[],
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
-): Promise<void> {
-  await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
+): Promise<SpawnResult> {
+  return await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
+}
+
+function createUnregisteredUrlSchemeError(openUrl: string, cause?: unknown): UserError {
+  const urlScheme = getUrlScheme(openUrl);
+  const targetDescription = urlScheme
+    ? `the "${urlScheme}://" URL from "open_url"`
+    : 'the "open_url" VIEW intent';
+  return new UserError(
+    'EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+    `No installed activity on the Android Emulator matched the VIEW intent for ${targetDescription}. Ensure the app's AndroidManifest.xml registers an intent filter matching the URL's scheme, host, and path, or update "open_url".`,
+    cause !== undefined ? { cause } : undefined
+  );
+}
+
+function getSpawnOutput(source: unknown): string {
+  if (typeof source !== 'object' || source === null) {
+    return '';
+  }
+  const { stdout, stderr } = source as { stdout?: unknown; stderr?: unknown };
+  return [stderr, stdout]
+    .filter((stream): stream is string => typeof stream === 'string' && stream.length > 0)
+    .join('\n');
+}
+
+function findMatchingOutputLine(output: string, pattern: RegExp): string | undefined {
+  const line = output
+    .split(/\r?\n/)
+    .map(entry => entry.trim())
+    .find(entry => pattern.test(entry));
+  if (!line) {
+    return undefined;
+  }
+  return line.length > 200 ? `${line.slice(0, 197)}...` : line;
+}
+
+function getUrlScheme(url: string): string | undefined {
+  if (!URL.canParse(url)) {
+    return undefined;
+  }
+  const scheme = new URL(url).protocol.slice(0, -1);
+  return scheme.length > 0 ? scheme : undefined;
 }
 
 async function preapproveIosUrlSchemeAsync({

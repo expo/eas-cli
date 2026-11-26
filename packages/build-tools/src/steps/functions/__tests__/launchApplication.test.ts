@@ -356,10 +356,7 @@ describe(launchApplicationAsync, () => {
     }
   );
 
-  it('explains an Android launch failure when a launch argument is empty', async () => {
-    const launchError = new Error('adb shell am start exited with non-zero code: 1');
-    mockedSpawn.mockRejectedValueOnce(launchError);
-
+  it('rejects a trailing empty Android launch argument before spawning adb', async () => {
     await expect(
       launchApplicationAsync({
         applicationIdentifier: 'com.example.app',
@@ -370,14 +367,109 @@ describe(launchApplicationAsync, () => {
         logger: createMockLogger(),
       })
     ).rejects.toMatchObject({
-      errorCode: 'EAS_LAUNCH_APPLICATION_FAILED',
+      errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
       message: expect.stringContaining('empty argument at position 4'),
-      cause: launchError,
     });
+    expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('rethrows an Android launch failure unchanged when no launch argument is empty', async () => {
-    const launchError = new Error('adb shell am start exited with non-zero code: 1');
+  it.each([
+    ['iOS-style flag', ['-EXDevMenuIsOnboardingFinished', 'YES']],
+    ['bare positional argument', ['Portrait']],
+    ['missing extra value', ['--es', 'key']],
+    ['component option -n', ['-n', 'com.example.app/.OtherActivity']],
+  ])('rejects invalid Android launch_args (%s) before spawning adb', async (_name, launchArgs) => {
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        launchArgs,
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+    });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'Unknown option on stderr',
+      {
+        stderr:
+          'java.lang.IllegalArgumentException: Unknown option: -E\n\tat android.content.Intent.parseCommandArgs',
+        stdout: '',
+      },
+      'Unknown option: -E',
+    ],
+    [
+      'IllegalArgumentException for invalid boolean on stderr',
+      { stderr: 'java.lang.IllegalArgumentException: Invalid boolean value: maybe', stdout: '' },
+      'Invalid boolean value: maybe',
+    ],
+    [
+      'NumberFormatException for invalid int on stderr',
+      { stderr: 'java.lang.NumberFormatException: For input string: "abc"', stdout: '' },
+      'NumberFormatException',
+    ],
+    [
+      'Invalid argument on stdout',
+      { stderr: '', stdout: 'Error: Invalid argument for --ei' },
+      'Invalid argument for --ei',
+    ],
+    [
+      'Missing argument on stderr',
+      { stderr: 'Error: Missing argument for --es', stdout: '' },
+      'Missing argument for --es',
+    ],
+    [
+      'unsupported --user all (activity wording) on stderr',
+      { stderr: "Error: Can't start activity with user 'all'", stdout: '' },
+      "Can't start activity with user 'all'",
+      ['--user', 'all'],
+    ],
+    [
+      'unsupported --user all (service wording on Android 14) on stderr',
+      { stderr: "Error: Can't start service with user 'all'", stdout: '' },
+      "Can't start service with user 'all'",
+      ['--user', 'all'],
+    ],
+  ])(
+    'classifies Android am start launch failure (%s) as EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+    async (_name, output, expectedDetail, launchArgs = ['--ez', 'isTest', 'maybe']) => {
+      const launchError = Object.assign(
+        new Error('adb shell am start exited with non-zero code: 255'),
+        output
+      );
+      mockedSpawn.mockRejectedValueOnce(launchError);
+
+      await expect(
+        launchApplicationAsync({
+          applicationIdentifier: 'com.example.app',
+          activityName: 'com.example.app.MainActivity',
+          launchArgs,
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          env: {},
+          logger: createMockLogger(),
+        })
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+        message: expect.stringContaining(expectedDetail),
+        cause: launchError,
+      });
+    }
+  );
+
+  it('rethrows an unrelated Android launch failure unchanged', async () => {
+    const launchError = Object.assign(
+      new Error('adb shell am start exited with non-zero code: 1'),
+      {
+        stderr: 'adb: device offline',
+        stdout: '',
+      }
+    );
     mockedSpawn.mockRejectedValueOnce(launchError);
 
     await expect(
@@ -390,6 +482,172 @@ describe(launchApplicationAsync, () => {
         logger: createMockLogger(),
       })
     ).rejects.toBe(launchError);
+  });
+
+  it('does not misclassify a missing-activity error when echoed intent data contains an exception name', async () => {
+    const launchError = Object.assign(
+      new Error('adb shell am start exited with non-zero code: 1'),
+      {
+        stdout:
+          'Starting: Intent { act=com.example.IllegalArgumentException cmp=com.example.app/.MissingActivity }',
+        stderr:
+          'Error type 3\nError: Activity class {com.example.app/com.example.app.MissingActivity} does not exist.',
+      }
+    );
+    mockedSpawn.mockRejectedValueOnce(launchError);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MissingActivity',
+        launchArgs: ['-a', 'com.example.IllegalArgumentException'],
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toBe(launchError);
+  });
+
+  it.each([
+    [
+      'unable to resolve Intent on stderr',
+      {
+        stderr:
+          'Starting: Intent { act=android.intent.action.VIEW dat=exp+example-app://... }\nError: Activity not started, unable to resolve Intent { act=android.intent.action.VIEW dat=exp+example-app://... flg=0x10000000 }',
+        stdout: '',
+      },
+    ],
+    [
+      'case-insensitive unable to resolve Intent on stdout',
+      {
+        stderr: '',
+        stdout:
+          'Error: Activity not started, Unable To Resolve Intent { act=android.intent.action.VIEW }',
+      },
+    ],
+    [
+      'No Activity found to handle Intent on stderr',
+      {
+        stderr:
+          'android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.VIEW dat=exp+example-app://home }',
+        stdout: '',
+      },
+    ],
+  ])(
+    'classifies Android open_url rejection (%s) as EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+    async (_name, output) => {
+      const openUrlError = Object.assign(
+        new Error(
+          'adb shell am start -a android.intent.action.VIEW -d exp+example-app://home exited with non-zero code: 1'
+        ),
+        output
+      );
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+        .mockRejectedValueOnce(openUrlError);
+
+      await expect(
+        launchApplicationAsync({
+          applicationIdentifier: 'com.example.app',
+          activityName: 'com.example.app.MainActivity',
+          openUrl: 'exp+example-app://home?token=example',
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          env: {},
+          logger: createMockLogger(),
+        })
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+        message: expect.stringContaining('"exp+example-app://"'),
+        cause: openUrlError,
+      });
+    }
+  );
+
+  it.each([
+    [
+      'stderr',
+      {
+        stdout: 'Starting: Intent { act=android.intent.action.VIEW dat=exp+example-app://home }\n',
+        stderr:
+          'Error: Activity not started, unable to resolve Intent { act=android.intent.action.VIEW dat=exp+example-app://home flg=0x10000000 }\n',
+        status: 0,
+      },
+    ],
+    [
+      'stdout',
+      {
+        stdout:
+          'Starting: Intent { act=android.intent.action.VIEW dat=exp+example-app://home }\nError: Activity not started, unable to resolve Intent { act=android.intent.action.VIEW dat=exp+example-app://home flg=0x10000000 }\n',
+        stderr: '',
+        status: 0,
+      },
+    ],
+  ])(
+    'classifies Android open_url exit-0 unresolved Intent on %s as EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+    async (_stream, result) => {
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: '', stderr: '', status: 0 } as any)
+        .mockResolvedValueOnce(result as any);
+
+      await expect(
+        launchApplicationAsync({
+          applicationIdentifier: 'com.example.app',
+          activityName: 'com.example.app.MainActivity',
+          openUrl: 'exp+example-app://home',
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          env: {},
+          logger: createMockLogger(),
+        })
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+        message: expect.stringContaining('scheme, host, and path'),
+      });
+    }
+  );
+
+  it('does not misclassify a successful open_url whose echoed Starting line contains diagnostic text', async () => {
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '', status: 0 } as any)
+      .mockResolvedValueOnce({
+        stdout:
+          'Starting: Intent { act=android.intent.action.VIEW dat=https://example.test/unable to resolve Intent }\n',
+        stderr: '',
+        status: 0,
+      } as any);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        openUrl: 'https://example.test/unable%20to%20resolve%20Intent',
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it('rethrows an unrelated Android open_url failure unchanged', async () => {
+    const openUrlError = Object.assign(
+      new Error(
+        'adb shell am start -a android.intent.action.VIEW -d exp://example.test exited with non-zero code: 1'
+      ),
+      { stderr: 'adb: device offline', stdout: '' }
+    );
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockRejectedValueOnce(openUrlError);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        activityName: 'com.example.app.MainActivity',
+        openUrl: 'exp://example.test',
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toBe(openUrlError);
   });
 
   it.each([
@@ -442,7 +700,7 @@ describe(launchApplicationAsync, () => {
         logger: createMockLogger(),
       })
     ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT' });
-    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
   it('rejects an Android launch command that is too long after quoting', async () => {
