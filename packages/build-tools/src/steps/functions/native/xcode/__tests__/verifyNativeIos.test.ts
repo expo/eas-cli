@@ -14,7 +14,11 @@ const IPA_PATH = path.join(__dirname, '../../../__tests__/fixtures/SmallestAppEx
 const IPA_BUNDLE_IDENTIFIER = 'dev.expo.SmallestAppExample';
 const IPA_BUILD_NUMBER = '1';
 
-async function writeAppAsync(bundleIdentifier: string, platformName: string): Promise<string> {
+async function writeAppAsync(
+  bundleIdentifier: string,
+  platformName: string,
+  otherInfoPlistStrings: Record<string, string> = {}
+): Promise<string> {
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'verify-native-ios-'));
   const appPath = path.join(directory, 'NativeApp.app');
   await fs.promises.mkdir(appPath);
@@ -24,6 +28,9 @@ async function writeAppAsync(bundleIdentifier: string, platformName: string): Pr
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>${bundleIdentifier}</string>
 <key>DTPlatformName</key><string>${platformName}</string>
+${Object.entries(otherInfoPlistStrings)
+  .map(([key, value]) => `<key>${key}</key><string>${value}</string>`)
+  .join('\n')}
 </dict></plist>`
   );
   return appPath;
@@ -58,6 +65,12 @@ async function verifyAsync(options: VerifyOptions): Promise<void> {
   await createVerifyStep(options).executeAsync();
 }
 
+async function verifyAndReadOutputsAsync(options: VerifyOptions): Promise<Record<string, unknown>> {
+  const step = createVerifyStep(options);
+  await step.executeAsync();
+  return Object.fromEntries(step.outputs!.map(output => [output.id, output.value]));
+}
+
 async function verifyAndReadWarningsAsync(options: VerifyOptions): Promise<unknown[][]> {
   const step = createVerifyStep(options);
   await step.executeAsync();
@@ -87,6 +100,49 @@ describe(createVerifyNativeIosBuildFunction, () => {
 
   it('accepts an artifact when no identifier is expected', async () => {
     await expect(verifyAsync({ simulator: false, archivePath: IPA_PATH })).resolves.toBeUndefined();
+  });
+
+  it('outputs the name, the identifier, the version and the build number of an IPA', async () => {
+    await expect(
+      verifyAndReadOutputsAsync({ simulator: false, archivePath: IPA_PATH })
+    ).resolves.toEqual({
+      app_name: 'SmallestAppExample',
+      application_identifier: IPA_BUNDLE_IDENTIFIER,
+      app_version: '1.0',
+      build_number: IPA_BUILD_NUMBER,
+    });
+  });
+
+  it('outputs the name, the identifier, the version and the build number of a simulator app', async () => {
+    await expect(
+      verifyAndReadOutputsAsync({
+        simulator: true,
+        archivePath: await writeAppAsync('dev.expo.nativeapp', 'iphonesimulator', {
+          CFBundleDisplayName: 'Native App',
+          CFBundleShortVersionString: '1.2.0',
+          CFBundleVersion: '43',
+        }),
+      })
+    ).resolves.toEqual({
+      app_name: 'Native App',
+      application_identifier: 'dev.expo.nativeapp',
+      app_version: '1.2.0',
+      build_number: '43',
+    });
+  });
+
+  it('outputs no version and no build number for a simulator app without those keys', async () => {
+    await expect(
+      verifyAndReadOutputsAsync({
+        simulator: true,
+        archivePath: await writeAppAsync('dev.expo.nativeapp', 'iphonesimulator'),
+      })
+    ).resolves.toEqual({
+      app_name: 'NativeApp',
+      application_identifier: 'dev.expo.nativeapp',
+      app_version: undefined,
+      build_number: undefined,
+    });
   });
 
   it('says nothing about the build number when the artifact has the expected one, or when none is expected', async () => {

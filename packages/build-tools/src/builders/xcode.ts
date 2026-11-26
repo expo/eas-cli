@@ -15,6 +15,7 @@ import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { getEasFunctions } from '../steps/easFunctions';
 import { createIncrementRemoteBuildNumberBuildFunction } from '../steps/functions/native/incrementRemoteBuildNumber';
 import { createPrepareIosCredentialsBuildFunction } from '../steps/functions/native/prepareIosCredentials';
+import { createUpdateRemoteBuildMetadataBuildFunction } from '../steps/functions/native/updateRemoteBuildMetadata';
 import { createBuildNativeIosBuildFunction } from '../steps/functions/native/xcode/buildNativeIos';
 import { createConfigureXcodeSigningBuildFunction } from '../steps/functions/native/xcode/configureXcodeSigning';
 import { createDetectNativeXcodeBuildFunction } from '../steps/functions/native/xcode/detectNativeXcode';
@@ -157,6 +158,7 @@ export async function createXcodeWorkflowAsync(
       },
     },
     {
+      id: 'verify_native_ios',
       uses: 'eas/verify_native_ios',
       with: {
         archive_path: '${{ steps.build_native_ios.outputs.archive_path }}',
@@ -167,8 +169,13 @@ export async function createXcodeWorkflowAsync(
       },
     },
     {
-      uses: 'eas/update_resolved_version',
-      with: { application_archive_path: '${{ steps.build_native_ios.outputs.archive_path }}' },
+      uses: 'eas/update_remote_build_metadata',
+      with: {
+        app_name: '${{ steps.verify_native_ios.outputs.app_name }}',
+        application_identifier: '${{ steps.verify_native_ios.outputs.application_identifier }}',
+        app_version: '${{ steps.verify_native_ios.outputs.app_version }}',
+        build_number: '${{ steps.verify_native_ios.outputs.build_number }}',
+      },
     },
     {
       uses: 'eas/upload_artifact',
@@ -192,6 +199,7 @@ export async function createXcodeWorkflowAsync(
       createConfigureXcodeSigningBuildFunction(),
       createBuildNativeIosBuildFunction(),
       createVerifyNativeIosBuildFunction(),
+      createUpdateRemoteBuildMetadataBuildFunction(customBuildCtx),
     ],
     loadCompositeFunction: createLocalCompositeFunctionLoader(
       path.join(customBuildCtx.projectSourceDirectory, job.projectRootDirectory ?? '.'),
