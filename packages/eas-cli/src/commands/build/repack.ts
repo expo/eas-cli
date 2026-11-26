@@ -1,4 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import { Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
@@ -187,6 +188,11 @@ export default class BuildRepack extends EasCommand {
       jsBundleOnly: flags.jsBundleOnly,
       iosSigningBackend: flags.iosSigningBackend,
       message: flags.message,
+      env: await resolveRepackJobEnvAsync({
+        projectDir,
+        platform,
+        profileName: flags.profile ?? build.buildProfile ?? undefined,
+      }),
     });
     Log.debug(`Repack workflow:\n${yamlConfig}`);
 
@@ -316,6 +322,11 @@ export async function getRepackableBuildAsync(
   if (!build.artifacts?.applicationArchiveUrl) {
     throw new Error(`Build with ID ${buildId} has no application archive to repack.`);
   }
+  if (build.isForIosSimulator) {
+    throw new Error(
+      `Build with ID ${buildId} is an iOS simulator build. Repacking only supports device builds.`
+    );
+  }
   if (platform && build.platform !== toAppPlatform(platform)) {
     throw new Error(
       `Build with ID ${buildId} was not created for platform ${requestedPlatformDisplayNames[platform]}.`
@@ -356,11 +367,41 @@ async function selectBuildToRepackAsync(
       status: BuildStatus.Finished,
       buildProfile,
     },
-    selectPromptDisabledFunction: build => !build.artifacts?.applicationArchiveUrl,
-    selectPromptWarningMessage: 'Only builds with an application archive can be repacked.',
+    selectPromptDisabledFunction: build =>
+      !build.artifacts?.applicationArchiveUrl || Boolean(build.isForIosSimulator),
+    selectPromptWarningMessage:
+      'Only device builds with an application archive can be repacked. iOS simulator builds are not supported.',
   });
   if (!build) {
     throw new Error('There are no builds that can be repacked on this project.');
   }
   return build;
+}
+
+/**
+ * The repack job bundles JavaScript with `--dev false`, but Babel and Metro transforms still key
+ * off NODE_ENV. When the build profile does not set it, a release app would get a development
+ * bundle (with React Refresh code) that crashes on launch, so default it to "production".
+ */
+export async function resolveRepackJobEnvAsync({
+  projectDir,
+  platform,
+  profileName,
+}: {
+  projectDir: string;
+  platform: Platform;
+  profileName: string | undefined;
+}): Promise<Record<string, string> | undefined> {
+  let profileNodeEnv: string | undefined;
+  try {
+    const buildProfile = await EasJsonUtils.getBuildProfileAsync(
+      EasJsonAccessor.fromProjectPath(projectDir),
+      platform,
+      profileName
+    );
+    profileNodeEnv = buildProfile.env?.NODE_ENV;
+  } catch (err) {
+    Log.debug(`Could not read build profile "${profileName}" from eas.json: ${err}`);
+  }
+  return profileNodeEnv ? undefined : { NODE_ENV: 'production' };
 }

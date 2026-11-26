@@ -1,3 +1,4 @@
+import { EasJsonUtils } from '@expo/eas-json';
 import * as YAML from 'yaml';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
@@ -33,6 +34,10 @@ jest.mock('../../../graphql/queries/BuildQuery');
 jest.mock('../../../graphql/queries/WorkflowRunQuery');
 jest.mock('../../../project/projectUtils');
 jest.mock('../../../log');
+jest.mock('@expo/eas-json', () => ({
+  ...jest.requireActual('@expo/eas-json'),
+  EasJsonUtils: { getBuildProfileAsync: jest.fn() },
+}));
 
 const projectSource = {
   type: WorkflowProjectSourceType.Gcs,
@@ -67,6 +72,7 @@ describe(BuildRepack, () => {
     jest.mocked(uploadWorkflowProjectSourceAsync).mockResolvedValue(projectSource);
     jest.mocked(WorkflowRunMutation.createWorkflowRunAsync).mockResolvedValue({ id: 'run-1' });
     jest.mocked(buildProfileNamesFromProjectAsync).mockResolvedValue(new Set(['preview']));
+    jest.mocked(EasJsonUtils.getBuildProfileAsync).mockResolvedValue({ env: {} } as any);
   });
 
   function createCommand(argv: string[]): BuildRepack {
@@ -114,9 +120,15 @@ describe(BuildRepack, () => {
         workflowRunInput: { projectSource },
       })
     );
+    expect(EasJsonUtils.getBuildProfileAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      'ios',
+      'preview'
+    );
     expect(createdWorkflowYaml().jobs.repack).toEqual({
       name: 'Repack build',
       type: 'repack',
+      env: { NODE_ENV: 'production' },
       params: {
         build_id: 'build-1',
         profile: 'preview',
@@ -126,6 +138,30 @@ describe(BuildRepack, () => {
       },
     });
     expect(showWorkflowStatusAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the NODE_ENV that the source build profile sets', async () => {
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValue(mockBuild({ buildProfile: 'staging' }));
+    jest
+      .mocked(EasJsonUtils.getBuildProfileAsync)
+      .mockResolvedValue({ env: { NODE_ENV: 'staging' } } as any);
+
+    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
+
+    expect(EasJsonUtils.getBuildProfileAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      'ios',
+      'staging'
+    );
+    expect(createdWorkflowYaml().jobs.repack.env).toBeUndefined();
+  });
+
+  it('defaults NODE_ENV to production when the build profile cannot be read', async () => {
+    jest.mocked(EasJsonUtils.getBuildProfileAsync).mockRejectedValue(new Error('no eas.json'));
+
+    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
+
+    expect(createdWorkflowYaml().jobs.repack.env).toEqual({ NODE_ENV: 'production' });
   });
 
   it('prompts for a build when no ID is given', async () => {
@@ -143,6 +179,16 @@ describe(BuildRepack, () => {
         }),
       })
     );
+    expect(listAndSelectBuildOnAppAsync).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        selectPromptDisabledFunction: expect.any(Function),
+      })
+    );
+    const [[, { selectPromptDisabledFunction }]] = jest.mocked(listAndSelectBuildOnAppAsync).mock
+      .calls;
+    expect(selectPromptDisabledFunction?.(mockBuild())).toBe(false);
+    expect(selectPromptDisabledFunction?.(mockBuild({ isForIosSimulator: true }))).toBe(true);
     expect(createdWorkflowYaml().jobs.repack.params).toEqual({ build_id: 'build-2' });
   });
 
@@ -187,6 +233,15 @@ describe(BuildRepack, () => {
     await expect(createCommand(['--id', 'build-1']).runAsync()).rejects.toThrow(
       'Only builds that finished successfully can be repacked.'
     );
+  });
+
+  it('rejects iOS simulator builds', async () => {
+    jest.mocked(BuildQuery.byIdAsync).mockResolvedValue(mockBuild({ isForIosSimulator: true }));
+
+    await expect(createCommand(['--id', 'build-1']).runAsync()).rejects.toThrow(
+      'is an iOS simulator build'
+    );
+    expect(WorkflowRunMutation.createWorkflowRunAsync).not.toHaveBeenCalled();
   });
 
   it('rejects a build profile missing from eas.json', async () => {
