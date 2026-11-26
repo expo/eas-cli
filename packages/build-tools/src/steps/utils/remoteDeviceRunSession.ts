@@ -10,8 +10,9 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { z } from 'zod';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
-import { createServer } from 'node:net';
+import net from 'node:net';
 import path from 'node:path';
 import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
@@ -999,21 +1000,93 @@ export function describeServeSimLaunch({
   return `serve-sim will launch ${launchAppIdentifier}${withArguments}${thenOpen}.`;
 }
 
-export async function findAvailablePortAsync(): Promise<number> {
-  const server = createServer();
+// Unprivileged range strictly below both Linux (32768-60999) and macOS (49152-65535) default
+// ephemeral outbound port ranges, avoiding TOCTOU collisions with transient client sockets.
+export const NON_EPHEMERAL_PORT_MIN = 10_000;
+export const NON_EPHEMERAL_PORT_MAX = 32_767;
+const NON_EPHEMERAL_PORT_PROBE_ATTEMPTS = 50;
+// Ports already returned in this process. Overlapping callers (for example a session host and
+// local egress) can each allocate a port before either binds it, so a port is not returned twice.
+const returnedLocalPorts = new Set<number>();
+
+async function tryBindLocalPortAsync(port: number): Promise<number> {
+  const server = net.createServer();
   server.unref();
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-  const address = server.address();
-  await new Promise<void>((resolve, reject) => {
-    server.close(err => (err ? reject(err) : resolve()));
-  });
-  if (!address || typeof address === 'string') {
-    throw new SystemError('Could not allocate a local port for the web preview.');
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const onError = (err: Error) => {
+        server.off('listening', onListening);
+        reject(err);
+      };
+      const onListening = () => {
+        server.off('error', onError);
+        resolve();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(port, '127.0.0.1');
+    });
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new SystemError('Could not allocate a local port for the web preview.');
+    }
+    return address.port;
+  } finally {
+    if (server.listening) {
+      await new Promise<void>((resolve, reject) => {
+        server.close(err => (err ? reject(err) : resolve()));
+      });
+    }
   }
-  return address.port;
+}
+
+export async function findAvailablePortAsync(options?: {
+  minPort?: number;
+  maxPort?: number;
+  maxAttempts?: number;
+}): Promise<number> {
+  const minPort = options?.minPort ?? NON_EPHEMERAL_PORT_MIN;
+  const maxPort = options?.maxPort ?? NON_EPHEMERAL_PORT_MAX;
+  const maxAttempts = options?.maxAttempts ?? NON_EPHEMERAL_PORT_PROBE_ATTEMPTS;
+  const rangeSize = maxPort >= minPort ? maxPort - minPort + 1 : 0;
+  const probeLimit = Math.max(0, Math.min(maxAttempts, rangeSize));
+  const tried = new Set<number>();
+
+  while (tried.size < probeLimit) {
+    const candidate = crypto.randomInt(minPort, maxPort + 1);
+    if (tried.has(candidate)) {
+      continue;
+    }
+    tried.add(candidate);
+    if (returnedLocalPorts.has(candidate)) {
+      continue;
+    }
+    try {
+      const port = await tryBindLocalPortAsync(candidate);
+      // Re-check after awaiting so overlapping calls in one worker never return the same port.
+      if (returnedLocalPorts.has(port)) {
+        continue;
+      }
+      returnedLocalPorts.add(port);
+      return port;
+    } catch (err) {
+      const code = typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
+      if (code === 'EADDRINUSE' || code === 'EACCES') {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  for (let attempt = 0; attempt < Math.max(1, maxAttempts); attempt++) {
+    const port = await tryBindLocalPortAsync(0);
+    if (!returnedLocalPorts.has(port)) {
+      returnedLocalPorts.add(port);
+      return port;
+    }
+  }
+
+  throw new SystemError('Could not allocate a local port for the web preview.');
 }
 
 export { type NgrokTunnelHandle, startNgrokTunnelAsync } from './ngrokTunnel';
