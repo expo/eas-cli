@@ -5,7 +5,12 @@ import {
 import { WorkflowJobStatus, WorkflowRunStatus } from '../../../graphql/generated';
 import { groupLogLinesIntoSteps, parseLogLines } from '../../logs/parseLogs';
 import { JobLogs, RawLogLine } from '../../logs/types';
-import { formatActiveWorkflowRun, formatFailedWorkflowRun, processWorkflowRuns } from '../utils';
+import {
+  formatActiveWorkflowRun,
+  formatCompletedWorkflowRun,
+  formatFailedWorkflowRun,
+  processWorkflowRuns,
+} from '../utils';
 
 function jobWithLogs(
   logLines: RawLogLine[],
@@ -119,6 +124,20 @@ describe(formatActiveWorkflowRun, () => {
 
     expect(output).not.toContain('Current step');
     expect(output).not.toContain('line0');
+  });
+});
+
+describe(formatCompletedWorkflowRun, () => {
+  test('shows the final job statuses without a current step', () => {
+    const workflowRun = getMockWorkflowRunWithJobsFragment();
+    const output = formatCompletedWorkflowRun({
+      ...workflowRun,
+      jobs: [{ ...workflowRun.jobs[0], status: WorkflowJobStatus.Success }],
+    });
+
+    expect(output).toContain('Completed successfully');
+    expect(output).not.toContain('In progress');
+    expect(output).not.toContain('Current step');
   });
 });
 

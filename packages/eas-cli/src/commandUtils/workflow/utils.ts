@@ -201,6 +201,14 @@ export function formatActiveWorkflowRun(
   return formatFields(statusValues);
 }
 
+/**
+ * Formats the job table of a workflow run that has finished, using the job statuses
+ * from the final snapshot of the run rather than the last in-progress render.
+ */
+export function formatCompletedWorkflowRun(workflowRun: WorkflowRunWithJobs): string {
+  return formatActiveWorkflowRun(workflowRun.jobs.map(job => ({ job, logs: new Map() })));
+}
+
 export function formatFailedWorkflowRun(
   jobLogs: JobWithLogs[],
   maxLogLines: number = -1 // -1 means no limit
@@ -355,13 +363,16 @@ export async function showWorkflowStatusAsync(
             break;
 
           case WorkflowRunStatus.Canceled:
+            renderActiveWorkflowRun = () => {};
             updateSpinnerText(spinner, {
               prefixText: chalk`{bold.yellow Workflow has been canceled.}`,
+              text: formatCompletedWorkflowRun(workflowRun),
             });
             spinner.stopAndPersist();
             return workflowRun;
 
           case WorkflowRunStatus.Failure: {
+            renderActiveWorkflowRun = () => {};
             updateSpinnerText(spinner, {
               prefixText: chalk`{bold.red Workflow has failed.}`,
             });
@@ -370,8 +381,10 @@ export async function showWorkflowStatusAsync(
             return workflowRun;
           }
           case WorkflowRunStatus.Success:
+            renderActiveWorkflowRun = () => {};
             updateSpinnerText(spinner, {
               prefixText: chalk`{bold.green Workflow has completed successfully.}`,
+              text: formatCompletedWorkflowRun(workflowRun),
             });
             spinner.succeed('');
             return workflowRun;
