@@ -822,7 +822,7 @@ With local egress, actions wait for the connection and require interactive mode.
               );
             });
           } else {
-            Log.warn(
+            Log.warnToStderr(
               `Could not confirm cleanup. Run eas simulator:stop --id ${deviceRunSessionId} to stop the session.`
             );
           }
@@ -1187,7 +1187,7 @@ function registerSessionInterrupt(
       }
       // Force exit on a second signal in case cleanup is hanging. The session may still be
       // running on EAS, so tell the user how to make sure it gets terminated.
-      Log.error(
+      Log.errorToStderr(
         `Aborted before the simulator session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
       process.exit(exitCode);
@@ -1320,7 +1320,9 @@ async function stopDeviceRunSessionCreatedAfterCancelAsync(
   if (stopped) {
     spinner.succeed(`Simulator session ${deviceRunSessionId} stopped`);
   } else {
-    spinner.fail(
+    // stderr: stdout may be a closed pipe, and the user needs this command.
+    spinner.stop();
+    Log.warnToStderr(
       `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
     );
   }
@@ -1405,7 +1407,7 @@ async function withSimulatorRequestAnalyticsAsync<T>(
           // The same cancellation, delivered again by a runner.
           return;
         }
-        Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
+        Log.warnToStderr(SESSION_MAY_BE_RUNNING_WARNING);
         process.exit(exitCode);
       }
       cancelRequested = true;
@@ -1475,7 +1477,7 @@ async function stopSessionCreatedAfterCancelAsync<T>(
   if (created) {
     await stopCreatedAsync(created.value);
   } else {
-    Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
+    Log.warnToStderr(SESSION_MAY_BE_RUNNING_WARNING);
   }
 }
 

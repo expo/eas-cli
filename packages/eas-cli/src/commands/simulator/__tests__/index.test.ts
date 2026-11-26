@@ -66,6 +66,7 @@ jest.mock('../../../log', () => ({
     warn: jest.fn(),
     warnToStderr: jest.fn(),
     error: jest.fn(),
+    errorToStderr: jest.fn(),
     succeed: jest.fn(),
     withTick: jest.fn(),
   },
@@ -719,7 +720,7 @@ describe(Simulator, () => {
           expect.objectContaining({ stopped: false })
         );
         expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
-        expect(Log.warn).toHaveBeenCalledWith(
+        expect(Log.warnToStderr).toHaveBeenCalledWith(
           expect.stringContaining('simulator:stop --id session-123')
         );
       } finally {
@@ -1442,14 +1443,14 @@ describe(Simulator, () => {
       await createStarted;
       process.emit('SIGINT');
       await jest.advanceTimersByTimeAsync(4_999);
-      const warningsBeforeFiveSeconds = [...jest.mocked(Log.warn).mock.calls];
+      const warningsBeforeFiveSeconds = [...jest.mocked(Log.warnToStderr).mock.calls];
       const exitCallsBeforeFiveSeconds = [...processExitSpy.mock.calls];
       await jest.advanceTimersByTimeAsync(1);
       await exited;
 
       expect(warningsBeforeFiveSeconds).toEqual([]);
       expect(exitCallsBeforeFiveSeconds).toEqual([]);
-      expect(Log.warn).toHaveBeenCalledWith(
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
         expect.stringContaining('Run `eas simulator:list` to check for a running session')
       );
       expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
@@ -1476,7 +1477,7 @@ describe(Simulator, () => {
       await jest.advanceTimersByTimeAsync(5_000);
       await exited;
 
-      expect(Log.warn).toHaveBeenCalledWith(
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
         expect.stringContaining('Run `eas simulator:list` to check for a running session')
       );
       expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
@@ -1510,11 +1511,39 @@ describe(Simulator, () => {
       expect(processExitSpy).toHaveBeenCalledWith(130);
       await exited;
 
-      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+      expect(Log.warnToStderr).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
       expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
         expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('writes the recovery command to stderr when a session created after a cancel cannot be stopped', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
+      mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValueOnce(new Error('stop boom'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(0);
+      await exited;
+
+      // stderr, since stdout may be a closed pipe.
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
+        expect.stringContaining('eas simulator:stop --id session-123')
       );
     } finally {
       processExitSpy.mockRestore();
@@ -1574,7 +1603,7 @@ describe(Simulator, () => {
       expect(processExitSpy).not.toHaveBeenCalled();
 
       expect(() => process.emit('SIGINT')).toThrow('process.exit(130)');
-      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+      expect(Log.warnToStderr).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
 
       // process.exit is mocked, so let the first Ctrl+C finish to clean up its listener.
       await jest.advanceTimersByTimeAsync(3_000);
@@ -4103,7 +4132,7 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
-    expect(Log.error).not.toHaveBeenCalled();
+    expect(Log.errorToStderr).not.toHaveBeenCalled();
     expect(exitSpy).not.toHaveBeenCalled();
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
@@ -4125,7 +4154,7 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
 
-    expect(Log.error).not.toHaveBeenCalled();
+    expect(Log.errorToStderr).not.toHaveBeenCalled();
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -4165,7 +4194,7 @@ describe(Simulator, () => {
 
     await command.runAsync();
 
-    expect(Log.error).toHaveBeenCalledWith(
+    expect(Log.errorToStderr).toHaveBeenCalledWith(
       'Aborted before the simulator session could be stopped. Run `eas simulator:stop --id session-123` to terminate it and avoid unexpected charges.'
     );
     expect(exitSpy).toHaveBeenCalledWith(130);
