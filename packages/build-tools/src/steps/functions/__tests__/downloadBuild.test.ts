@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import timers from 'node:timers/promises';
 import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
@@ -755,6 +756,104 @@ describe('downloadBuild', () => {
       'download_build.archive_download recovered on attempt 2',
       expect.objectContaining({ outcome: 'recovered', attempts: '2', code: `HTTP_${status}` })
     );
+  });
+
+  it.each([
+    ['60', 60_000],
+    ['Wed, 01 Jan 2025 00:01:00 GMT', 60_000],
+    ['0', 1_000],
+    ['invalid', 1_000],
+  ])('honors the archive server cooldown %s', async (retryAfter, delayMs) => {
+    useFakeBackoffTimers();
+    jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
+    // Jest only fakes the global timer, so route the cooldown through it.
+    jest
+      .spyOn(timers, 'setTimeout')
+      .mockImplementationOnce(
+        async (delay, value) => await new Promise(resolve => setTimeout(resolve, delay, value))
+      );
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', {
+          status: 429,
+          headers: { 'Retry-After': retryAfter },
+        })
+      )
+      .mockResolvedValueOnce(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: 'https://cdn.test/app.apk' })
+      );
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+    await waitForBackoffTimerAsync();
+
+    await jest.advanceTimersByTimeAsync(delayMs - 1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    const { artifactPath } = await download;
+    expect(await fs.promises.readFile(artifactPath, 'utf8')).toBe('hello');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('surfaces HTTP 429 when Retry-After exceeds the wait budget', async () => {
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', { status: 429, headers: { 'Retry-After': '61' } })
+      );
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      })
+    ).rejects.toMatchObject({ errorCode: 'SERVER_ERROR', cause: { code: 'HTTP_429' } });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels an archive download during the server cooldown', async () => {
+    useFakeBackoffTimers();
+    const cooldown = jest.spyOn(timers, 'setTimeout');
+    const datadogLog = jest.spyOn(Datadog, 'log');
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', { status: 429, headers: { 'Retry-After': '60' } })
+      );
+    const controller = new AbortController();
+    const reason = new Error('step timed out');
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId: randomUUID(),
+      graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+      robotAccessToken: null,
+      extensions: ['apk'],
+      signal: controller.signal,
+    });
+    const result = download.catch(error => error);
+    try {
+      await fireBackoffTimersAsync(1);
+      expect(cooldown).toHaveBeenCalledWith(59_000, undefined, { signal: controller.signal });
+    } finally {
+      controller.abort(reason);
+    }
+    expect(await result).toBe(reason);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(datadogLog).not.toHaveBeenCalled();
   });
 
   it.each([408, 429, 500, 502, 503, 504])('throws SystemError after six HTTP %s', async status => {

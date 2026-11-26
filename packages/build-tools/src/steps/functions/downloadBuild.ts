@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import stream from 'stream';
+import { setTimeout as delayAsync } from 'node:timers/promises';
 import { promisify } from 'util';
 import { z } from 'zod';
 import bplistParser from 'bplist-parser';
@@ -42,6 +43,7 @@ const streamPipeline = promisify(stream.pipeline);
 
 // Match signed URL uploads: retry request timeouts, rate limits, and transient server errors.
 const RETRYABLE_ARCHIVE_HTTP_STATUSES = [408, 429, 500, 502, 503, 504];
+const MAX_ARCHIVE_RETRY_AFTER_MS = 60_000;
 
 class ArchiveHttpError extends Error {
   readonly code: string;
@@ -60,6 +62,17 @@ function isRetryableArchiveDownloadError(error: unknown): boolean {
   return error instanceof ArchiveHttpError
     ? RETRYABLE_ARCHIVE_HTTP_STATUSES.includes(error.status)
     : isTransferFailure(error);
+}
+
+function parseRetryAfterTime(header: string | null): number {
+  const value = header?.trim();
+  if (!value) {
+    return 0;
+  }
+  if (/^\d+$/.test(value)) {
+    return Date.now() + Number(value) * 1_000;
+  }
+  return Date.parse(value) || 0;
 }
 
 type DownloadBuildSource =
@@ -327,11 +340,22 @@ export async function downloadBuildAsync(
 
   signal?.throwIfAborted();
   let archivePath: string;
+  let retryAt = 0;
   try {
     archivePath = await retryOnNetworkFailureAsync(
       async () => {
+        // The retry helper has already waited its usual backoff. Wait out any remaining cooldown.
+        const cooldownMs = retryAt - Date.now();
+        if (cooldownMs > 0) {
+          await delayAsync(cooldownMs, undefined, { signal });
+          signal?.throwIfAborted();
+        }
+        retryAt = 0;
         const response = await fetch(downloadUrl, { headers, signal });
         if (!response.ok) {
+          if (response.status === 429) {
+            retryAt = parseRetryAfterTime(response.headers.get('retry-after'));
+          }
           const textResult = await asyncResult(response.text());
           const archiveUrl = new URL(downloadUrl);
           const source = params.buildId
@@ -361,7 +385,10 @@ export async function downloadBuildAsync(
       {
         operation: 'download_build.archive_download',
         signal,
-        isRetryable: isRetryableArchiveDownloadError,
+        // Surface a long cooldown as an error instead of retrying before the server allows it.
+        isRetryable: error =>
+          isRetryableArchiveDownloadError(error) &&
+          retryAt - Date.now() <= MAX_ARCHIVE_RETRY_AFTER_MS,
       }
     );
   } catch (error) {
