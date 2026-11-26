@@ -42,7 +42,7 @@ import {
   printJsonOnlyOutput,
   printJsonOnlyOutputAsync,
 } from '../../../utils/json';
-import { writeToStdoutAsync } from '../../../utils/stdout';
+import { ignoreStdoutErrors, writeToStdoutAsync } from '../../../utils/stdout';
 import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import Simulator from '../index';
 
@@ -207,6 +207,7 @@ describe(Simulator, () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
+    jest.mocked(ignoreStdoutErrors).mockReturnValue(() => {});
     jest.mocked(applyStartConfigAsync).mockReset().mockResolvedValue([]);
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockJobRunErrorsByIdAsync.mockResolvedValue(null);
@@ -957,7 +958,7 @@ describe(Simulator, () => {
       }
     );
 
-    it('lets the stop finish when a signal arrives after local egress failed', async () => {
+    it('lets the stop finish, then exits with 143, when a signal arrives after local egress failed', async () => {
       config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
       mockByIdAsync.mockResolvedValue(localEgressSession);
       const failure = new Error('egress failed during setup');
@@ -970,17 +971,20 @@ describe(Simulator, () => {
       const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
         throw new Error(`process.exit(${code})`);
       });
+      let exitCallsDuringStop: unknown[] | undefined;
       mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(async () => {
         // The first real signal must not count as a second one: egress aborted the session.
         process.emit('SIGTERM');
+        exitCallsDuringStop = [...processExitSpy.mock.calls];
         return { id: 'session-123', status: DeviceRunSessionStatus.Stopped };
       });
 
-      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toBe(
-        failure
+      // After the stop, the command exits like any SIGTERM.
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toThrow(
+        'process.exit(143)'
       );
 
-      expect(processExitSpy).not.toHaveBeenCalled();
+      expect(exitCallsDuringStop).toEqual([]);
       expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
     });
 
@@ -3842,6 +3846,86 @@ describe(Simulator, () => {
     await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
 
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the stop at once on SIGTERM, before slow local cleanup finishes', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let finishWrite: () => void = () => {};
+    let stopsBeforeWriteFinished: number | undefined;
+    // The ready dotenv write is slow, like a busy disk.
+    jest.mocked(fs.writeFile).mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finishWrite = resolve;
+          setImmediate(() => {
+            process.emit('SIGTERM');
+            setImmediate(() => {
+              stopsBeforeWriteFinished = mockEnsureDeviceRunSessionStoppedAsync.mock.calls.length;
+              finishWrite();
+            });
+          });
+        })
+    );
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(stopsBeforeWriteFinished).toBe(1);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('exits with 143 when SIGTERM arrives while the CLI stops a session after a startup error', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockResolvedValueOnce(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+    mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return { id: 'session-123', status: DeviceRunSessionStatus.Stopped };
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms the env exports before importing actions, so later output does not count', async () => {
+    jest.mocked(fs.readJson).mockResolvedValue({
+      version: 1,
+      start: { platform: 'ios' },
+      actions: [{ action: 'appearance.get' }],
+    } as never);
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        remoteConfig: {
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+          previewUrl: 'https://expo.dev/preview',
+          previewApiUrl: 'https://sim.example.test',
+          previewToken: 'private-token',
+        },
+      })
+    );
+    jest.mocked(applyStartConfigAsync).mockResolvedValueOnce([]);
+
+    const { command } = createCommand([
+      '--import',
+      '/test/simulator.json',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await command.runAsync();
+
+    expect(writeToStdoutAsync).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(writeToStdoutAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(applyStartConfigAsync).mock.invocationCallOrder[0]
+    );
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it('does not wait for stdout when the dotenv file hands off the session', async () => {
