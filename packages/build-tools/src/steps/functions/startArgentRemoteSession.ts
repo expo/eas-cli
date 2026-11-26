@@ -166,7 +166,8 @@ export function createStartArgentRemoteSessionBuildFunction(
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
-          deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
+          deviceIdentifier,
+          warmDeviceUdid: warmSession?.device.udid,
           installAppPath: inputs.install_app_path?.value as string | undefined,
           launchAppIdentifier: inputs.launch_app_identifier?.value,
           launchArgs: inputs.launch_args?.value,

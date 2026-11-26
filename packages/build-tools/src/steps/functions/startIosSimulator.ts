@@ -128,8 +128,11 @@ export async function bootIosSimulatorAsync({
   udid: IosSimulatorUuid;
   displayName: string;
 }> {
+  let availableDevices:
+    | Awaited<ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>>
+    | undefined;
   try {
-    const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
+    availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
       env,
       filter: 'available',
     });
@@ -144,15 +147,35 @@ export async function bootIosSimulatorAsync({
     logger.info('');
   }
 
-  const deviceIdentifier = deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
-  if (!deviceIdentifier) {
-    throw new Error('Could not find an iPhone among available simulator devices.');
+  let deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  let resolvedUdid: IosSimulatorUuid | undefined;
+  if (deviceIdentifierInput !== undefined) {
+    deviceIdentifier = deviceIdentifierInput;
+  } else {
+    const defaultUdid = findMostGenericIphoneUuid(
+      availableDevices ??
+        (await IosSimulatorUtils.getAvailableDevicesAsync({
+          env,
+          filter: 'available',
+        }))
+    );
+    if (!defaultUdid) {
+      throw new Error('Could not find an iPhone among available simulator devices.');
+    }
+    deviceIdentifier = defaultUdid;
+    resolvedUdid = defaultUdid;
   }
 
   if (enableAccessibilitySettings) {
     await IosSimulatorUtils.enableAccessibilitySettingsAsync({ deviceIdentifier, env });
   }
-  const udid = await bootWithLocalEgressAsync({ deviceIdentifier, env, logger });
+  const udid = await bootWithLocalEgressAsync({
+    deviceIdentifier,
+    resolvedUdid,
+    availableDevices,
+    env,
+    logger,
+  });
 
   try {
     await IosSimulatorUtils.disableApsdAsync({ udid, env });
@@ -181,14 +204,24 @@ export async function bootIosSimulatorAsync({
  */
 async function bootWithLocalEgressAsync({
   deviceIdentifier,
+  resolvedUdid,
+  availableDevices,
   env,
   logger,
 }: {
   deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+  resolvedUdid?: IosSimulatorUuid;
+  availableDevices?: IosSimulatorUtils.SimulatorDevice[];
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<IosSimulatorUuid> {
-  const udid = await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier, env });
+  const udid =
+    resolvedUdid ??
+    (await IosSimulatorUtils.resolveUdidAsync({
+      deviceIdentifier,
+      env,
+      ...(availableDevices !== undefined ? { availableDevices } : {}),
+    }));
   // The guard and proxy variables ride the boot itself, so launchd has them
   // before it spawns its first process.
   const launchdEnvironment = await resolveLocalEgressBootEnvironmentAsync();
@@ -207,19 +240,13 @@ async function bootWithLocalEgressAsync({
   return udid;
 }
 
-async function findMostGenericIphoneUuidAsync({
-  env,
-}: {
-  env: BuildStepEnv;
-}): Promise<IosSimulatorUuid | null> {
-  const availableSimulatorDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
-    env,
-    filter: 'available',
-  });
-  const availableIphones = availableSimulatorDevices.filter(device =>
-    device.name.startsWith('iPhone')
+function findMostGenericIphoneUuid(
+  availableSimulatorDevices: Awaited<ReturnType<typeof IosSimulatorUtils.getAvailableDevicesAsync>>
+): IosSimulatorUuid | null {
+  const availableIphones = availableSimulatorDevices.filter(
+    device => device.isAvailable !== false && device.name.startsWith('iPhone')
   );
   // It's funny, but it works.
   const iphoneWithShortestName = minBy(availableIphones, device => device.name.length);
-  return iphoneWithShortestName?.udid ?? null;
+  return (iphoneWithShortestName?.udid.toUpperCase() as IosSimulatorUuid | undefined) ?? null;
 }

@@ -572,17 +572,50 @@ describe('IosSimulatorUtils', () => {
   });
 
   describe(IosSimulatorUtils.resolveUdidAsync, () => {
-    it('passes a udid through without listing devices', async () => {
+    function mockAvailableDevices(devices: Record<string, unknown>[]) {
+      mockedSpawn.mockResolvedValue({
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices,
+          },
+        }),
+        stderr: '',
+      } as any);
+    }
+
+    it('verifies a udid against available devices and returns the normalized udid', async () => {
+      mockAvailableDevices([
+        {
+          udid: '8027F627-9534-4679-85BF-0F14AFF228E8',
+          name: 'iPhone 17',
+          isAvailable: true,
+          state: 'Shutdown',
+        },
+      ]);
+
       await expect(
         IosSimulatorUtils.resolveUdidAsync({
           deviceIdentifier: '8027F627-9534-4679-85BF-0F14AFF228E8' as any,
           env: process.env,
         })
       ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
-      expect(mockedSpawn).not.toHaveBeenCalled();
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'list', 'devices', '--json', '--no-escape-slashes', 'available'],
+        { env: process.env, signal: undefined }
+      );
     });
 
-    it('uppercases a udid given in lowercase, matching how simctl lists devices', async () => {
+    it('matches a lowercase udid case-insensitively and returns the normalized udid', async () => {
+      mockAvailableDevices([
+        {
+          udid: '8027F627-9534-4679-85BF-0F14AFF228E8',
+          name: 'iPhone 17',
+          isAvailable: true,
+          state: 'Booted',
+        },
+      ]);
+
       await expect(
         IosSimulatorUtils.resolveUdidAsync({
           deviceIdentifier: '8027f627-9534-4679-85bf-0f14aff228e8' as any,
@@ -591,18 +624,65 @@ describe('IosSimulatorUtils', () => {
       ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
     });
 
+    it('throws EAS_IOS_SIMULATOR_NOT_FOUND when a udid does not match any available device', async () => {
+      mockAvailableDevices([
+        {
+          udid: '8027F627-9534-4679-85BF-0F14AFF228E8',
+          name: 'iPhone 17',
+          isAvailable: true,
+          state: 'Shutdown',
+        },
+        {
+          udid: 'F53B8B3C-B0D2-479C-B959-FA8DA5ED1D31',
+          name: 'iPhone 16',
+          isAvailable: false,
+          state: 'Shutdown',
+        },
+      ]);
+
+      const rejection = IosSimulatorUtils.resolveUdidAsync({
+        deviceIdentifier: 'F53B8B3C-B0D2-479C-B959-FA8DA5ED1D31' as any,
+        env: process.env,
+      });
+
+      await expect(rejection).rejects.toThrow(UserError);
+      await expect(rejection).rejects.toMatchObject({
+        errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+        message: expect.stringContaining('F53B8B3C-B0D2-479C-B959-FA8DA5ED1D31'),
+      });
+      await expect(rejection).rejects.toMatchObject({
+        message: expect.stringContaining('xcrun simctl list devices available'),
+      });
+    });
+
+    it('throws EAS_IOS_SIMULATOR_NOT_FOUND for a nonexistent udid', async () => {
+      mockAvailableDevices([
+        {
+          udid: '8027F627-9534-4679-85BF-0F14AFF228E8',
+          name: 'iPhone 17',
+          isAvailable: true,
+          state: 'Shutdown',
+        },
+      ]);
+
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: '11111111-2222-3333-4444-555555555555' as any,
+          env: process.env,
+        })
+      ).rejects.toMatchObject({
+        errorCode: 'EAS_IOS_SIMULATOR_NOT_FOUND',
+        message: expect.stringContaining('Local machine simulator UDIDs do not exist'),
+      });
+    });
+
     it('resolves a device name to the first available device with that name', async () => {
-      mockedSpawn.mockResolvedValue({
-        stdout: JSON.stringify({
-          devices: {
-            'com.apple.CoreSimulator.SimRuntime.iOS-26-5': [
-              { udid: 'AAAA', name: 'iPhone 17', isAvailable: true, state: 'Shutdown' },
-              { udid: 'BBBB', name: 'iPhone Air', isAvailable: true, state: 'Shutdown' },
-            ],
-          },
-        }),
-        stderr: '',
-      } as any);
+      mockAvailableDevices([
+        { udid: 'AAAA', name: 'iPhone 17', isAvailable: true, state: 'Shutdown' },
+        { udid: '0000', name: 'iPhone Air', isAvailable: false, state: 'Shutdown' },
+        { udid: 'BBBB', name: 'iPhone Air', isAvailable: true, state: 'Shutdown' },
+        { udid: 'CCCC', name: 'iPhone Air', isAvailable: true, state: 'Shutdown' },
+      ]);
 
       await expect(
         IosSimulatorUtils.resolveUdidAsync({
@@ -616,6 +696,60 @@ describe('IosSimulatorUtils', () => {
           env: process.env,
         })
       ).rejects.toThrow(UserError);
+    });
+
+    it('reuses a caller-supplied device list without spawning simctl again', async () => {
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: '8027f627-9534-4679-85bf-0f14aff228e8' as any,
+          env: process.env,
+          availableDevices: [
+            {
+              udid: '8027F627-9534-4679-85BF-0F14AFF228E8',
+              name: 'iPhone 17',
+              isAvailable: true,
+              state: 'Shutdown',
+            } as any,
+          ],
+        })
+      ).resolves.toBe('8027F627-9534-4679-85BF-0F14AFF228E8');
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('forwards the abort signal to simctl and preserves the abort reason', async () => {
+      const controller = new AbortController();
+      const stopped = new Error('Session stopped');
+      const wrapped = new Error('simctl aborted', { cause: stopped });
+      mockedSpawn.mockImplementationOnce((_command, _args, options) => {
+        return new Promise((_resolve, reject) =>
+          options!.signal!.addEventListener('abort', () => reject(wrapped), { once: true })
+        ) as ReturnType<typeof spawn>;
+      });
+
+      const resolving = IosSimulatorUtils.resolveUdidAsync({
+        deviceIdentifier: '8027F627-9534-4679-85BF-0F14AFF228E8' as any,
+        env: process.env,
+        signal: controller.signal,
+      });
+      controller.abort(stopped);
+      await expect(resolving).rejects.toBe(stopped);
+    });
+
+    it('throws the abort reason instead of EAS_IOS_SIMULATOR_NOT_FOUND when aborted during empty listing', async () => {
+      const controller = new AbortController();
+      const stopped = new Error('Session stopped');
+      mockedSpawn.mockImplementationOnce((async () => {
+        controller.abort(stopped);
+        return { stdout: JSON.stringify({ devices: {} }), stderr: '' };
+      }) as any);
+
+      await expect(
+        IosSimulatorUtils.resolveUdidAsync({
+          deviceIdentifier: '8027F627-9534-4679-85BF-0F14AFF228E8' as any,
+          env: process.env,
+          signal: controller.signal,
+        })
+      ).rejects.toBe(stopped);
     });
   });
 

@@ -91,6 +91,7 @@ describe(createStartIosSimulatorBuildFunction, () => {
     expect(mockedUtils.resolveUdidAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'iPhone 15',
       env: expect.any(Object),
+      availableDevices: [],
     });
     expect(mockedUtils.bootAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'base',
@@ -223,6 +224,50 @@ describe(createStartIosSimulatorBuildFunction, () => {
     await expect(createStep({ device_identifier: 'iPhone 15' }).executeAsync()).rejects.toThrow(
       'self-check failed'
     );
+  });
+
+  it('reuses the initial device listing when no device identifier is given', async () => {
+    mockedUtils.getAvailableDevicesAsync.mockResolvedValue([
+      {
+        name: 'iPhone 17 Pro',
+        udid: 'pro-udid',
+        isAvailable: true,
+        displayName: 'iPhone 17 Pro (pro-udid)',
+      },
+      {
+        name: 'iPhone 17',
+        udid: 'unavailable-udid',
+        isAvailable: false,
+        displayName: 'iPhone 17 (unavailable-udid)',
+      },
+      {
+        name: 'iPhone 17',
+        udid: 'base-udid',
+        isAvailable: true,
+        displayName: 'iPhone 17 (base-udid)',
+      },
+    ] as any);
+
+    await createStep().executeAsync();
+
+    expect(mockedUtils.getAvailableDevicesAsync).toHaveBeenCalledTimes(1);
+    expect(mockedUtils.resolveUdidAsync).not.toHaveBeenCalled();
+    expect(mockedUtils.bootAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'BASE-UDID',
+      env: expect.any(Object),
+      launchdEnvironment: {},
+    });
+  });
+
+  it('falls back to listing inside resolveUdidAsync when the initial diagnostic listing fails', async () => {
+    mockedUtils.getAvailableDevicesAsync.mockRejectedValueOnce(new Error('simctl failed'));
+
+    await createStep({ device_identifier: 'iPhone 15' }).executeAsync();
+
+    expect(mockedUtils.resolveUdidAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'iPhone 15',
+      env: expect.any(Object),
+    });
   });
 
   it('continues when disabling apsd fails', async () => {

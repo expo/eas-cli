@@ -374,6 +374,7 @@ describe(createStartAgentDeviceSessionBuildFunction, () => {
     expect(IosSimulatorUtils.resolveUdidAsync).toHaveBeenCalledWith({
       deviceIdentifier: 'iPhone 17',
       env: {},
+      signal: expect.any(AbortSignal),
     });
     expect(bootIosSimulatorAsync).not.toHaveBeenCalled();
 
