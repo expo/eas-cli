@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { AGENT_KINDS, runAgentAsync } from '../utils/agentRun';
+import { MCP_SERVER_NAME } from '../utils/agents/agent';
 
 export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -38,6 +39,11 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'mcp_servers',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
     ],
     fn: async (stepCtx, { inputs, env, signal }) => {
       const inputErrors = {
@@ -45,6 +51,7 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         agentRunId: `The "agent_run_id" input must be the UUID of an agent run, but received "${String(inputs.agent_run_id.value)}".`,
         maxDurationSeconds: `The "max_duration_seconds" input must be a positive whole number of seconds, but received "${String(inputs.max_duration_seconds.value)}".`,
         prompt: 'The "prompt" input must be a non-empty string.',
+        mcpServers: `The "mcp_servers" input must map server names made of letters, digits, underscores and hyphens, other than "${MCP_SERVER_NAME}", to objects with a "url" and optional string "headers".`,
       };
       const parsedInputs = z
         .object({
@@ -55,12 +62,33 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
             .int({ error: inputErrors.maxDurationSeconds })
             .positive({ error: inputErrors.maxDurationSeconds }),
           prompt: z.string({ error: inputErrors.prompt }).min(1, { error: inputErrors.prompt }),
+          mcp_servers: z
+            .record(
+              z
+                .string()
+                .regex(/^[a-zA-Z0-9_-]+$/)
+                .refine(name => name !== MCP_SERVER_NAME),
+              z.object(
+                {
+                  url: z.url({ error: inputErrors.mcpServers }),
+                  headers: z
+                    .record(z.string(), z.string({ error: inputErrors.mcpServers }), {
+                      error: inputErrors.mcpServers,
+                    })
+                    .default({}),
+                },
+                { error: inputErrors.mcpServers }
+              ),
+              { error: inputErrors.mcpServers }
+            )
+            .default({}),
         })
         .safeParse({
           agent_kind: inputs.agent_kind.value,
           agent_run_id: inputs.agent_run_id.value,
           max_duration_seconds: inputs.max_duration_seconds.value,
           prompt: inputs.prompt.value,
+          mcp_servers: inputs.mcp_servers.value,
         });
       if (!parsedInputs.success) {
         throw createValidationError(parsedInputs.error);
@@ -70,6 +98,7 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         agent_run_id: agentRunId,
         max_duration_seconds: maxDurationSeconds,
         prompt,
+        mcp_servers: userMcpServers,
       } = parsedInputs.data;
       const parsedEnv = z
         .object({
@@ -120,6 +149,7 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
           expoToken,
           expoApiV2BaseUrl: ctx.expoApiV2BaseUrl,
           mcpUrl: mcpUrl.toString(),
+          userMcpServers,
           pathEnv,
           npmCacheUrl,
           logger: stepCtx.logger,
@@ -136,5 +166,5 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
 }
 
 function createValidationError(error: z.ZodError): SystemError {
-  return new SystemError(error.issues.map(issue => issue.message).join(' '));
+  return new SystemError(Array.from(new Set(error.issues.map(issue => issue.message))).join(' '));
 }

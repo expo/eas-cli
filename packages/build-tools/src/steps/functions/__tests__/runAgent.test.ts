@@ -32,6 +32,7 @@ const inputs = {
   agent_run_id: { value: '0199b0a0-1111-7222-8333-444455556666' },
   max_duration_seconds: { value: 1800 },
   prompt: { value: 'Fix the failing test.' },
+  mcp_servers: { value: undefined },
 };
 const env = {
   PATH: '/usr/local/bin:/usr/bin',
@@ -129,6 +130,36 @@ describe(createRunAgentBuildFunction, () => {
     }
   });
 
+  it('hands the user MCP servers to the agent run, with no headers when none are given', async () => {
+    const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
+    try {
+      await runAsync({
+        inputs: {
+          ...inputs,
+          mcp_servers: {
+            value: {
+              linear: {
+                url: 'https://mcp.linear.test/mcp',
+                headers: { Authorization: 'Bearer linear-token' },
+              },
+              'my-docs': { url: 'https://docs.example.test/mcp' },
+            },
+          },
+        },
+      });
+
+      expect(runAgentSpy.mock.calls[0][0].userMcpServers).toEqual({
+        linear: {
+          url: 'https://mcp.linear.test/mcp',
+          headers: { Authorization: 'Bearer linear-token' },
+        },
+        'my-docs': { url: 'https://docs.example.test/mcp', headers: {} },
+      });
+    } finally {
+      runAgentSpy.mockRestore();
+    }
+  });
+
   it.each([
     ['wss://staging-mcp.expo.test', 'https://staging-mcp.expo.test/mcp'],
     ['ws://localhost:8787', 'http://localhost:8787/mcp'],
@@ -172,6 +203,16 @@ describe(createRunAgentBuildFunction, () => {
     ['a negative duration', { inputs: { ...inputs, max_duration_seconds: { value: -300 } } }],
     ['a fractional duration', { inputs: { ...inputs, max_duration_seconds: { value: 12.5 } } }],
     ['an empty prompt', { inputs: { ...inputs, prompt: { value: '' } } }],
+    [
+      'an MCP server named like the Expo one',
+      { inputs: { ...inputs, mcp_servers: { value: { expo: { url: 'https://a.test/mcp' } } } } },
+    ],
+    [
+      'an MCP server name with a dot',
+      {
+        inputs: { ...inputs, mcp_servers: { value: { 'my.docs': { url: 'https://a.test/mcp' } } } },
+      },
+    ],
     ['no EXPO_TOKEN', { env: { ...env, EXPO_TOKEN: '' } }],
     ['no PATH', { env: { ...env, PATH: '' } }],
     ['no Expo API URL', { ctx: { ...ctx, expoApiV2BaseUrl: undefined } }],
@@ -198,5 +239,25 @@ describe(createRunAgentBuildFunction, () => {
       'The "agent_run_id" input must be the UUID of an agent run, but received "not-a-uuid". ' +
         'The "max_duration_seconds" input must be a positive whole number of seconds, but received "0".'
     );
+  });
+
+  it('reports several invalid MCP servers with one message', async () => {
+    await expect(
+      runAsync({
+        inputs: {
+          ...inputs,
+          mcp_servers: {
+            value: {
+              expo: { url: 'https://a.test/mcp' },
+              linear: { url: 'not a url' },
+              jira: { url: 'https://a.test/mcp', headers: { 'X-N': 1, 'X-M': 2 } },
+            },
+          },
+        },
+      })
+    ).rejects.toMatchObject({
+      message:
+        'The "mcp_servers" input must map server names made of letters, digits, underscores and hyphens, other than "expo", to objects with a "url" and optional string "headers".',
+    });
   });
 });

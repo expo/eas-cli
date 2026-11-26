@@ -121,6 +121,24 @@ function mockSpawn({
   return invocations;
 }
 
+function mockClaudeCodeStartingWithMcpServers(
+  mcpServers: { name: string; status: string }[]
+): AgentInvocation[] {
+  return mockSpawn({
+    onAgent: agent => {
+      killProcessGroupMock.mockImplementationOnce((_child, signal) =>
+        agent.exit(null, signal as NodeJS.Signals)
+      );
+      agent.child.stdout.write(
+        `${JSON.stringify({ type: 'system', subtype: 'init', mcp_servers: mcpServers })}\n`
+      );
+      agent.child.stdout.write(
+        '{"type":"assistant","message":{"content":[{"type":"text","text":"Working."}]}}\n'
+      );
+    },
+  });
+}
+
 function runDirectories(): string[] {
   return (vol.readdirSync(os.tmpdir()) as string[]).filter(name =>
     name.startsWith('eas-agent-run-')
@@ -137,6 +155,7 @@ function createOptions(
     expoToken: 'expo-token',
     expoApiV2BaseUrl: 'https://staging-api.expo.test/v2/',
     mcpUrl: 'https://staging-mcp.expo.test/mcp',
+    userMcpServers: {},
     pathEnv: '/usr/local/bin:/usr/bin',
     npmCacheUrl: 'https://npm-cache.expo.test',
     logger: createMockLogger(),
@@ -205,7 +224,7 @@ describe(runAgentAsync, () => {
       '--tools',
       '',
       '--allowedTools',
-      'mcp__expo',
+      'mcp__expo__*',
       '--mcp-config',
       path.join(agent.env.HOME, 'mcp.json'),
       '--strict-mcp-config',
@@ -220,6 +239,89 @@ describe(runAgentAsync, () => {
     });
     expect(agent.cwd).toBe(path.join(runDirectory, 'cwd'));
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it('gives Claude Code the user MCP servers next to the Expo one and allows their tools', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        expect(JSON.parse(agent.readHomeFile('mcp.json').content).mcpServers).toEqual({
+          expo: expect.objectContaining({ type: 'http', url: 'https://staging-mcp.expo.test/mcp' }),
+          linear: {
+            type: 'http',
+            url: 'https://mcp.linear.test/mcp',
+            headers: { Authorization: 'Bearer linear-token' },
+          },
+          my__docs: { type: 'http', url: 'https://docs.example.test/mcp', headers: {} },
+        });
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(
+      createOptions({
+        userMcpServers: {
+          linear: {
+            url: 'https://mcp.linear.test/mcp',
+            headers: { Authorization: 'Bearer linear-token' },
+          },
+          my__docs: { url: 'https://docs.example.test/mcp', headers: {} },
+        },
+      })
+    );
+
+    const { args } = invocations[0];
+    expect(args.slice(args.indexOf('--allowedTools'), args.indexOf('--mcp-config'))).toEqual([
+      '--allowedTools',
+      'mcp__expo__*',
+      'mcp__linear__*',
+      'mcp__my__docs__*',
+    ]);
+  });
+
+  it('stops Claude Code before the task when a user MCP server did not connect, whatever the Expo one did', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    const invocations = mockClaudeCodeStartingWithMcpServers([
+      { name: 'expo', status: 'failed' },
+      { name: 'linear', status: 'connected' },
+      { name: 'jira', status: 'needs-auth' },
+      { name: 'docs', status: 'failed' },
+    ]);
+
+    await expect(
+      runAgentAsync(
+        createOptions({
+          userMcpServers: {
+            linear: { url: 'https://mcp.linear.test/mcp', headers: {} },
+            jira: { url: 'https://mcp.jira.test/mcp', headers: {} },
+            docs: { url: 'https://docs.example.test/mcp', headers: {} },
+          },
+        })
+      )
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_RUN_AGENT_MCP_SERVER_NOT_CONNECTED',
+      message: expect.stringContaining(': jira (needs-auth), docs (failed).'),
+    });
+
+    expect(killProcessGroupMock.mock.calls[0]).toEqual([invocations[0].child, 'SIGTERM']);
+    expect(invocations).toHaveLength(1);
+    expect(leaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Claude Code running when only the Expo MCP server did not connect', async () => {
+    leaseMock.mockResolvedValue(anthropicLease);
+    mockSpawn({
+      onAgent: agent => {
+        agent.child.stdout.write(
+          `${JSON.stringify({ type: 'system', subtype: 'init', mcp_servers: [{ name: 'expo', status: 'failed' }] })}\n`
+        );
+        agent.exit(0);
+      },
+    });
+
+    await expect(runAgentAsync(createOptions())).resolves.toBeUndefined();
+
+    expect(killProcessGroupMock).not.toHaveBeenCalledWith(expect.anything(), 'SIGTERM');
   });
 
   it('writes the agent output as log lines', async () => {
@@ -393,6 +495,48 @@ describe(runAgentAsync, () => {
       LANG: 'C.UTF-8',
     });
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it('requires the user MCP servers of Codex but not the Expo one', async () => {
+    leaseMock.mockResolvedValue(openaiLease);
+    mockSpawn({
+      onAgent: agent => {
+        const config = agent.readHomeFile('.codex/config.toml').content;
+        expect(config.slice(config.indexOf('[mcp_servers.'))).toBe(
+          [
+            '[mcp_servers.expo]',
+            'url = "https://staging-mcp.expo.test/mcp"',
+            'default_tools_approval_mode = "approve"',
+            '',
+            '[mcp_servers.expo.http_headers]',
+            '"Authorization" = "Bearer expo-token"',
+            `"X-Expo-Agent-Run-Id" = "${agentRunId}"`,
+            '',
+            '[mcp_servers.linear]',
+            'url = "https://mcp.linear.test/mcp"',
+            'default_tools_approval_mode = "approve"',
+            'required = true',
+            '',
+            '[mcp_servers.linear.http_headers]',
+            '"Authorization" = "Bearer \\"linear\\" token"',
+            '',
+          ].join('\n')
+        );
+        agent.exit(0);
+      },
+    });
+
+    await runAgentAsync(
+      createOptions({
+        agentKind: 'codex',
+        userMcpServers: {
+          linear: {
+            url: 'https://mcp.linear.test/mcp',
+            headers: { Authorization: 'Bearer "linear" token' },
+          },
+        },
+      })
+    );
   });
 
   it('escalates to SIGKILL when the agent ignores the stop', async () => {

@@ -27,6 +27,7 @@ export async function prepareCodexAsync({
   homeDirectory,
   minimalEnv,
   mcpServer,
+  userMcpServers,
   prompt,
   credentials,
   isResuming,
@@ -34,6 +35,7 @@ export async function prepareCodexAsync({
   homeDirectory: string;
   minimalEnv: Record<string, string>;
   mcpServer: McpServer;
+  userMcpServers: Record<string, McpServer>;
   prompt: string;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
@@ -67,17 +69,10 @@ export async function prepareCodexAsync({
       '[analytics]',
       'enabled = false',
       '',
-      `[mcp_servers.${MCP_SERVER_NAME}]`,
-      // JSON strings are valid TOML basic strings.
-      `url = ${JSON.stringify(mcpServer.url)}`,
-      // `approval_policy` would otherwise refuse the server's tools that are not read-only.
-      'default_tools_approval_mode = "approve"',
-      '',
-      `[mcp_servers.${MCP_SERVER_NAME}.http_headers]`,
-      ...Object.entries(mcpServer.headers).map(
-        ([name, value]) => `${JSON.stringify(name)} = ${JSON.stringify(value)}`
+      ...createMcpServerConfigLines(MCP_SERVER_NAME, mcpServer, { isRequired: false }),
+      ...Object.entries(userMcpServers).flatMap(([name, server]) =>
+        createMcpServerConfigLines(name, server, { isRequired: true })
       ),
-      '',
     ].join('\n'),
     { mode: 0o600 }
   );
@@ -109,6 +104,27 @@ export async function prepareCodexAsync({
     stdin: isResuming ? createContinuationPrompt(prompt) : prompt,
     secrets: [credentials.accessToken, credentials.idToken],
   };
+}
+
+function createMcpServerConfigLines(
+  name: string,
+  server: McpServer,
+  { isRequired }: { isRequired: boolean }
+): string[] {
+  return [
+    `[mcp_servers.${name}]`,
+    // JSON strings are valid TOML basic strings.
+    `url = ${JSON.stringify(server.url)}`,
+    // `approval_policy` would otherwise refuse the server's tools that are not read-only.
+    'default_tools_approval_mode = "approve"',
+    ...(isRequired ? ['required = true'] : []),
+    '',
+    `[mcp_servers.${name}.http_headers]`,
+    ...Object.entries(server.headers).map(
+      ([headerName, value]) => `${JSON.stringify(headerName)} = ${JSON.stringify(value)}`
+    ),
+    '',
+  ];
 }
 
 const CodexItemSchema = z.discriminatedUnion('type', [
