@@ -357,7 +357,7 @@ export async function downloadBuildAsync(
         retryAt = 0;
         const response = await fetch(downloadUrl, { headers, signal });
         if (!response.ok) {
-          if (response.status === 429) {
+          if (response.status === 429 || response.status === 503) {
             retryAt = performance.now() + parseRetryAfterMs(response.headers.get('retry-after'));
           }
           const textResult = await asyncResult(response.text());
@@ -408,7 +408,7 @@ export async function downloadBuildAsync(
     if (params.buildId && isRetryableArchiveDownloadError(error)) {
       const message =
         error instanceof ArchiveHttpError
-          ? error.message
+          ? `Failed to download the application archive for build ${params.buildId} (HTTP ${error.status}).`
           : `Could not download the application archive: ${describeError(error)}`;
       throw new SystemError(message, { cause: error });
     }

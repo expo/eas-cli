@@ -759,13 +759,14 @@ describe('downloadBuild', () => {
   });
 
   it.each([
-    ['60', 60_000],
-    ['Wed, 01 Jan 2025 00:01:00 GMT', 60_000],
-    ['Wednesday, 01-Jan-25 00:00:30 GMT', 30_000],
-    ['Wed Jan  1 00:00:30 2025', 30_000],
-    ['0', 1_000],
-    ['invalid', 1_000],
-  ])('honors the archive server cooldown %s', async (retryAfter, delayMs) => {
+    [429, '60', 60_000],
+    [503, '60', 60_000],
+    [429, 'Wed, 01 Jan 2025 00:01:00 GMT', 60_000],
+    [429, 'Wednesday, 01-Jan-25 00:00:30 GMT', 30_000],
+    [429, 'Wed Jan  1 00:00:30 2025', 30_000],
+    [429, '0', 1_000],
+    [429, 'invalid', 1_000],
+  ])('honors the archive HTTP %s cooldown %s', async (status, retryAfter, delayMs) => {
     useFakeBackoffTimers();
     jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
     // Jest only fakes the global timer, so route the cooldown through it.
@@ -780,7 +781,7 @@ describe('downloadBuild', () => {
       .mocked(fetch)
       .mockResolvedValueOnce(
         new ActualResponse('Try again later', {
-          status: 429,
+          status,
           headers: { 'Retry-After': retryAfter },
         })
       )
@@ -902,9 +903,8 @@ describe('downloadBuild', () => {
     useFakeBackoffTimers();
     const { Response: ActualResponse } =
       jest.requireActual<typeof import('node-fetch')>('node-fetch');
-    jest
-      .mocked(fetch)
-      .mockImplementation(async () => new ActualResponse('Try again later', { status }));
+    const responseBody = '<html>Internal proxy error page</html>';
+    jest.mocked(fetch).mockImplementation(async () => new ActualResponse(responseBody, { status }));
     const datadogLog = jest.spyOn(Datadog, 'log');
     const buildId = randomUUID();
     const download = downloadBuildAsync({
@@ -920,8 +920,13 @@ describe('downloadBuild', () => {
     await rejection;
     await expect(download).rejects.toMatchObject({
       errorCode: 'SERVER_ERROR',
-      message: `Failed to download the application archive for build ${buildId} (HTTP ${status}): Try again later`,
-      cause: { name: 'ArchiveHttpError', code: `HTTP_${status}`, status },
+      message: `Failed to download the application archive for build ${buildId} (HTTP ${status}).`,
+      cause: {
+        name: 'ArchiveHttpError',
+        code: `HTTP_${status}`,
+        status,
+        message: expect.stringContaining(responseBody),
+      },
     });
     expect(fetch).toHaveBeenCalledTimes(6);
     expect(datadogLog).toHaveBeenCalledWith(
