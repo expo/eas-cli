@@ -82,7 +82,7 @@ export default class BuildRepack extends EasCommand {
     profile: Flags.string({
       char: 'e',
       description:
-        'Name of the build profile from eas.json to repack with. Its credentials and environment variables are used. Defaults to the profile of the source build.',
+        'Name of the build profile from eas.json to repack with. Its credentials are used for signing, and the environment variables it sets are applied when the JavaScript bundle is built, so a large project can raise the Node.js heap limit with NODE_OPTIONS=--max-old-space-size=8192. Defaults to the profile of the source build.',
       helpValue: 'PROFILE_NAME',
     }),
     'source-profile': Flags.string({
