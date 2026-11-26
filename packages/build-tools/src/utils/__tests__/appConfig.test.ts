@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import { readAppConfig } from '../appConfig';
 
 jest.mock('@expo/env', () => ({
-  load: jest.fn(() => ({ FROM_DOTENV: 'true' })),
+  get: jest.fn(() => ({ env: { FROM_DOTENV: 'true' }, files: [] })),
 }));
 
 jest.mock('@expo/config', () => ({
@@ -22,8 +22,8 @@ const { getConfig } = jest.requireMock('@expo/config') as {
   getConfig: jest.Mock;
 };
 
-const { load: loadEnv } = jest.requireMock('@expo/env') as {
-  load: jest.Mock;
+const { get: getDotenv } = jest.requireMock('@expo/env') as {
+  get: jest.Mock;
 };
 
 const logger = { warn: jest.fn(), info: jest.fn(), error: jest.fn() } as unknown as bunyan;
@@ -91,9 +91,21 @@ describe(readAppConfig, () => {
 
     await readAppConfig({ ...baseParams, sdkVersion: '49.0.0' });
 
-    expect(loadEnv).toHaveBeenCalledWith('/project');
+    expect(getDotenv).toHaveBeenCalledWith('/project');
     expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
       env: { NODE_ENV: 'production', FROM_DOTENV: 'true' },
+    });
+  });
+
+  it('keeps PATH from the passed env instead of process.env', async () => {
+    const config = { exp: { name: 'test-app', slug: 'test-app' } };
+    expoCommandAsync.mockResolvedValue({ stdout: JSON.stringify(config) });
+    const env = { ...baseParams.env, PATH: '/nvm/versions/node/v24.0.0/bin:/usr/bin' };
+
+    await readAppConfig({ ...baseParams, env, sdkVersion: '49.0.0' });
+
+    expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
+      env: { ...env, FROM_DOTENV: 'true' },
     });
   });
 
@@ -103,6 +115,9 @@ describe(readAppConfig, () => {
 
     await readAppConfig({ ...baseParams, sdkVersion: '48.0.0' });
 
-    expect(loadEnv).not.toHaveBeenCalled();
+    expect(getDotenv).not.toHaveBeenCalled();
+    expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
+      env: baseParams.env,
+    });
   });
 });
