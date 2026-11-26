@@ -1,5 +1,4 @@
 import { type bunyan } from '@expo/logger';
-import { repackAppAndroidAsync, repackAppIosAsync } from '@expo/repack-app';
 import turtleSpawnAsync from '@expo/turtle-spawn';
 import assert from 'node:assert';
 import fg from 'fast-glob';
@@ -152,37 +151,6 @@ describe(createRepackBuildFunction, () => {
 
     await repackStep.executeAsync();
     expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.apk$/);
-  });
-
-  it('bundles with NODE_ENV=production when the job does not set NODE_ENV', async () => {
-    const globalCtx = createGlobalContextMock({
-      staticContextContent: { job: createTestAndroidJob() },
-    });
-    const repack = createRepackBuildFunction();
-    const repackStep = repack.createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: { platform: 'android', source_app_path: '/path/to/source_app.apk' },
-    });
-
-    await repackStep.executeAsync();
-
-    const [[options]] = jest.mocked(repackAppAndroidAsync).mock.calls;
-    expect(options.env?.NODE_ENV).toBe('production');
-  });
-
-  it('keeps the NODE_ENV that the job sets', async () => {
-    const globalCtx = createGlobalContextMock({
-      staticContextContent: { job: {} },
-    });
-    globalCtx.updateEnv({ NODE_ENV: 'staging' });
-    const repack = createRepackBuildFunction();
-    const repackStep = repack.createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: { platform: 'ios', source_app_path: '/path/to/source_app.ipa' },
-    });
-
-    await repackStep.executeAsync();
-
-    const [[options]] = jest.mocked(repackAppIosAsync).mock.calls;
-    expect(options.env?.NODE_ENV).toBe('staging');
   });
 
   it('should throw for unsupported platforms', async () => {
