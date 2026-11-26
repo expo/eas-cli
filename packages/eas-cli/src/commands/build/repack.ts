@@ -203,7 +203,6 @@ export default class BuildRepack extends EasCommand {
       jsBundleOnly: flags.jsBundleOnly,
       iosSigningBackend: flags.iosSigningBackend,
       message: flags.message,
-      env: getRepackJobEnv(targetProfile),
     });
     Log.debug(`Repack workflow:\n${yamlConfig}`);
 
@@ -433,15 +432,4 @@ export function assertProfileMatchesSourceBuild({
   throw new Error(
     `Build with ID ${build.id} is an iOS ${buildKind} build, but ${profileLabel} is for ${profileKind}. Pass ${suggestedKind} profile with --profile, or leave it out to use the source build's profile.`
   );
-}
-
-/**
- * The repack job bundles JavaScript with `--dev false`, but Babel and Metro transforms still key
- * off NODE_ENV. When the build profile does not set it, a release app would get a development
- * bundle (with React Refresh code) that crashes on launch, so default it to "production".
- */
-export function getRepackJobEnv(
-  profile: BuildProfile | undefined
-): Record<string, string> | undefined {
-  return profile?.env?.NODE_ENV ? undefined : { NODE_ENV: 'production' };
 }

@@ -35,12 +35,4 @@ describe(createRepackWorkflowYamlConfig, () => {
       message: 'Fix: typo',
     });
   });
-
-  it('sets job environment variables when provided', () => {
-    const config = YAML.parse(
-      createRepackWorkflowYamlConfig({ buildId: 'build-1', env: { NODE_ENV: 'production' } })
-    );
-
-    expect(config.jobs[REPACK_JOB_KEY].env).toEqual({ NODE_ENV: 'production' });
-  });
 });

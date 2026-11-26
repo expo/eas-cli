@@ -14,8 +14,6 @@ export interface RepackWorkflowParams {
   jsBundleOnly?: boolean;
   iosSigningBackend?: IosSigningBackend;
   message?: string;
-  /** Environment variables set on the repack job. */
-  env?: Record<string, string>;
 }
 
 /**
@@ -29,7 +27,6 @@ export function createRepackWorkflowYamlConfig({
   jsBundleOnly,
   iosSigningBackend,
   message,
-  env,
 }: RepackWorkflowParams): string {
   const params: Record<string, string | boolean> = { build_id: buildId };
   if (profile !== undefined) {
@@ -54,7 +51,6 @@ export function createRepackWorkflowYamlConfig({
       [REPACK_JOB_KEY]: {
         name: 'Repack build',
         type: 'repack',
-        ...(env && Object.keys(env).length > 0 ? { env } : {}),
         params,
       },
     },

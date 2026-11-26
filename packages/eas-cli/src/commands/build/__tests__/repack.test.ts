@@ -120,15 +120,9 @@ describe(BuildRepack, () => {
         workflowRunInput: { projectSource },
       })
     );
-    expect(EasJsonUtils.getBuildProfileAsync).toHaveBeenCalledWith(
-      expect.anything(),
-      'ios',
-      'preview'
-    );
     expect(createdWorkflowYaml().jobs.repack).toEqual({
       name: 'Repack build',
       type: 'repack',
-      env: { NODE_ENV: 'production' },
       params: {
         build_id: 'build-1',
         profile: 'preview',
@@ -138,30 +132,6 @@ describe(BuildRepack, () => {
       },
     });
     expect(showWorkflowStatusAsync).not.toHaveBeenCalled();
-  });
-
-  it('keeps the NODE_ENV that the source build profile sets', async () => {
-    jest.mocked(BuildQuery.byIdAsync).mockResolvedValue(mockBuild({ buildProfile: 'staging' }));
-    jest
-      .mocked(EasJsonUtils.getBuildProfileAsync)
-      .mockResolvedValue({ env: { NODE_ENV: 'staging' } } as any);
-
-    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
-
-    expect(EasJsonUtils.getBuildProfileAsync).toHaveBeenCalledWith(
-      expect.anything(),
-      'ios',
-      'staging'
-    );
-    expect(createdWorkflowYaml().jobs.repack.env).toBeUndefined();
-  });
-
-  it('defaults NODE_ENV to production when the build profile cannot be read', async () => {
-    jest.mocked(EasJsonUtils.getBuildProfileAsync).mockRejectedValue(new Error('no eas.json'));
-
-    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
-
-    expect(createdWorkflowYaml().jobs.repack.env).toEqual({ NODE_ENV: 'production' });
   });
 
   it('prompts for a build when no ID is given', async () => {
