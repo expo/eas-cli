@@ -153,7 +153,8 @@ export default class SessionManager {
 
     if (!actor) {
       Log.warn('An Expo user account is required to proceed.');
-      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true });
+      // Same default as `eas login`: accounts created with Apple, Google or GitHub have no password.
+      await this.showLoginPromptAsync({ nonInteractive, printNewLine: true, browser: true });
       actor = await this.getUserAsync();
     }
 
