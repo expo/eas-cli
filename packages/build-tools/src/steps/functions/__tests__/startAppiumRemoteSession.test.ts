@@ -584,7 +584,9 @@ describe('createStartAppiumRemoteSessionBuildFunction', () => {
         '--log-level',
         'error',
         '--allow-insecure',
-        '*:session_discovery',
+        runtimePlatform === BuildRuntimePlatform.DARWIN
+          ? '*:session_discovery'
+          : '*:session_discovery,uiautomator2:chromedriver_autodownload',
         '--default-capabilities',
         runtimePlatform === BuildRuntimePlatform.DARWIN
           ? '{"appium:eventTimings":true,"appium:isHeadless":true}'
