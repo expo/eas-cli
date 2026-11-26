@@ -1072,7 +1072,9 @@ async function waitForSessionEndOrInterruptAsync({
       spinner.succeed('Simulator session stopped');
       await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
     } else {
-      spinner.fail(
+      // stderr: stdout may be a closed pipe, and the user needs this command.
+      spinner.stop();
+      Log.warnToStderr(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
     }
@@ -1088,6 +1090,13 @@ async function waitForSessionEndOrInterruptAsync({
  */
 const INTERRUPT_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 type InterruptSignal = (typeof INTERRUPT_SIGNALS)[number];
+
+/**
+ * How long after the first signal another signal still counts as the same cancellation. Runners such
+ * as `pnpm dlx` forward the signal to the CLI, and the terminal also sends it to the CLI's process
+ * group, so one Ctrl+C can arrive twice within milliseconds. Only a later signal forces an exit.
+ */
+const REPEATED_SIGNAL_WINDOW_MS = 1_000;
 
 /** Shell convention: 128 + the signal number. */
 const EXIT_CODE_BY_INTERRUPT_SIGNAL: Record<InterruptSignal, number> = {
@@ -1161,6 +1170,7 @@ function registerSessionInterrupt(
   // Tracked apart from `signal.aborted`: a local egress failure also aborts the session, and the
   // first real signal after that must not force an exit while the stop is running.
   let signalReceived = false;
+  let firstSignalAt = 0;
   let cleanupHandled = false;
   let stopPromise: Promise<boolean> | undefined;
   const stopSessionAsync = async (): Promise<boolean> =>
@@ -1171,14 +1181,19 @@ function registerSessionInterrupt(
     ));
   const interruptHandler = (interruptSignal: InterruptSignal): void => {
     if (signalReceived) {
+      if (Date.now() - firstSignalAt < REPEATED_SIGNAL_WINDOW_MS) {
+        // The same cancellation, delivered again by a runner.
+        return;
+      }
       // Force exit on a second signal in case cleanup is hanging. The session may still be
       // running on EAS, so tell the user how to make sure it gets terminated.
       Log.error(
         `Aborted before the simulator session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
-      process.exit(EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal]);
+      process.exit(exitCode);
     }
     signalReceived = true;
+    firstSignalAt = Date.now();
     exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal];
     abortController.abort();
     // Start the stop now. Local cleanup, such as closing the egress tunnel, can take seconds, and a
@@ -1248,7 +1263,9 @@ async function stopDeviceRunSessionAfterInterruptAsync({
         );
       });
     } else {
-      spinner.fail(
+      // stderr: stdout may be a closed pipe, and the user needs this command.
+      spinner.stop();
+      Log.warnToStderr(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
     }
@@ -1367,7 +1384,8 @@ class SimulatorRequestCancelledError extends Error {}
  * request: a session that comes back goes to `stopCreatedAsync`, and otherwise the user is told how
  * to check for one. Then it exits with 130 (143 for SIGTERM), like the session's own Ctrl+C
  * handler: going through the command's error handling would print the exit as an error and report it
- * to Sentry. A second Ctrl+C or SIGTERM exits at once.
+ * to Sentry. A second Ctrl+C or SIGTERM exits at once, unless it arrives within
+ * `REPEATED_SIGNAL_WINDOW_MS` of the first: then it is the same cancellation, forwarded by a runner.
  */
 async function withSimulatorRequestAnalyticsAsync<T>(
   analytics: AnalyticsWithOrchestration,
@@ -1377,15 +1395,21 @@ async function withSimulatorRequestAnalyticsAsync<T>(
   stopCreatedAsync: (created: T) => Promise<void>
 ): Promise<T> {
   let cancelRequested = false;
+  let firstSignalAt = 0;
   let exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL.SIGINT;
   let onInterrupt: ((signal: InterruptSignal) => void) | undefined;
   const cancelled = new Promise<never>((_, reject) => {
     onInterrupt = signal => {
       if (cancelRequested) {
+        if (Date.now() - firstSignalAt < REPEATED_SIGNAL_WINDOW_MS) {
+          // The same cancellation, delivered again by a runner.
+          return;
+        }
         Log.warn(SESSION_MAY_BE_RUNNING_WARNING);
-        process.exit(EXIT_CODE_BY_INTERRUPT_SIGNAL[signal]);
+        process.exit(exitCode);
       }
       cancelRequested = true;
+      firstSignalAt = Date.now();
       exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL[signal];
       reject(new SimulatorRequestCancelledError());
     };

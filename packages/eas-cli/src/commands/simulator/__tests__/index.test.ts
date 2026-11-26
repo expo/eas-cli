@@ -95,6 +95,7 @@ jest.mock('../../../ora', () => ({
     const spinner = {
       fail: jest.fn(),
       start: jest.fn(),
+      stop: jest.fn(),
       succeed: jest.fn(),
     };
     spinner.start.mockReturnValue(spinner);
@@ -1514,6 +1515,37 @@ describe(Simulator, () => {
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
         expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('waits for the create request when a runner repeats the signal right after the first', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5);
+      process.emit('SIGTERM');
+      expect(processExitSpy).not.toHaveBeenCalled();
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(0);
+      await exited;
+
+      // The repeated signal did not abandon the wait, so the late session is stopped.
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
       );
     } finally {
       processExitSpy.mockRestore();
@@ -4053,12 +4085,78 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
+  it('treats a signal that a runner forwards right after the first as the same cancellation', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    const now = jest.spyOn(Date, 'now');
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      // Like `pnpm dlx`: the terminal sends SIGINT to the process group, and the runner forwards
+      // SIGTERM a moment later.
+      now.mockReturnValue(10_000);
+      process.emit('SIGINT');
+      now.mockReturnValue(10_005);
+      process.emit('SIGTERM');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.error).not.toHaveBeenCalled();
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('keeps the first exit code when a runner repeats the signal before the session is ready', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    const now = jest.spyOn(Date, 'now');
+    mockByIdAsync.mockImplementationOnce(async () => {
+      now.mockReturnValue(10_000);
+      process.emit('SIGTERM');
+      now.mockReturnValue(10_005);
+      process.emit('SIGTERM');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(Log.error).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes the recovery command to stderr when the stop after an interrupt cannot be confirmed', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValueOnce(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(Log.warnToStderr).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:stop --id session-123')
+    );
+  });
+
   it('force exits when a second interrupt arrives', async () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
+    const now = jest.spyOn(Date, 'now');
     mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      now.mockReturnValue(10_000);
       process.emit('SIGINT');
+      // A second Ctrl+C after the window for a runner's repeated signal.
+      now.mockReturnValue(11_000);
       process.emit('SIGINT');
       return makeDeviceRunSession();
     });
