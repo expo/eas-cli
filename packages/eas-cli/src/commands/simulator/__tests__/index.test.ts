@@ -64,6 +64,7 @@ jest.mock('../../../log', () => ({
     log: jest.fn(),
     newLine: jest.fn(),
     warn: jest.fn(),
+    warnToStderr: jest.fn(),
     error: jest.fn(),
     succeed: jest.fn(),
     withTick: jest.fn(),
@@ -3966,6 +3967,17 @@ describe(Simulator, () => {
     expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
+  it('clears the saved session ID when polling for readiness fails', async () => {
+    mockByIdAsync.mockRejectedValueOnce(new Error('poll failed'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('poll failed');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    // Otherwise .env.eas-simulator keeps pointing to the stopped session.
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
   it('does not wait for stdout when the dotenv file hands off the session', async () => {
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
@@ -3983,7 +3995,8 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
     await expect(command.runAsync()).rejects.toThrow('print failed');
 
-    expect(Log.warn).toHaveBeenCalledWith(
+    // stderr, since stdout may be the closed pipe that caused the error.
+    expect(Log.warnToStderr).toHaveBeenCalledWith(
       expect.stringContaining('eas simulator:stop --id session-123')
     );
     expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();

@@ -588,7 +588,9 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
-      await sessionInterrupt.stopSessionAsync();
+      // Also clears the session ID saved in .env.eas-simulator, so it does not point to a stopped
+      // session.
+      await stopDeviceRunSessionAfterStartupErrorAsync({ sessionInterrupt, projectDir, jsonFlag });
       sessionInterrupt.exitIfSignalReceived();
       sessionInterrupt.dispose();
       throw err;
@@ -605,7 +607,7 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
-      await sessionInterrupt.stopSessionAsync();
+      await stopDeviceRunSessionAfterStartupErrorAsync({ sessionInterrupt, projectDir, jsonFlag });
       sessionInterrupt.exitIfSignalReceived();
       sessionInterrupt.dispose();
       throw new Error(
@@ -919,6 +921,11 @@ With local egress, actions wait for the connection and require interactive mode.
       } else {
         // A stop started by a signal may still be running.
         await sessionInterrupt.stopSessionAsync();
+      }
+      if (sessionInterrupt.signal.aborted) {
+        // Let local egress shut down before a signal exit skips the `finally` below.
+        egressAbortController.abort();
+        await egressPromise;
       }
       sessionInterrupt.exitIfSignalReceived();
       throw error;
@@ -1268,7 +1275,8 @@ async function stopDeviceRunSessionAfterStartupErrorAsync({
   sessionInterrupt.markCleanupHandled();
   const stopped = await sessionInterrupt.stopSessionAsync();
   if (!stopped) {
-    Log.warn(
+    // stderr: the error may be that stdout is a closed pipe, and the user needs this command.
+    Log.warnToStderr(
       `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
     );
     return;
