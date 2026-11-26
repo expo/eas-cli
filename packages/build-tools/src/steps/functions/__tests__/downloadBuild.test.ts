@@ -292,6 +292,27 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
+  it('logs the downloaded size without a redundant bytes suffix', async () => {
+    const applicationArchiveUrl = `https://expo.dev/artifacts/eas/${randomUUID()}.apk`;
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: Buffer.alloc(2.5 * 1024 * 1024),
+        url: applicationArchiveUrl,
+      })
+    );
+    const logger = createMockLogger();
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger,
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(logger.info).toHaveBeenCalledWith(`Downloaded ${artifactPath} (2.5 MB).`);
+  });
+
   it('downloads a direct application archive URL without querying GraphQL or forwarding the EAS token', async () => {
     const applicationArchiveUrl = `https://artifacts.example.test/${randomUUID()}.apk`;
     const graphqlClient = createMockGraphqlClient({
