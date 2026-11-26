@@ -183,12 +183,20 @@ export async function captureDeviceRunSessionPreviewAsync({
   env,
   signal,
   captureIosScreenshotAsync,
+  captureAndroidScreenshotAsync,
+  logger,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   device: string;
   env: BuildStepEnv;
   signal: AbortSignal;
-  captureIosScreenshotAsync?: IosScreenshotCapture;
+  captureIosScreenshotAsync?: ScreenshotCapture;
+  /**
+   * serve-emu's automated capture. Without it, or when it fails, Android uses adb screencap, with
+   * no rotation.
+   */
+  captureAndroidScreenshotAsync?: ScreenshotCapture;
+  logger?: bunyan;
 }): Promise<DeviceRunSessionPreviewCapture> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'session-preview-'));
   try {
@@ -208,8 +216,14 @@ export async function captureDeviceRunSessionPreviewAsync({
         options,
       }));
     } else {
-      // adb screencap reports no rotation.
-      await captureAndroidPreviewAsync({ device, directory, preview, options });
+      ({ displayRotation } = await captureAndroidPreviewAsync({
+        captureAndroidScreenshotAsync,
+        device,
+        directory,
+        preview,
+        options,
+        logger,
+      }));
     }
     const image = await readFile(preview);
     return { image, displayRotation };
@@ -218,10 +232,10 @@ export async function captureDeviceRunSessionPreviewAsync({
   }
 }
 
-/** A PNG from the Simulator, with the rotation when the capture source confirmed it. */
-export type IosScreenshot = { image: Buffer } & CapturedDisplayRotation;
+/** A PNG from the device, with the rotation when the capture source confirmed it. */
+export type DeviceScreenshot = { image: Buffer } & CapturedDisplayRotation;
 
-type IosScreenshotCapture = (signal: AbortSignal) => Promise<IosScreenshot>;
+type ScreenshotCapture = (signal: AbortSignal) => Promise<DeviceScreenshot>;
 
 type CaptureOptions = {
   env: BuildStepEnv;
@@ -236,7 +250,7 @@ async function captureIosPreviewAsync({
   preview,
   options,
 }: {
-  captureIosScreenshotAsync: IosScreenshotCapture;
+  captureIosScreenshotAsync: ScreenshotCapture;
   directory: string;
   preview: string;
   options: CaptureOptions;
@@ -252,36 +266,44 @@ async function captureIosPreviewAsync({
 }
 
 async function captureAndroidPreviewAsync({
+  captureAndroidScreenshotAsync,
   device,
   directory,
   preview,
   options,
+  logger,
 }: {
+  captureAndroidScreenshotAsync?: ScreenshotCapture;
   device: string;
   directory: string;
   preview: string;
   options: CaptureOptions;
-}): Promise<void> {
+  logger?: bunyan;
+}): Promise<CapturedDisplayRotation> {
   const screenshot = path.join(directory, 'screen.png');
-  let serial = device;
-  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
-  if (serial === 'no-device-id') {
-    const result = await spawn('adb', ['devices'], options);
-    const devices = result.stdout
-      .split('\n')
-      .map(line => line.trim().split(/\s+/))
-      .filter(([, status]) => status === 'device');
-    if (devices.length !== 1) {
-      throw new Error('Expected exactly one connected Android device for the session preview.');
+  let captured: DeviceScreenshot | undefined;
+  if (captureAndroidScreenshotAsync) {
+    // serve-emu captures through its streaming app, which can fail to start or stop streaming
+    // while adb still works, so a failed capture uses adb for this preview.
+    const result = await asyncResult(captureAndroidScreenshotAsync(options.signal));
+    options.signal.throwIfAborted();
+    if (result.ok) {
+      captured = result.value;
+    } else {
+      logger?.warn(
+        { err: result.reason },
+        'serve-emu could not capture the session preview; capturing it with adb, without the ' +
+          'display rotation.'
+      );
     }
-    serial = devices[0][0];
   }
-  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
-  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
-  await Promise.all([
-    capture,
-    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
-  ]);
+  if (captured) {
+    await writeFile(screenshot, captured.image);
+  } else {
+    // adb screencap reports no rotation.
+    await captureAdbScreenshotAsync({ device, screenshot, options });
+  }
+  const displayRotation = captured?.displayRotation;
   await spawn(
     'ffmpeg',
     [
@@ -301,4 +323,36 @@ async function captureAndroidPreviewAsync({
     ],
     options
   );
+  return { displayRotation };
+}
+
+/** For expo-device-hub versions without serve-emu's automated screenshot. */
+async function captureAdbScreenshotAsync({
+  device,
+  screenshot,
+  options,
+}: {
+  device: string;
+  screenshot: string;
+  options: CaptureOptions;
+}): Promise<void> {
+  let serial = device;
+  // expo-device-hub's readiness endpoint currently reports a placeholder instead of a serial.
+  if (serial === 'no-device-id') {
+    const result = await spawn('adb', ['devices'], options);
+    const devices = result.stdout
+      .split('\n')
+      .map(line => line.trim().split(/\s+/))
+      .filter(([, status]) => status === 'device');
+    if (devices.length !== 1) {
+      throw new Error('Expected exactly one connected Android device for the session preview.');
+    }
+    serial = devices[0][0];
+  }
+  const capture = spawn('adb', ['-s', serial, 'exec-out', 'screencap', '-p'], options);
+  // Preserve binary PNG output instead of spawn-async's UTF-8 stdout conversion.
+  await Promise.all([
+    capture,
+    pipeline(capture.child.stdout!, createWriteStream(screenshot), { signal: options.signal }),
+  ]);
 }

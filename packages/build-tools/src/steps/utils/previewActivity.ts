@@ -3,7 +3,7 @@ import { type bunyan } from '@expo/logger';
 const POLL_INTERVAL_MS = 5_000;
 const REQUEST_TIMEOUT_MS = 5_000;
 // expo-device-hub serves serve-emu, which records Android preview input, under this prefix.
-const EXPO_DEVICE_HUB_SERVE_EMU_PREFIX = '/vendor/serve-emu';
+export const EXPO_DEVICE_HUB_SERVE_EMU_PREFIX = '/vendor/serve-emu';
 
 /** The preview server whose input log counts as session activity. */
 export type PreviewActivityServer = 'serve-sim' | 'expo-device-hub';
