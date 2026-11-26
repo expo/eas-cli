@@ -1,9 +1,11 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { SystemError } from '@expo/eas-build-job';
 import { constants } from 'node:fs';
 import { cp, mkdir, mkdtemp, realpath, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
+
+import { classifySimctlInstallError, classifySimctlOpenUrlError } from './simctlErrors';
 
 export async function stageServeSimAppAsync(
   appPath: string,
@@ -120,17 +122,18 @@ export async function runServeSimActionWithResultAsync({
   });
 }
 
-// simctl's IXUserPresentableErrorDomain message when the app's minimum iOS version is above the Simulator runtime.
-const NEWER_IOS_REQUIRED_MESSAGE = 'Requires a Newer Version of iOS';
-
 function createServeSimActionError(action: string, detail: string): Error {
   const message = `serve-sim ${action} failed: ${detail}`;
-  if (action === 'app.install' && detail.includes(NEWER_IOS_REQUIRED_MESSAGE)) {
-    return new UserError(
-      'EAS_INSTALL_APPLICATION_REQUIRES_NEWER_IOS',
-      "This app requires a newer iOS version than the selected iOS Simulator runs. Choose an iOS Simulator device whose iOS version meets the app's minimum iOS version, or lower the app's iOS deployment target.",
-      { cause: new Error(message) }
-    );
+  if (action === 'app.install') {
+    const userError = classifySimctlInstallError(detail, new Error(message));
+    if (userError) {
+      return userError;
+    }
+  } else if (action === 'app.launch' || action === 'app.openurl') {
+    const userError = classifySimctlOpenUrlError(detail, new Error(message));
+    if (userError) {
+      return userError;
+    }
   }
   return new SystemError(message);
 }

@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
+import { classifySimctlInstallError, getSpawnOutputDetail } from '../utils/simctlErrors';
+
 export function createInstallBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -94,7 +96,11 @@ export async function installBuildAsync({
     }
 
     logger.info(`Installing ${artifactPath} on the iOS Simulator.`);
-    await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
+    try {
+      await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
+    } catch (error) {
+      throw classifySimctlInstallError(getSpawnOutputDetail(error), error) ?? error;
+    }
     return { applicationIdentifier };
   }
 

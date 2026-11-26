@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { spawnSync } from 'node:child_process';
@@ -129,6 +130,75 @@ describe(launchApplicationAsync, () => {
       { err: approvalError },
       'Could not preapprove the exp URL scheme for host.exp.Exponent. Opening the URL anyway; the Simulator might require manual confirmation.'
     );
+  });
+
+  it('classifies an unregistered URL scheme from iOS simctl openurl as a user error', async () => {
+    const openUrlError = Object.assign(
+      new Error(
+        'xcrun simctl openurl booted exp+clad-next://expo-development-client/ exited with non-zero code: 115'
+      ),
+      {
+        stderr: [
+          'An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=115):',
+          'Simulator device failed to open exp+clad-next://expo-development-client/?url=https%3A%2F%2Fexample.test',
+          'Underlying error (domain=LSApplicationWorkspaceErrorDomain, code=115):',
+          '    The operation couldn’t be completed. (LSApplicationWorkspaceErrorDomain error 115.)',
+        ].join('\n'),
+        stdout: '',
+      }
+    );
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockRejectedValueOnce(openUrlError);
+
+    const error = await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      openUrl: 'exp+clad-next://expo-development-client/?url=https%3A%2F%2Fexample.test',
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger: createMockLogger(),
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(UserError);
+    expect(error).toMatchObject({
+      errorCode: 'EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+      message: expect.stringContaining('registers the URL scheme specified in open_url'),
+      cause: openUrlError,
+    });
+  });
+
+  it('rethrows unrelated iOS simctl openurl failures unchanged', async () => {
+    const openUrl =
+      'myapp://host/?err=domain=LSApplicationWorkspaceErrorDomain,code=115&msg=LSApplicationWorkspaceErrorDomain%20error%20115';
+    const openUrlError = Object.assign(
+      new Error(
+        `xcrun simctl openurl booted ${openUrl} (domain=LSApplicationWorkspaceErrorDomain, code=115) exited with non-zero code: 114`
+      ),
+      {
+        stderr: [
+          'An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=114):',
+          `Simulator device failed to open ${openUrl}`,
+          'Underlying error (domain=LSApplicationWorkspaceErrorDomain, code=114):',
+          '    The operation couldn’t be completed. (LSApplicationWorkspaceErrorDomain error 114.)',
+        ].join('\n'),
+        stdout: '',
+      }
+    );
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockRejectedValueOnce(openUrlError);
+
+    await expect(
+      launchApplicationAsync({
+        applicationIdentifier: 'com.example.app',
+        openUrl,
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toBe(openUrlError);
   });
 
   it('launches an Android Emulator application by package and activity', async () => {

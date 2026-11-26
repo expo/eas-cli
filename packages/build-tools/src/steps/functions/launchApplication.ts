@@ -9,6 +9,8 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
+import { classifySimctlOpenUrlError, getSpawnOutputDetail } from '../utils/simctlErrors';
+
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
 
@@ -91,7 +93,11 @@ export async function launchApplicationAsync({
     if (openUrl) {
       await preapproveIosUrlSchemeAsync({ applicationIdentifier, openUrl, env, logger });
       logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
-      await spawn('xcrun', ['simctl', 'openurl', 'booted', openUrl], { env, logger });
+      try {
+        await spawn('xcrun', ['simctl', 'openurl', 'booted', openUrl], { env, logger });
+      } catch (error) {
+        throw classifySimctlOpenUrlError(getSpawnOutputDetail(error), error) ?? error;
+      }
     }
     return;
   }

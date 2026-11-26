@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
@@ -133,6 +134,81 @@ describe(installBuildAsync, () => {
       ['aapt2', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
       ['adb', ['install', '-r', artifactPath], { env: {}, logger }],
     ]);
+  });
+
+  it.each([
+    [
+      'EAS_INSTALL_APPLICATION_REQUIRES_NEWER_IOS',
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain):\nRequires a Newer Version of iOS\n“Example” requires a newer version of iOS.',
+    ],
+    [
+      'EAS_INSTALL_APPLICATION_INCOMPATIBLE_ARCH',
+      [
+        'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=4):',
+        'App installation failed: “AIRIS” Needs to Be Updated',
+        'This app needs to be updated by the developer to work on this version of iOS.',
+        'Failed to find matching arch for input file: /tmp/AIRIS.app/AIRIS',
+      ].join('\n'),
+    ],
+    [
+      'EAS_INSTALL_APPLICATION_INCOMPATIBLE_DEVICE_FAMILY',
+      [
+        'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+        'App installation failed: Unable to Install “ClinicTVApp”',
+        'This app is not made for this device.',
+        'This app was not built to support this device family; app is compatible with (\n    3\n) but this device supports (\n    1\n)',
+      ].join('\n'),
+    ],
+  ])('classifies iOS simctl install error as %s', async (expectedErrorCode, stderr) => {
+    const temporaryDirectory = await makeTemporaryDirectoryAsync();
+    const artifactPath = path.join(temporaryDirectory, 'Example.app');
+    await fs.promises.mkdir(artifactPath);
+    const installError = Object.assign(
+      new Error('xcrun simctl install booted exited with non-zero code: 4'),
+      { stderr, stdout: '' }
+    );
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: 'com.example.app\n', stderr: '' } as any)
+      .mockRejectedValueOnce(installError);
+
+    const error = await installBuildAsync({
+      artifactPath,
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger: createMockLogger(),
+    }).catch(err => err);
+
+    expect(error).toBeInstanceOf(UserError);
+    expect(error).toMatchObject({
+      errorCode: expectedErrorCode,
+      cause: installError,
+    });
+  });
+
+  it('rethrows unrelated iOS simctl install failures unchanged', async () => {
+    const temporaryDirectory = await makeTemporaryDirectoryAsync();
+    const artifactPath = path.join(temporaryDirectory, 'Requires a Newer Version of iOS.app');
+    await fs.promises.mkdir(artifactPath);
+    const installError = Object.assign(
+      new Error(`xcrun simctl install booted ${artifactPath} exited with non-zero code: 1`),
+      {
+        stderr:
+          'An error was encountered processing the command (domain=IXUserPresentableErrorDomain):\nThis app could not be installed at this time.',
+        stdout: '',
+      }
+    );
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: 'com.example.app\n', stderr: '' } as any)
+      .mockRejectedValueOnce(installError);
+
+    await expect(
+      installBuildAsync({
+        artifactPath,
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: {},
+        logger: createMockLogger(),
+      })
+    ).rejects.toBe(installError);
   });
 
   it('exposes the installed application identifier and activity as step outputs', async () => {
