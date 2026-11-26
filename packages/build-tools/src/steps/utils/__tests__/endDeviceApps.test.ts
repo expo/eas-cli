@@ -20,6 +20,18 @@ function fakeSpawn(answers: Record<string, string | Error>): void {
   }) as never);
 }
 
+function spawnError(stderr: string): Error {
+  return Object.assign(new Error('xcrun exited with non-zero code: 3'), { stderr });
+}
+
+function everyCommandHasDeadline(): boolean {
+  return jest
+    .mocked(spawn)
+    .mock.calls.every(
+      ([, , options]) => (options as { signal?: unknown }).signal instanceof AbortSignal
+    );
+}
+
 function deviceCommands(): { argv: string[]; signal: unknown }[] {
   return jest
     .mocked(spawn)
@@ -39,8 +51,9 @@ describe(endDeviceAppsAsync, () => {
     jest.mocked(spawn).mockReset();
   });
 
-  it('terminates the non-system apps on every Simulator, past an app and a Simulator that fail', async () => {
+  it('terminates the non-system apps on every Simulator, past an app that exited and a Simulator that fails', async () => {
     const wedged = new Error('timed out');
+    const refused = spawnError('Unable to terminate host.exp.Exponent');
     fakeSpawn({
       'xcrun simctl list devices --json --no-escape-slashes booted': bootedList,
       [`xcrun simctl spawn ${A} launchctl list`]: wedged,
@@ -52,7 +65,10 @@ describe(endDeviceAppsAsync, () => {
         '-\t0\tcom.apple.mobilesafari.webcontent',
       ].join('\n'),
       // Exited between the list and the terminate.
-      [`xcrun simctl terminate ${B} dev.expo.easexample`]: new Error('found nothing to terminate'),
+      [`xcrun simctl terminate ${B} dev.expo.easexample`]: spawnError(
+        'Simulator device failed to terminate dev.expo.easexample.\nfound nothing to terminate'
+      ),
+      [`xcrun simctl terminate ${B} host.exp.Exponent`]: refused,
     });
 
     const error = await endDeviceAppsAsync({
@@ -74,7 +90,9 @@ describe(endDeviceAppsAsync, () => {
     expect(error).toBeInstanceOf(AggregateError);
     expect((error as AggregateError).errors.map((err: Error) => [err.message, err.cause])).toEqual([
       [`Could not end the apps on the Simulator ${A}.`, wedged],
+      [`Could not end the apps on the Simulator ${B}.`, refused],
     ]);
+    expect(everyCommandHasDeadline()).toBe(true);
   });
 
   it('force-stops the installed apps on each online emulator', async () => {
@@ -98,5 +116,6 @@ describe(endDeviceAppsAsync, () => {
       [['adb', '-s', 'emulator-5554', 'shell'], expect.any(AbortSignal)],
       [['adb', '-s', 'emulator-5558', 'shell'], expect.any(AbortSignal)],
     ]);
+    expect(everyCommandHasDeadline()).toBe(true);
   });
 });

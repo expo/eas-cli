@@ -27,6 +27,7 @@ export async function endDeviceAppsAsync({
       const simulators = await IosSimulatorUtils.getAvailableDevicesAsync({
         env,
         filter: 'booted',
+        signal,
       });
       await endOnEachDeviceAsync(
         simulators.map(({ udid }) => [
@@ -37,7 +38,7 @@ export async function endDeviceAppsAsync({
       return;
     }
     case BuildRuntimePlatform.LINUX: {
-      const emulators = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env });
+      const emulators = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env, signal });
       await endOnEachDeviceAsync(
         emulators
           .filter(({ state }) => state === 'device')

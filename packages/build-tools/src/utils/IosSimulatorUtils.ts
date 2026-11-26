@@ -78,14 +78,16 @@ export namespace IosSimulatorUtils {
   export async function getAvailableDevicesAsync({
     env,
     filter,
+    signal,
   }: {
     env: NodeJS.ProcessEnv;
     filter: 'available' | 'booted';
+    signal?: AbortSignal;
   }): Promise<SimulatorDevice[]> {
     const result = await spawn(
       'xcrun',
       ['simctl', 'list', 'devices', '--json', '--no-escape-slashes', filter],
-      { env }
+      { env, signal }
     );
     const xcrunData = JSON.parse(result.stdout) as XcrunSimctlListDevicesJsonOutput;
 
@@ -131,8 +133,10 @@ export namespace IosSimulatorUtils {
         logger.info(`Ended ${app} on the Simulator ${udid}.`);
       } catch (err) {
         signal?.throwIfAborted();
-        // "found nothing to terminate" when the app exited after the list.
-        logger.warn({ err }, `Could not end ${app} on the Simulator ${udid}.`);
+        // The app exited between the list and the terminate.
+        if (!(err as { stderr?: string }).stderr?.includes('found nothing to terminate')) {
+          throw err;
+        }
       }
     }
   }

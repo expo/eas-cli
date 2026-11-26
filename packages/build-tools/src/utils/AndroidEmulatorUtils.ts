@@ -53,12 +53,12 @@ export namespace AndroidEmulatorUtils {
 
   export async function getAttachedDevicesAsync({
     env,
+    signal,
   }: {
     env: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
   }): Promise<{ serialId: AndroidDeviceSerialId; state: 'offline' | 'device' }[]> {
-    const result = await spawn('adb', ['devices', '-l'], {
-      env,
-    });
+    const result = await spawn('adb', ['devices', '-l'], { env, signal });
     return result.stdout
       .replace(/\r\n/g, '\n')
       .split('\n')
@@ -671,7 +671,7 @@ export namespace AndroidEmulatorUtils {
         '-s',
         serialId,
         'shell',
-        'for p in $(pm list packages -3 | cut -d: -f2); do am force-stop "$p"; done',
+        'for p in $(pm list packages -3 | cut -d: -f2); do am force-stop "$p" || exit 1; done',
       ],
       { env, signal }
     );
