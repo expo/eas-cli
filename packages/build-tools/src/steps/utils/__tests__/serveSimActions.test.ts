@@ -109,6 +109,42 @@ const NEWER_IOS_REQUIRED_STDERR = [
   '“Example” requires a newer version of iOS.',
 ].join('\n');
 
+const INCOMPATIBLE_ARCH_STDERR = [
+  'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=4):',
+  'App installation failed: “AIRIS” Needs to Be Updated',
+  'This app needs to be updated by the developer to work on this version of iOS.',
+  'Failed to find matching arch for input file: /tmp/serve-sim-uploads/eas-app-123/AIRIS.app/AIRIS',
+].join('\n');
+
+const INCOMPATIBLE_ARCH_PLATFORM_STDERR = [
+  'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=4):',
+  'The bundle at /tmp/Example.app does not contain code for any platform and CPU architecture combination supported by this device.',
+].join('\n');
+
+const INCOMPATIBLE_ARCH_CODE_4_ONLY_STDERR = [
+  'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=4):',
+  'App installation failed: “Example” Needs to Be Updated',
+  'This app needs to be updated by the developer to work on this version of iOS.',
+].join('\n');
+
+const INCOMPATIBLE_DEVICE_FAMILY_STDERR = [
+  'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+  'App installation failed: Unable to Install “ClinicTVApp”',
+  'This app is not made for this device.',
+  'This app was not built to support this device family; app is compatible with (',
+  '    3',
+  ') but this device supports (',
+  '    1',
+  ')',
+].join('\n');
+
+const UNREGISTERED_URL_SCHEME_STDERR = [
+  'simctl openurl: An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=115):',
+  'Simulator device failed to open exp+clad-next://expo-development-client/?url=https%3A%2F%2Fexample.test',
+  'Underlying error (domain=LSApplicationWorkspaceErrorDomain, code=115):',
+  '    The operation couldn’t be completed. (LSApplicationWorkspaceErrorDomain error 115.)',
+].join('\n');
+
 async function rejectActionAsync(action: string, stderr: string): Promise<ExpoError> {
   server.on('connection', socket => {
     socket.send(JSON.stringify({ ready: true }));
@@ -119,14 +155,124 @@ async function rejectActionAsync(action: string, stderr: string): Promise<ExpoEr
   return error;
 }
 
-it('classifies an app install that requires a newer iOS version as a user error', async () => {
-  const error = await rejectActionAsync('app.install', NEWER_IOS_REQUIRED_STDERR);
+it.each([
+  ['unprefixed title', NEWER_IOS_REQUIRED_STDERR],
+  [
+    'quoted app name title',
+    [
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=2):',
+      'App installation failed: “Example” Requires a Newer Version of iOS',
+      '“Example” requires a newer version of iOS.',
+    ].join('\n'),
+  ],
+])(
+  'classifies an app install that requires a newer iOS version (%s) as a user error',
+  async (_, stderr) => {
+    const error = await rejectActionAsync('app.install', stderr);
+    expect(error).toBeInstanceOf(UserError);
+    expect(error.toExternalExpoError()).toMatchObject({
+      errorCode: 'EAS_INSTALL_APPLICATION_REQUIRES_NEWER_IOS',
+      message: expect.stringContaining('Choose an iOS Simulator device whose iOS version meets'),
+    });
+    expect((error.cause as Error).message).toContain('Requires a Newer Version of iOS');
+  }
+);
+
+it.each([
+  ['matching arch failure', INCOMPATIBLE_ARCH_STDERR],
+  ['missing platform/arch combination', INCOMPATIBLE_ARCH_PLATFORM_STDERR],
+  ['IXUserPresentableErrorDomain code=4 Needs to Be Updated', INCOMPATIBLE_ARCH_CODE_4_ONLY_STDERR],
+  [
+    'IXUserPresentableErrorDomain error 4 Needs to Be Updated',
+    'App installation failed: “Example” Needs to Be Updated (IXUserPresentableErrorDomain error 4.)',
+  ],
+])(
+  'classifies an incompatible architecture app install (%s) as a user error',
+  async (_, stderr) => {
+    const error = await rejectActionAsync('app.install', stderr);
+    expect(error).toBeInstanceOf(UserError);
+    expect(error.toExternalExpoError()).toMatchObject({
+      errorCode: 'EAS_INSTALL_APPLICATION_INCOMPATIBLE_ARCH',
+      message: expect.stringContaining('compatible iOS Simulator CPU architecture'),
+    });
+    expect((error.cause as Error).message).toBe(`serve-sim app.install failed: ${stderr}`);
+  }
+);
+
+it.each([
+  ['full device family stderr', INCOMPATIBLE_DEVICE_FAMILY_STDERR],
+  [
+    'not made for this device only',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):\nThis app is not made for this device.',
+  ],
+  [
+    'not built to support device family only',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):\nThis app was not built to support this device family; app is compatible with (2) but this device supports (1)',
+  ],
+  [
+    'app name containing incompatible arch phrase',
+    [
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+      'App installation failed: Unable to Install “Failed to find matching arch”',
+      'This app is not made for this device.',
+    ].join('\n'),
+  ],
+  [
+    'app name containing newer iOS phrase',
+    [
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+      'App installation failed: Unable to Install “Requires a Newer Version of iOS”',
+      'This app is not made for this device.',
+    ].join('\n'),
+  ],
+  [
+    'app name containing IXUserPresentableErrorDomain code 4 and Needs to Be Updated',
+    [
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+      'App installation failed: Unable to Install “IXUserPresentableErrorDomain error 4 Needs to Be Updated”',
+      'This app is not made for this device.',
+    ].join('\n'),
+  ],
+  [
+    'indented Unable to Install title containing platform/arch phrase',
+    [
+      'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):',
+      '    Unable to Install “does not contain code for any platform and CPU architecture combination”',
+      'This app is not made for this device.',
+    ].join('\n'),
+  ],
+])(
+  'classifies an incompatible device family app install (%s) as a user error',
+  async (_, stderr) => {
+    const error = await rejectActionAsync('app.install', stderr);
+    expect(error).toBeInstanceOf(UserError);
+    expect(error.toExternalExpoError()).toMatchObject({
+      errorCode: 'EAS_INSTALL_APPLICATION_INCOMPATIBLE_DEVICE_FAMILY',
+      message: expect.stringContaining('selected iOS Simulator device family'),
+    });
+    expect((error.cause as Error).message).toBe(`serve-sim app.install failed: ${stderr}`);
+  }
+);
+
+it.each([
+  ['app.launch', UNREGISTERED_URL_SCHEME_STDERR],
+  [
+    'app.launch',
+    'An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=115):\nSimulator device failed to open myapp://home',
+  ],
+  [
+    'app.launch',
+    'simctl openurl: The operation couldn’t be completed. (LSApplicationWorkspaceErrorDomain error 115.)',
+  ],
+  ['app.openurl', UNREGISTERED_URL_SCHEME_STDERR],
+])('classifies an unregistered URL scheme on %s as a user error', async (action, stderr) => {
+  const error = await rejectActionAsync(action, stderr);
   expect(error).toBeInstanceOf(UserError);
   expect(error.toExternalExpoError()).toMatchObject({
-    errorCode: 'EAS_INSTALL_APPLICATION_REQUIRES_NEWER_IOS',
-    message: expect.stringContaining('Choose an iOS Simulator device whose iOS version meets'),
+    errorCode: 'EAS_LAUNCH_APPLICATION_UNREGISTERED_URL_SCHEME',
+    message: expect.stringContaining('registers the URL scheme specified in open_url'),
   });
-  expect((error.cause as Error).message).toContain('Requires a Newer Version of iOS');
+  expect((error.cause as Error).message).toBe(`serve-sim ${action} failed: ${stderr}`);
 });
 
 it.each([
@@ -134,8 +280,40 @@ it.each([
     'app.install',
     'An error was encountered processing the command (domain=IXUserPresentableErrorDomain):\nThis app could not be installed at this time.',
   ],
+  [
+    'app.install',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=4):\nThis app could not be installed at this time.',
+  ],
+  [
+    'app.install',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=40):\nApp installation failed: “Example” Needs to Be Updated',
+  ],
+  [
+    'app.install',
+    'An error was encountered processing the command (domain=IXUserPresentableErrorDomain, code=6):\nThis app could not be installed at this time.',
+  ],
+  ['app.install', UNREGISTERED_URL_SCHEME_STDERR],
   ['app.install', 'install refused'],
   ['app.launch', NEWER_IOS_REQUIRED_STDERR],
+  ['app.launch', INCOMPATIBLE_ARCH_STDERR],
+  ['app.launch', INCOMPATIBLE_DEVICE_FAMILY_STDERR],
+  [
+    'app.launch',
+    'simctl openurl: An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=114):\nSimulator device failed to open myapp://home',
+  ],
+  [
+    'app.launch',
+    'simctl openurl: An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=1150):\nSimulator device failed to open myapp://home',
+  ],
+  [
+    'app.launch',
+    [
+      'simctl openurl: An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=114):',
+      'Simulator device failed to open myapp://host/?domain=LSApplicationWorkspaceErrorDomain,code=115&(domain=LSApplicationWorkspaceErrorDomain, code=115)',
+      'Underlying error (domain=LSApplicationWorkspaceErrorDomain, code=114):',
+      '    The operation couldn’t be completed. (LSApplicationWorkspaceErrorDomain error 114.)',
+    ].join('\n'),
+  ],
 ])('keeps other %s failures as server errors', async (action, stderr) => {
   const error = await rejectActionAsync(action, stderr);
   expect(error).toBeInstanceOf(SystemError);
