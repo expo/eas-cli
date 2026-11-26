@@ -38,6 +38,9 @@ export const UserQuery = {
         .toPromise()
     );
 
+    if (data.meActor === undefined) {
+      throw new Error('The current user response is missing the meActor field.');
+    }
     return data.meActor;
   },
   async requireCurrentUserPrimaryAccountAsync(

@@ -1,14 +1,27 @@
 import http from 'http';
 import { AddressInfo } from 'net';
+import nock from 'nock';
 
 import { createGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { UserQuery } from '../UserQuery';
 
 jest.mock('../../../api', () => ({
-  getExpoApiBaseUrl: () => process.env.USER_QUERY_TEST_URL,
+  getExpoApiBaseUrl: () => process.env.USER_QUERY_TEST_URL ?? 'http://expo.test',
 }));
 
 describe(UserQuery.currentUserAsync, () => {
+  it('rejects a missing meActor field and accepts an explicit null', async () => {
+    const api = nock('http://expo.test');
+    api.post('/graphql').reply(200, { data: {} });
+    api.post('/graphql').reply(200, { data: { meActor: null } });
+    const auth = { accessToken: null, sessionSecret: 'test-session' };
+
+    await expect(UserQuery.currentUserAsync(createGraphqlClient(auth))).rejects.toThrow(
+      'missing the meActor field'
+    );
+    await expect(UserQuery.currentUserAsync(createGraphqlClient(auth))).resolves.toBeNull();
+  });
+
   describe('against a slow server', () => {
     const server = http.createServer();
     const serverDelayMs = 2000;
