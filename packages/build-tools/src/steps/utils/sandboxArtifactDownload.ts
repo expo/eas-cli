@@ -1,25 +1,20 @@
 import { SystemError, UserError, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import { Client, CombinedError } from '@urql/core';
 import { graphql } from 'gql.tada';
-import fetch from 'node-fetch';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import stream from 'stream';
-import { promisify } from 'util';
 import { z } from 'zod';
 
-import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
-  describeError,
-  isTransferFailure,
-  isTransientGraphqlError,
-} from '../../utils/networkErrors';
+  DownloadApiError,
+  DownloadNetworkError,
+  downloadToFileAsync,
+} from '../../storage/downloadToFile';
+import { graphqlAbortContext } from '../../utils/graphqlAbort';
+import { describeError, isTransientGraphqlError } from '../../utils/networkErrors';
 import { retryOnNetworkFailureAsync } from '../../utils/retryOnNetworkFailure';
-
-const streamPipeline = promisify(stream.pipeline);
 
 const FALLBACK_ARTIFACT_FILENAME = 'artifact';
 const MAX_ARTIFACT_FILENAME_LENGTH = 255;
@@ -123,44 +118,29 @@ export async function downloadSandboxArtifactAsync(
     sanitizeSandboxArtifactFilename(artifact.filename)
   );
 
-  signal?.throwIfAborted();
   try {
-    await retryOnNetworkFailureAsync(
-      async () => {
-        const response = await fetch(downloadUrl, { signal });
-        if (!response.ok) {
-          if (response.status === 404 || response.status === 410) {
-            throw new UserError(
-              'EAS_DOWNLOAD_SANDBOX_ARTIFACT_FILE_UNAVAILABLE',
-              `Failed to download sandbox artifact ${artifactId} (HTTP ${response.status}). ` +
-                'The file is unavailable. Sandbox artifact files are deleted 90 days after the ' +
-                'upload, so run the agent again to create a new artifact.'
-            );
-          }
-          const textResult = await asyncResult(response.text());
-          throw new Error(
-            `Failed to download sandbox artifact ${artifactId} (HTTP ${response.status}): ${textResult.value}`
-          );
-        }
-        await streamPipeline(response.body, fs.createWriteStream(artifactPath));
-      },
-      {
-        operation: 'download_sandbox_artifact.file_download',
-        signal,
-        isRetryable: isTransferFailure,
-      }
+    await downloadToFileAsync(
+      { url: downloadUrl, destinationPath: artifactPath },
+      { operation: 'download_sandbox_artifact.file_download', signal }
     );
   } catch (error) {
-    signal?.throwIfAborted();
-    if (isTransferFailure(error)) {
-      throw new SystemError(
-        `Could not download sandbox artifact ${artifactId}: ${describeError(error)}`,
-        { cause: error }
-      );
+    if (error instanceof DownloadApiError) {
+      if (error.status === 404 || error.status === 410) {
+        throw new UserError(
+          'EAS_DOWNLOAD_SANDBOX_ARTIFACT_FILE_UNAVAILABLE',
+          `Failed to download sandbox artifact ${artifactId} (HTTP ${error.status}). ` +
+            'The file is unavailable. Sandbox artifact files are deleted 90 days after the ' +
+            'upload, so run the agent again to create a new artifact.'
+        );
+      }
+      const message = `Failed to download sandbox artifact ${artifactId} (HTTP ${error.status}): ${error.responseText}`;
+      throw error.status >= 500 ? new SystemError(message) : new Error(message);
+    }
+    if (error instanceof DownloadNetworkError) {
+      throw new SystemError(`Could not download sandbox artifact ${artifactId}: ${error.reason}.`);
     }
     throw error;
   }
-  signal?.throwIfAborted();
 
   const { size } = await fs.promises.stat(artifactPath);
   logger.info(`Downloaded ${artifactPath} (${formatBytes(size)}).`);
@@ -330,7 +310,12 @@ async function queryAsync<TData>({
   } catch (error) {
     signal?.throwIfAborted();
     const message = `${failureMessage}: ${describeError(error)}`;
-    throw error instanceof CombinedError && !isTransientGraphqlError(error)
+    const isUserError =
+      error instanceof CombinedError &&
+      !isTransientGraphqlError(error) &&
+      error.graphQLErrors.length > 0 &&
+      error.graphQLErrors.every(graphqlError => graphqlError.extensions.errorType === 'USER');
+    throw isUserError
       ? new UserError('EAS_DOWNLOAD_SANDBOX_ARTIFACT_FETCH_FAILED', message, { cause: error })
       : new SystemError(message, { cause: error });
   }

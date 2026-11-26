@@ -18,6 +18,8 @@ const CONNECTION_INTERRUPTED_CODES = new Set([
   'UND_ERR_SOCKET',
 ]);
 
+export const RETRYABLE_HTTP_STATUSES = [408, 429, 500, 502, 503, 504];
+
 export function isConnectFailure(error: unknown): boolean {
   for (let current = error; current instanceof Error; current = current.cause) {
     if (

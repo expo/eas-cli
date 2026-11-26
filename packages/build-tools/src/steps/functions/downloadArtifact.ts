@@ -1,24 +1,18 @@
 import { SystemError, formatBytes } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import fetch from 'node-fetch';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import stream from 'stream';
-import { promisify } from 'util';
 import { z } from 'zod';
 
+import { DownloadApiError, downloadToFileAsync } from '../../storage/downloadToFile';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
-
-const streamPipeline = promisify(stream.pipeline);
 
 export function createDownloadArtifactFunction(): BuildFunction {
   return new BuildFunction({
@@ -121,23 +115,29 @@ export async function downloadArtifactAsync({
     url.searchParams.set('name', params.name);
   }
 
-  const response = await retryOnDNSFailure(fetch)(url, {
-    headers: robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined,
-  });
-
-  if (!response.ok) {
-    const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+  let archivePath: string;
+  try {
+    archivePath = await downloadToFileAsync(
+      {
+        url: url.toString(),
+        headers: robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined,
+        destinationPath: response => {
+          // URL may contain percent-encoded characters, e.g. my%20file.apk
+          // this replaces all non-alphanumeric characters (excluding dot) with underscore
+          const archiveFilename = path
+            .basename(new URL(response.url).pathname)
+            .replace(/([^a-z0-9.-]+)/gi, '_');
+          return path.join(downloadDestinationDirectory, archiveFilename);
+        },
+      },
+      { operation: 'download_artifact.artifact_download' }
+    );
+  } catch (error) {
+    if (error instanceof DownloadApiError) {
+      throw new Error(`Unexpected response from server (${error.status}): ${error.responseText}`);
+    }
+    throw error;
   }
-
-  // URL may contain percent-encoded characters, e.g. my%20file.apk
-  // this replaces all non-alphanumeric characters (excluding dot) with underscore
-  const archiveFilename = path
-    .basename(new URL(response.url).pathname)
-    .replace(/([^a-z0-9.-]+)/gi, '_');
-  const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
-
-  await streamPipeline(response.body, fs.createWriteStream(archivePath));
 
   const { size } = await fs.promises.stat(archivePath);
 

@@ -1,7 +1,16 @@
+jest.mock('node-fetch', () => {
+  const actual = jest.requireActual('node-fetch');
+  return {
+    __esModule: true,
+    ...actual,
+    default: jest.fn(),
+  };
+});
+
 import { SystemError, UserError } from '@expo/eas-build-job';
 import { Client, CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql';
-import fetch, { Response } from 'node-fetch';
+import fetch, { FetchError, Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -339,7 +348,7 @@ describe(downloadSandboxArtifactAsync, () => {
     const artifact = createArtifact();
     jest
       .mocked(fetch)
-      .mockResolvedValue({ ok: false, status: 500, text: async () => 'Internal Error' } as any);
+      .mockResolvedValue({ ok: false, status: 403, text: async () => 'AccessDenied' } as any);
 
     const download = downloadSandboxArtifactAsync({
       logger: createMockLogger(),
@@ -348,10 +357,63 @@ describe(downloadSandboxArtifactAsync, () => {
     });
 
     await expect(download).rejects.toThrow(
-      `Failed to download sandbox artifact ${artifact.id} (HTTP 500): Internal Error`
+      `Failed to download sandbox artifact ${artifact.id} (HTTP 403): AccessDenied`
     );
+    await expect(download).rejects.not.toBeInstanceOf(SystemError);
     await expect(download).rejects.not.toThrow('signature');
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries the download after an HTTP 5xx response', async () => {
+    const artifact = createArtifact();
+    const graphqlClient = createMockGraphqlClient({ artifact: artifact });
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => 'Service Unavailable',
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        body: Readable.from('bundle content'),
+      } as unknown as Response);
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient,
+      artifactId: artifact.id,
+    });
+    await jest.advanceTimersByTimeAsync(60_000);
+    const result = await download;
+
+    expect(await fs.promises.readFile(result.artifactPath, 'utf8')).toBe('bundle content');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws SystemError without the signed URL when the storage keeps responding with HTTP 5xx', async () => {
+    const artifact = createArtifact();
+    jest
+      .mocked(fetch)
+      .mockResolvedValue({ ok: false, status: 500, text: async () => 'Internal Error' } as any);
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient: createMockGraphqlClient({ artifact: artifact }),
+      artifactId: artifact.id,
+    });
+    const settled = download.catch(error => error);
+    await jest.advanceTimersByTimeAsync(120_000);
+    const error = await settled;
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      `Failed to download sandbox artifact ${artifact.id} (HTTP 500): Internal Error`
+    );
+    expect(error.message).not.toContain('signature');
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 
   it('retries the download after a transfer failure', async () => {
@@ -379,11 +441,13 @@ describe(downloadSandboxArtifactAsync, () => {
     expect(graphqlClient.query).toHaveBeenCalledTimes(1);
   });
 
-  it('throws SystemError when the transfer keeps failing', async () => {
+  it('throws SystemError without the signed URL when the transfer keeps failing', async () => {
     const artifact = createArtifact();
-    jest
-      .mocked(fetch)
-      .mockRejectedValue(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }));
+    jest.mocked(fetch).mockRejectedValue(
+      new FetchError(`request to ${DOWNLOAD_URL} failed, reason: socket hang up`, 'system', {
+        code: 'ECONNRESET',
+      } as any)
+    );
 
     const download = downloadSandboxArtifactAsync({
       logger: createMockLogger(),
@@ -395,16 +459,44 @@ describe(downloadSandboxArtifactAsync, () => {
     const error = await settled;
 
     expect(error).toBeInstanceOf(SystemError);
-    expect(error.message).toBe(
-      `Could not download sandbox artifact ${artifact.id}: socket hang up (ECONNRESET)`
-    );
+    expect(error.message).toBe(`Could not download sandbox artifact ${artifact.id}: ECONNRESET.`);
+    expect(error.cause).toBeUndefined();
     expect(fetch).toHaveBeenCalledTimes(6);
+  });
+
+  it('throws SystemError without the signed URL on a node-fetch error that is not a transfer failure', async () => {
+    const artifact = createArtifact();
+    jest
+      .mocked(fetch)
+      .mockRejectedValue(
+        new FetchError(`maximum redirect reached at: ${DOWNLOAD_URL}`, 'max-redirect')
+      );
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient: createMockGraphqlClient({ artifact: artifact }),
+      artifactId: artifact.id,
+    });
+    const error = await download.catch(error => error);
+
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      `Could not download sandbox artifact ${artifact.id}: network error.`
+    );
+    expect(error.cause).toBeUndefined();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('throws UserError when GraphQL rejects the lookup', async () => {
     const artifactId = randomUUID();
     const graphqlClient = createMockGraphqlClient({
-      error: new CombinedError({ graphQLErrors: [new GraphQLError('Entity not authorized')] }),
+      error: new CombinedError({
+        graphQLErrors: [
+          new GraphQLError('Entity not authorized', {
+            extensions: { errorType: 'USER', isTransient: false },
+          }),
+        ],
+      }),
     });
 
     const download = downloadSandboxArtifactAsync({
@@ -417,6 +509,30 @@ describe(downloadSandboxArtifactAsync, () => {
     await expect(download).rejects.toMatchObject({
       errorCode: 'EAS_DOWNLOAD_SANDBOX_ARTIFACT_FETCH_FAILED',
       message: `Could not fetch sandbox artifact ${artifactId}: [GraphQL] Entity not authorized`,
+    });
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['a SYSTEM error', { errorType: 'SYSTEM', isTransient: false }],
+    ['an error with no errorType', undefined],
+  ])('throws SystemError when GraphQL fails the lookup with %s', async (_label, extensions) => {
+    const artifactId = randomUUID();
+    const graphqlClient = createMockGraphqlClient({
+      error: new CombinedError({
+        graphQLErrors: [new GraphQLError('Unexpected server error', { extensions })],
+      }),
+    });
+
+    const download = downloadSandboxArtifactAsync({
+      logger: createMockLogger(),
+      graphqlClient,
+      artifactId,
+    });
+
+    await expect(download).rejects.toBeInstanceOf(SystemError);
+    await expect(download).rejects.toMatchObject({
+      message: `Could not fetch sandbox artifact ${artifactId}: [GraphQL] Unexpected server error`,
     });
     expect(graphqlClient.query).toHaveBeenCalledTimes(1);
   });
