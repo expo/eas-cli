@@ -749,7 +749,7 @@ describe('downloadBuild', () => {
     expect(graphqlClient.query).toHaveBeenCalledTimes(1);
     expect(datadogLog).toHaveBeenCalledWith(
       'download_build.archive_download recovered on attempt 2',
-      expect.objectContaining({ outcome: 'recovered', attempts: '2' })
+      expect.objectContaining({ outcome: 'recovered', attempts: '2', code: `HTTP_${status}` })
     );
   });
 
@@ -775,10 +775,15 @@ describe('downloadBuild', () => {
     await fireBackoffTimersAsync(5);
 
     await rejection;
+    await expect(download).rejects.toMatchObject({
+      name: 'ArchiveHttpError',
+      code: `HTTP_${status}`,
+      status,
+    });
     expect(fetch).toHaveBeenCalledTimes(6);
     expect(datadogLog).toHaveBeenCalledWith(
       'download_build.archive_download failed on attempt 6',
-      expect.objectContaining({ outcome: 'failed', attempts: '6' })
+      expect.objectContaining({ outcome: 'failed', attempts: '6', code: `HTTP_${status}` })
     );
   });
 

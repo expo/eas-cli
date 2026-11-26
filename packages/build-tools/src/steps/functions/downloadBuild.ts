@@ -41,11 +41,15 @@ import { WorkerApiError } from '../utils/workerApi';
 const streamPipeline = promisify(stream.pipeline);
 
 class ArchiveHttpError extends Error {
+  readonly code: string;
+
   constructor(
     message: string,
     readonly status: number
   ) {
     super(message);
+    this.name = 'ArchiveHttpError';
+    this.code = `HTTP_${status}`;
   }
 }
 
@@ -349,7 +353,8 @@ export async function downloadBuildAsync(
         operation: 'download_build.archive_download',
         signal,
         // This GET is safe to repeat after internal, gateway, or temporary availability failures.
-        // Keep other statuses, including unsupported operations/protocols (501/505), nonretryable.
+        // Keep this fix limited to server errors; 408/429 remain nonretryable here.
+        // Unsupported operations/protocols (501/505) are also nonretryable.
         isRetryable: error =>
           isTransferFailure(error) ||
           (error instanceof ArchiveHttpError && [500, 502, 503, 504].includes(error.status)),
