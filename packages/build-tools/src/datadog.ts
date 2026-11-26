@@ -39,7 +39,9 @@ const UPLOAD_TIMEOUT_MS = 10_000;
 
 /**
  * Sends one upload with a deadline. A failure goes to Sentry. node-fetch rejects an aborted request
- * with a generic `AbortError`, so a request stopped by the deadline reports the deadline instead.
+ * with a generic `AbortError`, so a request stopped by the deadline reports the deadline instead. Other
+ * errors keep their own message: `retryAsync` waits 1 second after the last failed attempt too, so the
+ * deadline can fire after an HTTP or network error.
  */
 function startUpload(
   upload: (signal: AbortSignal) => Promise<unknown>,
@@ -54,7 +56,8 @@ function startUpload(
   pendingUploads.push(
     upload(signal)
       .catch((err: unknown) => {
-        const error: unknown = signal.aborted ? signal.reason : err;
+        const error: unknown =
+          signal.aborted && err instanceof Error && err.name === 'AbortError' ? signal.reason : err;
         reportFailure(error instanceof Error ? error : new Error(String(error)));
       })
       .finally(() => {

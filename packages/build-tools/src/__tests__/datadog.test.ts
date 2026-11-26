@@ -488,6 +488,40 @@ describe('Datadog singleton', () => {
     }
   });
 
+  it('reports the error of an upload that fails before the deadline, not the deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      // turtleFetch waits 1 second after the last failed attempt, so a final HTTP 500 at 9.5 s
+      // rejects at 10.5 s, after the deadline aborted the signal.
+      turtleFetchMock.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            setTimeout(() => {
+              reject(new Error('Request failed with status 500'));
+            }, 10_500);
+          })
+      );
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      const flushing = Datadog.flushAsync();
+
+      await jest.advanceTimersByTimeAsync(10_500);
+      await flushing;
+
+      expect(sentryCaptureMock).toHaveBeenCalledWith(
+        'Failed to report turtle deviceRunSession metric',
+        expect.objectContaining({ message: 'Request failed with status 500' }),
+        expect.anything()
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('flushes pending metric uploads', async () => {
     let resolveUpload!: (response: Response) => void;
     turtleFetchMock.mockReturnValueOnce(
