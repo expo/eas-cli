@@ -70,6 +70,7 @@ afterEach(() => jest.restoreAllMocks());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Each test can set EXPO_TOKEN on its own copy. restoreAllMocks restores the original env.
   jest.replaceProperty(process, 'env', { ...process.env, EXPO_TOKEN: '' });
 });
 
