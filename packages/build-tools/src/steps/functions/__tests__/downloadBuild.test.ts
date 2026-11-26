@@ -761,6 +761,8 @@ describe('downloadBuild', () => {
   it.each([
     ['60', 60_000],
     ['Wed, 01 Jan 2025 00:01:00 GMT', 60_000],
+    ['Wednesday, 01-Jan-25 00:00:30 GMT', 30_000],
+    ['Wed Jan  1 00:00:30 2025', 30_000],
     ['0', 1_000],
     ['invalid', 1_000],
   ])('honors the archive server cooldown %s', async (retryAfter, delayMs) => {
@@ -855,6 +857,46 @@ describe('downloadBuild', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(datadogLog).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { seconds: 60, attempts: 2 },
+    { seconds: 30, attempts: 3 },
+  ])(
+    'shares the cooldown budget across repeated $seconds-second 429s',
+    async ({ seconds, attempts }) => {
+      useFakeBackoffTimers();
+      jest
+        .spyOn(timers, 'setTimeout')
+        .mockImplementation(
+          async (delay, value) => await new Promise(resolve => setTimeout(resolve, delay, value))
+        );
+      const { Response: ActualResponse } =
+        jest.requireActual<typeof import('node-fetch')>('node-fetch');
+      jest.mocked(fetch).mockImplementation(
+        async () =>
+          new ActualResponse('Try again later', {
+            status: 429,
+            headers: { 'Retry-After': String(seconds) },
+          })
+      );
+      const result = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      }).catch(error => error);
+      await waitForBackoffTimerAsync();
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetch).toHaveBeenCalledTimes(attempts);
+      expect(jest.getTimerCount()).toBe(0);
+      expect(await result).toMatchObject({
+        errorCode: 'SERVER_ERROR',
+        cause: { code: 'HTTP_429' },
+      });
+    }
+  );
 
   it.each([408, 429, 500, 502, 503, 504])('throws SystemError after six HTTP %s', async status => {
     useFakeBackoffTimers();

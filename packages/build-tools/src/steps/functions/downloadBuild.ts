@@ -43,7 +43,7 @@ const streamPipeline = promisify(stream.pipeline);
 
 // Match signed URL uploads: retry request timeouts, rate limits, and transient server errors.
 const RETRYABLE_ARCHIVE_HTTP_STATUSES = [408, 429, 500, 502, 503, 504];
-const MAX_ARCHIVE_RETRY_AFTER_MS = 60_000;
+const ARCHIVE_COOLDOWN_BUDGET_MS = 60_000;
 
 class ArchiveHttpError extends Error {
   readonly code: string;
@@ -64,15 +64,18 @@ function isRetryableArchiveDownloadError(error: unknown): boolean {
     : isTransferFailure(error);
 }
 
-function parseRetryAfterTime(header: string | null): number {
+function parseRetryAfterMs(header: string | null): number {
   const value = header?.trim();
   if (!value) {
     return 0;
   }
   if (/^\d+$/.test(value)) {
-    return Date.now() + Number(value) * 1_000;
+    return Number(value) * 1_000;
   }
-  return Date.parse(value) || 0;
+  // The legacy asctime HTTP-date omits the zone but denotes UTC (RFC 9110).
+  const asctime = /^[A-Za-z]{3} [A-Za-z]{3} (?: \d|\d{2}) \d{2}:\d{2}:\d{2} \d{4}$/;
+  const retryAt = Date.parse(asctime.test(value) ? `${value} GMT` : value);
+  return Number.isNaN(retryAt) ? 0 : Math.max(0, retryAt - Date.now());
 }
 
 type DownloadBuildSource =
@@ -341,11 +344,12 @@ export async function downloadBuildAsync(
   signal?.throwIfAborted();
   let archivePath: string;
   let retryAt = 0;
+  let cooldownBudgetMs = ARCHIVE_COOLDOWN_BUDGET_MS;
   try {
     archivePath = await retryOnNetworkFailureAsync(
       async () => {
         // The retry helper has already waited its usual backoff. Wait out any remaining cooldown.
-        const cooldownMs = retryAt - Date.now();
+        const cooldownMs = Math.ceil(retryAt - performance.now());
         if (cooldownMs > 0) {
           await delayAsync(cooldownMs, undefined, { signal });
           signal?.throwIfAborted();
@@ -354,7 +358,7 @@ export async function downloadBuildAsync(
         const response = await fetch(downloadUrl, { headers, signal });
         if (!response.ok) {
           if (response.status === 429) {
-            retryAt = parseRetryAfterTime(response.headers.get('retry-after'));
+            retryAt = performance.now() + parseRetryAfterMs(response.headers.get('retry-after'));
           }
           const textResult = await asyncResult(response.text());
           const archiveUrl = new URL(downloadUrl);
@@ -385,10 +389,18 @@ export async function downloadBuildAsync(
       {
         operation: 'download_build.archive_download',
         signal,
-        // Surface a long cooldown as an error instead of retrying before the server allows it.
-        isRetryable: error =>
-          isRetryableArchiveDownloadError(error) &&
-          retryAt - Date.now() <= MAX_ARCHIVE_RETRY_AFTER_MS,
+        isRetryable: error => {
+          if (!isRetryableArchiveDownloadError(error)) {
+            return false;
+          }
+          // Reserve the remaining server cooldown from one budget for the whole download.
+          const cooldownMs = Math.max(0, Math.ceil(retryAt - performance.now()));
+          if (cooldownMs > cooldownBudgetMs) {
+            return false;
+          }
+          cooldownBudgetMs -= cooldownMs;
+          return true;
+        },
       }
     );
   } catch (error) {
