@@ -4,6 +4,7 @@ import { type Result, asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
+  type BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
@@ -35,6 +36,7 @@ import { Sentry } from '../../sentry';
 import {
   PackageManager,
   resolveConfiguredPackageManager,
+  resolvePackageAdd,
   resolvePackageExec,
 } from '../../utils/packageManager';
 import { isProcessDescendantOfAsync, killProcessGroup } from '../../utils/processes';
@@ -163,7 +165,26 @@ export function createStartArgentRemoteSessionBuildFunction(
         });
         const startupAbortController = new AbortController();
         const startupSignal = AbortSignal.any([watchSignal, startupAbortController.signal]);
+        const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
+        // Set only for a local egress Simulator; every Argent command then runs from it.
+        let argentInstall: ArgentInstall | undefined;
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
+          resolveLocalEgressBootLibrariesAsync: async () => {
+            argentInstall = await installArgentAsync({
+              packageSpec: `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+              packageManager,
+              env,
+              logger,
+              signal: startupSignal,
+            });
+            if (!argentInstall.bootstrapPath) {
+              logger.warn(
+                `${ARGENT_PACKAGE_NAME}@${versionSpec} has no native devtools bootstrap library, so native devtools tools do not work in this local egress session.`
+              );
+              return [];
+            }
+            return [argentInstall.bootstrapPath];
+          },
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
           deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
@@ -193,9 +214,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         // Never rejects, so `void` is safe.
         void ensureFfmpegInstalledOnceAsync({ runtimePlatform, env, logger });
 
-        const packageManager = resolveConfiguredPackageManager(env, PackageManager.BUN);
         const argentExec = (args: string[]): { command: string; args: string[] } =>
-          resolvePackageExec(packageManager, args);
+          argentInstall
+            ? { command: argentInstall.binPath, args }
+            : resolvePackageExec(packageManager, [
+                `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+                ...args,
+              ]);
 
         const artifactPollAbortController = new AbortController();
         let artifactPollingPromise: Promise<void> | undefined;
@@ -250,11 +275,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             toolServerToken = tools.token;
           } else {
             logger.info('Enabling the Argent artifacts list endpoint flag.');
-            const enableArtifacts = argentExec([
-              `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-              'enable',
-              ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG,
-            ]);
+            const enableArtifacts = argentExec(['enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG]);
             await runArgentSetupCommandAsync(
               enableArtifacts.command,
               enableArtifacts.args,
@@ -263,11 +284,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             );
 
             logger.info('Enabling the Argent tool-server event log flag.');
-            const enableEventLog = argentExec([
-              `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-              'enable',
-              ARGENT_EVENT_LOG_FLAG,
-            ]);
+            const enableEventLog = argentExec(['enable', ARGENT_EVENT_LOG_FLAG]);
             await runArgentSetupCommandAsync(
               enableEventLog.command,
               enableEventLog.args,
@@ -276,11 +293,7 @@ export function createStartArgentRemoteSessionBuildFunction(
             );
 
             logger.info('Disabling the Argent video watermark flag.');
-            const disableVideoWatermark = argentExec([
-              `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
-              'disable',
-              ARGENT_VIDEO_WATERMARK_FLAG,
-            ]);
+            const disableVideoWatermark = argentExec(['disable', ARGENT_VIDEO_WATERMARK_FLAG]);
             // The watermark is cosmetic, so a failure here must not fail the session.
             try {
               await runArgentSetupCommandAsync(
@@ -299,7 +312,6 @@ export function createStartArgentRemoteSessionBuildFunction(
 
             startupSignal?.throwIfAborted();
             const startServer = argentExec([
-              `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
               'server',
               'start',
               '--port',
@@ -553,6 +565,63 @@ export async function stopArgentEventCollectionSafelyAsync({
     });
     logger.warn({ err: error }, 'Could not finish argent session event collection.');
   }
+}
+
+// Argent inserts the bootstrap into DYLD_INSERT_LIBRARIES, and the bootstrap loads the other
+// native devtools libraries from its own directory. The second name is the pre-rename one.
+const ARGENT_BOOTSTRAP_DYLIB_FILES = [
+  'libArgentInjectionBootstrap.dylib',
+  'libInjectionBootstrap.dylib',
+];
+
+type ArgentInstall = {
+  /** The Argent CLI to run in place of a package runner. */
+  binPath: string;
+  /** Absent when this Argent version has no bootstrap library. */
+  bootstrapPath?: string;
+};
+
+/**
+ * Installs Argent into its own directory. A local egress Simulator needs the
+ * path of Argent's bootstrap library before it boots, and the tool-server must
+ * run from the same install so that the bootstrap matches it.
+ *
+ * The directory is not removed: the Simulator keeps the bootstrap in its boot
+ * environment until it shuts down, and a process that cannot load an inserted
+ * library does not start.
+ */
+export async function installArgentAsync({
+  packageSpec,
+  packageManager,
+  env,
+  logger,
+  signal,
+}: {
+  packageSpec: string;
+  packageManager: PackageManager;
+  env: BuildStepEnv;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<ArgentInstall> {
+  const installDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-argent-'));
+  await fs.promises.writeFile(
+    path.join(installDir, 'package.json'),
+    `${JSON.stringify({ name: 'eas-argent', private: true })}\n`
+  );
+  const add = resolvePackageAdd(packageManager, packageSpec);
+  logger.info(
+    `Installing ${packageSpec} with ${add.command} before the Simulator boots, so its native devtools load with the local egress guard.`
+  );
+  await runArgentSetupCommandAsync(add.command, add.args, { cwd: installDir, env, logger }, signal);
+  const binPath = path.join(installDir, 'node_modules', '.bin', 'argent');
+  if (!fs.existsSync(binPath)) {
+    throw new SystemError(`Expected the Argent CLI at ${binPath} after ${add.command} install.`);
+  }
+  const dylibDir = path.join(installDir, 'node_modules', ARGENT_PACKAGE_NAME, 'dylibs');
+  const bootstrapPath = ARGENT_BOOTSTRAP_DYLIB_FILES.map(file => path.join(dylibDir, file)).find(
+    file => fs.existsSync(file)
+  );
+  return { binPath, bootstrapPath };
 }
 
 async function runArgentSetupCommandAsync(

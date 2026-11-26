@@ -82,6 +82,14 @@ startup both complete before reporting the remote session live. Build-tools keep
 the event relay and egress cleanup without rewriting launchd's dylib list after
 serve-sim adds its capability loader.
 
+Because the boot carries `DYLD_INSERT_LIBRARIES`, a tool that inserts its own
+library later with `launchctl setenv` does not reach new processes: launchd keeps
+the boot value, and `launchctl getenv` returns nothing. Argent arms its native
+devtools that way, so an Argent session with local egress installs Argent before
+boot, adds Argent's bootstrap library to `SERVE_SIM_ADDITIONAL_DYLIBS` after the
+guard, and runs Argent from that install. Variables that the boot did not set,
+such as Argent's socket path, still reach new processes through `launchctl setenv`.
+
 Failure semantics: a missing library, a failed `launchctl setenv`, or a failed
 self-check fails the session, since a `--egress local` session without the
 guard would silently leak. Only an unwritable event log is a warning, because

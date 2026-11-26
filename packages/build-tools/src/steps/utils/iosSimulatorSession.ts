@@ -37,6 +37,7 @@ export async function resolveIosSessionStartupAsync({
   env,
   logger,
   signal,
+  resolveLocalEgressBootLibrariesAsync,
 }: {
   runtimePlatform: BuildRuntimePlatform;
   bootSimulator?: boolean;
@@ -48,6 +49,11 @@ export async function resolveIosSessionStartupAsync({
   env: BuildStepEnv;
   logger: bunyan;
   signal?: AbortSignal;
+  /**
+   * Libraries to insert at boot next to the local egress guard. Called only
+   * when this startup boots a Simulator for a local egress session.
+   */
+  resolveLocalEgressBootLibrariesAsync?: () => Promise<string[]>;
 }): Promise<{ launch: ServeSimLaunchOptions; iosStartup?: IosSessionStartup }> {
   signal?.throwIfAborted();
   if ((bootSimulator || installAppPath) && runtimePlatform !== BuildRuntimePlatform.DARWIN) {
@@ -90,7 +96,9 @@ export async function resolveIosSessionStartupAsync({
   const iosSimulatorUdid = (
     await IosSimulatorUtils.resolveUdidAsync({ deviceIdentifier: selectedIdentifier, env })
   ).toUpperCase() as IosSimulatorUuid;
-  const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync();
+  const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync({
+    resolveAdditionalLibrariesAsync: resolveLocalEgressBootLibrariesAsync,
+  });
   signal?.throwIfAborted();
   if (bootEnv) {
     const device = await IosSimulatorUtils.getDeviceAsync({ udid: iosSimulatorUdid, env });
