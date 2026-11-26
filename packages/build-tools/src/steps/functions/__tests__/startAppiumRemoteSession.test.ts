@@ -42,6 +42,7 @@ import {
   resolveAppiumDeviceAsync,
 } from '../startAppiumRemoteSession';
 
+jest.mock('../../utils/endDeviceApps');
 jest.mock('node:timers/promises', () => ({
   ...jest.requireActual('node:timers/promises'),
   setTimeout: jest.fn(jest.requireActual('node:timers/promises').setTimeout),

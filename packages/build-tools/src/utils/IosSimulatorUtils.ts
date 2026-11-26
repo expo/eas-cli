@@ -1,4 +1,5 @@
 import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,6 +10,8 @@ import { z } from 'zod';
 
 import { retryAsync } from './retry';
 import { waitForWarmSimulatorCleanupAsync } from './warmSimulatorCleanup';
+
+const RUNNING_APP_LABEL = /\tUIKitApplication:([^[\s]+)\[/;
 
 export type IosSimulatorUuid = string & z.BRAND<'IosSimulatorUuid'>;
 export type IosSimulatorName = string & z.BRAND<'IosSimulatorName'>;
@@ -75,14 +78,16 @@ export namespace IosSimulatorUtils {
   export async function getAvailableDevicesAsync({
     env,
     filter,
+    signal,
   }: {
     env: NodeJS.ProcessEnv;
     filter: 'available' | 'booted';
+    signal?: AbortSignal;
   }): Promise<SimulatorDevice[]> {
     const result = await spawn(
       'xcrun',
       ['simctl', 'list', 'devices', '--json', '--no-escape-slashes', filter],
-      { env }
+      { env, signal }
     );
     const xcrunData = JSON.parse(result.stdout) as XcrunSimctlListDevicesJsonOutput;
 
@@ -99,6 +104,41 @@ export namespace IosSimulatorUtils {
     }
 
     return allAvailableDevices;
+  }
+
+  export async function terminateUserAppsAsync({
+    udid,
+    env,
+    logger,
+    signal,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+    logger: bunyan;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const { stdout } = await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list'], {
+      env,
+      signal,
+    });
+    const apps = new Set(
+      stdout
+        .split('\n')
+        .map(line => RUNNING_APP_LABEL.exec(line)?.[1])
+        .filter((app): app is string => !!app && !app.startsWith('com.apple.'))
+    );
+    for (const app of apps) {
+      try {
+        await spawn('xcrun', ['simctl', 'terminate', udid, app], { env, signal });
+        logger.info(`Ended ${app} on the Simulator ${udid}.`);
+      } catch (err) {
+        signal?.throwIfAborted();
+        // The app exited between the list and the terminate.
+        if (!(err as { stderr?: string }).stderr?.includes('found nothing to terminate')) {
+          throw err;
+        }
+      }
+    }
   }
 
   export async function getDeviceAsync({

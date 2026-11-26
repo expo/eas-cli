@@ -58,6 +58,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -94,6 +95,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -127,6 +129,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         shouldThrowOnNotOk: false,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -158,6 +161,7 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         shouldThrowOnNotOk: false,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -345,6 +349,7 @@ describe('Datadog singleton', () => {
         },
         headers: { 'expo-device-run-session-token': 'session-token' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -388,6 +393,7 @@ describe('Datadog singleton', () => {
         },
         headers: { 'expo-sandbox-worker-token': 'sandbox-token' },
         retries: 2,
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -420,6 +426,104 @@ describe('Datadog singleton', () => {
     Datadog.log('Custom build saw user-provided function');
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clears the deadline of an upload that finishes', async () => {
+    jest.useFakeTimers();
+    try {
+      turtleFetchMock.mockResolvedValueOnce({} as Response);
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      await Datadog.flushAsync();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('cancels the request of an upload that gets no response after 10 seconds', async () => {
+    jest.useFakeTimers();
+    try {
+      turtleFetchMock.mockImplementationOnce(
+        (_url, _method, { signal }) =>
+          new Promise((_resolve, reject) => {
+            // node-fetch 2 rejects an aborted request with a generic AbortError.
+            signal!.addEventListener(
+              'abort',
+              () =>
+                reject(
+                  Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' })
+                ),
+              { once: true }
+            );
+          })
+      );
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      let flushed = false;
+      const flushing = Datadog.flushAsync().then(() => {
+        flushed = true;
+      });
+
+      await jest.advanceTimersByTimeAsync(9_999);
+      expect(flushed).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      await flushing;
+
+      expect(sentryCaptureMock).toHaveBeenCalledWith(
+        'Failed to report turtle deviceRunSession metric',
+        expect.objectContaining({ message: 'Upload did not finish within 10000 ms.' }),
+        expect.anything()
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('reports the error of an upload that fails before the deadline, not the deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      // turtleFetch waits 1 second after the last failed attempt, so a final HTTP 500 at 9.5 s
+      // rejects at 10.5 s, after the deadline aborted the signal.
+      let signal: AbortSignal | undefined;
+      turtleFetchMock.mockImplementationOnce(
+        (_url, _method, options) =>
+          new Promise((_resolve, reject) => {
+            signal = options.signal ?? undefined;
+            setTimeout(() => {
+              reject(new Error('Request failed with status 500'));
+            }, 10_500);
+          })
+      );
+      Datadog.setup({
+        expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+        deviceRunSessionToken: 'session-token',
+        target: { kind: 'deviceRunSession' },
+      });
+      Datadog.distribution('eas.device_run_session.ngrok_tunnel.stop', 10, {});
+      const flushing = Datadog.flushAsync();
+
+      await jest.advanceTimersByTimeAsync(10_500);
+      await flushing;
+
+      // The deadline fired before the request failed.
+      expect(signal?.aborted).toBe(true);
+      expect(sentryCaptureMock).toHaveBeenCalledWith(
+        'Failed to report turtle deviceRunSession metric',
+        expect.objectContaining({ message: 'Request failed with status 500' }),
+        expect.anything()
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('flushes pending metric uploads', async () => {

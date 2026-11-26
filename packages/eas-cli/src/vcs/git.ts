@@ -26,13 +26,24 @@ export async function doesGitRepoExistAsync(cwd: string | undefined): Promise<bo
 interface GitStatusOptions {
   showUntracked: boolean;
   cwd: string | undefined;
+  caseSensitive?: boolean;
+  ignoreDirtySubmodules?: boolean;
 }
 
-export async function gitStatusAsync({ showUntracked, cwd }: GitStatusOptions): Promise<string> {
+export async function gitStatusAsync({
+  showUntracked,
+  cwd,
+  caseSensitive = false,
+  ignoreDirtySubmodules = false,
+}: GitStatusOptions): Promise<string> {
+  const configOptions = caseSensitive ? ['-c', 'core.ignorecase=false'] : [];
+  const submoduleOptions = ignoreDirtySubmodules ? ['--ignore-submodules=dirty'] : [];
   return (
-    await spawnAsync('git', ['status', '-s', showUntracked ? '-uall' : '-uno'], {
-      cwd,
-    })
+    await spawnAsync(
+      'git',
+      [...configOptions, 'status', '-s', showUntracked ? '-uall' : '-uno', ...submoduleOptions],
+      { cwd }
+    )
   ).stdout;
 }
 

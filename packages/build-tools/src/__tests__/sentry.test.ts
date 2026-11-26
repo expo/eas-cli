@@ -216,6 +216,17 @@ describe('Sentry singleton', () => {
     });
   });
 
+  describe('setTags', () => {
+    it('adds the tags to the SDK scope that every later event uses', () => {
+      Sentry.setTags({ deviceRunSessionId: 'session-id', jobRunId: 'job-run-id' });
+
+      expect(sentryNode.setTags).toHaveBeenCalledWith({
+        deviceRunSessionId: 'session-id',
+        jobRunId: 'job-run-id',
+      });
+    });
+  });
+
   describe('flush', () => {
     it('forwards the timeout to the SDK and resolves with its result', async () => {
       jest.mocked(sentryNode.flush).mockResolvedValue(true);

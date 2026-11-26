@@ -53,12 +53,12 @@ export namespace AndroidEmulatorUtils {
 
   export async function getAttachedDevicesAsync({
     env,
+    signal,
   }: {
     env: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
   }): Promise<{ serialId: AndroidDeviceSerialId; state: 'offline' | 'device' }[]> {
-    const result = await spawn('adb', ['devices', '-l'], {
-      env,
-    });
+    const result = await spawn('adb', ['devices', '-l'], { env, signal });
     return result.stdout
       .replace(/\r\n/g, '\n')
       .split('\n')
@@ -332,7 +332,6 @@ export namespace AndroidEmulatorUtils {
     launchGate,
     logCapture,
     consolePort,
-    extraArgs = [],
     extraEnv = {},
   }: {
     deviceName: AndroidVirtualDeviceName;
@@ -345,8 +344,6 @@ export namespace AndroidEmulatorUtils {
      * before the start. Without it, the emulator picks a free port itself.
      */
     consolePort?: number;
-    /** Emulator arguments before $ANDROID_EMULATOR_EXTRA_ARGS, which can still override them. */
-    extraArgs?: string[];
     /** Environment variables for the emulator process only. */
     extraEnv?: Record<string, string>;
   }): Promise<{
@@ -390,7 +387,6 @@ export namespace AndroidEmulatorUtils {
       '-accel',
       'on',
       ...(consolePort !== undefined ? ['-port', String(consolePort)] : []),
-      ...extraArgs,
       ...(typeof env.ANDROID_EMULATOR_EXTRA_ARGS === 'string'
         ? env.ANDROID_EMULATOR_EXTRA_ARGS.split(' ')
         : []),
@@ -653,6 +649,28 @@ export namespace AndroidEmulatorUtils {
       server.once('error', () => resolve(false));
       server.listen(port, '127.0.0.1', () => server.close(() => resolve(true)));
     });
+  }
+
+  /** Force-stops every installed third-party app. */
+  export async function forceStopUserAppsAsync({
+    serialId,
+    env,
+    signal,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    await spawn(
+      'adb',
+      [
+        '-s',
+        serialId,
+        'shell',
+        'for p in $(pm list packages -3 | cut -d: -f2); do am force-stop "$p" || exit 1; done',
+      ],
+      { env, signal }
+    );
   }
 
   export async function stopAsync({
