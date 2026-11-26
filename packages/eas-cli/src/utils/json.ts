@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { stripVTControlCharacters } from 'util';
 
 import Log from '../log';
 
@@ -20,6 +21,18 @@ export function printJsonOnlyOutput(value: object): void {
   } finally {
     process.stdout.write = process.stderr.write.bind(process.stderr);
   }
+}
+
+export interface JsonErrorOutput {
+  message: string;
+  errorCode?: string;
+  requestId?: string;
+}
+
+export function printJsonErrorOutput(error: JsonErrorOutput): void {
+  // The command may have failed before it could enable JSON output.
+  enableJsonOutput();
+  printJsonOnlyOutput({ error: { ...error, message: stripVTControlCharacters(error.message) } });
 }
 
 function sanitizeValue(value: any): unknown {

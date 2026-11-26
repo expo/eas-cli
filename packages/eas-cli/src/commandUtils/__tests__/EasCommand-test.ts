@@ -1,7 +1,8 @@
-import { Config } from '@oclif/core';
+import { Config, Errors, Flags } from '@oclif/core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AnalyticsWithOrchestration } from '../../analytics/AnalyticsManager';
+import { enableJsonOutput, printJsonErrorOutput } from '../../utils/json';
 
 jest.mock('../../user/User');
 jest.mock('../../user/SessionManager');
@@ -24,6 +25,7 @@ jest.mock('../../analytics/AnalyticsManager', () => {
   };
 });
 jest.mock('../../log');
+jest.mock('../../utils/json');
 
 const mockRequestId = uuidv4();
 
@@ -64,7 +66,9 @@ beforeEach(() => {
  */
 let lastCommandConfig: Config | undefined;
 
-const createTestEasCommand = (): any => {
+const jsonFlags = { json: Flags.boolean() };
+
+const createTestEasCommand = (flags = {}): any => {
   const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
   createAnalyticsAsync.mockResolvedValue(analytics);
   const EasCommand = require('../EasCommand').default;
@@ -75,6 +79,7 @@ const createTestEasCommand = (): any => {
     }
   }
 
+  TestEasCommand.flags = flags;
   TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
   return TestEasCommand;
 };
@@ -306,7 +311,7 @@ describe('EasCommand', () => {
       });
 
       it('logs the cleaned message with request ID if present', async () => {
-        const TestEasCommand = createTestEasCommand();
+        const TestEasCommand = createTestEasCommand(jsonFlags);
         const Log = jest.requireMock('../../log').default;
         const logErrorSpy = jest.spyOn(Log, 'errorToStderr');
         const logDebugSpy = jest.spyOn(Log, 'debug');
@@ -330,9 +335,10 @@ describe('EasCommand', () => {
         runAsyncMock.mockImplementation(() => {
           throw error;
         });
-        try {
-          await TestEasCommand.run([], mockConfig);
-        } catch {}
+        await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+        expect(printJsonErrorOutput).toHaveBeenCalledWith(
+          expect.objectContaining({ requestId: mockRequestId, errorCode: undefined })
+        );
 
         expect(logErrorSpy).toBeCalledWith(
           `Unexpected GraphQL error message\nRequest ID: ${mockRequestId}`
@@ -379,6 +385,42 @@ describe('EasCommand', () => {
             `Request ID: ${mockRequestId}`
         );
         expect(logDebugSpy).toBeCalledWith(error);
+      });
+
+      it('enables JSON before authentication and reports login failures', async () => {
+        const TestEasCommand = createTestEasCommand(jsonFlags);
+        const SessionManager = jest.requireMock('../../user/SessionManager').default;
+        SessionManager.prototype.getUserAsync.mockImplementationOnce(() => {
+          expect(enableJsonOutput).toHaveBeenCalled();
+          Errors.error('Log in first.', { code: 'EAS_LOGIN_REQUIRED' });
+        });
+
+        await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+        expect(printJsonErrorOutput).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'Log in first.', errorCode: 'EAS_LOGIN_REQUIRED' })
+        );
+      });
+
+      it('reports the command name when it exits without a reason', async () => {
+        const TestEasCommand = createTestEasCommand(jsonFlags);
+        jest.spyOn(TestEasCommand.prototype, 'runAsync').mockImplementation(() => Errors.exit(1));
+
+        await expect(TestEasCommand.run(['--json'], mockConfig)).rejects.toThrow();
+        expect(printJsonErrorOutput).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'testEasCommand command failed.' })
+        );
+      });
+
+      it.each([
+        { name: 'forwarded', flags: jsonFlags, argv: ['--', '--json'] },
+        { name: 'unsupported', flags: {}, argv: ['--json'] },
+      ])('ignores --json when it is $name', async ({ flags, argv }) => {
+        const TestEasCommand = createTestEasCommand(flags);
+        jest.spyOn(TestEasCommand.prototype, 'runAsync').mockRejectedValue(new Error('failed'));
+
+        await expect(TestEasCommand.run(argv, mockConfig)).rejects.toThrow();
+        expect(enableJsonOutput).not.toHaveBeenCalled();
+        expect(printJsonErrorOutput).not.toHaveBeenCalled();
       });
 
       it('re-throws the error with default base message', async () => {
