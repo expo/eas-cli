@@ -187,7 +187,7 @@ describe('downloadBuild', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each([404, 410, 500])(
+  it.each([404, 410, 429, 500])(
     'identifies the application URL without credentials on HTTP %s',
     async status => {
       useFakeBackoffTimers();
@@ -207,18 +207,22 @@ describe('downloadBuild', () => {
       });
 
       const prefix = `Failed to download the archive at https://example.test/app.tar.gz (HTTP ${status})`;
+      const unavailable = status === 404 || status === 410;
       const rejection = expect(download).rejects.toThrow(
-        status === 500
-          ? `${prefix}: download failed`
-          : `${prefix}. The archive is unavailable. ` +
+        unavailable
+          ? `${prefix}. The archive is unavailable. ` +
               'Check that the URL is correct and the archive still exists, then try again.'
+          : `${prefix}: download failed`
       );
-      if (status === 500) {
+      if (!unavailable) {
         await fireBackoffTimersAsync(5);
       }
       await rejection;
       await expect(download).rejects.not.toThrow(/password|secret|fragment/);
-      expect(fetch).toHaveBeenCalledTimes(status === 500 ? 6 : 1);
+      if (!unavailable) {
+        await expect(download).rejects.toMatchObject({ name: 'ArchiveHttpError' });
+      }
+      expect(fetch).toHaveBeenCalledTimes(unavailable ? 1 : 6);
     }
   );
 
@@ -715,14 +719,14 @@ describe('downloadBuild', () => {
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });
 
-  it.each([500, 502, 503, 504])('downloads after an archive HTTP %s then success', async status => {
+  it.each([408, 429, 500, 502, 503, 504])('recovers from archive HTTP %s', async status => {
     useFakeBackoffTimers();
     const { Response: ActualResponse } =
       jest.requireActual<typeof import('node-fetch')>('node-fetch');
     const graphqlClient = createMockGraphqlClient({
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
-    const errorResponse = new ActualResponse('<Error>InternalError</Error>', { status });
+    const errorResponse = new ActualResponse('Try again later', { status });
     jest
       .mocked(fetch)
       .mockResolvedValueOnce(errorResponse)
@@ -753,13 +757,13 @@ describe('downloadBuild', () => {
     );
   });
 
-  it.each([500, 502, 503, 504])('stops after six archive HTTP %s responses', async status => {
+  it.each([408, 429, 500, 502, 503, 504])('throws SystemError after six HTTP %s', async status => {
     useFakeBackoffTimers();
     const { Response: ActualResponse } =
       jest.requireActual<typeof import('node-fetch')>('node-fetch');
     jest
       .mocked(fetch)
-      .mockImplementation(async () => new ActualResponse('server failure', { status }));
+      .mockImplementation(async () => new ActualResponse('Try again later', { status }));
     const datadogLog = jest.spyOn(Datadog, 'log');
     const buildId = randomUUID();
     const download = downloadBuildAsync({
@@ -769,16 +773,14 @@ describe('downloadBuild', () => {
       robotAccessToken: null,
       extensions: ['app'],
     });
-    const rejection = expect(download).rejects.toThrow(
-      `Failed to download the application archive for build ${buildId} (HTTP ${status}): server failure`
-    );
+    const rejection = expect(download).rejects.toBeInstanceOf(SystemError);
     await fireBackoffTimersAsync(5);
 
     await rejection;
     await expect(download).rejects.toMatchObject({
-      name: 'ArchiveHttpError',
-      code: `HTTP_${status}`,
-      status,
+      errorCode: 'SERVER_ERROR',
+      message: `Failed to download the application archive for build ${buildId} (HTTP ${status}): Try again later`,
+      cause: { name: 'ArchiveHttpError', code: `HTTP_${status}`, status },
     });
     expect(fetch).toHaveBeenCalledTimes(6);
     expect(datadogLog).toHaveBeenCalledWith(
@@ -787,7 +789,7 @@ describe('downloadBuild', () => {
     );
   });
 
-  it.each([400, 401, 403, 408, 429, 501, 505])('does not retry archive HTTP %s', async status => {
+  it.each([400, 401, 403, 501, 505])('does not retry archive HTTP %s', async status => {
     const { Response: ActualResponse } =
       jest.requireActual<typeof import('node-fetch')>('node-fetch');
     jest.mocked(fetch).mockResolvedValue(new ActualResponse('download failed', { status }));
@@ -796,12 +798,15 @@ describe('downloadBuild', () => {
     await expect(
       downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
-        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
-        graphqlClient: createMockGraphqlClient({}),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
         robotAccessToken: null,
         extensions: ['app'],
       })
-    ).rejects.toThrow(`HTTP ${status}`);
+    ).rejects.toMatchObject({
+      name: 'ArchiveHttpError',
+      message: expect.stringContaining(`HTTP ${status}`),
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(datadogLog).not.toHaveBeenCalled();
   });

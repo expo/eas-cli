@@ -40,6 +40,9 @@ import { WorkerApiError } from '../utils/workerApi';
 
 const streamPipeline = promisify(stream.pipeline);
 
+// Match signed URL uploads: retry request timeouts, rate limits, and transient server errors.
+const RETRYABLE_ARCHIVE_HTTP_STATUSES = [408, 429, 500, 502, 503, 504];
+
 class ArchiveHttpError extends Error {
   readonly code: string;
 
@@ -51,6 +54,12 @@ class ArchiveHttpError extends Error {
     this.name = 'ArchiveHttpError';
     this.code = `HTTP_${status}`;
   }
+}
+
+function isRetryableArchiveDownloadError(error: unknown): boolean {
+  return error instanceof ArchiveHttpError
+    ? RETRYABLE_ARCHIVE_HTTP_STATUSES.includes(error.status)
+    : isTransferFailure(error);
 }
 
 type DownloadBuildSource =
@@ -352,20 +361,17 @@ export async function downloadBuildAsync(
       {
         operation: 'download_build.archive_download',
         signal,
-        // This GET is safe to repeat after internal, gateway, or temporary availability failures.
-        // Keep this fix limited to server errors; 408/429 remain nonretryable here.
-        // Unsupported operations/protocols (501/505) are also nonretryable.
-        isRetryable: error =>
-          isTransferFailure(error) ||
-          (error instanceof ArchiveHttpError && [500, 502, 503, 504].includes(error.status)),
+        isRetryable: isRetryableArchiveDownloadError,
       }
     );
   } catch (error) {
     signal?.throwIfAborted();
-    if (params.buildId && isTransferFailure(error)) {
-      throw new SystemError(`Could not download the application archive: ${describeError(error)}`, {
-        cause: error,
-      });
+    if (params.buildId && isRetryableArchiveDownloadError(error)) {
+      const message =
+        error instanceof ArchiveHttpError
+          ? error.message
+          : `Could not download the application archive: ${describeError(error)}`;
+      throw new SystemError(message, { cause: error });
     }
     throw error;
   }
