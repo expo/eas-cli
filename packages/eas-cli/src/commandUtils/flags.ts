@@ -1,8 +1,8 @@
 import { Flags } from '@oclif/core';
-import { boolish } from 'getenv';
+import { isCI } from '../utils/ci';
 
 export function isNonInteractiveByDefault(): boolean {
-  return boolish('CI', false) || !process.stdin.isTTY;
+  return isCI() || !process.stdin.isTTY;
 }
 
 export const EasNonInteractiveAndJsonFlags = {

@@ -4,7 +4,6 @@ import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import { LoggerLevel } from '@expo/logger';
 import { resolvePackageManager } from '@expo/package-manager';
-import getenv from 'getenv';
 import resolveFrom from 'resolve-from';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,6 +22,7 @@ import { resolveWorkflowAsync } from '../project/workflow';
 import { LoggedInAuthenticationInfo } from '../user/SessionManager';
 import { Actor } from '../user/User';
 import { Client } from '../vcs/vcs';
+import { isCI } from '../utils/ci';
 
 export async function createBuildContextAsync<T extends Platform>({
   buildProfileName,
@@ -87,7 +87,7 @@ export async function createBuildContextAsync<T extends Platform>({
   ]);
 
   const accountId = account.id;
-  const runFromCI = getenv.boolish('CI', false);
+  const runFromCI = isCI();
   const developmentClient =
     buildProfile.developmentClient ??
     (platform === Platform.ANDROID

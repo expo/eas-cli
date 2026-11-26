@@ -44,7 +44,6 @@ import spawnAsync from '@expo/spawn-async';
 import { Args, Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
-import { boolish } from 'getenv';
 import * as path from 'node:path';
 import slash from 'slash';
 
@@ -80,6 +79,7 @@ import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedF
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { WorkflowFile } from '../../utils/workflowFile';
+import { isCI } from '../../utils/ci';
 
 export function resolveWorkflowRunSshInput({
   ssh,
@@ -449,7 +449,7 @@ export default class WorkflowRun extends EasCommand {
       process.exit(0);
     }
 
-    const spinnerUsesStdErr = boolish('CI', false) || flags.json;
+    const spinnerUsesStdErr = isCI() || flags.json;
 
     const { status } = await showWorkflowStatusAsync(graphqlClient, {
       workflowRunId,

@@ -11,7 +11,6 @@
  */
 
 import { Args, Flags } from '@oclif/core';
-import { boolish } from 'getenv';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -29,6 +28,7 @@ import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { isCI } from '../../utils/ci';
 
 export default class WorkflowStatus extends EasCommand {
   static override description =
@@ -112,7 +112,7 @@ export default class WorkflowStatus extends EasCommand {
     Log.log(`See logs: ${link(getWorkflowRunUrl(account.name, projectName, workflowRunId))}`);
     Log.addNewLineIfNone();
 
-    const spinnerUsesStdErr = boolish('CI', false) || flags.json;
+    const spinnerUsesStdErr = isCI() || flags.json;
 
     await showWorkflowStatusAsync(graphqlClient, {
       workflowRunId,
