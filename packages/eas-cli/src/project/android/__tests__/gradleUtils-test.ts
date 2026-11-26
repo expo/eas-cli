@@ -199,6 +199,28 @@ describe(parseGradleCommand, () => {
     };
     expect(result).toThrow('flavor example is not defined');
   });
+  test('parsing a multi-word build type after a flavor', async () => {
+    const result = parseGradleCommand(':app:assembleProdDebugOptimized', {
+      android: { productFlavors: { prod: {} } },
+    });
+    expect(result).toEqual({ moduleName: 'app', flavor: 'prod', buildType: 'debugOptimized' });
+  });
+  test('parsing a custom multi-word build type after a flavor', async () => {
+    const result = parseGradleCommand(':app:bundleProdReleaseStaging', {
+      android: { productFlavors: { prod: {}, dev: {} } },
+    });
+    expect(result).toEqual({ moduleName: 'app', flavor: 'prod', buildType: 'releaseStaging' });
+  });
+  test('parsing picks the longest matching flavor', async () => {
+    const result = parseGradleCommand(':app:assembleProdEuRelease', {
+      android: { productFlavors: { prod: {}, prodEu: {} } },
+    });
+    expect(result).toEqual({ moduleName: 'app', flavor: 'prodEu', buildType: 'release' });
+  });
+  test('parsing debugOptimized without flavors', async () => {
+    const result = parseGradleCommand(':app:assembleDebugOptimized', {});
+    expect(result).toEqual({ moduleName: 'app', buildType: 'debugOptimized' });
+  });
   test('parsing with aditional cmdline options', async () => {
     const result = parseGradleCommand(':app:bundleRelease --console verbose', {});
     expect(result).toEqual({ moduleName: 'app', buildType: 'release' });

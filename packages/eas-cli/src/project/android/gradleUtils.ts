@@ -59,6 +59,13 @@ export function resolveConfigValue(
   );
 }
 
+// Build types without a flavor that span more than one word in a task name.
+const MULTI_WORD_BUILD_TYPES = ['debugOptimized'];
+
+function lowerFirst(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
 /**
  * Extract module name, buildType, and flavor from the gradle command.
  *
@@ -97,6 +104,30 @@ export function parseGradleCommand(cmd: string, buildGradle: AppBuildGradle): Gr
   if (!matchResult) {
     throw new Error(`Failed to parse gradle command: ${cmd}`);
   }
+  // A build type can be more than one word (React Native's debugOptimized, or
+  // a custom one like releaseStaging), so the last word alone isn't always the
+  // build type. Take a defined flavor off the front first, if there is one.
+  const variant = matchResult[2] + matchResult[3];
+  const flavorPrefix = [...flavors]
+    .filter(
+      option =>
+        variant.length > option.length &&
+        variant[0].toLowerCase() === option[0].toLowerCase() &&
+        variant.slice(1, option.length) === option.slice(1) &&
+        /[A-Z]/.test(variant[option.length])
+    )
+    .sort((a, b) => b.length - a.length)[0];
+  if (flavorPrefix) {
+    return {
+      moduleName,
+      flavor: flavorPrefix,
+      buildType: lowerFirst(variant.slice(flavorPrefix.length)),
+    };
+  }
+  if (MULTI_WORD_BUILD_TYPES.includes(lowerFirst(variant))) {
+    return { moduleName, buildType: lowerFirst(variant) };
+  }
+
   let flavor: string | undefined;
   if (matchResult[2]) {
     const [firstLetter, rest] = [matchResult[2].slice(0, 1), matchResult[2].slice(1)];
