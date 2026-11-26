@@ -586,9 +586,9 @@ type ArgentInstall = {
  * path of Argent's bootstrap library before it boots, and the tool-server must
  * run from the same install so that the bootstrap matches it.
  *
- * The directory is not removed: the Simulator keeps the bootstrap in its boot
- * environment until it shuts down, and a process that cannot load an inserted
- * library does not start.
+ * A successful install is not removed: the Simulator keeps the bootstrap in
+ * its boot environment until it shuts down, and a process that cannot load an
+ * inserted library does not start. A failed or stopped install is removed.
  */
 export async function installArgentAsync({
   packageSpec,
@@ -604,24 +604,44 @@ export async function installArgentAsync({
   signal?: AbortSignal;
 }): Promise<ArgentInstall> {
   const installDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-argent-'));
-  await fs.promises.writeFile(
-    path.join(installDir, 'package.json'),
-    `${JSON.stringify({ name: 'eas-argent', private: true })}\n`
-  );
   const add = resolvePackageAdd(packageManager, packageSpec);
-  logger.info(
-    `Installing ${packageSpec} with ${add.command} before the Simulator boots, so its native devtools load with the local egress guard.`
-  );
-  await runArgentSetupCommandAsync(add.command, add.args, { cwd: installDir, env, logger }, signal);
-  const binPath = path.join(installDir, 'node_modules', '.bin', 'argent');
-  if (!fs.existsSync(binPath)) {
-    throw new SystemError(`Expected the Argent CLI at ${binPath} after ${add.command} install.`);
+  try {
+    await fs.promises.writeFile(
+      path.join(installDir, 'package.json'),
+      `${JSON.stringify({ name: 'eas-argent', private: true })}\n`
+    );
+    logger.info(
+      `Installing ${packageSpec} with ${add.command} before the Simulator boots, so its native devtools load with the local egress guard.`
+    );
+    await runArgentSetupCommandAsync(
+      add.command,
+      add.args,
+      {
+        cwd: installDir,
+        // Yarn 2+ defaults to Plug'n'Play, which has no node_modules to find the CLI and dylibs in.
+        env: packageManager === PackageManager.YARN ? { ...env, YARN_NODE_LINKER: 'node-modules' } : env,
+        logger,
+      },
+      signal
+    );
+    const binPath = path.join(installDir, 'node_modules', '.bin', 'argent');
+    if (!fs.existsSync(binPath)) {
+      throw new Error(`Expected the Argent CLI at ${binPath} after the install.`);
+    }
+    const dylibDir = path.join(installDir, 'node_modules', ARGENT_PACKAGE_NAME, 'dylibs');
+    const bootstrapPath = ARGENT_BOOTSTRAP_DYLIB_FILES.map(file => path.join(dylibDir, file)).find(
+      file => fs.existsSync(file)
+    );
+    return { binPath, bootstrapPath };
+  } catch (err) {
+    await fs.promises.rm(installDir, { recursive: true, force: true });
+    // A Stop kills the install; report the Stop, not the killed process.
+    signal?.throwIfAborted();
+    throw new SystemError(
+      `Could not install ${packageSpec} with ${add.command}: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err }
+    );
   }
-  const dylibDir = path.join(installDir, 'node_modules', ARGENT_PACKAGE_NAME, 'dylibs');
-  const bootstrapPath = ARGENT_BOOTSTRAP_DYLIB_FILES.map(file => path.join(dylibDir, file)).find(
-    file => fs.existsSync(file)
-  );
-  return { binPath, bootstrapPath };
 }
 
 async function runArgentSetupCommandAsync(

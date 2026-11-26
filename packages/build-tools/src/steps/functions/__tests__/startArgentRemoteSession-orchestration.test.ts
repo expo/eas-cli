@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
@@ -31,7 +32,11 @@ import {
 import { type WarmIosSession } from '../../utils/warmIosSession';
 import { watchDeviceRunSessionStartup } from '../../utils/deviceRunSessionStartup';
 import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
-import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
+import {
+  createStartArgentRemoteSessionBuildFunction,
+  installArgentAsync,
+} from '../startArgentRemoteSession';
+import { PackageManager } from '../../../utils/packageManager';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
 import { resolveLocalEgressServeSimBootEnvironmentAsync } from '../../utils/localEgressGuard';
 
@@ -1546,6 +1551,118 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       if (installDir) {
         await fs.promises.rm(installDir, { recursive: true, force: true });
       }
+    }
+  });
+
+  it('reports Stop, not the killed install, when the session stops during the Argent install', async () => {
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockImplementationOnce(async options => {
+        await options?.resolveAdditionalLibrariesAsync?.();
+        return { SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib' };
+      });
+    let installDir: string | undefined;
+    let rejectInstall!: (error: Error) => void;
+    jest.mocked(spawn).mockImplementationOnce(((
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd;
+      return Object.assign(
+        new Promise<never>((_resolve, reject) => {
+          rejectInstall = reject;
+        }),
+        { child: { pid: 12345 } }
+      );
+    }) as never);
+    jest
+      .mocked(killProcessGroup)
+      .mockImplementationOnce(() => rejectInstall(new Error('exited with signal: SIGKILL')));
+    const running = Promise.resolve(
+      createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    );
+    running.catch(() => {});
+    for (let i = 0; i < 20 && !installDir; i++) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    expect(spawn).toHaveBeenCalledWith('bun', ['add', '@swmansion/argent@latest'], expect.anything());
+    jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    await expect(running).resolves.toBeUndefined();
+    expect(killProcessGroup).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(installDir!)).toBe(false);
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
+
+  it('removes a failed Argent install and reports it as a SystemError', async () => {
+    let installDir: string | undefined;
+    const failure = new Error('exited with code 23');
+    jest.mocked(spawn).mockImplementationOnce((async (
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd;
+      throw failure;
+    }) as never);
+    const error = await installArgentAsync({
+      packageSpec: '@swmansion/argent@0.34.0',
+      packageManager: PackageManager.BUN,
+      env: {},
+      logger: { info: jest.fn() } as never,
+    }).catch(err => err);
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      'Could not install @swmansion/argent@0.34.0 with bun: exited with code 23'
+    );
+    expect(error.cause).toBe(failure);
+    expect(fs.existsSync(installDir!)).toBe(false);
+  });
+
+  it('installs Argent with a node_modules layout when Yarn is configured', async () => {
+    let installDir: string | undefined;
+    jest.mocked(spawn).mockImplementationOnce((async (
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd!;
+      await fs.promises.mkdir(path.join(installDir, 'node_modules', '.bin'), { recursive: true });
+      await fs.promises.writeFile(path.join(installDir, 'node_modules', '.bin', 'argent'), '');
+    }) as never);
+    try {
+      const install = await installArgentAsync({
+        packageSpec: '@swmansion/argent@0.34.0',
+        packageManager: PackageManager.YARN,
+        env: { PATH: '/usr/bin' },
+        logger: { info: jest.fn() } as never,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'yarn',
+        ['add', '@swmansion/argent@0.34.0'],
+        expect.objectContaining({ env: { PATH: '/usr/bin', YARN_NODE_LINKER: 'node-modules' } })
+      );
+      expect(install).toEqual({
+        binPath: path.join(installDir!, 'node_modules', '.bin', 'argent'),
+        bootstrapPath: undefined,
+      });
+    } finally {
+      await fs.promises.rm(installDir!, { recursive: true, force: true });
     }
   });
 });
