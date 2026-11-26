@@ -93,112 +93,116 @@ export const DeviceRunSessionQuery = {
     }
     return data.deviceRunSessions.byId.turtleJobRun;
   },
+  /** With `signal`, it rejects with `signal.reason` and cancels the request when `signal` aborts. */
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    deviceRunSessionId: string
+    deviceRunSessionId: string,
+    { signal }: { signal?: AbortSignal } = {}
   ): Promise<DeviceRunSessionByIdQuery['deviceRunSessions']['byId']> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .query<DeviceRunSessionByIdQuery, DeviceRunSessionByIdQueryVariables>(
-          gql`
-            query DeviceRunSessionByIdQuery($deviceRunSessionId: ID!) {
-              deviceRunSessions {
-                byId(deviceRunSessionId: $deviceRunSessionId) {
+    const query = graphqlClient.query<
+      DeviceRunSessionByIdQuery,
+      DeviceRunSessionByIdQueryVariables
+    >(
+      gql`
+        query DeviceRunSessionByIdQuery($deviceRunSessionId: ID!) {
+          deviceRunSessions {
+            byId(deviceRunSessionId: $deviceRunSessionId) {
+              id
+              name
+              tags
+              publicPreview
+              status
+              type
+              platform
+              createdAt
+              startedAt
+              finishedAt
+              updatedAt
+              app {
+                id
+                slug
+                ownerAccount {
                   id
                   name
-                  tags
-                  publicPreview
-                  status
-                  type
-                  platform
-                  createdAt
-                  startedAt
-                  finishedAt
-                  updatedAt
-                  app {
-                    id
-                    slug
-                    ownerAccount {
-                      id
-                      name
-                    }
-                  }
-                  artifacts {
-                    id
-                    name
-                    filename
-                    downloadUrl
-                    fileSizeBytes
-                    metadata
-                    createdAt
-                    updatedAt
-                  }
-                  remoteConfig {
-                    __typename
-                    ... on AgentDeviceRunSessionRemoteConfig {
-                      agentDeviceRemoteSessionUrl
-                      agentDeviceRemoteSessionToken
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                    }
-                    ... on ArgentRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      toolsUrl
-                      toolsAuthToken
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                    }
-                    ... on AppiumRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      appiumUrl
-                      capabilities
-                      webPreviewUrl
-                      webPreviewToken
-                      previewApiUrl
-                    }
-                    ... on ServeSimRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      previewUrl
-                      previewToken
-                      previewApiUrl
-                    }
-                    ... on WebPreviewOnlyRunSessionRemoteConfig {
-                      egressUrl
-                      egressToken
-                      egressFingerprint
-                      egressPort
-                      previewUrl: webPreviewUrl
-                      previewToken: webPreviewToken
-                      previewApiUrl
-                    }
-                  }
-                  turtleJobRun {
-                    id
-                    status
-                  }
                 }
               }
+              artifacts {
+                id
+                name
+                filename
+                downloadUrl
+                fileSizeBytes
+                metadata
+                createdAt
+                updatedAt
+              }
+              remoteConfig {
+                __typename
+                ... on AgentDeviceRunSessionRemoteConfig {
+                  agentDeviceRemoteSessionUrl
+                  agentDeviceRemoteSessionToken
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                }
+                ... on ArgentRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  toolsUrl
+                  toolsAuthToken
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                }
+                ... on AppiumRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  appiumUrl
+                  capabilities
+                  webPreviewUrl
+                  webPreviewToken
+                  previewApiUrl
+                }
+                ... on ServeSimRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  previewUrl
+                  previewToken
+                  previewApiUrl
+                }
+                ... on WebPreviewOnlyRunSessionRemoteConfig {
+                  egressUrl
+                  egressToken
+                  egressFingerprint
+                  egressPort
+                  previewUrl: webPreviewUrl
+                  previewToken: webPreviewToken
+                  previewApiUrl
+                }
+              }
+              turtleJobRun {
+                id
+                status
+              }
             }
-          `,
-          { deviceRunSessionId },
-          { requestPolicy: 'network-only' }
-        )
-        .toPromise()
+          }
+        }
+      `,
+      { deviceRunSessionId },
+      { requestPolicy: 'network-only' }
+    );
+    const data = await withErrorHandlingAsync(
+      signal ? firstResultUntilAbortedAsync(query, signal) : query.toPromise()
     );
     return data.deviceRunSessions.byId;
   },

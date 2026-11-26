@@ -22,6 +22,36 @@ export function printJsonOnlyOutput(value: object): void {
   }
 }
 
+/**
+ * Like `printJsonOnlyOutput`, but resolves only when stdout accepted the output, and rejects when the
+ * write fails, for example because the reading end of a pipe closed. Use it when the output hands
+ * off something that must be cleaned up if the caller never receives it.
+ */
+export async function printJsonOnlyOutputAsync(value: object): Promise<void> {
+  assert(stdoutWrite, 'this should only be called with --json flag');
+  const write = stdoutWrite;
+  const text = `${JSON.stringify(sanitizeValue(value), null, 2)}\n`;
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const settle = (error?: Error | null): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      // The stream can emit the same error after the callback; keep a listener until then, so it
+      // is not reported as an uncaught exception.
+      setImmediate(() => process.stdout.removeListener('error', settle));
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    };
+    process.stdout.on('error', settle);
+    write.call(process.stdout, text, 'utf8', settle);
+  });
+}
+
 function sanitizeValue(value: any): unknown {
   if (Array.isArray(value)) {
     return value.map(val => sanitizeValue(val));

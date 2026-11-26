@@ -79,7 +79,7 @@ import {
   getRemoteSessionEnvironmentVariables,
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { enableJsonOutput, printJsonOnlyOutput, printJsonOnlyOutputAsync } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
@@ -482,6 +482,8 @@ With local egress, actions wait for the connection and require interactive mode.
           stopDeviceRunSessionCreatedAfterCancelAsync(graphqlClient, createdSession.id)
       );
       deviceRunSessionId = session.id;
+      // Register as soon as the session exists, so an error or signal from here on stops it.
+      sessionInterrupt = registerSessionInterrupt(graphqlClient, deviceRunSessionId);
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
       deviceRunSessionUrl = getDeviceRunSessionUrl(
         session.app.ownerAccount.name,
@@ -493,7 +495,6 @@ With local egress, actions wait for the connection and require interactive mode.
         session.app.slug,
         deviceRunSessionId
       );
-      sessionInterrupt = registerSessionInterrupt(deviceRunSessionId);
       const simulatorEnvWritten =
         !jsonFlag &&
         !imported.config?.actions?.length &&
@@ -514,18 +515,29 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       createSpinner.fail('Failed to create simulator session');
-      sessionInterrupt?.dispose();
+      if (sessionInterrupt) {
+        // The session exists on EAS, but the user never received it.
+        await stopDeviceRunSessionAfterStartupErrorAsync({
+          sessionInterrupt,
+          projectDir,
+          jsonFlag,
+        });
+        sessionInterrupt.dispose();
+      }
       throw err;
     }
 
-    const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`).start();
+    const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`);
     let startupDeadline: number | undefined = Date.now() + STARTUP_TIMEOUT_MS;
     let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
     try {
+      pollSpinner.start();
       while (!sessionInterrupt.signal.aborted) {
         const session = await Promise.race([
-          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
+          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId, {
+            signal: sessionInterrupt.signal,
+          }),
           sessionInterrupt.abortPromise,
         ]);
 
@@ -574,15 +586,13 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      await sessionInterrupt.stopSessionAsync();
       sessionInterrupt.dispose();
       throw err;
     }
 
     if (sessionInterrupt.signal.aborted) {
       await stopDeviceRunSessionAfterInterruptAsync({
-        graphqlClient,
-        deviceRunSessionId,
         projectDir,
         spinner: pollSpinner,
         sessionInterrupt,
@@ -592,7 +602,7 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      await sessionInterrupt.stopSessionAsync();
       sessionInterrupt.dispose();
       throw new Error(
         `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
@@ -642,19 +652,8 @@ With local egress, actions wait for the connection and require interactive mode.
         });
       }
     };
-    // Set once a path takes over stopping the session: the interrupt handler, the failed import,
-    // or the wait for the session to end. Until then, an error must stop the session here, since
-    // the user has not received the session yet and nothing else would stop it.
-    let sessionCleanupHandled = false;
     const stopAfterInterruptAsync = async (spinner: Ora): Promise<void> => {
-      sessionCleanupHandled = true;
-      await stopDeviceRunSessionAfterInterruptAsync({
-        graphqlClient,
-        deviceRunSessionId,
-        projectDir,
-        spinner,
-        sessionInterrupt,
-      });
+      await stopDeviceRunSessionAfterInterruptAsync({ projectDir, spinner, sessionInterrupt });
     };
     try {
       if (!jsonFlag && !imported.config?.actions?.length) {
@@ -734,31 +733,38 @@ With local egress, actions wait for the connection and require interactive mode.
               'This session does not expose an authenticated preview API for control actions.'
             );
           }
-          const results = await applyStartConfigAsync(access, imported.config, {
-            signal: sessionInterrupt.signal,
-            onProgress: jsonFlag
-              ? undefined
-              : progress => {
-                  const label = `[${progress.step}/${progress.total}] ${progress.action}`;
-                  if (progress.status === 'running') {
-                    setupSpinner.start(label);
-                  } else {
-                    setupSpinner.succeed(`${label} completed`);
-                    if (progress.result.file) {
-                      Log.log(`Saved ${progress.result.file}`);
-                    } else if (progress.result.output) {
-                      Log.log(progress.result.output);
+          // Race the abort: packaging a large app can take long, and the stop must start at once.
+          // Exiting removes the unfinished archive.
+          const results = await Promise.race([
+            applyStartConfigAsync(access, imported.config, {
+              signal: sessionInterrupt.signal,
+              onProgress: jsonFlag
+                ? undefined
+                : progress => {
+                    const label = `[${progress.step}/${progress.total}] ${progress.action}`;
+                    if (progress.status === 'running') {
+                      setupSpinner.start(label);
+                    } else {
+                      setupSpinner.succeed(`${label} completed`);
+                      if (progress.result.file) {
+                        Log.log(`Saved ${progress.result.file}`);
+                      } else if (progress.result.output) {
+                        Log.log(progress.result.output);
+                      }
                     }
-                  }
-                },
-          });
+                  },
+            }),
+            sessionInterrupt.abortPromise.then(() => undefined),
+          ]);
           sessionInterrupt.signal.throwIfAborted();
-          setup = { config: imported.config.path, results: serializeControlConfigResults(results) };
+          setup = {
+            config: imported.config.path,
+            results: serializeControlConfigResults(nullthrows(results)),
+          };
           setupSpinner.succeed(
             `Import complete: ${total} action${total === 1 ? '' : 's'} completed`
           );
         } catch (caught) {
-          sessionCleanupHandled = true;
           egressAbortController.abort();
           await egressPromise;
           const error = egressError ?? caught;
@@ -780,10 +786,7 @@ With local egress, actions wait for the connection and require interactive mode.
           } else {
             setupSpinner.fail('Simulator configuration import failed');
           }
-          const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
-            graphqlClient,
-            deviceRunSessionId
-          );
+          const stopped = await sessionInterrupt.stopSessionAsync();
           if (stopped) {
             if (!jsonFlag) {
               Log.succeed('Stopped the simulator session after setup failed.');
@@ -828,14 +831,21 @@ With local egress, actions wait for the connection and require interactive mode.
       if (jsonFlag || imported.config?.actions?.length) {
         // Keep the previous session's saved credentials until setup succeeds.
         await writeReadySimulatorEnvAsync();
+        if (egressError) {
+          // Local egress failed and aborted the session. The catch below stops the session.
+          throw egressError;
+        }
         if (sessionInterrupt.signal.aborted) {
+          // Let local egress shut down before the stop exits the process.
+          await egressPromise;
           await stopAfterInterruptAsync(pollSpinner);
           return;
         }
       }
       if (jsonFlag) {
-        sessionInterrupt.dispose();
-        printJsonOnlyOutput({
+        // The session is handed off only when the JSON reaches stdout. Until then, an error or a
+        // signal still stops it.
+        await printJsonOnlyOutputAsync({
           id: deviceRunSessionId,
           name,
           type: flags.type,
@@ -852,7 +862,6 @@ With local egress, actions wait for the connection and require interactive mode.
       }
 
       if (nonInteractive) {
-        sessionInterrupt.dispose();
         return;
       }
 
@@ -860,7 +869,6 @@ With local egress, actions wait for the connection and require interactive mode.
         startLocalEgress();
       }
 
-      sessionCleanupHandled = true;
       await waitForSessionEndOrInterruptAsync({
         graphqlClient,
         deviceRunSessionId,
@@ -872,10 +880,11 @@ With local egress, actions wait for the connection and require interactive mode.
         throw egressError;
       }
     } catch (error) {
-      if (!sessionCleanupHandled) {
+      // Paths that stop the session themselves, or that saw it end, have already started the stop.
+      // Any other error means the user never received the session, so stop it here.
+      if (!sessionInterrupt.stopStarted) {
         await stopDeviceRunSessionAfterStartupErrorAsync({
-          graphqlClient,
-          deviceRunSessionId,
+          sessionInterrupt,
           projectDir,
           jsonFlag,
         });
@@ -973,7 +982,7 @@ async function waitForSessionEndOrInterruptAsync({
         // Race the abort so a stalled poll cannot delay the stop after Ctrl+C or SIGTERM. A runner
         // can follow SIGTERM with SIGKILL soon after.
         session = await Promise.race([
-          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
+          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId, { signal }),
           sessionInterrupt.abortPromise,
         ]);
       } catch (err) {
@@ -993,6 +1002,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Errored
       ) {
         spinner.fail(`Simulator session errored. ${link(deviceRunSessionUrl)}`);
+        sessionInterrupt.markSessionEnded();
         throw new Error(
           `Simulator session ${deviceRunSessionId} errored.${await formatJobRunErrorsAsync(graphqlClient, deviceRunSessionId, signal)}`
         );
@@ -1003,6 +1013,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Simulator session ended. ${link(deviceRunSessionUrl)}`);
+        sessionInterrupt.markSessionEnded();
         await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
         return;
       }
@@ -1011,10 +1022,7 @@ async function waitForSessionEndOrInterruptAsync({
     }
 
     spinner.text = 'Stopping simulator session...';
-    const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
-      graphqlClient,
-      deviceRunSessionId
-    );
+    const stopped = await sessionInterrupt.stopSessionAsync();
     if (stopped) {
       spinner.succeed('Simulator session stopped');
       await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
@@ -1059,16 +1067,29 @@ function addInterruptListener(listener: (signal: InterruptSignal) => void): () =
 }
 
 type SessionInterrupt = {
+  deviceRunSessionId: string;
   signal: AbortSignal;
   abortPromise: Promise<void>;
   /** Stop the session as if the user had pressed Ctrl+C. */
   abort: () => void;
   /** The exit code for the signal that interrupted the session. */
   readonly exitCode: number;
+  /**
+   * Stops the session on EAS. All callers share one request, so every path can call it without
+   * stopping the session twice. Resolves to whether the stop was confirmed.
+   */
+  stopSessionAsync: () => Promise<boolean>;
+  /** Whether a path has already started stopping the session, or the session already ended. */
+  readonly stopStarted: boolean;
+  /** Records that the session ended on EAS, so no path needs to stop it. */
+  markSessionEnded: () => void;
   dispose: () => void;
 };
 
-function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt {
+function registerSessionInterrupt(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string
+): SessionInterrupt {
   const abortController = new AbortController();
   const { signal } = abortController;
   const abortPromise = new Promise<void>(resolve => {
@@ -1081,8 +1102,11 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
     );
   });
   let exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL.SIGINT;
+  // Tracked apart from `signal.aborted`: a local egress failure also aborts the session, and the
+  // first real signal after that must not force an exit while the stop is running.
+  let signalReceived = false;
   const interruptHandler = (interruptSignal: InterruptSignal): void => {
-    if (signal.aborted) {
+    if (signalReceived) {
       // Force exit on a second signal in case cleanup is hanging. The session may still be
       // running on EAS, so tell the user how to make sure it gets terminated.
       Log.error(
@@ -1090,12 +1114,15 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
       );
       process.exit(EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal]);
     }
+    signalReceived = true;
     exitCode = EXIT_CODE_BY_INTERRUPT_SIGNAL[interruptSignal];
     abortController.abort();
   };
   const removeInterruptListener = addInterruptListener(interruptHandler);
+  let stopPromise: Promise<boolean> | undefined;
 
   return {
+    deviceRunSessionId,
     signal,
     abortPromise,
     abort: () => {
@@ -1104,32 +1131,42 @@ function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt 
     get exitCode() {
       return exitCode;
     },
+    stopSessionAsync: async () =>
+      await (stopPromise ??= ensureDeviceRunSessionStoppedSafelyAsync(
+        graphqlClient,
+        deviceRunSessionId
+      )),
+    get stopStarted() {
+      return stopPromise !== undefined;
+    },
+    markSessionEnded: () => {
+      stopPromise ??= Promise.resolve(true);
+    },
     dispose: removeInterruptListener,
   };
 }
 
 async function stopDeviceRunSessionAfterInterruptAsync({
-  graphqlClient,
-  deviceRunSessionId,
   projectDir,
   spinner,
   sessionInterrupt,
 }: {
-  graphqlClient: ExpoGraphqlClient;
-  deviceRunSessionId: string;
   projectDir: string;
   spinner: ReturnType<typeof ora>;
   sessionInterrupt: SessionInterrupt;
 }): Promise<void> {
+  const { deviceRunSessionId } = sessionInterrupt;
   try {
     spinner.text = 'Stopping simulator session...';
-    const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
-      graphqlClient,
-      deviceRunSessionId
-    );
+    const stopped = await sessionInterrupt.stopSessionAsync();
     if (stopped) {
       spinner.succeed('Simulator session stopped');
-      await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
+      // Warn instead of throwing, so the command still exits with the signal's exit code.
+      await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
+        Log.warn(
+          `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
     } else {
       spinner.fail(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -1146,31 +1183,31 @@ async function stopDeviceRunSessionAfterInterruptAsync({
  * session does not keep running on EAS when the user never received it.
  */
 async function stopDeviceRunSessionAfterStartupErrorAsync({
-  graphqlClient,
-  deviceRunSessionId,
+  sessionInterrupt,
   projectDir,
   jsonFlag,
 }: {
-  graphqlClient: ExpoGraphqlClient;
-  deviceRunSessionId: string;
+  sessionInterrupt: SessionInterrupt;
   projectDir: string;
   jsonFlag: boolean;
 }): Promise<void> {
-  const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+  const { deviceRunSessionId } = sessionInterrupt;
+  const stopped = await sessionInterrupt.stopSessionAsync();
   if (!stopped) {
     Log.warn(
       `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
     );
     return;
   }
-  if (!jsonFlag) {
-    Log.log(`Stopped simulator session ${deviceRunSessionId} after the error below.`);
-  }
+  // Clean up before printing, so a failing output stream cannot skip the cleanup.
   await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
     Log.warn(
       `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
     );
   });
+  if (!jsonFlag) {
+    Log.log(`Stopped simulator session ${deviceRunSessionId} after the error below.`);
+  }
 }
 
 async function stopDeviceRunSessionCreatedAfterCancelAsync(
