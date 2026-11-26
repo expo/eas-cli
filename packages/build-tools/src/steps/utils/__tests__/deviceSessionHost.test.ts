@@ -49,7 +49,6 @@ import {
 import { startPreviewActivityPolling } from '../previewActivity';
 import { readServeSimServersAsync } from '../serveSimMetricsRecorder';
 import { ServeSimCrashesRecorder } from '../serveSimCrashesRecorder';
-import * as previewCapture from '../serveSimPreviewCapture';
 
 jest.mock('@ngrok/ngrok');
 jest.mock('../serveSimCrashesRecorder');
@@ -179,7 +178,12 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({
       stdout: JSON.stringify({
-        'screenshot.capture': { properties: { automation: { type: 'boolean' } } },
+        'screenshot.capture': {
+          properties: {
+            automation: { type: 'boolean' },
+            output: { enum: ['path', 'binary'], binaryMetadataFrame: true },
+          },
+        },
       }),
     });
   stopSessionPreview.mockResolvedValue(undefined);
@@ -1652,7 +1656,7 @@ it.each([BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN])(
   }
 );
 
-it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
+it.each(['missing automation', 'missing binary output', 'invalid catalog', 'unavailable catalog'])(
   'skips automated thumbnails with %s without stopping the iOS session',
   async failure => {
     if (failure === 'unavailable catalog') {
@@ -1664,7 +1668,14 @@ it.each(['missing automation', 'invalid catalog', 'unavailable catalog'])(
         stdout:
           failure === 'invalid catalog'
             ? 'invalid JSON'
-            : JSON.stringify({ 'screenshot.capture': { properties: {} } }),
+            : JSON.stringify({
+                'screenshot.capture': {
+                  properties:
+                    failure === 'missing binary output'
+                      ? { automation: { type: 'boolean' }, output: { enum: ['path'] } }
+                      : {},
+                },
+              }),
       });
     }
     const host = await startDeviceSessionHostAsync(ctx, {
@@ -1704,42 +1715,6 @@ it('cancels catalog inspection during shutdown without sending a thumbnail captu
   expect(startDeviceRunSessionPreview).not.toHaveBeenCalled();
   expect(ensureMacosPreviewEncoderInstalledAsync).not.toHaveBeenCalled();
   expect(stopServer).toHaveBeenCalledTimes(1);
-});
-
-it('finishes manual screenshots even when thumbnail cleanup fails', async () => {
-  const finishScreenshots = jest.fn().mockResolvedValue(undefined);
-  const collector = jest
-    .spyOn(screenshotCollector, 'startDeviceRunSessionScreenshotsAsync')
-    .mockResolvedValueOnce({
-      directory: '/tmp/manual-screenshots',
-      finishAsync: finishScreenshots,
-    });
-  const cleanup = jest.fn().mockRejectedValue(new Error('unlink refused'));
-  const factory = jest.spyOn(previewCapture, 'createServeSimPreviewCapture').mockReturnValueOnce({
-    isSupportedAsync: jest.fn().mockResolvedValue(true),
-    captureAsync: jest.fn(),
-    cleanupAfterHostStoppedAsync: cleanup,
-  });
-  try {
-    const host = await startDeviceSessionHostAsync(ctx, {
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env,
-      logger,
-      timeoutMs: 10_000,
-      preview: { baseDomain, authtoken },
-    });
-    await new Promise(resolve => setImmediate(resolve));
-    await host.finishAsync();
-    expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(finishScreenshots).toHaveBeenCalledWith(true);
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'Could not remove session preview capture files.'
-    );
-  } finally {
-    factory.mockRestore();
-    collector.mockRestore();
-  }
 });
 
 it('drains thumbnail capture before stopping the iOS host', async () => {

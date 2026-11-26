@@ -1,32 +1,43 @@
-import { randomUUID } from 'node:crypto';
-import { copyFile, realpath, rm } from 'node:fs/promises';
-import path from 'node:path';
 import { z } from 'zod';
 
+import { DisplayRotationSchema } from './deviceRunSessionScreenshotMetadata';
+import { type IosScreenshot } from './deviceRunSessionPreview';
 import {
-  type CapturedDisplayRotation,
-  DisplayRotationSchema,
-} from './deviceRunSessionScreenshotMetadata';
-import { runServeSimActionWithResultAsync } from './serveSimActions';
+  captureServeSimScreenshotAsync,
+  runServeSimActionWithResultAsync,
+} from './serveSimActions';
 
 // serve-sim sends `displayRotation: null` when it could not confirm the rotation for the image.
-const ScreenshotReplyMetadataSchema = z
+const ScreenshotMetadataSchema = z
   .object({ displayRotation: DisplayRotationSchema })
   .nullish()
   .catch(undefined);
+
+type ScreenshotCatalog = {
+  'screenshot.capture'?: {
+    properties?: {
+      automation?: { type?: unknown };
+      maxWidth?: unknown;
+      output?: { enum?: unknown; binaryMetadataFrame?: unknown };
+    };
+  };
+} | null;
 
 export function createServeSimPreviewCapture({
   port,
   token,
   device,
-  tmpdir,
+  maxWidth,
 }: {
   port: number;
   token: string;
   device: string;
-  tmpdir: string;
+  /** serve-sim resizes the image to at most this width, so less data crosses the socket. */
+  maxWidth: number;
 }) {
-  const ownedFiles = new Set<string>();
+  // Servers that advertise this flag send a metadata frame after each binary image.
+  let binaryMetadataFrame = false;
+  let resizes = false;
   return {
     async isSupportedAsync(signal: AbortSignal): Promise<boolean> {
       const { stdout } = await runServeSimActionWithResultAsync({
@@ -37,67 +48,30 @@ export function createServeSimPreviewCapture({
         timeoutMs: 30_000,
         signal,
       });
-      const catalog: {
-        'screenshot.capture'?: { properties?: { automation?: { type?: unknown } } };
-      } | null = JSON.parse(stdout);
-      return catalog?.['screenshot.capture']?.properties?.automation?.type === 'boolean';
+      const catalog: ScreenshotCatalog = JSON.parse(stdout);
+      const properties = catalog?.['screenshot.capture']?.properties;
+      const outputs = properties?.output?.enum;
+      binaryMetadataFrame = properties?.output?.binaryMetadataFrame === true;
+      resizes = properties?.maxWidth !== undefined;
+      return (
+        properties?.automation?.type === 'boolean' &&
+        Array.isArray(outputs) &&
+        outputs.includes('binary')
+      );
     },
-    async captureAsync(destination: string, signal: AbortSignal): Promise<CapturedDisplayRotation> {
-      signal.throwIfAborted();
-      const fileName = `serve-sim-screenshot-preview-${randomUUID()}.png`;
-      const staged = path.join(tmpdir, 'serve-sim-screenshots', fileName);
-      ownedFiles.add(staged);
-      // Closing exec-ws does not cancel its host action. Drain a sent capture before honoring
-      // cancellation; on timeout/disconnect, leave its file alone until the host has stopped.
-      const result = await runServeSimActionWithResultAsync({
+    async captureAsync(signal: AbortSignal): Promise<IosScreenshot> {
+      // The exec-ws client drains a sent capture before it honors the abort.
+      const { image, metadata } = await captureServeSimScreenshotAsync({
         port,
         token,
-        action: 'screenshot.capture',
-        params: { udid: device, fileName, automation: true },
+        params: { udid: device, automation: true, ...(resizes ? { maxWidth } : {}) },
         timeoutMs: 30_000,
         signal,
-        drainAfterDispatch: true,
+        waitForMetadata: binaryMetadataFrame,
       });
-      try {
-        signal.throwIfAborted();
-        const captured = result.stdout.trim();
-        // serve-sim stages under its resolved temp dir, and on macOS $TMPDIR is behind a symlink
-        // (/var -> /private/var). Accept the file this capture requested in either spelling.
-        const resolvedStaged = path.join(
-          await realpath(tmpdir).catch(() => tmpdir),
-          'serve-sim-screenshots',
-          fileName
-        );
-        if (
-          !path.isAbsolute(captured) ||
-          ![staged, resolvedStaged].includes(path.normalize(captured))
-        ) {
-          throw new Error('serve-sim returned an unexpected screenshot path.');
-        }
-        await copyFile(captured, destination);
-        const displayRotation = ScreenshotReplyMetadataSchema.parse(
-          result.metadata
-        )?.displayRotation;
-        return displayRotation ? { displayRotation } : {};
-      } finally {
-        await rm(staged, { force: true });
-        ownedFiles.delete(staged);
-      }
-    },
-    /** Call only after the host process group has stopped, including timed-out actions. */
-    async cleanupAfterHostStoppedAsync(): Promise<void> {
-      const results = await Promise.allSettled(
-        [...ownedFiles].map(async file => {
-          await rm(file, { force: true });
-          ownedFiles.delete(file);
-        })
-      );
-      const errors = results
-        .filter(result => result.status === 'rejected')
-        .map(result => result.reason);
-      if (errors.length) {
-        throw new AggregateError(errors, 'Could not remove preview captures.');
-      }
+      signal.throwIfAborted();
+      const displayRotation = ScreenshotMetadataSchema.parse(metadata)?.displayRotation;
+      return displayRotation ? { image, displayRotation } : { image };
     },
   };
 }

@@ -1,47 +1,80 @@
-import { mkdir, mkdtemp, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
-
-import { runServeSimActionWithResultAsync } from '../serveSimActions';
+import {
+  captureServeSimScreenshotAsync,
+  runServeSimActionWithResultAsync,
+} from '../serveSimActions';
 import { createServeSimPreviewCapture } from '../serveSimPreviewCapture';
 
 jest.mock('../serveSimActions');
 
 const signal = new AbortController().signal;
-const tmpdir = path.join(os.tmpdir(), 'host-tmp');
-const staging = path.join(tmpdir, 'serve-sim-screenshots');
-const destination = path.join(os.tmpdir(), 'screen.png');
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
-const options = { port: 1234, token: 'host-token', device: 'selected-udid', tmpdir };
+const options = { port: 1234, token: 'host-token', device: 'selected-udid', maxWidth: 320 };
+const maxWidth = { type: 'integer', minimum: 1, maximum: 8192 };
+// `null` leaves `maxWidth` out, as a server without resized screenshots does.
+const catalog = (output: unknown, resize: unknown = maxWidth) => ({
+  'screenshot.capture': {
+    properties: {
+      automation: { type: 'boolean', default: false },
+      ...(resize === null ? {} : { maxWidth: resize }),
+      output,
+    },
+  },
+});
+const binaryWithMetadata = { enum: ['path', 'binary'], default: 'path', binaryMetadataFrame: true };
 
-beforeEach(async () => {
-  await mkdir(staging, { recursive: true });
+beforeEach(() => {
   jest.mocked(runServeSimActionWithResultAsync).mockReset();
+  jest.mocked(captureServeSimScreenshotAsync).mockReset();
 });
 
-it('captures the selected active display and removes only its own staging', async () => {
-  await writeFile(path.join(staging, 'unrelated.png'), 'keep');
-  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-    expect(request).toEqual({
-      port: 1234,
-      token: 'host-token',
-      action: 'screenshot.capture',
-      params: {
-        udid: 'selected-udid',
-        fileName: expect.stringMatching(/^serve-sim-screenshot-preview-.*\.png$/),
-        automation: true,
-      },
-      timeoutMs: 30_000,
-      signal,
-      drainAfterDispatch: true,
-    });
-    await writeFile(path.join(staging, request.params.fileName as string), png);
-    return { stdout: path.join(staging, request.params.fileName as string) };
-  });
+async function createSupportedCaptureAsync(
+  output: unknown = binaryWithMetadata,
+  resize: unknown = maxWidth
+) {
+  jest
+    .mocked(runServeSimActionWithResultAsync)
+    .mockResolvedValueOnce({ stdout: JSON.stringify(catalog(output, resize)) });
   const capture = createServeSimPreviewCapture(options);
-  await expect(capture.captureAsync(destination, signal)).resolves.toEqual({});
-  expect(await readFile(destination)).toEqual(png);
-  expect(await readdir(staging)).toEqual(['unrelated.png']);
+  await expect(capture.isSupportedAsync(signal)).resolves.toBe(true);
+  return capture;
+}
+
+it('captures a resized binary image and waits for advertised metadata', async () => {
+  jest.mocked(captureServeSimScreenshotAsync).mockResolvedValueOnce({
+    image: png,
+    metadata: { width: 2556, height: 1179, displayRotation: 'landscape-left' },
+  });
+  const capture = await createSupportedCaptureAsync();
+  await expect(capture.captureAsync(signal)).resolves.toEqual({
+    image: png,
+    displayRotation: 'landscape-left',
+  });
+  expect(captureServeSimScreenshotAsync).toHaveBeenCalledWith({
+    port: 1234,
+    token: 'host-token',
+    params: { udid: 'selected-udid', automation: true, maxWidth: 320 },
+    timeoutMs: 30_000,
+    signal,
+    waitForMetadata: true,
+  });
+});
+
+it('does not wait for a metadata frame that the server does not advertise', async () => {
+  jest.mocked(captureServeSimScreenshotAsync).mockResolvedValueOnce({ image: png });
+  const capture = await createSupportedCaptureAsync({ enum: ['path', 'binary'] });
+  await expect(capture.captureAsync(signal)).resolves.toEqual({ image: png });
+  expect(captureServeSimScreenshotAsync).toHaveBeenCalledWith(
+    expect.objectContaining({ waitForMetadata: false })
+  );
+});
+
+it('does not ask for a size that the server does not advertise', async () => {
+  jest.mocked(captureServeSimScreenshotAsync).mockResolvedValueOnce({ image: png });
+  const capture = await createSupportedCaptureAsync(binaryWithMetadata, null);
+  await expect(capture.captureAsync(signal)).resolves.toEqual({ image: png });
+  expect(captureServeSimScreenshotAsync).toHaveBeenCalledWith(
+    expect.objectContaining({ params: { udid: 'selected-udid', automation: true } })
+  );
 });
 
 it.each([
@@ -50,115 +83,57 @@ it.each([
   [{ displayRotation: 'sideways' }, undefined],
   ['not metadata', undefined],
   [undefined, undefined],
-])('returns only a known display rotation from the reply (%j)', async (metadata, expected) => {
-  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-    const staged = path.join(staging, request.params.fileName as string);
-    await writeFile(staged, png);
-    return { stdout: staged, metadata };
-  });
-  const capture = createServeSimPreviewCapture(options);
-  await expect(capture.captureAsync(destination, signal)).resolves.toEqual(
-    expected ? { displayRotation: expected } : {}
+])('returns only a known display rotation from the metadata (%j)', async (metadata, expected) => {
+  jest.mocked(captureServeSimScreenshotAsync).mockResolvedValueOnce({ image: png, metadata });
+  const capture = await createSupportedCaptureAsync();
+  await expect(capture.captureAsync(signal)).resolves.toEqual(
+    expected ? { image: png, displayRotation: expected } : { image: png }
   );
-  expect(await readFile(destination)).toEqual(png);
 });
 
-it('drains an already sent action before honoring abort and deleting its output', async () => {
+it('drops a capture that finishes after abort', async () => {
   const controller = new AbortController();
-  let complete!: () => void;
-  const pending = new Promise<void>(resolve => {
-    complete = resolve;
+  jest.mocked(captureServeSimScreenshotAsync).mockImplementationOnce(async () => {
+    // The exec-ws client drains a sent capture before it returns.
+    controller.abort(new Error('session stopped'));
+    return { image: png };
   });
-  let staged!: string;
-  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-    staged = path.join(staging, request.params.fileName as string);
-    await pending;
-    await writeFile(staged, png);
-    return { stdout: path.join(staging, request.params.fileName as string) };
-  });
-  const capture = createServeSimPreviewCapture(options);
-  let settled = false;
-  const capturing = capture.captureAsync(destination, controller.signal);
-  void capturing.then(
-    () => {
-      settled = true;
-    },
-    () => {
-      settled = true;
-    }
-  );
-  controller.abort(new Error('session stopped'));
-  await Promise.resolve();
-  expect(settled).toBe(false);
-  complete();
-  await expect(capturing).rejects.toThrow('session stopped');
-  expect(await readdir(staging)).toEqual([]);
+  const capture = await createSupportedCaptureAsync();
+  await expect(capture.captureAsync(controller.signal)).rejects.toThrow('session stopped');
 });
 
-it.each(['timed out', 'connection closed'])(
-  'keeps a possibly writable file after %s until the host stops',
-  async message => {
-    let staged!: string;
-    jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-      staged = path.join(staging, request.params.fileName as string);
-      await writeFile(staged, 'reservation');
-      throw new Error(message);
-    });
-    const capture = createServeSimPreviewCapture(options);
-    await expect(capture.captureAsync(destination, signal)).rejects.toThrow(message);
-    expect(await readFile(staged, 'utf8')).toBe('reservation');
-    // The server may still write after the client's deadline or disconnect.
-    await writeFile(staged, png);
-    await capture.cleanupAfterHostStoppedAsync();
-    expect(await readdir(staging)).toEqual([]);
-  }
-);
-
-it('attempts every owned cleanup when one file cannot be removed', async () => {
-  let blocked!: string;
-  let count = 0;
-  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-    const staged = path.join(staging, request.params.fileName as string);
-    if (count++ === 0) {
-      blocked = staged;
-      await mkdir(staged);
-    } else {
-      await writeFile(staged, png);
-    }
-    throw new Error('capture disconnected');
-  });
-  const capture = createServeSimPreviewCapture(options);
-  await expect(capture.captureAsync(destination, signal)).rejects.toThrow('disconnected');
-  await expect(capture.captureAsync(destination, signal)).rejects.toThrow('disconnected');
-  await expect(capture.cleanupAfterHostStoppedAsync()).rejects.toThrow(
-    'Could not remove preview captures'
-  );
-  expect(await readdir(staging)).toEqual([path.basename(blocked)]);
-});
-
-it('does not send a capture when already aborted', async () => {
-  const capture = createServeSimPreviewCapture(options);
-  await expect(
-    capture.captureAsync(destination, AbortSignal.abort(new Error('stopped')))
-  ).rejects.toThrow('stopped');
-  expect(runServeSimActionWithResultAsync).not.toHaveBeenCalled();
+it('fails the preview when the capture fails', async () => {
+  jest
+    .mocked(captureServeSimScreenshotAsync)
+    .mockRejectedValueOnce(new Error('serve-sim screenshot.capture failed: not booted'));
+  const capture = await createSupportedCaptureAsync();
+  await expect(capture.captureAsync(signal)).rejects.toThrow('not booted');
 });
 
 it.each([
+  [catalog(binaryWithMetadata), true],
+  [catalog({ enum: ['path', 'binary'] }), true],
+  [catalog({ enum: ['path'] }), false],
+  [catalog({ type: 'string' }), false],
+  [catalog(undefined), false],
+  [{ 'screenshot.capture': { properties: { output: binaryWithMetadata } } }, false],
   [
-    { 'screenshot.capture': { properties: { automation: { type: 'boolean', default: false } } } },
-    true,
+    {
+      'screenshot.capture': {
+        properties: { automation: { type: 'string' }, output: binaryWithMetadata },
+      },
+    },
+    false,
   ],
   [{ 'screenshot.capture': { properties: {} } }, false],
-  [{ 'screenshot.capture': { properties: { automation: { type: 'string' } } } }, false],
   [{}, false],
   [null, false],
 ])(
-  'checks the catalog automation field before enabling captures (%j)',
-  async (catalog, supported) => {
+  'checks the catalog for automation and binary output before enabling captures (%j)',
+  async (described, supported) => {
     jest
       .mocked(runServeSimActionWithResultAsync)
-      .mockResolvedValueOnce({ stdout: JSON.stringify(catalog) });
+      .mockResolvedValueOnce({ stdout: JSON.stringify(described) });
     const capture = createServeSimPreviewCapture(options);
     await expect(capture.isSupportedAsync(signal)).resolves.toBe(supported);
     expect(runServeSimActionWithResultAsync).toHaveBeenCalledWith({
@@ -169,46 +144,6 @@ it.each([
       timeoutMs: 30_000,
       signal,
     });
-    expect(runServeSimActionWithResultAsync).not.toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'screenshot.capture' })
-    );
+    expect(captureServeSimScreenshotAsync).not.toHaveBeenCalled();
   }
 );
-
-it.each(['/tmp/unowned.png', '../unowned.png', ''])(
-  'rejects an unowned returned path (%s)',
-  async returned => {
-    jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-      await writeFile(path.join(staging, request.params.fileName as string), png);
-      return { stdout: returned };
-    });
-    const capture = createServeSimPreviewCapture(options);
-    await expect(capture.captureAsync(destination, signal)).rejects.toThrow(
-      'unexpected screenshot path'
-    );
-    expect(await readdir(staging)).toEqual([]);
-  }
-);
-
-it('accepts the resolved staging path when the temp dir is behind a symlink', async () => {
-  const real = await mkdtemp(path.join(os.tmpdir(), 'host-tmp-real-'));
-  const link = `${real}-link`;
-  await symlink(real, link);
-  // serve-sim resolves its temp dir before it returns the staged path.
-  const resolvedStaging = path.join(await realpath(real), 'serve-sim-screenshots');
-  await mkdir(resolvedStaging, { recursive: true });
-  jest.mocked(runServeSimActionWithResultAsync).mockImplementation(async request => {
-    const returned = path.join(resolvedStaging, request.params.fileName as string);
-    await writeFile(returned, png);
-    return {
-      stdout: returned,
-      metadata: { width: 2556, height: 1179, displayRotation: 'landscape-left' },
-    };
-  });
-  const capture = createServeSimPreviewCapture({ ...options, tmpdir: link });
-  await expect(capture.captureAsync(destination, signal)).resolves.toEqual({
-    displayRotation: 'landscape-left',
-  });
-  expect(await readFile(destination)).toEqual(png);
-  expect(await readdir(resolvedStaging)).toEqual([]);
-});
