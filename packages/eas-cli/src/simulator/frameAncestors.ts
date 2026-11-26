@@ -33,13 +33,15 @@ function parseOriginList(
   entries: readonly string[],
   { flag, maxCount, purpose }: { flag: string; maxCount: number; purpose: string }
 ): string[] {
-  if (entries.length > maxCount) {
+  // Count after normalizing and dropping duplicates: the same origin passed twice is one origin.
+  const origins = [...new Set(entries.map(entry => parseOrigin(entry, flag, purpose)))];
+  if (origins.length > maxCount) {
     throw new Error(
-      `${flag} accepts at most ${maxCount} origins; received ${entries.length}. ` +
+      `${flag} accepts at most ${maxCount} origins; received ${origins.length}. ` +
         `Keep only the origins of pages that ${purpose}.`
     );
   }
-  return [...new Set(entries.map(entry => parseOrigin(entry, flag, purpose)))];
+  return origins;
 }
 
 function parseOrigin(entry: string, flag: string, purpose: string): string {
