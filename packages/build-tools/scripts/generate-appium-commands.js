@@ -16,14 +16,17 @@ const { pathToFileURL } = require('node:url');
 // Track the Appium 3 line, matching the appium@^3 the worker installs for
 // simulator sessions (see startAppiumRemoteSession.ts).
 const APPIUM_VERSION = '^3';
+// Newer driver majors require Appium 4. Keep these on the Appium 3 lines.
 const DRIVERS = [
   {
     packageName: 'appium-xcuitest-driver',
+    version: '^12',
     exportName: 'XCUITestDriver',
     typeName: 'XCUITestAppiumCommand',
   },
   {
     packageName: 'appium-uiautomator2-driver',
+    version: '^8',
     exportName: 'AndroidUiautomator2Driver',
     typeName: 'UiAutomator2AppiumCommand',
   },
@@ -70,7 +73,7 @@ async function main() {
         '--prefix',
         sandbox,
         `appium@${APPIUM_VERSION}`,
-        ...DRIVERS.map(({ packageName }) => packageName),
+        ...DRIVERS.map(({ packageName, version }) => `${packageName}@${version}`),
       ],
       { stdio: 'inherit' }
     );
