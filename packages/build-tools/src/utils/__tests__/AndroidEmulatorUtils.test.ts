@@ -537,6 +537,67 @@ describe('AndroidEmulatorUtils', () => {
       expect(stdin.end).not.toHaveBeenCalled();
     });
 
+    it('logs nothing when the worker stops the emulator', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'stopped-emulator-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'stopped-emulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const capture = new AndroidEmulatorLogRing({ sources: ['emulator-output'] });
+      const logger = createMockLogger();
+      const { serialId } = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        logCapture: capture,
+        logger,
+      });
+      child.stdout.emit('data', Buffer.from('booted\n'));
+      // `adb emu kill` succeeds and the emulator leaves `adb devices`.
+      mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      await AndroidEmulatorUtils.stopAsync({ serialId, env: {} });
+      child.emit('exit', 0, null);
+      child.emit('close');
+      const [log] = await capture.finishAsync();
+
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(await fs.promises.readFile(log.filePath, 'utf8')).toMatch(
+        /^==== \S+ \S+ ====\nbooted\n$/
+      );
+    });
+
+    it('logs the exit code, signal and time when the emulator exits on its own', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'crashed-emulator-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'crashed-emulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const capture = new AndroidEmulatorLogRing({ sources: ['emulator-output'] });
+      const logger = createMockLogger();
+      await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: {},
+        logcatDirectory: outputDir,
+        logCapture: capture,
+        logger,
+      });
+      child.stdout.emit('data', Buffer.from('booted\n'));
+
+      child.emit('exit', null, 'SIGKILL');
+      child.emit('close');
+      const [log] = await capture.finishAsync();
+
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      const [warning] = jest.mocked(logger.warn).mock.calls[0] as unknown as [string];
+      expect(warning).toMatch(
+        /^Android Emulator emulator-5554 exited unexpectedly at \d{4}-\d{2}-\d{2}T\S+Z \(exit code: none, signal: SIGKILL\)\.$/
+      );
+      // The session uploads this file as emulator-output.log.
+      expect(path.basename(log.filePath)).toBe('emulator-output.log');
+      const output = await fs.promises.readFile(log.filePath, 'utf8');
+      expect(output).toMatch(/^==== \S+ \S+ ====\nbooted\n/);
+      expect(output.endsWith(`booted\n${warning}\n`)).toBe(true);
+    });
+
     it('throws a SystemError when the staging directory cannot be prepared', async () => {
       const outputDir = '/unwritable/logcat-staging';
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;

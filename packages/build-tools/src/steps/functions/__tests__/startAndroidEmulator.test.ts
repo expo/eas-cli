@@ -45,6 +45,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
     findFreeConsolePortAsync: jest.fn(),
+    expectExit: jest.fn(),
   },
 }));
 
@@ -157,6 +158,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
         logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
+        logger: expect.anything(),
       });
       expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith({
         env: expect.any(Object),
@@ -303,6 +305,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
     await createStep({ count: 2 }).executeAsync();
 
+    // The power-off before cloning is the worker's own stop, so it is not logged as a crash.
+    const powerOff = mockedSpawn.mock.calls.findIndex(([, args]) => args?.includes('reboot'));
+    expect(mockedAndroidUtils.expectExit).toHaveBeenCalledWith({ serialId: 'emulator-base' });
+    expect(mockedAndroidUtils.expectExit.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedSpawn.mock.invocationCallOrder[powerOff]
+    );
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -493,6 +501,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
         logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
+        logger: expect.anything(),
         consolePort: port,
         extraEnv: {
           LD_PRELOAD: LIBRARY,
@@ -612,6 +621,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         env: expect.any(Object),
         logcatDirectory: '/tmp/logcat-directory',
         logCapture: expect.objectContaining({ sources: ['emulator-output', 'device-logcat'] }),
+        logger: expect.anything(),
       });
       expect(mockedAndroidUtils.findFreeConsolePortAsync).not.toHaveBeenCalled();
       expect(step.globalCtx.env.EXPO_DEVICE_HUB_EXPERIMENTAL_EMULATOR_CAPTURE).toBeUndefined();
