@@ -94,6 +94,40 @@ function createTransformStream(secretPatterns: ReadonlySet<string>): Transform {
   });
 }
 
+// Characters that Xcode escapes with a backslash when it prints build settings.
+const XCODE_ESCAPED_CHARACTERS = /[\t !"#$&'()*;<=>?[\\\]^`{|}~]/g;
+
+/**
+ * Masks secrets in a text file's contents, line by line, including secrets written the way Xcode
+ * prints build settings. Masking works on bytes, so everything else stays unchanged.
+ */
+export function createTextMaskingStream(secretPatterns: ReadonlySet<string>): Transform {
+  const patterns = [
+    ...new Set(
+      [...secretPatterns].flatMap(secret => [
+        secret,
+        secret.replace(XCODE_ESCAPED_CHARACTERS, '\\$&'),
+      ])
+    ),
+  ].map(pattern => Buffer.from(pattern).toString('latin1'));
+  const maskLine = (line: string): string =>
+    patterns.some(pattern => line.includes(pattern)) ? maskSecrets(line, patterns) : line;
+  let partialLine = '';
+  return new Transform({
+    transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback) {
+      const lines = (partialLine + chunk.toString('latin1')).split('\n');
+      partialLine = lines.pop() ?? '';
+      callback(
+        null,
+        lines.length > 0 ? Buffer.from(`${lines.map(maskLine).join('\n')}\n`, 'latin1') : undefined
+      );
+    },
+    flush(callback: TransformCallback) {
+      callback(null, partialLine ? Buffer.from(maskLine(partialLine), 'latin1') : undefined);
+    },
+  });
+}
+
 function maskSecrets(message: string, secrets: Iterable<string>): string {
   const characters = message.split('');
   for (const secret of secrets) {
@@ -185,6 +219,7 @@ const defaultLogger = createLogger({
 export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
   addBuildLogMask: (secret: string) => void;
+  createLogMaskingStream: () => Transform;
   cleanUp: () => Promise<void>;
   logBuffer: WorkerLogBuffer;
   outputStream: Readable;
@@ -241,6 +276,8 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   return {
     logger: buildLogger,
     addBuildLogMask,
+    // Reads the masks when the stream is created, so it includes masks added during the job.
+    createLogMaskingStream: () => createTextMaskingStream(secretPatterns),
     cleanUp: async () => {
       await Promise.all([remoteLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
