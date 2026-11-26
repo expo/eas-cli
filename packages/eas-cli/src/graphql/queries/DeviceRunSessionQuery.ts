@@ -93,11 +93,14 @@ export const DeviceRunSessionQuery = {
     }
     return data.deviceRunSessions.byId.turtleJobRun;
   },
-  /** With `signal`, it rejects with `signal.reason` and cancels the request when `signal` aborts. */
+  /**
+   * With `signal`, it rejects with `signal.reason` and cancels the request when `signal` aborts.
+   * With `noRetry`, it does not retry transient errors, so no retry timer outlives the caller.
+   */
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string,
-    { signal }: { signal?: AbortSignal } = {}
+    { signal, noRetry = false }: { signal?: AbortSignal; noRetry?: boolean } = {}
   ): Promise<DeviceRunSessionByIdQuery['deviceRunSessions']['byId']> {
     const query = graphqlClient.query<
       DeviceRunSessionByIdQuery,
@@ -199,7 +202,7 @@ export const DeviceRunSessionQuery = {
         }
       `,
       { deviceRunSessionId },
-      { requestPolicy: 'network-only' }
+      { requestPolicy: 'network-only', ...(noRetry ? { noRetry: true } : {}) }
     );
     const data = await withErrorHandlingAsync(
       signal ? firstResultUntilAbortedAsync(query, signal) : query.toPromise()

@@ -80,6 +80,7 @@ import {
   sanitizeRemoteConfigForJson,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput, printJsonOnlyOutputAsync } from '../../utils/json';
+import { writeToStdoutAsync } from '../../utils/stdout';
 import { sleepAsync } from '../../utils/promise';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 
@@ -843,9 +844,9 @@ With local egress, actions wait for the connection and require interactive mode.
         }
       }
       if (jsonFlag) {
-        // The session is handed off only when the JSON reaches stdout. Until then, an error or a
+        // The session is handed off only when stdout accepted the JSON. Until then, an error or a
         // signal still stops it.
-        await printJsonOnlyOutputAsync({
+        const jsonWritten = printJsonOnlyOutputAsync({
           id: deviceRunSessionId,
           name,
           type: flags.type,
@@ -858,10 +859,23 @@ With local egress, actions wait for the connection and require interactive mode.
             { frameAncestors, corsOrigins }
           ),
         });
+        await Promise.race([jsonWritten, sessionInterrupt.abortPromise]);
+        if (sessionInterrupt.signal.aborted) {
+          await stopAfterInterruptAsync(pollSpinner);
+        }
         return;
       }
 
       if (nonInteractive) {
+        if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Env) {
+          // stdout is the only handoff in this mode: the caller gets the session only from the
+          // printed exports. Hand it off only when stdout accepted them, for example not when the
+          // reading end of a pipe closed.
+          await Promise.race([writeToStdoutAsync(''), sessionInterrupt.abortPromise]);
+          if (sessionInterrupt.signal.aborted) {
+            await stopAfterInterruptAsync(pollSpinner);
+          }
+        }
         return;
       }
 
@@ -982,7 +996,12 @@ async function waitForSessionEndOrInterruptAsync({
         // Race the abort so a stalled poll cannot delay the stop after Ctrl+C or SIGTERM. A runner
         // can follow SIGTERM with SIGKILL soon after.
         session = await Promise.race([
-          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId, { signal }),
+          // No retries: this loop polls again on failure, and a retry timer would keep the process
+          // running after the stop.
+          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId, {
+            signal,
+            noRetry: true,
+          }),
           sessionInterrupt.abortPromise,
         ]);
       } catch (err) {

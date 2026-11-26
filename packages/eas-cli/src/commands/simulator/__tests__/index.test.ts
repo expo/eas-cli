@@ -42,6 +42,7 @@ import {
   printJsonOnlyOutput,
   printJsonOnlyOutputAsync,
 } from '../../../utils/json';
+import { writeToStdoutAsync } from '../../../utils/stdout';
 import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import Simulator from '../index';
 
@@ -77,6 +78,7 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../utils/json');
+jest.mock('../../../utils/stdout');
 jest.mock('../../../utils/statuspageService');
 jest.mock('../../../utils/promise', () => ({
   ...jest.requireActual('../../../utils/promise'),
@@ -3688,10 +3690,12 @@ describe(Simulator, () => {
     });
     let releasePoll: (session: ReturnType<typeof makeDeviceRunSession>) => void = () => {};
     let pollSignal: AbortSignal | undefined;
+    let pollNoRetry: boolean | undefined;
     mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(
       (_client, _id, options) =>
         new Promise(resolve => {
           pollSignal = options?.signal;
+          pollNoRetry = options?.noRetry;
           releasePoll = resolve;
           notifyPollStarted();
         })
@@ -3709,8 +3713,9 @@ describe(Simulator, () => {
     );
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
-    // The stalled request is cancelled, so its open socket cannot keep the process running.
+    // The stalled request is cancelled, and no retry timer is left, so the process can exit.
     expect(pollSignal?.aborted).toBe(true);
+    expect(pollNoRetry).toBe(true);
     releasePoll(makeDeviceRunSession());
   });
 
@@ -3784,6 +3789,67 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     // JSON mode keeps stdout for the JSON output.
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('after the error below'));
+  });
+
+  it('stops the session and exits with 143 on SIGTERM while the JSON output waits for stdout', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    // Like a reader that does not read: the write does not finish.
+    mockPrintJsonOnlyOutputAsync.mockImplementationOnce(() => {
+      setImmediate(() => process.emit('SIGTERM'));
+      return new Promise(() => {});
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--json']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session when stdout does not accept the exports with --out-config-type env', async () => {
+    jest.mocked(writeToStdoutAsync).mockRejectedValueOnce(new Error('write EPIPE'));
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('write EPIPE');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the session and exits with 143 on SIGTERM while the exports wait for stdout', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    jest.mocked(writeToStdoutAsync).mockImplementationOnce(() => {
+      setImmediate(() => process.emit('SIGTERM'));
+      return new Promise(() => {});
+    });
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not wait for stdout when the dotenv file hands off the session', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(writeToStdoutAsync).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
   });
 
   it('tells the user how to stop the session when the stop after an output error fails', async () => {
