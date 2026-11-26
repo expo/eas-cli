@@ -1,4 +1,9 @@
+import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
+import { spawnSync } from 'child_process';
+import { mkdtempSync, rmSync } from 'fs';
+import os from 'os';
+import path from 'path';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { getMockViewerUserPermission } from '../../../__tests__/viewerUserPermission';
@@ -8,16 +13,18 @@ import Log from '../../../log';
 import Sentry from '../../../sentry';
 import SessionManager from '../../../user/SessionManager';
 import { Actor } from '../../../user/User';
+import { printJsonOnlyOutput } from '../../../utils/json';
 import AccountView from '../view';
 
 const mockLogEvent = jest.fn();
 
 jest.mock('../../../analytics/AnalyticsManager', () => ({
   ...jest.requireActual('../../../analytics/AnalyticsManager'),
-  createAnalyticsAsync: jest.fn(async () => ({ logEvent: mockLogEvent })),
+  createAnalyticsAsync: jest.fn(async () => ({ logEvent: mockLogEvent, flushAsync: jest.fn() })),
 }));
 jest.mock('../../../sentry');
 jest.mock('../../../log');
+jest.mock('../../../utils/json');
 
 const ownerPermissions = getMockViewerUserPermission(Role.Owner).permissions;
 
@@ -63,6 +70,7 @@ afterEach(() => jest.restoreAllMocks());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Each test can set EXPO_TOKEN on its own copy. restoreAllMocks restores the original env.
   jest.replaceProperty(process, 'env', { ...process.env, EXPO_TOKEN: '' });
 });
 
@@ -123,3 +131,123 @@ it('shows the effective permissions when they do not match a role', async () => 
     )})`
   );
 });
+
+it('identifies the actor independently of their first account', async () => {
+  const actor = userActor([account('acme', ownerPermissions), personalAccount(ownerPermissions)]);
+  jest.spyOn(SessionManager.prototype, 'getUserAsync').mockResolvedValue(actor);
+  await AccountView.run(['--non-interactive', '--json'], getMockOclifConfig());
+  expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+    status: 'signed-in',
+    actor: { id: 'user-id', type: 'User', displayName: 'jane' },
+    accounts: [{ name: 'acme' }, { name: 'jane' }],
+  });
+  expect(Log.log).not.toHaveBeenCalled();
+});
+
+it('writes only indeterminate JSON to stdout when the actor lookup loses its connection', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'whoami-test-'));
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '-r',
+        require.resolve('ts-node/register/transpile-only'),
+        path.join(__dirname, 'fixtures/whoami-network-error.cjs'),
+      ],
+      {
+        cwd: path.resolve(__dirname, '../../../..'),
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          EXPO_TOKEN: 'fixture-token',
+          DISABLE_EAS_ANALYTICS: '1',
+          EAS_CLI_SENTRY_DSN: '',
+          FORCE_COLOR: '0',
+        },
+        encoding: 'utf8',
+        timeout: 30_000,
+      }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('connection reset');
+    expect(JSON.parse(result.stdout)).toEqual({ status: 'indeterminate' });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+const authError = { message: 'Rejected credential', code: 'AUTHENTICATION_ERROR' };
+const permissionError = { message: 'Permission denied', code: 'UNAUTHORIZED_ERROR' };
+
+it.each([
+  [new CombinedError({ graphQLErrors: [permissionError] }), 'Permission denied'],
+  [new CombinedError({ graphQLErrors: [authError, permissionError] }), 'Permission denied'],
+  [
+    new CombinedError({ graphQLErrors: ['The bearer token is invalid.'] }),
+    'The bearer token is invalid.',
+  ],
+  [undefined, 'The server returned no actor for EXPO_TOKEN.'],
+] as const)(
+  'reports an indeterminate lookup and preserves its diagnostic: %s',
+  async (error, diagnostic) => {
+    process.env.EXPO_TOKEN = 'fixture-token';
+    const lookup = jest.spyOn(SessionManager.prototype, 'getUserAsync');
+    if (error) {
+      lookup.mockRejectedValue(error);
+    } else {
+      lookup.mockResolvedValue(undefined);
+    }
+    await expect(AccountView.run(['--json'], getMockOclifConfig())).rejects.toThrow();
+    expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'indeterminate' });
+    expect(Log.errorToStderr).toHaveBeenCalledWith(expect.stringContaining(diagnostic));
+  }
+);
+
+it('keeps the argument diagnostic when startup has not initialized analytics', async () => {
+  await expect(AccountView.run(['--json', '--bogus'], getMockOclifConfig())).rejects.toThrow(
+    'command failed'
+  );
+  expect(Log.errorToStderr).toHaveBeenCalledWith(
+    expect.stringContaining('Nonexistent flag: --bogus')
+  );
+  expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+  expect(Sentry.flush).toHaveBeenCalled();
+});
+
+it('records an anonymous action when signed out', async () => {
+  const originalExitCode = process.exitCode;
+  jest.spyOn(SessionManager.prototype, 'getUserAsync').mockResolvedValue(undefined);
+  try {
+    await AccountView.run(['--non-interactive', '--json'], getMockOclifConfig());
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'signed-out' });
+    expect(process.exitCode).toBe(1);
+    expect(Sentry.setUser).not.toHaveBeenCalled();
+    expect(mockLogEvent).toHaveBeenCalledTimes(1);
+  } finally {
+    process.exitCode = originalExitCode;
+  }
+});
+
+it.each(['The bearer token is invalid.', 'The bearer token is revoked.'])(
+  'reports explicit token rejection: %s',
+  async message => {
+    const originalExitCode = process.exitCode;
+    process.env.EXPO_TOKEN = 'fixture-token';
+    const lookup = jest
+      .spyOn(SessionManager.prototype, 'getUserAsync')
+      .mockRejectedValue(new CombinedError({ graphQLErrors: [{ ...authError, message }] }));
+    try {
+      await AccountView.run(['--json'], getMockOclifConfig());
+      expect(process.exitCode).toBe(1);
+      expect(lookup).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({ status: 'token-rejected' });
+      expect(mockLogEvent).not.toHaveBeenCalled();
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  }
+);
