@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { stripVTControlCharacters } from 'util';
 
+import type { EasCommandErrorDetails } from '../commandUtils/errors';
 import Log from '../log';
 
 let stdoutWrite: NodeJS.WriteStream['write'] | undefined;
@@ -23,7 +24,7 @@ export function printJsonOnlyOutput(value: object): void {
   }
 }
 
-export interface JsonErrorOutput {
+export interface JsonErrorOutput extends Partial<EasCommandErrorDetails> {
   message: string;
   errorCode?: string;
   requestId?: string;
