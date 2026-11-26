@@ -227,9 +227,7 @@ export async function uploadDebugSymbolsAsync(
 
     return { filename: null };
   } catch (err: any) {
-    logger.error({ err, filename, size }, 'Debug symbols upload failed');
-
-    throw new errors.SystemError(`Failed to upload debug symbols. ${err.message}`, {
+    throw new errors.SystemError(err.message, {
       trackingCode: 'EAS_BUILD_UPLOAD_DEBUG_SYMBOLS_FAILED',
       metadata: {
         filename,
@@ -344,6 +342,22 @@ function getCommonParentDir(path1: string, path2: string): string {
   return '/';
 }
 
+const ErrorResponseBodySchema = z.object({
+  errors: z.array(z.object({ message: z.string() })).min(1),
+});
+
+function getErrorResponseMessage(status: number, body: string | undefined): string {
+  if (body !== undefined) {
+    try {
+      const parsedBody = ErrorResponseBodySchema.safeParse(JSON.parse(body));
+      if (parsedBody.success) {
+        return parsedBody.data.errors.map(error => error.message).join(' ');
+      }
+    } catch {}
+  }
+  return `Unexpected response from server (${status}): ${body ?? 'Could not read response body'}`;
+}
+
 async function createUploadSessionAsync(
   ctx: BuildContext,
   {
@@ -428,13 +442,18 @@ async function createUploadSessionAsync(
 
     const response = responseResult.reason.response;
     const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+    throw new Error(
+      getErrorResponseMessage(response.status, textResult.ok ? textResult.value : undefined)
+    );
   }
 
   if (!responseResult.value.ok) {
     const textResult = await asyncResult(responseResult.value.text());
     throw new Error(
-      `Unexpected response from server (${responseResult.value.status}): ${textResult.ok ? textResult.value : 'Could not read response body'}`
+      getErrorResponseMessage(
+        responseResult.value.status,
+        textResult.ok ? textResult.value : undefined
+      )
     );
   }
 
@@ -554,6 +573,8 @@ async function saveArtifactAsync(
 
     const response = responseResult.reason.response;
     const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+    throw new Error(
+      getErrorResponseMessage(response.status, textResult.ok ? textResult.value : undefined)
+    );
   }
 }

@@ -110,7 +110,6 @@ describe(maybeUploadDebugSymbolsAsync.name, () => {
     expect(uploadArtifact).not.toHaveBeenCalled();
     expect(markBuildPhaseHasWarnings).toHaveBeenCalled();
     expect(ctx.logger.warn).toHaveBeenCalledWith(
-      expect.anything(),
       expect.stringContaining('did not generate a dSYM archive')
     );
   });
@@ -128,7 +127,6 @@ describe(maybeUploadDebugSymbolsAsync.name, () => {
     expect(uploadArtifact).not.toHaveBeenCalled();
     expect(markBuildPhaseHasWarnings).toHaveBeenCalled();
     expect(ctx.logger.warn).toHaveBeenCalledWith(
-      expect.anything(),
       expect.stringContaining('Found multiple dSYM archives')
     );
   });
@@ -146,8 +144,7 @@ describe(maybeUploadDebugSymbolsAsync.name, () => {
 
     expect(markBuildPhaseHasWarnings).toHaveBeenCalled();
     expect(ctx.logger.warn).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.stringContaining('This feature is not available on the Free plan.')
+      'Failed to upload debug symbols, so native crashes from this build will not be symbolicated. This feature is not available on the Free plan.'
     );
   });
 });

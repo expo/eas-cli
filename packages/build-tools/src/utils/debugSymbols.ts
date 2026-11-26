@@ -35,7 +35,6 @@ export async function maybeUploadDebugSymbolsAsync(ctx: BuildContext<BuildJob>):
     });
   } catch (err: any) {
     ctx.logger.warn(
-      { err },
       `Failed to upload debug symbols, so native crashes from this build will not be symbolicated. ${err.message}`
     );
     ctx.markBuildPhaseHasWarnings();
