@@ -642,19 +642,27 @@ With local egress, actions wait for the connection and require interactive mode.
         });
       }
     };
+    // Set once a path takes over stopping the session: the interrupt handler, the failed import,
+    // or the wait for the session to end. Until then, an error must stop the session here, since
+    // the user has not received the session yet and nothing else would stop it.
+    let sessionCleanupHandled = false;
+    const stopAfterInterruptAsync = async (spinner: Ora): Promise<void> => {
+      sessionCleanupHandled = true;
+      await stopDeviceRunSessionAfterInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        projectDir,
+        spinner,
+        sessionInterrupt,
+      });
+    };
     try {
       if (!jsonFlag && !imported.config?.actions?.length) {
         await writeReadySimulatorEnvAsync();
       }
 
       if (sessionInterrupt.signal.aborted && !egressError) {
-        await stopDeviceRunSessionAfterInterruptAsync({
-          graphqlClient,
-          deviceRunSessionId,
-          projectDir,
-          spinner: pollSpinner,
-          sessionInterrupt,
-        });
+        await stopAfterInterruptAsync(pollSpinner);
         return;
       }
 
@@ -750,17 +758,12 @@ With local egress, actions wait for the connection and require interactive mode.
             `Import complete: ${total} action${total === 1 ? '' : 's'} completed`
           );
         } catch (caught) {
+          sessionCleanupHandled = true;
           egressAbortController.abort();
           await egressPromise;
           const error = egressError ?? caught;
           if (sessionInterrupt.signal.aborted && !egressError) {
-            await stopDeviceRunSessionAfterInterruptAsync({
-              graphqlClient,
-              deviceRunSessionId,
-              projectDir,
-              spinner: setupSpinner,
-              sessionInterrupt,
-            });
+            await stopAfterInterruptAsync(setupSpinner);
             return;
           }
           if (error instanceof ControlConfigExecutionError) {
@@ -826,13 +829,7 @@ With local egress, actions wait for the connection and require interactive mode.
         // Keep the previous session's saved credentials until setup succeeds.
         await writeReadySimulatorEnvAsync();
         if (sessionInterrupt.signal.aborted) {
-          await stopDeviceRunSessionAfterInterruptAsync({
-            graphqlClient,
-            deviceRunSessionId,
-            projectDir,
-            spinner: pollSpinner,
-            sessionInterrupt,
-          });
+          await stopAfterInterruptAsync(pollSpinner);
           return;
         }
       }
@@ -863,6 +860,7 @@ With local egress, actions wait for the connection and require interactive mode.
         startLocalEgress();
       }
 
+      sessionCleanupHandled = true;
       await waitForSessionEndOrInterruptAsync({
         graphqlClient,
         deviceRunSessionId,
@@ -873,6 +871,16 @@ With local egress, actions wait for the connection and require interactive mode.
       if (egressError) {
         throw egressError;
       }
+    } catch (error) {
+      if (!sessionCleanupHandled) {
+        await stopDeviceRunSessionAfterStartupErrorAsync({
+          graphqlClient,
+          deviceRunSessionId,
+          projectDir,
+          jsonFlag,
+        });
+      }
+      throw error;
     } finally {
       sessionInterrupt.signal.removeEventListener('abort', onSessionAbort);
       // Paths that already disposed it are unaffected. An unexpected error, for example while
@@ -1131,6 +1139,38 @@ async function stopDeviceRunSessionAfterInterruptAsync({
     sessionInterrupt.dispose();
   }
   process.exit(sessionInterrupt.exitCode);
+}
+
+/**
+ * Stops a ready session after an unexpected error, for example while printing its details, so the
+ * session does not keep running on EAS when the user never received it.
+ */
+async function stopDeviceRunSessionAfterStartupErrorAsync({
+  graphqlClient,
+  deviceRunSessionId,
+  projectDir,
+  jsonFlag,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  deviceRunSessionId: string;
+  projectDir: string;
+  jsonFlag: boolean;
+}): Promise<void> {
+  const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+  if (!stopped) {
+    Log.warn(
+      `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+    );
+    return;
+  }
+  if (!jsonFlag) {
+    Log.log(`Stopped simulator session ${deviceRunSessionId} after the error below.`);
+  }
+  await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
+    Log.warn(
+      `The session stopped, but ${SIMULATOR_DOTENV_FILE_NAME} could not be cleaned up: ${error instanceof Error ? error.message : String(error)}`
+    );
+  });
 }
 
 async function stopDeviceRunSessionCreatedAfterCancelAsync(
