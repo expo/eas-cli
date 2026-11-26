@@ -23,7 +23,11 @@ import bplistParser from 'bplist-parser';
 import plist from 'plist';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
+import {
+  decompressTarAsync,
+  isFileTarGzAsync,
+  isMacOsArchiveMetadataEntry,
+} from '../../utils/files';
 import { graphqlAbortContext } from '../../utils/graphqlAbort';
 import {
   describeError,
@@ -369,26 +373,47 @@ export async function downloadBuildAsync(
   await decompressTarAsync({
     archivePath,
     destinationDirectory: extractionDirectory,
+    filter: entryPath => !isMacOsArchiveMetadataEntry(entryPath),
   });
   signal?.throwIfAborted();
 
-  const matchingFiles = await glob(`**/*.(${extensions.join('|')})`, {
-    absolute: true,
-    cwd: extractionDirectory,
-    onlyFiles: false,
-    onlyDirectories: false,
-  });
+  let matchingFiles: string[] = [];
   let matchingFilesRoot = extractionDirectory;
 
-  if (
-    matchingFiles.length === 0 &&
-    extensions.includes('app') &&
-    (await isIosAppBundleAsync(extractionDirectory))
-  ) {
+  if (extensions.includes('app') && (await isIosAppBundleAsync(extractionDirectory))) {
     const appBundlePath = `${extractionDirectory}.app`;
     await fs.promises.rename(extractionDirectory, appBundlePath);
     matchingFiles.push(appBundlePath);
     matchingFilesRoot = path.dirname(appBundlePath);
+  } else {
+    const globEntries = await glob(`**/*.(${extensions.join('|')})`, {
+      cwd: extractionDirectory,
+      onlyFiles: false,
+      onlyDirectories: false,
+      followSymbolicLinks: false,
+      objectMode: true,
+    });
+
+    matchingFiles = globEntries
+      .filter(entry => {
+        if (isMacOsArchiveMetadataEntry(entry.path)) {
+          return false;
+        }
+        if (path.extname(entry.name) === '.app') {
+          if (!entry.dirent.isDirectory()) {
+            return false;
+          }
+          if (isNestedInsideAppBundle(entry.path)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map(entry => entry.path)
+      .sort(compareRelativeArtifactPaths)
+      .map(relativePath =>
+        path.join(extractionDirectory, ...relativePath.split('/').filter(Boolean))
+      );
   }
 
   if (matchingFiles.length === 0) {
@@ -406,6 +431,28 @@ export async function downloadBuildAsync(
   );
 
   return { artifactPath: matchingFiles[0] };
+}
+
+function isNestedInsideAppBundle(relativePath: string): boolean {
+  const segments = relativePath.split('/').filter(Boolean);
+  return segments.slice(0, -1).some(segment => segment.endsWith('.app'));
+}
+
+function compareRelativeArtifactPaths(a: string, b: string): number {
+  const segmentsA = a.split('/').filter(Boolean);
+  const segmentsB = b.split('/').filter(Boolean);
+  if (segmentsA.length !== segmentsB.length) {
+    return segmentsA.length - segmentsB.length;
+  }
+  for (let i = 0; i < segmentsA.length; i++) {
+    if (segmentsA[i] < segmentsB[i]) {
+      return -1;
+    }
+    if (segmentsA[i] > segmentsB[i]) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 async function isIosAppBundleAsync(directory: string): Promise<boolean> {

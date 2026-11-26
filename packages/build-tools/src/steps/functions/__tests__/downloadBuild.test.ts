@@ -128,24 +128,40 @@ async function fireBackoffTimersAsync(count: number): Promise<void> {
   }
 }
 
-async function createFlatAppTarGzBufferAsync(): Promise<Buffer> {
-  const sourceDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'flat-app-source-'));
+async function createTarGzBufferAsync(
+  filesToArchive: Record<string, string | Buffer>,
+  symlinks: Record<string, string> = {}
+): Promise<Buffer> {
+  const sourceDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'archive-source-'));
   const archivePath = path.join(os.tmpdir(), `${randomUUID()}.tar.gz`);
 
   try {
-    await Promise.all([
-      fs.promises.writeFile(path.join(sourceDirectory, 'Info.plist'), FLAT_APP_INFO_PLIST_BASE64, {
-        encoding: 'base64',
-      }),
-      fs.promises.writeFile(path.join(sourceDirectory, 'TestApp'), 'i am executable\n'),
-    ]);
+    const topLevelEntries = new Set<string>();
+    for (const [relativePath, content] of Object.entries(filesToArchive)) {
+      const fullPath = path.join(sourceDirectory, relativePath);
+      await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.promises.writeFile(fullPath, content);
+      const firstSegment = relativePath.split('/')[0];
+      if (firstSegment) {
+        topLevelEntries.add(firstSegment);
+      }
+    }
+    for (const [relativePath, target] of Object.entries(symlinks)) {
+      const fullPath = path.join(sourceDirectory, relativePath);
+      await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.promises.symlink(target, fullPath);
+      const firstSegment = relativePath.split('/')[0];
+      if (firstSegment) {
+        topLevelEntries.add(firstSegment);
+      }
+    }
     await tar.create(
       {
         cwd: sourceDirectory,
         file: archivePath,
         gzip: true,
       },
-      ['Info.plist', 'TestApp']
+      [...topLevelEntries]
     );
     return await fs.promises.readFile(archivePath);
   } finally {
@@ -154,6 +170,16 @@ async function createFlatAppTarGzBufferAsync(): Promise<Buffer> {
       fs.promises.rm(archivePath, { force: true }),
     ]);
   }
+}
+
+async function createFlatAppTarGzBufferAsync(
+  extraFiles: Record<string, string | Buffer> = {}
+): Promise<Buffer> {
+  return await createTarGzBufferAsync({
+    'Info.plist': Buffer.from(FLAT_APP_INFO_PLIST_BASE64, 'base64'),
+    TestApp: 'i am executable\n',
+    ...extraFiles,
+  });
 }
 
 afterEach(() => {
@@ -890,6 +916,298 @@ describe('downloadBuild', () => {
     await rejection;
     expect(jest.mocked(fetch)).toHaveBeenCalledTimes(6);
   });
+
+  it('skips AppleDouble and __MACOSX entries when extracting a .app archive', async () => {
+    const archiveBuffer = await createTarGzBufferAsync({
+      '._MyApp.app': 'appledouble-app',
+      'MyApp.app/Info.plist': Buffer.from(FLAT_APP_INFO_PLIST_BASE64, 'base64'),
+      'MyApp.app/._Info.plist': 'appledouble-plist',
+      'MyApp.app/MyApp': 'i am executable\n',
+      'MyApp.app/PlugIns/._CommasNotificationServiceExtension.appex': 'appledouble-appex',
+      'MyApp.app/PlugIns/CommasNotificationServiceExtension.appex/Info.plist': 'ext-plist',
+      '__MACOSX/MyApp.app/._Info.plist': 'macosx-plist',
+    });
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('MyApp.app');
+    expect((await fs.promises.stat(artifactPath)).isDirectory()).toBe(true);
+    expect(await fs.promises.readFile(path.join(artifactPath, 'MyApp'), 'utf8')).toBe(
+      'i am executable\n'
+    );
+    expect(
+      await fs.promises.readFile(
+        path.join(
+          artifactPath,
+          'PlugIns',
+          'CommasNotificationServiceExtension.appex',
+          'Info.plist'
+        ),
+        'utf8'
+      )
+    ).toBe('ext-plist');
+    expect(fs.existsSync(path.join(path.dirname(artifactPath), '._MyApp.app'))).toBe(false);
+    expect(fs.existsSync(path.join(path.dirname(artifactPath), '__MACOSX'))).toBe(false);
+    expect(fs.existsSync(path.join(artifactPath, '._Info.plist'))).toBe(false);
+    expect(
+      fs.existsSync(
+        path.join(artifactPath, 'PlugIns', '._CommasNotificationServiceExtension.appex')
+      )
+    ).toBe(false);
+  });
+
+  it('ignores nested .app bundles inside another .app directory', async () => {
+    const archiveBuffer = await createTarGzBufferAsync({
+      'MyApp.app/Info.plist': Buffer.from(FLAT_APP_INFO_PLIST_BASE64, 'base64'),
+      'MyApp.app/MyApp': 'main-app',
+      'MyApp.app/Watch/WatchApp.app/WatchApp': 'watch-app',
+      'MyApp.app/PlugIns/Ext.appex/Helper.app/Helper': 'helper-app',
+    });
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('MyApp.app');
+    expect(await fs.promises.readFile(path.join(artifactPath, 'MyApp'), 'utf8')).toBe('main-app');
+  });
+
+  it('selects the root bundle for a flat .app archive even when it contains a nested Watch .app', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: await createFlatAppTarGzBufferAsync({
+          'Watch/WatchApp.app/WatchApp': 'watch-app',
+          'PlugIns/._Ext.appex': 'appledouble-ext',
+        }),
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.extname(artifactPath)).toBe('.app');
+    expect(path.basename(artifactPath)).not.toBe('WatchApp.app');
+    expect(await fs.promises.readFile(path.join(artifactPath, 'TestApp'), 'utf8')).toBe(
+      'i am executable\n'
+    );
+    expect(fs.existsSync(path.join(artifactPath, 'PlugIns', '._Ext.appex'))).toBe(false);
+  });
+
+  it('ignores symlinks ending in .app that point to a nested .app bundle', async () => {
+    const archiveBuffer = await createTarGzBufferAsync(
+      {
+        'ZMain.app/Info.plist': Buffer.from(FLAT_APP_INFO_PLIST_BASE64, 'base64'),
+        'ZMain.app/ZMain': 'main-app',
+        'ZMain.app/Watch/Nested.app/Nested': 'watch-app',
+      },
+      {
+        'AAlias.app': 'ZMain.app/Watch/Nested.app',
+      }
+    );
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('ZMain.app');
+    expect(await fs.promises.readFile(path.join(artifactPath, 'ZMain'), 'utf8')).toBe('main-app');
+  });
+
+  it('preserves literal backslashes in POSIX .app bundle names', async () => {
+    const infoPlistBuffer = Buffer.from(FLAT_APP_INFO_PLIST_BASE64, 'base64');
+    const archiveBuffer = await createTarGzBufferAsync({
+      'Release\\._Build.app/Info.plist': infoPlistBuffer,
+      'Release\\._Build.app/ReleaseBuild': 'binary',
+    });
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('Release\\._Build.app');
+    expect(await fs.promises.readFile(path.join(artifactPath, 'Info.plist'))).toEqual(
+      infoPlistBuffer
+    );
+  });
+
+  it('ignores plain files ending in .app and selects the .app directory', async () => {
+    const archiveBuffer = await createTarGzBufferAsync({
+      'Alpha.app': 'not-a-directory',
+      'Beta.app/Beta': 'real-app',
+    });
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('Beta.app');
+    expect((await fs.promises.stat(artifactPath)).isDirectory()).toBe(true);
+  });
+
+  it('throws when an archive only contains a plain file ending in .app', async () => {
+    const archiveBuffer = await createTarGzBufferAsync({
+      'NotABundle.app': 'not-a-directory',
+      '._Ghost.app': 'appledouble',
+    });
+
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: archiveBuffer,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+        graphqlClient: createMockGraphqlClient({}),
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_NO_MATCHING_FILES',
+      message: 'No .app entries found in the archive.',
+    });
+  });
+
+  it('sorts matched artifacts deterministically by shallowest depth first, then lexicographically', async () => {
+    const shallowWinsArchive = await createTarGzBufferAsync({
+      'a/Deep.app/Deep': 'deep',
+      'Zeta.app/Zeta': 'shallow',
+    });
+
+    jest.mocked(fetch).mockResolvedValueOnce(
+      createSuccessfulResponse({
+        body: shallowWinsArchive,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath: shallowPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+    expect(path.basename(shallowPath)).toBe('Zeta.app');
+
+    const lexicographicArchive = await createTarGzBufferAsync({
+      'Beta.app/Beta': 'beta',
+      'Alpha.app/Alpha': 'alpha',
+    });
+
+    jest.mocked(fetch).mockResolvedValueOnce(
+      createSuccessfulResponse({
+        body: lexicographicArchive,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath: lexPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+    expect(path.basename(lexPath)).toBe('Alpha.app');
+  });
+
+  it.each(['apk', 'ipa', 'aab'])(
+    'extracts .%s artifacts from a .tar.gz while skipping AppleDouble entries',
+    async ext => {
+      const archiveBuffer = await createTarGzBufferAsync({
+        [`._app.${ext}`]: 'appledouble',
+        [`__MACOSX/app.${ext}`]: 'macosx-meta',
+        [`app.${ext}`]: `valid-${ext}`,
+      });
+
+      jest.mocked(fetch).mockResolvedValue(
+        createSuccessfulResponse({
+          body: archiveBuffer,
+          url: APPLICATION_ARCHIVE_URL,
+        })
+      );
+
+      const { artifactPath } = await downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+        graphqlClient: createMockGraphqlClient({}),
+        robotAccessToken: null,
+        extensions: [ext],
+      });
+
+      expect(path.basename(artifactPath)).toBe(`app.${ext}`);
+      expect(await fs.promises.readFile(artifactPath, 'utf8')).toBe(`valid-${ext}`);
+      expect(fs.existsSync(path.join(path.dirname(artifactPath), `._app.${ext}`))).toBe(false);
+      expect(fs.existsSync(path.join(path.dirname(artifactPath), '__MACOSX'))).toBe(false);
+    }
+  );
 
   it('should throw an error if no matching files are found', async () => {
     const graphqlClient = createMockGraphqlClient({

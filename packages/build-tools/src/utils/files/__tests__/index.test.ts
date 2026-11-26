@@ -1,6 +1,11 @@
 import { vol } from 'memfs';
+import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import * as tar from 'tar';
 
-import { decompressTarAsync, isFileTarGzAsync } from '..';
+import { decompressTarAsync, isFileTarGzAsync, isMacOsArchiveMetadataEntry } from '..';
 
 // contains a 'hello.txt' file with 'hello' content
 const HELLO_TAR_GZ_BUFFER = Buffer.from(
@@ -39,6 +44,33 @@ describe('isFileTarGzAsync', () => {
   });
 });
 
+describe('isMacOsArchiveMetadataEntry', () => {
+  it.each([
+    '._MyApp.app',
+    './._MyApp.app',
+    'MyApp.app/._Info.plist',
+    'MyApp.app/PlugIns/._CommasNotificationServiceExtension.appex',
+    '__MACOSX/',
+    '__MACOSX/MyApp.app/._Info.plist',
+    './__MACOSX/MyApp.app',
+    'nested/__MACOSX/file.txt',
+  ])('returns true for macOS metadata entry %s', entryPath => {
+    expect(isMacOsArchiveMetadataEntry(entryPath)).toBe(true);
+  });
+
+  it.each([
+    'MyApp.app',
+    'MyApp.app/Info.plist',
+    'MyApp.app/.hidden',
+    'MyApp.app/foo._bar',
+    'MyApp.app/_underscore',
+    'MyApp.app/resource\\._part',
+    'MyApp.app/PlugIns/CommasNotificationServiceExtension.appex',
+  ])('returns false for regular entry %s', entryPath => {
+    expect(isMacOsArchiveMetadataEntry(entryPath)).toBe(false);
+  });
+});
+
 describe('decompressTarAsync', () => {
   it('should decompress a tar.gz file', async () => {
     vol.fromNestedJSON({
@@ -53,5 +85,68 @@ describe('decompressTarAsync', () => {
 
     expect(vol.readFileSync('test/README.md', 'utf8')).toBe('hello\n');
     expect(vol.readFileSync('test/apps/mobile/package.json', 'utf8')).toBe('{}\n');
+  });
+
+  it('skips entries excluded by the filter option', async () => {
+    const sourceDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'tar-filter-src-'));
+    const archivePath = path.join(os.tmpdir(), `${randomUUID()}.tar.gz`);
+    const filteredDestDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'tar-filter-dest-'));
+    const unfilteredDestDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'tar-unfiltered-dest-')
+    );
+
+    await fs.promises.mkdir(path.join(sourceDir, 'MyApp.app', 'PlugIns'), { recursive: true });
+    await fs.promises.mkdir(path.join(sourceDir, '__MACOSX', 'MyApp.app'), { recursive: true });
+    await fs.promises.writeFile(path.join(sourceDir, '._MyApp.app'), 'appledouble');
+    await fs.promises.writeFile(path.join(sourceDir, 'MyApp.app', 'MyApp'), 'binary');
+    await fs.promises.writeFile(path.join(sourceDir, 'MyApp.app', 'resource\\._part'), 'literal');
+    await fs.promises.writeFile(
+      path.join(sourceDir, 'MyApp.app', 'PlugIns', '._Ext.appex'),
+      'appledouble-ext'
+    );
+    await fs.promises.writeFile(
+      path.join(sourceDir, '__MACOSX', 'MyApp.app', '._MyApp'),
+      'macosx-meta'
+    );
+
+    await tar.create(
+      {
+        cwd: sourceDir,
+        file: archivePath,
+        gzip: true,
+      },
+      ['._MyApp.app', 'MyApp.app', '__MACOSX']
+    );
+
+    await decompressTarAsync({
+      archivePath,
+      destinationDirectory: filteredDestDir,
+      filter: entryPath => !isMacOsArchiveMetadataEntry(entryPath),
+    });
+
+    expect(
+      await fs.promises.readFile(path.join(filteredDestDir, 'MyApp.app', 'MyApp'), 'utf8')
+    ).toBe('binary');
+    expect(
+      await fs.promises.readFile(
+        path.join(filteredDestDir, 'MyApp.app', 'resource\\._part'),
+        'utf8'
+      )
+    ).toBe('literal');
+    expect(fs.existsSync(path.join(filteredDestDir, '._MyApp.app'))).toBe(false);
+    expect(fs.existsSync(path.join(filteredDestDir, 'MyApp.app', 'PlugIns', '._Ext.appex'))).toBe(
+      false
+    );
+    expect(fs.existsSync(path.join(filteredDestDir, '__MACOSX'))).toBe(false);
+
+    await decompressTarAsync({
+      archivePath,
+      destinationDirectory: unfilteredDestDir,
+    });
+
+    expect(fs.existsSync(path.join(unfilteredDestDir, '._MyApp.app'))).toBe(true);
+    expect(fs.existsSync(path.join(unfilteredDestDir, '__MACOSX', 'MyApp.app', '._MyApp'))).toBe(
+      true
+    );
   });
 });

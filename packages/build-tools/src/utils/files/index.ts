@@ -1,16 +1,24 @@
 import fsPromises, { type FileHandle } from 'node:fs/promises';
 import * as tar from 'tar';
 
+export function isMacOsArchiveMetadataEntry(entryPath: string): boolean {
+  const segments = entryPath.split('/').filter(Boolean);
+  return segments.some(segment => segment === '__MACOSX' || segment.startsWith('._'));
+}
+
 export async function decompressTarAsync({
   archivePath,
   destinationDirectory,
+  filter,
 }: {
   archivePath: string;
   destinationDirectory: string;
+  filter?: (entryPath: string) => boolean;
 }): Promise<void> {
   await tar.extract({
     file: archivePath,
     cwd: destinationDirectory,
+    ...(filter ? { filter: entryPath => filter(entryPath) } : {}),
   });
 }
 
