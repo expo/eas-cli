@@ -329,7 +329,7 @@ export async function downloadBuildAsync(
             `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
           );
         }
-        const archiveFilename = resolveArchiveFilename({ response, extensions });
+        const archiveFilename = resolveArchiveFilename({ response, downloadUrl, extensions });
         const attemptArchivePath = path.join(downloadDestinationDirectory, archiveFilename);
         // On abort, node-fetch emits an error on the body stream, which fails the pipeline.
         await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
@@ -438,30 +438,119 @@ function parseHttpApplicationArchiveUrl(value: unknown): string {
   }
 }
 
+const KNOWN_ARCHIVE_EXTENSIONS = new Set([
+  'apk',
+  'aab',
+  'ipa',
+  'app',
+  'zip',
+  'tar',
+  'gz',
+  'tgz',
+  'xapk',
+  'apks',
+]);
+
+function getSanitizedFilename(filename: string | undefined): string | undefined {
+  if (!filename) {
+    return undefined;
+  }
+  const basename = path.basename(filename.trim());
+  if (!basename || basename === '.' || basename === '..') {
+    return undefined;
+  }
+  return basename;
+}
+
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function getUrlFilename(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+  try {
+    const rawSegment = path.basename(new URL(url).pathname);
+    if (!rawSegment) {
+      return undefined;
+    }
+    return getSanitizedFilename(safeDecodeURIComponent(rawSegment));
+  } catch {
+    return undefined;
+  }
+}
+
+function hasFileExtension(filename: string): boolean {
+  return path.extname(filename).length > 1;
+}
+
+function hasRecognizedArtifactExtension(filename: string, extensions: string[]): boolean {
+  const ext = path.extname(filename).slice(1).toLowerCase();
+  if (!ext) {
+    return false;
+  }
+  if (KNOWN_ARCHIVE_EXTENSIONS.has(ext)) {
+    return true;
+  }
+  return extensions.some(expected => expected.replace(/^\./, '').toLowerCase() === ext);
+}
+
 function resolveArchiveFilename({
   response,
+  downloadUrl,
   extensions,
 }: {
   response: Awaited<ReturnType<typeof fetch>>;
+  downloadUrl: string;
   extensions: string[];
 }): string {
   const contentDispositionHeader = response.headers.get('content-disposition');
   let headerFilename: string | undefined;
   if (contentDispositionHeader) {
     try {
-      headerFilename = contentDisposition.parse(contentDispositionHeader).parameters.filename;
+      headerFilename = getSanitizedFilename(
+        contentDisposition.parse(contentDispositionHeader).parameters.filename
+      );
     } catch {
-      // Ignore malformed Content-Disposition headers and fall back to the response URL.
+      // Ignore malformed Content-Disposition headers and fall back to the URLs.
     }
   }
 
-  const urlFilename = path.basename(new URL(response.url).pathname);
-  let archiveFilename = path.basename(headerFilename ?? urlFilename ?? '');
-  if (!archiveFilename || archiveFilename === '.' || archiveFilename === '..') {
-    archiveFilename = 'application';
+  const responseUrlFilename = getUrlFilename(response.url);
+  const downloadUrlFilename = getUrlFilename(downloadUrl);
+
+  let archiveFilename: string;
+  if (headerFilename && hasFileExtension(headerFilename)) {
+    archiveFilename = headerFilename;
+  } else if (
+    responseUrlFilename &&
+    (headerFilename
+      ? hasRecognizedArtifactExtension(responseUrlFilename, extensions)
+      : hasFileExtension(responseUrlFilename))
+  ) {
+    archiveFilename = responseUrlFilename;
+  } else if (
+    downloadUrlFilename &&
+    hasRecognizedArtifactExtension(downloadUrlFilename, extensions)
+  ) {
+    archiveFilename = downloadUrlFilename;
+  } else {
+    const fallbackDownloadFilename =
+      downloadUrlFilename && !hasFileExtension(downloadUrlFilename)
+        ? downloadUrlFilename
+        : undefined;
+    archiveFilename =
+      headerFilename ?? responseUrlFilename ?? fallbackDownloadFilename ?? 'application';
   }
-  if (!path.extname(archiveFilename) && extensions.length === 1) {
-    archiveFilename = `${archiveFilename}.${extensions[0]}`;
+
+  if (!hasFileExtension(archiveFilename) && extensions.length === 1) {
+    const baseName = archiveFilename.replace(/\.+$/, '') || 'application';
+    archiveFilename = `${baseName}.${extensions[0]}`;
   }
 
   // URL and header filenames may contain percent-encoded or unsafe filesystem characters.

@@ -98,17 +98,33 @@ export async function installBuildAsync({
     return { applicationIdentifier };
   }
 
-  if (path.extname(artifactPath) !== '.apk' || !artifactStat.isFile()) {
+  if (path.extname(artifactPath).toLowerCase() !== '.apk' || !artifactStat.isFile()) {
     throw new UserError(
       'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
       'Android Emulator sessions require an .apk build artifact.'
     );
   }
 
-  const { stdout } = await spawn('aapt2', ['dump', 'badging', artifactPath], {
-    stdio: 'pipe',
-    env,
-  });
+  let stdout: string;
+  try {
+    ({ stdout } = await spawn('aapt2', ['dump', 'badging', artifactPath], {
+      stdio: 'pipe',
+      env,
+    }));
+  } catch (err) {
+    if (isAapt2NonZeroExitError(err) && (await isReadableFileAsync(artifactPath))) {
+      const stderrDetails = formatAapt2Stderr(err.stderr);
+      const baseMessage =
+        `The build artifact (${path.basename(artifactPath)}) is not a valid Android .apk. ` +
+        'Android Emulator sessions require a valid .apk build artifact (not an .aab, HTML page, or archive download).';
+      throw new UserError(
+        'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
+        stderrDetails ? `${baseMessage} aapt2 stderr: ${stderrDetails}` : baseMessage,
+        { cause: err }
+      );
+    }
+    throw err;
+  }
   const applicationIdentifier = stdout.match(/package: name='([^']+)'/)?.[1];
   const activityName = stdout.match(/launchable-activity: name='([^']+)'/)?.[1];
   if (!applicationIdentifier) {
@@ -121,4 +137,50 @@ export async function installBuildAsync({
   logger.info(`Installing ${artifactPath} on the Android Emulator.`);
   await spawn('adb', ['install', '-r', artifactPath], { env, logger });
   return { applicationIdentifier, activityName };
+}
+
+const MAX_AAPT2_STDERR_LENGTH = 500;
+
+type SpawnExitError = {
+  status: number;
+  signal?: string | null;
+  code?: string;
+  stderr?: string | Buffer;
+};
+
+function isAapt2NonZeroExitError(err: unknown): err is SpawnExitError {
+  if (typeof err !== 'object' || err === null) {
+    return false;
+  }
+  const candidate = err as Record<string, unknown>;
+  if (typeof candidate.code === 'string' && candidate.code.length > 0) {
+    return false;
+  }
+  if (candidate.signal != null) {
+    return false;
+  }
+  return typeof candidate.status === 'number' && candidate.status > 0 && candidate.status < 126;
+}
+
+async function isReadableFileAsync(filePath: string): Promise<boolean> {
+  try {
+    await fs.promises.access(filePath, fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatAapt2Stderr(stderr: string | Buffer | undefined): string | undefined {
+  if (stderr === undefined) {
+    return undefined;
+  }
+  const text = (typeof stderr === 'string' ? stderr : stderr.toString('utf8')).trim();
+  if (!text) {
+    return undefined;
+  }
+  if (text.length <= MAX_AAPT2_STDERR_LENGTH) {
+    return text;
+  }
+  return `…${text.slice(-(MAX_AAPT2_STDERR_LENGTH - 1))}`;
 }

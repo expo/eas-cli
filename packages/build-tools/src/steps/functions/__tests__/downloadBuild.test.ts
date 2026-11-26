@@ -362,6 +362,171 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
+  it('preserves the original download URL extension when redirecting to an extensionless URL', async () => {
+    const archiveFilename = `${randomUUID()}.aab`;
+    const applicationArchiveUrl = `https://expo.dev/artifacts/eas/${archiveFilename}`;
+    const redirectedUrl = `https://storage.googleapis.com/eas-artifacts/${randomUUID()}?X-Goog-Signature=abc`;
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('aab-content'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId: randomUUID(),
+      graphqlClient: createMockGraphqlClient({ applicationArchiveUrl }),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe(archiveFilename);
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('aab-content');
+  });
+
+  it('preserves the original download URL extension when Content-Disposition and redirected URL lack an extension', async () => {
+    const applicationArchiveUrl = 'https://expo.dev/artifacts/eas/store-build.aab';
+    const redirectedUrl = 'https://storage.googleapis.com/eas-artifacts/12345';
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: Buffer.from('aab-content'),
+        url: redirectedUrl,
+        headers: { 'content-disposition': 'attachment; filename="12345"' },
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('store-build.aab');
+  });
+
+  it('appends the single expected extension for an extensionless URL without Content-Disposition', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/builds/2123268320665243870';
+    const redirectedUrl = 'https://storage.example.test/blobs/2123268320665243870';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('2123268320665243870.apk');
+  });
+
+  it('ignores a trailing dot on the redirected URL when falling back to the original download URL extension', async () => {
+    const applicationArchiveUrl = 'https://expo.dev/artifacts/eas/store-build.aab';
+    const redirectedUrl = 'https://storage.googleapis.com/eas-artifacts/build.';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('aab-content'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('store-build.aab');
+  });
+
+  it('does not adopt non-artifact endpoint extensions from the original download URL on redirect', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/download.php?id=42';
+    const redirectedUrl = 'https://cdn.example.test/blob/42';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('apk-content'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('42.apk');
+  });
+
+  it('preserves an extensionless Content-Disposition filename when the final URL is a download endpoint', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/download.php?id=42';
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: Buffer.from('apk-content'),
+        url: applicationArchiveUrl,
+        headers: { 'content-disposition': 'attachment; filename="release"' },
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('release.apk');
+  });
+
+  it('decodes percent-encoded extensions on the original download URL when redirecting to an extensionless URL', async () => {
+    const applicationArchiveUrl = 'https://expo.dev/artifacts/eas/build%2Eaab';
+    const redirectedUrl = 'https://cdn.example.test/blob/42';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('aab-content'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('build.aab');
+  });
+
+  it('preserves an uppercase .APK extension from the original download URL on redirect', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/release.APK';
+    const redirectedUrl = 'https://cdn.example.test/blob/42';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('apk-content'), url: redirectedUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('release.APK');
+  });
+
   it('passes the abort signal to the build lookup', async () => {
     const graphqlClient = createMockGraphqlClient({
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
