@@ -299,6 +299,9 @@ export function createStartAppiumRemoteSessionBuildFunction(
               // Appium Event Timings, so enable it for all drivers.
               // appium-chromedriver ships no Chromedriver binary, so UiAutomator2 can switch
               // to a WEBVIEW context only when it may download one that matches the WebView.
+              // Clients can choose where Chromedriver files go (chromedriverExecutableDir and
+              // chromedriverChromeMappingFile). That is safe only while each Android session has
+              // its own VM and job-owned APPIUM_HOME; revisit this before sharing an Appium home.
               '--allow-insecure',
               [
                 '*:session_discovery',
