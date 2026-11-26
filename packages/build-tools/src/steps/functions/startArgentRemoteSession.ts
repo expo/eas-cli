@@ -169,7 +169,10 @@ export function createStartArgentRemoteSessionBuildFunction(
         // Set only for a local egress Simulator; every Argent command then runs from it.
         let argentInstall: ArgentInstall | undefined;
         const { launch, iosStartup } = await resolveIosSessionStartupAsync({
-          resolveLocalEgressBootLibrariesAsync: async () => {
+          // A warm Simulator is already booted, and local egress never uses one.
+          resolveLocalEgressBootLibrariesAsync: warmSession
+            ? undefined
+            : async () => {
             argentInstall = await installArgentAsync({
               packageSpec: `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
               packageManager,
@@ -184,7 +187,7 @@ export function createStartArgentRemoteSessionBuildFunction(
               return [];
             }
             return [argentInstall.bootstrapPath];
-          },
+              },
           runtimePlatform,
           bootSimulator: inputs.boot_simulator?.value as boolean | undefined,
           deviceIdentifier: warmSession?.device.udid ?? deviceIdentifier,
