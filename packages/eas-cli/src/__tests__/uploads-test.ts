@@ -3,8 +3,56 @@ import os from 'node:os';
 import path from 'node:path';
 
 import fs from 'fs-extra';
+import nock from 'nock';
 
-import { computeFileMd5Base64Async } from '../uploads';
+import { computeFileMd5Base64Async, uploadWithPresignedPostWithRetryAsync } from '../uploads';
+
+describe(uploadWithPresignedPostWithRetryAsync, () => {
+  const presignedPost = {
+    url: 'https://storage.example.com/upload',
+    fields: { key: 'object-key' },
+  };
+  const contents = Array.from({ length: 50000 }, (_, i) => `line ${i}\n`).join('');
+  let tmpDir: string;
+  let file: string;
+
+  beforeAll(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-presigned-post-test-'));
+    file = path.join(tmpDir, 'bundle.js');
+    await fs.writeFile(file, contents);
+  });
+
+  afterAll(async () => {
+    await fs.remove(tmpDir);
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  it('sends the whole file and reports activity while it uploads', async () => {
+    let body = '';
+    nock('https://storage.example.com')
+      .post('/upload', requestBody => {
+        body = requestBody;
+        return true;
+      })
+      .reply(204);
+    const onAssetUploadBegin = jest.fn();
+
+    await uploadWithPresignedPostWithRetryAsync(file, presignedPost, onAssetUploadBegin);
+
+    expect(body).toContain('filename="bundle.js"');
+    expect(body).toContain(contents);
+    expect(onAssetUploadBegin.mock.calls.length).toBeGreaterThan(2);
+    expect(onAssetUploadBegin).toHaveBeenCalledWith(
+      expect.objectContaining({ file, fileSize: contents.length, uploadedBytes: 0 })
+    );
+    expect(onAssetUploadBegin).toHaveBeenLastCalledWith(
+      expect.objectContaining({ file, fileSize: contents.length, uploadedBytes: contents.length })
+    );
+  });
+});
 
 describe(computeFileMd5Base64Async, () => {
   let tmpDir: string;
