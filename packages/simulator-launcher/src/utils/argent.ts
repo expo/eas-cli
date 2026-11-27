@@ -55,10 +55,6 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
     async startAsync(_udid, signal) {
       signal.throwIfAborted();
       const logPath = getArgentLogPath();
-      const eventLogPath = process.env.ARGENT_EVENT_LOG;
-      if (eventLogPath && path.resolve(eventLogPath) === path.resolve(logPath)) {
-        throw new Error('ARGENT_EVENT_LOG must be separate from the Argent console log.');
-      }
       stopping = false;
       serverProcess = commands.start(
         'bunx',
@@ -73,7 +69,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           '--idle-timeout',
           '0',
         ],
-        { detached: true, logPath }
+        { detached: true, logPath, separateLogPath: process.env.ARGENT_EVENT_LOG }
       );
       const server = serverProcess;
       let ready = false;

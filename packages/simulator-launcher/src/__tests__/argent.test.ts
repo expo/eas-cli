@@ -61,6 +61,7 @@ it('does not report ready until its owned server answers the authenticated tools
   expect(commands.start).toHaveBeenCalledWith('bunx', expect.arrayContaining(['server', 'start']), {
     detached: true,
     logPath: expect.stringContaining('Library/Logs/expo-simulator-startup/argent.log'),
+    separateLogPath: process.env.ARGENT_EVENT_LOG,
   });
   expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:3201/tools', {
     headers: { Authorization: 'Bearer fixture-token' },
@@ -144,17 +145,6 @@ it('bounds readiness when the server never becomes available', async () => {
     `Timed out waiting for the Argent server on port 3201 to become ready. Console log: ${getArgentLogPath()}`
   );
   expect(fetch).not.toHaveBeenCalled();
-});
-
-it('rejects an event log override that resolves to the console log', async () => {
-  jest.replaceProperty(process, 'env', {
-    ...process.env,
-    ARGENT_EVENT_LOG: getArgentLogPath().replace(/argent\.log$/, './argent.log'),
-  });
-  await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
-    'ARGENT_EVENT_LOG must be separate from the Argent console log.'
-  );
-  expect(commands.start).not.toHaveBeenCalled();
 });
 
 it('retries missing or incomplete state and transient HTTP failures before becoming ready', async () => {
