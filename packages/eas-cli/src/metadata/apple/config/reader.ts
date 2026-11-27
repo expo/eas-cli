@@ -23,7 +23,9 @@ import {
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
+  AppleSocialMediaAdvisory,
 } from '../types';
+import { definedSocialMediaAdvisory } from './socialMediaAdvisory';
 
 type PartialExcept<T, K extends keyof T> = Pick<T, K> & Partial<Omit<T, K>>;
 
@@ -37,7 +39,9 @@ export const DEFAULT_WHATSNEW = 'Bug fixes and improved stability';
 export class AppleConfigReader {
   public constructor(public readonly schema: AppleMetadata) {}
 
-  public getAgeRating(): Partial<AttributesOf<AgeRatingDeclaration>> | null {
+  public getAgeRating():
+    | (Partial<AttributesOf<AgeRatingDeclaration>> & AppleSocialMediaAdvisory)
+    | null {
     const attributes = this.schema.advisory;
     if (!attributes) {
       return null;
@@ -73,6 +77,7 @@ export class AppleConfigReader {
       messagingAndChat: attributes.messagingAndChat ?? false,
       parentalControls: attributes.parentalControls ?? false,
       userGeneratedContent: attributes.userGeneratedContent ?? false,
+      ...definedSocialMediaAdvisory(attributes),
     };
   }
 

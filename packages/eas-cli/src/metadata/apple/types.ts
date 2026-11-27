@@ -86,11 +86,23 @@ export interface AppleAppClipLocalizedInfo {
   headerImage?: string;
 }
 
+/**
+ * Social-media answers from App Store Connect API 4.4.1.
+ * Optional until `@expo/apple-utils` declares and returns them.
+ */
+export type AppleSocialMediaAdvisory = {
+  /** Whether the app includes social media features. */
+  socialMedia?: boolean | null;
+  /** Whether the app's social media features are age restricted. */
+  socialMediaAgeRestricted?: boolean | null;
+};
+
 // The omited properties are deprecated
 export type AppleAdvisory = Omit<
   Partial<AgeRatingDeclarationProps>,
   'seventeenPlus' | 'gamblingAndContests'
->;
+> &
+  AppleSocialMediaAdvisory;
 
 /** Apps can define up to two categories, or categories with up to two subcategories */
 export type AppleCategory = (string | string[])[];

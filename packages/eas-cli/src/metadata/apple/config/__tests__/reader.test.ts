@@ -87,6 +87,22 @@ describe('getAgeRating', () => {
     const reader = new AppleConfigReader({ advisory: mostRestrictiveAdvisory });
     expect(reader.getAgeRating()).toMatchObject(mostRestrictiveAdvisory);
   });
+
+  it('omits social media answers that are not configured', () => {
+    const reader = new AppleConfigReader({ advisory: {} });
+    expect(reader.getAgeRating()).not.toHaveProperty('socialMedia');
+    expect(reader.getAgeRating()).not.toHaveProperty('socialMediaAgeRestricted');
+  });
+
+  it('passes through configured social media answers', () => {
+    const reader = new AppleConfigReader({
+      advisory: { socialMedia: true, socialMediaAgeRestricted: false },
+    });
+    expect(reader.getAgeRating()).toMatchObject({
+      socialMedia: true,
+      socialMediaAgeRestricted: false,
+    });
+  });
 });
 
 describe('getVersionReleaseType', () => {
