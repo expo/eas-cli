@@ -13,8 +13,6 @@ import { markAsParentCommand } from '../analytics/parentCommand';
 import Log from '../log';
 import { easCliVersion } from '../utils/easCli';
 
-const NON_TTY_FORWARDED_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
-
 function hasHelpFlag(args: string[]): boolean {
   for (const arg of args) {
     if (arg === '--help' || arg === '-h') {
@@ -155,61 +153,15 @@ function getExitCodeForSignal(signal: string): number {
   return typeof signalNumber === 'number' ? 128 + signalNumber : 1;
 }
 
-function forwardSignalToChild(
-  child: { pid?: number; kill: (signal?: NodeJS.Signals | number) => boolean } | undefined,
-  signal: NodeJS.Signals,
-  isDetachedGroup: boolean
-): void {
-  if (!child) {
-    return;
-  }
-  if (isDetachedGroup && typeof child.pid === 'number' && child.pid > 0) {
-    try {
-      process.kill(-child.pid, signal);
-      return;
-    } catch {}
-  }
-  try {
-    child.kill(signal);
-  } catch {}
-}
-
 export async function spawnSimulatorExecCommandAsync(
   command: string,
-  args: string[],
-  { isTTY = Boolean(process.stdin.isTTY) }: { isTTY?: boolean } = {}
+  args: string[]
 ): Promise<void> {
-  // On non-interactive POSIX runs (CI, agent tools), place the child in its own process group
-  // so signals sent to either the wrapper PID or the wrapper's process group hit the wrapper
-  // once and are forwarded once to the child's process group (preventing both lost PID-targeted
-  // SIGINTs and duplicate group SIGTERM/SIGHUPs). On interactive TTYs, keep the child attached
-  // to the foreground process group so stdin and Ctrl+C work naturally without duplicate SIGINTs.
-  const useDetachedChildGroup = process.platform !== 'win32' && !isTTY;
-
-  const childPromise = spawnAsync(command, args, {
-    stdio: 'inherit',
-    env: process.env,
-    ...(useDetachedChildGroup ? { detached: true } : {}),
-  });
-
-  const signalHandlers = new Map<NodeJS.Signals, () => void>();
-  if (useDetachedChildGroup) {
-    for (const signal of NON_TTY_FORWARDED_SIGNALS) {
-      const handler = (): void => {
-        forwardSignalToChild(childPromise.child, signal, true);
-      };
-      signalHandlers.set(signal, handler);
-      process.on(signal, handler);
-    }
-  } else {
-    // Keep the wrapper alive on SIGINT so the attached foreground child can finish cleanup.
-    const ignoreSigint = (): void => {};
-    signalHandlers.set('SIGINT', ignoreSigint);
-    process.on('SIGINT', ignoreSigint);
-  }
-
   try {
-    await childPromise;
+    await spawnAsync(command, args, {
+      stdio: 'inherit',
+      env: process.env,
+    });
   } catch (err: any) {
     if (err?.status == null && err?.signal == null) {
       Log.errorToStderr(err instanceof Error ? err.message : String(err));
@@ -219,16 +171,12 @@ export async function spawnSimulatorExecCommandAsync(
     } else {
       process.exitCode = process.exitCode ?? err.status ?? 1;
     }
-  } finally {
-    for (const [signal, handler] of signalHandlers) {
-      process.off(signal, handler);
-    }
   }
 }
 
 export async function runSimulatorExecFastPathAsync(
   rawArgv: string[],
-  { cwd, isTTY }: { cwd?: string; isTTY?: boolean } = {}
+  { cwd }: { cwd?: string } = {}
 ): Promise<void> {
   let command: string;
   let args: string[];
@@ -244,7 +192,7 @@ export async function runSimulatorExecFastPathAsync(
 
   const { restoreParentCommand } = markAsParentCommand('eas simulator:exec');
   try {
-    await spawnSimulatorExecCommandAsync(command, args, { isTTY });
+    await spawnSimulatorExecCommandAsync(command, args);
   } finally {
     restoreParentCommand();
   }
