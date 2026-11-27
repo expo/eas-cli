@@ -306,6 +306,11 @@ yarn lint           # Run Oxlint
 yarn fmt:check      # Run Oxfmt format check
 ```
 
+### Simulator Commands Performance & Benchmark
+
+- When adding or removing a simulator command under `packages/eas-cli/src/commands/simulator/`, update `SIMULATOR_COMMAND_BENCHMARKS` in `packages/eas-cli/scripts/benchmark-simulator-commands.js` (enforced by `packages/eas-cli/src/commands/simulator/__tests__/benchmarkCoverage.test.ts`).
+- When contributing to or modifying `eas simulator` commands, run the simulator speed benchmark locally (`cd packages/eas-cli && yarn benchmark:simulator`) and inspect the PR benchmark comment from `.github/workflows/benchmark-simulator-commands.yml`. Actively pay attention to startup latency, eager imports, telemetry/network overhead, and CLI responsiveness.
+
 ### Logging
 
 Use the `Log` module from `@expo/logger`:

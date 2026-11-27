@@ -191,6 +191,7 @@ src/
 │   ├── metadata/      # App store metadata management
 │   ├── project/       # Project initialization and info
 │   ├── secret/        # Secret management (legacy)
+│   ├── simulator/     # Remote simulator session commands
 │   ├── submit/        # App store submission
 │   ├── update/        # EAS Update management
 │   ├── webhook/       # Webhook management
@@ -300,3 +301,15 @@ describe('MyCommand', () => {
 - **Manifest**: Generated during `prepack` step
 - **Templates**: `src/commandUtils/new/templates` are copied to `build/` during build
 - **Node Version**: Develop on Node 22. Users can run Node ^20.18.3 (deprecated, `bin/run` prints a warning) or >= 22.0.0
+
+## Simulator Commands Performance & Benchmark
+
+- **Keep the benchmark list in sync**: Whenever you add or remove a simulator command under `src/commands/simulator/`, update `SIMULATOR_COMMAND_BENCHMARKS` in `scripts/benchmark-simulator-commands.js`. Coverage is enforced by `src/commands/simulator/__tests__/benchmarkCoverage.test.ts`.
+- **Protect CLI responsiveness**: When contributing to or modifying `eas simulator` commands (or shared startup code), run the benchmark locally after building and inspect the before-vs-after PR comment from `.github/workflows/benchmark-simulator-commands.yml`. Actively watch for startup latency regressions, heavy eager imports, telemetry/network overhead on startup, and unnecessary work before command execution.
+
+```bash
+yarn build
+yarn benchmark:simulator                                      # Run benchmark against current build
+yarn benchmark:simulator --out /tmp/before.json               # Save baseline JSON
+yarn benchmark:simulator --compare /tmp/before.json /tmp/after.json
+```
