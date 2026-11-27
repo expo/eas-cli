@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import timers from 'node:timers/promises';
 import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
@@ -187,12 +188,15 @@ describe('downloadBuild', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it.each([404, 410, 500])(
+  it.each([404, 410, 429, 500])(
     'identifies the application URL without credentials on HTTP %s',
     async status => {
+      useFakeBackoffTimers();
       const { Response: ActualResponse } =
         jest.requireActual<typeof import('node-fetch')>('node-fetch');
-      jest.mocked(fetch).mockResolvedValue(new ActualResponse('download failed', { status }));
+      jest
+        .mocked(fetch)
+        .mockImplementation(async () => new ActualResponse('download failed', { status }));
 
       const download = downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
@@ -204,14 +208,22 @@ describe('downloadBuild', () => {
       });
 
       const prefix = `Failed to download the archive at https://example.test/app.tar.gz (HTTP ${status})`;
-      await expect(download).rejects.toThrow(
-        status === 500
-          ? `${prefix}: download failed`
-          : `${prefix}. The archive is unavailable. ` +
+      const unavailable = status === 404 || status === 410;
+      const rejection = expect(download).rejects.toThrow(
+        unavailable
+          ? `${prefix}. The archive is unavailable. ` +
               'Check that the URL is correct and the archive still exists, then try again.'
+          : `${prefix}: download failed`
       );
+      if (!unavailable) {
+        await fireBackoffTimersAsync(5);
+      }
+      await rejection;
       await expect(download).rejects.not.toThrow(/password|secret|fragment/);
-      expect(fetch).toHaveBeenCalledTimes(1);
+      if (!unavailable) {
+        await expect(download).rejects.toMatchObject({ name: 'ArchiveHttpError' });
+      }
+      expect(fetch).toHaveBeenCalledTimes(unavailable ? 1 : 6);
     }
   );
 
@@ -708,6 +720,243 @@ describe('downloadBuild', () => {
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });
 
+  it.each([408, 429, 500, 502, 503, 504])('recovers from archive HTTP %s', async status => {
+    useFakeBackoffTimers();
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+    const errorResponse = new ActualResponse('Try again later', { status });
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(errorResponse)
+      .mockResolvedValueOnce(
+        createSuccessfulResponse({ body: APP_TAR_GZ_BUFFER, url: APPLICATION_ARCHIVE_URL })
+      );
+    const datadogLog = jest.spyOn(Datadog, 'log');
+
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId: randomUUID(),
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+    await fireBackoffTimersAsync(1);
+
+    const { artifactPath } = await download;
+    expect(await fs.promises.readFile(path.join(artifactPath, 'TestApp'), 'utf8')).toBe(
+      'i am executable\n'
+    );
+    expect(errorResponse.bodyUsed).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(datadogLog).toHaveBeenCalledWith(
+      'download_build.archive_download recovered on attempt 2',
+      expect.objectContaining({ outcome: 'recovered', attempts: '2', code: `HTTP_${status}` })
+    );
+  });
+
+  it.each([
+    [429, '60', 60_000],
+    [503, '60', 60_000],
+    [429, 'Wed, 01 Jan 2025 00:01:00 GMT', 60_000],
+    [429, 'Wednesday, 01-Jan-25 00:00:30 GMT', 30_000],
+    [429, 'Wed Jan  1 00:00:30 2025', 30_000],
+    [429, '0', 1_000],
+    [429, 'invalid', 1_000],
+  ])('honors the archive HTTP %s cooldown %s', async (status, retryAfter, delayMs) => {
+    useFakeBackoffTimers();
+    jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
+    // Jest only fakes the global timer, so route the cooldown through it.
+    jest
+      .spyOn(timers, 'setTimeout')
+      .mockImplementationOnce(
+        async (delay, value) => await new Promise(resolve => setTimeout(resolve, delay, value))
+      );
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', {
+          status,
+          headers: { 'Retry-After': retryAfter },
+        })
+      )
+      .mockResolvedValueOnce(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: 'https://cdn.test/app.apk' })
+      );
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+    await waitForBackoffTimerAsync();
+
+    await jest.advanceTimersByTimeAsync(delayMs - 1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    const { artifactPath } = await download;
+    expect(await fs.promises.readFile(artifactPath, 'utf8')).toBe('hello');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('surfaces HTTP 429 when Retry-After exceeds the wait budget', async () => {
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', { status: 429, headers: { 'Retry-After': '61' } })
+      );
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      })
+    ).rejects.toMatchObject({ errorCode: 'SERVER_ERROR', cause: { code: 'HTTP_429' } });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels an archive download during the server cooldown', async () => {
+    useFakeBackoffTimers();
+    const cooldown = jest.spyOn(timers, 'setTimeout');
+    const datadogLog = jest.spyOn(Datadog, 'log');
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(
+        new ActualResponse('Try again later', { status: 429, headers: { 'Retry-After': '60' } })
+      );
+    const controller = new AbortController();
+    const reason = new Error('step timed out');
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId: randomUUID(),
+      graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+      robotAccessToken: null,
+      extensions: ['apk'],
+      signal: controller.signal,
+    });
+    const result = download.catch(error => error);
+    try {
+      await fireBackoffTimersAsync(1);
+      expect(cooldown).toHaveBeenCalledWith(59_000, undefined, { signal: controller.signal });
+    } finally {
+      controller.abort(reason);
+    }
+    expect(await result).toBe(reason);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(datadogLog).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { seconds: 60, attempts: 2 },
+    { seconds: 30, attempts: 3 },
+  ])(
+    'shares the cooldown budget across repeated $seconds-second 429s',
+    async ({ seconds, attempts }) => {
+      useFakeBackoffTimers();
+      jest
+        .spyOn(timers, 'setTimeout')
+        .mockImplementation(
+          async (delay, value) => await new Promise(resolve => setTimeout(resolve, delay, value))
+        );
+      const { Response: ActualResponse } =
+        jest.requireActual<typeof import('node-fetch')>('node-fetch');
+      jest.mocked(fetch).mockImplementation(
+        async () =>
+          new ActualResponse('Try again later', {
+            status: 429,
+            headers: { 'Retry-After': String(seconds) },
+          })
+      );
+      const result = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      }).catch(error => error);
+      await waitForBackoffTimerAsync();
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetch).toHaveBeenCalledTimes(attempts);
+      expect(jest.getTimerCount()).toBe(0);
+      expect(await result).toMatchObject({
+        errorCode: 'SERVER_ERROR',
+        cause: { code: 'HTTP_429' },
+      });
+    }
+  );
+
+  it.each([408, 429, 500, 502, 503, 504])('throws SystemError after six HTTP %s', async status => {
+    useFakeBackoffTimers();
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    const responseBody = '<html>Internal proxy error page</html>';
+    jest.mocked(fetch).mockImplementation(async () => new ActualResponse(responseBody, { status }));
+    const datadogLog = jest.spyOn(Datadog, 'log');
+    const buildId = randomUUID();
+    const download = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+    const rejection = expect(download).rejects.toBeInstanceOf(SystemError);
+    await fireBackoffTimersAsync(5);
+
+    await rejection;
+    await expect(download).rejects.toMatchObject({
+      errorCode: 'SERVER_ERROR',
+      message: `Failed to download the application archive for build ${buildId} (HTTP ${status}).`,
+      cause: {
+        name: 'ArchiveHttpError',
+        code: `HTTP_${status}`,
+        status,
+        message: expect.stringContaining(responseBody),
+      },
+    });
+    expect(fetch).toHaveBeenCalledTimes(6);
+    expect(datadogLog).toHaveBeenCalledWith(
+      'download_build.archive_download failed on attempt 6',
+      expect.objectContaining({ outcome: 'failed', attempts: '6', code: `HTTP_${status}` })
+    );
+  });
+
+  it.each([400, 401, 403, 501, 505])('does not retry archive HTTP %s', async status => {
+    const { Response: ActualResponse } =
+      jest.requireActual<typeof import('node-fetch')>('node-fetch');
+    jest.mocked(fetch).mockResolvedValue(new ActualResponse('download failed', { status }));
+    const datadogLog = jest.spyOn(Datadog, 'log');
+
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        graphqlClient: createMockGraphqlClient({ applicationArchiveUrl: APPLICATION_ARCHIVE_URL }),
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      name: 'ArchiveHttpError',
+      message: expect.stringContaining(`HTTP ${status}`),
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(datadogLog).not.toHaveBeenCalled();
+  });
+
   it('downloads after an archive request that failed once with a socket error', async () => {
     useFakeBackoffTimers();
     const graphqlClient = createMockGraphqlClient({});
@@ -844,31 +1093,44 @@ describe('downloadBuild', () => {
     );
   });
 
-  it('does not start another archive attempt after an abort during the backoff', async () => {
-    useFakeBackoffTimers();
-    const graphqlClient = createMockGraphqlClient({});
-    jest
-      .mocked(fetch)
-      .mockRejectedValueOnce(createSocketFetchError(APPLICATION_ARCHIVE_URL, 'ECONNRESET'));
-    const controller = new AbortController();
-    const reason = new Error('step timed out');
+  it.each(['socket error', 'HTTP 500'])(
+    'does not start another archive attempt after an abort during the %s backoff',
+    async failure => {
+      useFakeBackoffTimers();
+      const graphqlClient = createMockGraphqlClient({});
+      const { Response: ActualResponse } =
+        jest.requireActual<typeof import('node-fetch')>('node-fetch');
+      if (failure === 'HTTP 500') {
+        jest
+          .mocked(fetch)
+          .mockResolvedValueOnce(new ActualResponse('server failure', { status: 500 }));
+      } else {
+        jest
+          .mocked(fetch)
+          .mockRejectedValueOnce(createSocketFetchError(APPLICATION_ARCHIVE_URL, 'ECONNRESET'));
+      }
+      const datadogLog = jest.spyOn(Datadog, 'log');
+      const controller = new AbortController();
+      const reason = new Error('step timed out');
 
-    const promise = downloadBuildAsync({
-      logger: createLogger({ name: 'test' }),
-      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
-      graphqlClient,
-      robotAccessToken: null,
-      extensions: ['apk'],
-      signal: controller.signal,
-    });
-    const rejection = expect(promise).rejects.toBe(reason);
-    await waitForBackoffTimerAsync();
-    controller.abort(reason);
-    await jest.advanceTimersToNextTimerAsync();
+      const promise = downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['apk'],
+        signal: controller.signal,
+      });
+      const rejection = expect(promise).rejects.toBe(reason);
+      await waitForBackoffTimerAsync();
+      controller.abort(reason);
+      await jest.advanceTimersToNextTimerAsync();
 
-    await rejection;
-    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
-  });
+      await rejection;
+      expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
+      expect(datadogLog).not.toHaveBeenCalled();
+    }
+  );
 
   it('rethrows the raw error of a failing user-supplied archive URL after the retries', async () => {
     useFakeBackoffTimers();
@@ -912,6 +1174,7 @@ describe('downloadBuild', () => {
         extensions: ['apk'],
       })
     ).rejects.toThrow('No .apk entries found in the archive.');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -992,8 +1255,8 @@ describe('createDownloadBuildFunction', () => {
         }
         return {
           ok: false,
-          text: () => Promise.resolve('Internal Server Error'),
-          status: 500,
+          text: () => Promise.resolve('Bad Request'),
+          status: 400,
         } as unknown as Response;
       });
 
@@ -1002,7 +1265,7 @@ describe('createDownloadBuildFunction', () => {
           build_id: buildId,
           extensions: ['app'],
         }).executeAsync()
-      ).rejects.toThrow('Internal Server Error');
+      ).rejects.toThrow('Bad Request');
 
       expect(jest.mocked(fetch)).toHaveBeenCalledWith(
         workerApiUrl,
@@ -1049,8 +1312,8 @@ describe('createDownloadBuildFunction', () => {
       const graphqlClient = createMockGraphqlClient({});
       jest.mocked(fetch).mockResolvedValue({
         ok: false,
-        text: () => Promise.resolve('Internal Server Error'),
-        status: 500,
+        text: () => Promise.resolve('Bad Request'),
+        status: 400,
       } as unknown as Response);
 
       await expect(
@@ -1058,7 +1321,7 @@ describe('createDownloadBuildFunction', () => {
           application_archive_url: APPLICATION_ARCHIVE_URL,
           extensions: ['app'],
         }).executeAsync()
-      ).rejects.toThrow('Internal Server Error');
+      ).rejects.toThrow('Bad Request');
 
       expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
       expect(jest.mocked(fetch)).toHaveBeenCalledWith(
@@ -1095,11 +1358,11 @@ describe('createDownloadBuildFunction', () => {
 
     jest.mocked(fetch).mockResolvedValue({
       ok: false,
-      text: () => Promise.resolve('Internal Server Error'),
-      status: 500,
+      text: () => Promise.resolve('Bad Request'),
+      status: 400,
     } as unknown as Response);
 
-    await expect(buildStep.executeAsync()).rejects.toThrow('Internal Server Error');
+    await expect(buildStep.executeAsync()).rejects.toThrow('Bad Request');
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
       APPLICATION_ARCHIVE_URL,
       expect.objectContaining({ headers: undefined })

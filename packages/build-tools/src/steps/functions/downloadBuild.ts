@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import stream from 'stream';
+import { setTimeout as delayAsync } from 'node:timers/promises';
 import { promisify } from 'util';
 import { z } from 'zod';
 import bplistParser from 'bplist-parser';
@@ -39,6 +40,43 @@ import {
 import { WorkerApiError } from '../utils/workerApi';
 
 const streamPipeline = promisify(stream.pipeline);
+
+// Match signed URL uploads: retry request timeouts, rate limits, and transient server errors.
+const RETRYABLE_ARCHIVE_HTTP_STATUSES = [408, 429, 500, 502, 503, 504];
+const ARCHIVE_COOLDOWN_BUDGET_MS = 60_000;
+
+class ArchiveHttpError extends Error {
+  readonly code: string;
+
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = 'ArchiveHttpError';
+    this.code = `HTTP_${status}`;
+  }
+}
+
+function isRetryableArchiveDownloadError(error: unknown): boolean {
+  return error instanceof ArchiveHttpError
+    ? RETRYABLE_ARCHIVE_HTTP_STATUSES.includes(error.status)
+    : isTransferFailure(error);
+}
+
+function parseRetryAfterMs(header: string | null): number {
+  const value = header?.trim();
+  if (!value) {
+    return 0;
+  }
+  if (/^\d+$/.test(value)) {
+    return Number(value) * 1_000;
+  }
+  // The legacy asctime HTTP-date omits the zone but denotes UTC (RFC 9110).
+  const asctime = /^[A-Za-z]{3} [A-Za-z]{3} (?: \d|\d{2}) \d{2}:\d{2}:\d{2} \d{4}$/;
+  const retryAt = Date.parse(asctime.test(value) ? `${value} GMT` : value);
+  return Number.isNaN(retryAt) ? 0 : Math.max(0, retryAt - Date.now());
+}
 
 type DownloadBuildSource =
   | { buildId: string; applicationArchiveUrl?: never }
@@ -305,11 +343,23 @@ export async function downloadBuildAsync(
 
   signal?.throwIfAborted();
   let archivePath: string;
+  let retryAt = 0;
+  let cooldownBudgetMs = ARCHIVE_COOLDOWN_BUDGET_MS;
   try {
     archivePath = await retryOnNetworkFailureAsync(
       async () => {
+        // The retry helper has already waited its usual backoff. Wait out any remaining cooldown.
+        const cooldownMs = Math.ceil(retryAt - performance.now());
+        if (cooldownMs > 0) {
+          await delayAsync(cooldownMs, undefined, { signal });
+          signal?.throwIfAborted();
+        }
+        retryAt = 0;
         const response = await fetch(downloadUrl, { headers, signal });
         if (!response.ok) {
+          if (response.status === 429 || response.status === 503) {
+            retryAt = performance.now() + parseRetryAfterMs(response.headers.get('retry-after'));
+          }
           const textResult = await asyncResult(response.text());
           const archiveUrl = new URL(downloadUrl);
           const source = params.buildId
@@ -325,8 +375,9 @@ export async function downloadBuildAsync(
                   : 'Check that the URL is correct and the archive still exists, then try again.')
             );
           }
-          throw new Error(
-            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`
+          throw new ArchiveHttpError(
+            `Failed to download the ${source} (HTTP ${response.status}): ${textResult.value}`,
+            response.status
           );
         }
         const archiveFilename = resolveArchiveFilename({ response, extensions });
@@ -335,14 +386,31 @@ export async function downloadBuildAsync(
         await streamPipeline(response.body, fs.createWriteStream(attemptArchivePath));
         return attemptArchivePath;
       },
-      { operation: 'download_build.archive_download', signal, isRetryable: isTransferFailure }
+      {
+        operation: 'download_build.archive_download',
+        signal,
+        isRetryable: error => {
+          if (!isRetryableArchiveDownloadError(error)) {
+            return false;
+          }
+          // Reserve the remaining server cooldown from one budget for the whole download.
+          const cooldownMs = Math.max(0, Math.ceil(retryAt - performance.now()));
+          if (cooldownMs > cooldownBudgetMs) {
+            return false;
+          }
+          cooldownBudgetMs -= cooldownMs;
+          return true;
+        },
+      }
     );
   } catch (error) {
     signal?.throwIfAborted();
-    if (params.buildId && isTransferFailure(error)) {
-      throw new SystemError(`Could not download the application archive: ${describeError(error)}`, {
-        cause: error,
-      });
+    if (params.buildId && isRetryableArchiveDownloadError(error)) {
+      const message =
+        error instanceof ArchiveHttpError
+          ? `Failed to download the application archive for build ${params.buildId} (HTTP ${error.status}).`
+          : `Could not download the application archive: ${describeError(error)}`;
+      throw new SystemError(message, { cause: error });
     }
     throw error;
   }
