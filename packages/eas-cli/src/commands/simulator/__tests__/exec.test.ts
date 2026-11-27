@@ -123,6 +123,17 @@ describe(SimulatorExec, () => {
     expect(SimulatorExec.skipTelemetry).toBe(true);
   });
 
+  it('strips a leading -- separator before spawning the command', async () => {
+    const { command } = createCommand(['--', 'agent-device', '--help']);
+
+    await command.runAsync();
+
+    expect(spawnAsync).toHaveBeenCalledWith('agent-device', ['--help'], {
+      stdio: 'inherit',
+      env: process.env,
+    });
+  });
+
   it('loads simulator-specific env after regular env files', async () => {
     const { command } = createCommand(['agent-device', 'touch', '@e2']);
     await command.runAsync();

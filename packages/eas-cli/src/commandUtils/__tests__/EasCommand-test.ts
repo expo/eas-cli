@@ -131,10 +131,26 @@ describe('EasCommand', () => {
   });
 
   describe('skipTelemetry', () => {
-    it('skips analytics, user lookup, and Sentry flushing when skipTelemetry is true', async () => {
+    const originalParentCommand = process.env.__EXPO_PARENT_COMMAND;
+
+    afterEach(() => {
+      if (originalParentCommand === undefined) {
+        delete process.env.__EXPO_PARENT_COMMAND;
+      } else {
+        process.env.__EXPO_PARENT_COMMAND = originalParentCommand;
+      }
+    });
+
+    it('skips analytics, user lookup, and Sentry flushing while preserving parent command', async () => {
+      process.env.__EXPO_PARENT_COMMAND = 'expo run:ios';
       const TestEasCommand = createTestEasCommand();
       TestEasCommand.skipTelemetry = true;
-      const runAsyncSpy = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+      let observedParentDuringRun: string | undefined;
+      const runAsyncSpy = jest
+        .spyOn(TestEasCommand.prototype, 'runAsync')
+        .mockImplementation(async () => {
+          observedParentDuringRun = process.env.__EXPO_PARENT_COMMAND;
+        });
 
       await TestEasCommand.run([], mockConfig);
 
@@ -143,6 +159,8 @@ describe('EasCommand', () => {
       const Sentry = jest.requireMock('../../sentry').default;
 
       expect(runAsyncSpy).toHaveBeenCalledWith(undefined);
+      expect(observedParentDuringRun).toBe('eas testEasCommand');
+      expect(process.env.__EXPO_PARENT_COMMAND).toBe('expo run:ios');
       expect(createAnalyticsAsync).not.toHaveBeenCalled();
       expect(SessionManager.prototype.getUserAsync).not.toHaveBeenCalled();
       expect(analytics.logEvent).not.toHaveBeenCalled();

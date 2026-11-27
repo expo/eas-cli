@@ -174,8 +174,9 @@ export default abstract class EasCommand extends Command {
 
   /**
    * When true, skip analytics setup/flushing, Sentry reporting, and the startup
-   * `getUserAsync()` network lookup. Intended for lightweight wrapper commands
-   * such as `simulator:exec`.
+   * `getUserAsync()` network lookup (`runAsync` receives `undefined`), while still
+   * setting `__EXPO_PARENT_COMMAND` for child processes. Intended for lightweight
+   * wrapper commands such as `simulator:exec`.
    */
   static skipTelemetry = false;
 
@@ -248,18 +249,18 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
-    if ((this.constructor as typeof EasCommand).skipTelemetry) {
-      this.analyticsInternal = new NoOpAnalytics();
-      this.sessionManagerInternal = new SessionManager(this.analytics);
-      return await this.runAsync(undefined);
-    }
-
     // id is assigned by oclif in constructor based on the filepath:
     // commands/submit === submit, commands/build/list === build:list
     const command = `eas ${this.id}`;
     const { parentCommand, restoreParentCommand } = markAsParentCommand(command);
 
     try {
+      if ((this.constructor as typeof EasCommand).skipTelemetry) {
+        this.analyticsInternal = new NoOpAnalytics();
+        this.sessionManagerInternal = new SessionManager(this.analytics);
+        return await this.runAsync(undefined);
+      }
+
       this.analyticsInternal = await createAnalyticsAsync(parentCommand);
       this.sessionManagerInternal = new SessionManager(this.analytics);
 
@@ -279,8 +280,8 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
+    await this.analyticsInternal?.flushAsync();
     if (!(this.constructor as typeof EasCommand).skipTelemetry) {
-      await this.analyticsInternal?.flushAsync();
       await Sentry.flush(2000);
     }
     return await super.finally(err);

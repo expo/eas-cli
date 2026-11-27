@@ -24,4 +24,7 @@ if (require('semver').lt(process.version, '22.0.0')) {
 
   const oclif = require('@oclif/core');
   await oclif.execute({ dir: __dirname });
-})();
+})().catch(error => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
