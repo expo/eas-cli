@@ -1,6 +1,7 @@
 import assert from 'assert';
 
 import Log from '../log';
+import { writeToStdoutAsync } from './stdout';
 
 let stdoutWrite: NodeJS.WriteStream['write'] | undefined;
 
@@ -20,6 +21,16 @@ export function printJsonOnlyOutput(value: object): void {
   } finally {
     process.stdout.write = process.stderr.write.bind(process.stderr);
   }
+}
+
+/**
+ * Like `printJsonOnlyOutput`, but resolves only when stdout accepted the output, and rejects when the
+ * write fails, for example because the reading end of a pipe closed. Use it when the output hands
+ * off something that must be cleaned up if the caller never receives it.
+ */
+export async function printJsonOnlyOutputAsync(value: object): Promise<void> {
+  assert(stdoutWrite, 'this should only be called with --json flag');
+  await writeToStdoutAsync(`${JSON.stringify(sanitizeValue(value), null, 2)}\n`, stdoutWrite);
 }
 
 function sanitizeValue(value: any): unknown {

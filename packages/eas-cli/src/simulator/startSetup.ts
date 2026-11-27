@@ -21,7 +21,7 @@ export async function applyStartConfigAsync(
     const catalog = await fetchHostActionCatalogAsync(connection);
     const prepared = await prepareControlConfigAsync(catalog, config.path, connection.udid, config);
     signal.throwIfAborted();
-    // Startup must stop its newly created session before exiting on Ctrl+C.
+    // Startup must stop its newly created session before exiting on Ctrl+C or SIGTERM.
     return await executeControlConfigAsync(connection, prepared, {
       onProgress,
       handleInterrupt: false,

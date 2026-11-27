@@ -140,3 +140,68 @@ describe('DeviceRunSessionQuery.jobRunErrorsByIdAsync', () => {
     expect(requests).toBe(0);
   });
 });
+
+describe('DeviceRunSessionQuery.byIdAsync', () => {
+  let server: http.Server;
+  let requests: number;
+  let closedRequests: number;
+
+  async function startServerAsync(handler: http.RequestListener): Promise<void> {
+    requests = 0;
+    closedRequests = 0;
+    server = http.createServer((request, response) => {
+      requests += 1;
+      request.socket.on('close', () => {
+        closedRequests += 1;
+      });
+      handler(request, response);
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    process.env.DEVICE_RUN_SESSION_QUERY_TEST_URL = `http://127.0.0.1:${port}`;
+  }
+
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  });
+
+  it('rejects and cancels the request when the signal aborts', async () => {
+    const controller = new AbortController();
+    await startServerAsync(() => {
+      controller.abort(new Error('interrupted'));
+    });
+    const client = createGraphqlClient({ accessToken: 'token', sessionSecret: null });
+
+    await expect(
+      DeviceRunSessionQuery.byIdAsync(client, 'session-123', { signal: controller.signal })
+    ).rejects.toThrow('interrupted');
+    for (let attempt = 0; attempt < 50 && closedRequests === 0; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    expect(closedRequests).toBe(1);
+  });
+
+  it('does not retry a transient error with noRetry', async () => {
+    jest.spyOn(Log, 'error').mockImplementation(() => {});
+    await startServerAsync((_request, response) => {
+      response.setHeader('content-type', 'application/json');
+      response.end(
+        JSON.stringify({
+          data: null,
+          errors: [{ message: 'Try again', extensions: { isTransient: true } }],
+        })
+      );
+    });
+    const client = createGraphqlClient({ accessToken: 'token', sessionSecret: null });
+
+    await expect(
+      DeviceRunSessionQuery.byIdAsync(client, 'session-123', {
+        signal: new AbortController().signal,
+        noRetry: true,
+      })
+    ).rejects.toThrow('Try again');
+    expect(requests).toBe(1);
+  });
+});

@@ -37,7 +37,12 @@ import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
 import { applyStartConfigAsync } from '../../../simulator/startSetup';
 import { ControlConfigExecutionError } from '../../../simulator/controlConfig';
 import * as promiseUtils from '../../../utils/promise';
-import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import {
+  enableJsonOutput,
+  printJsonOnlyOutput,
+  printJsonOnlyOutputAsync,
+} from '../../../utils/json';
+import { ignoreOutputErrors, writeToStdoutAsync } from '../../../utils/stdout';
 import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import Simulator from '../index';
 
@@ -59,7 +64,9 @@ jest.mock('../../../log', () => ({
     log: jest.fn(),
     newLine: jest.fn(),
     warn: jest.fn(),
+    warnToStderr: jest.fn(),
     error: jest.fn(),
+    errorToStderr: jest.fn(),
     succeed: jest.fn(),
     withTick: jest.fn(),
   },
@@ -73,6 +80,7 @@ jest.mock('../../../simulator/env', () => ({
 }));
 jest.mock('../../../simulator/expoGo');
 jest.mock('../../../utils/json');
+jest.mock('../../../utils/stdout');
 jest.mock('../../../utils/statuspageService');
 jest.mock('../../../utils/promise', () => ({
   ...jest.requireActual('../../../utils/promise'),
@@ -88,6 +96,7 @@ jest.mock('../../../ora', () => ({
     const spinner = {
       fail: jest.fn(),
       start: jest.fn(),
+      stop: jest.fn(),
       succeed: jest.fn(),
     };
     spinner.start.mockReturnValue(spinner);
@@ -126,7 +135,7 @@ const mockPromptAsync = jest.mocked(promptAsync);
 const mockGetAgentTelemetryContext = jest.mocked(getAgentTelemetryContext);
 const mockIsAnalyticsOptedOutAsync = jest.mocked(isAnalyticsOptedOutAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
-const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+const mockPrintJsonOnlyOutputAsync = jest.mocked(printJsonOnlyOutputAsync);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -201,6 +210,7 @@ describe(Simulator, () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
+    jest.mocked(ignoreOutputErrors).mockReturnValue(() => {});
     jest.mocked(applyStartConfigAsync).mockReset().mockResolvedValue([]);
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockJobRunErrorsByIdAsync.mockResolvedValue(null);
@@ -307,7 +317,7 @@ describe(Simulator, () => {
         })
       );
       expect(applyStartConfigAsync).not.toHaveBeenCalled();
-      expect(jest.mocked(printJsonOnlyOutput)).toHaveBeenCalledWith(
+      expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
         expect.not.objectContaining({ setup: expect.anything() })
       );
     });
@@ -387,7 +397,7 @@ describe(Simulator, () => {
             output: jest.mocked(Log.log).mock.calls,
             warnings: jest.mocked(Log.warn).mock.calls,
             newLines: jest.mocked(Log.newLine).mock.calls,
-            json: mockPrintJsonOnlyOutput.mock.calls,
+            json: mockPrintJsonOnlyOutputAsync.mock.calls,
             writes: jest.mocked(fs.writeFile).mock.calls,
             cleanup: mockResetSimulatorEnvAsync.mock.calls,
             stop: mockEnsureDeviceRunSessionStoppedAsync.mock.calls,
@@ -420,8 +430,8 @@ describe(Simulator, () => {
         expect.objectContaining({ path: configPath }),
         { signal: expect.any(AbortSignal), onProgress: undefined }
       );
-      expect(printJsonOnlyOutput).toHaveBeenCalledTimes(1);
-      expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+      expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledTimes(1);
+      expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'session-123',
           setup: {
@@ -623,12 +633,15 @@ describe(Simulator, () => {
             ...(jsonFlag ? ['--json'] : ['--non-interactive']),
           ]).command.runAsync()
         ).rejects.toThrow('process.exit(130)');
+        // The interrupt path stops the session; the startup error path must not stop it again.
+        expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
         expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
           graphqlClient,
           'session-123'
         );
         expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
         expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+        expect(mockPrintJsonOnlyOutputAsync).not.toHaveBeenCalled();
         expect(process.listeners('SIGINT')).toEqual(listeners);
       }
     );
@@ -707,7 +720,7 @@ describe(Simulator, () => {
           expect.objectContaining({ stopped: false })
         );
         expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
-        expect(Log.warn).toHaveBeenCalledWith(
+        expect(Log.warnToStderr).toHaveBeenCalledWith(
           expect.stringContaining('simulator:stop --id session-123')
         );
       } finally {
@@ -775,6 +788,7 @@ describe(Simulator, () => {
       expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
       expect(process.listeners('SIGINT')).toEqual(listeners);
       expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+      expect(mockPrintJsonOnlyOutputAsync).not.toHaveBeenCalled();
     });
 
     it.each([['--non-interactive'], ['--json']])(
@@ -942,9 +956,114 @@ describe(Simulator, () => {
         );
         expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
         expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+        expect(mockPrintJsonOnlyOutputAsync).not.toHaveBeenCalled();
         expect(process.listeners('SIGINT')).toEqual(listeners);
       }
     );
+
+    it('lets the stop finish, then exits with 143, when a signal arrives after local egress failed', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      mockByIdAsync.mockResolvedValue(localEgressSession);
+      const failure = new Error('egress failed during setup');
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ onConnected }) => {
+        onConnected?.();
+        await new Promise<void>(resolve => setImmediate(resolve));
+        throw failure;
+      });
+      jest.mocked(applyStartConfigAsync).mockImplementationOnce(() => new Promise(() => {}));
+      const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit(${code})`);
+      });
+      let exitCallsDuringStop: unknown[] | undefined;
+      mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(async () => {
+        // The first real signal must not count as a second one: egress aborted the session.
+        process.emit('SIGTERM');
+        exitCallsDuringStop = [...processExitSpy.mock.calls];
+        return { id: 'session-123', status: DeviceRunSessionStatus.Stopped };
+      });
+
+      // After the stop, the command exits like any SIGTERM.
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toThrow(
+        'process.exit(143)'
+      );
+
+      expect(exitCallsDuringStop).toEqual([]);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails with the egress error when local egress fails while saving the ready session', async () => {
+      config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
+      mockByIdAsync.mockResolvedValue(localEgressSession);
+      const failure = new Error('egress failed after setup');
+      let rejectTunnel: (error: Error) => void = () => {};
+      jest.mocked(runLocalEgressAsync).mockImplementationOnce(async ({ signal, onConnected }) => {
+        onConnected?.();
+        await new Promise<void>((resolve, reject) => {
+          rejectTunnel = reject;
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true }
+          );
+        });
+      });
+      jest.mocked(applyStartConfigAsync).mockResolvedValueOnce([]);
+      jest.mocked(fs.writeFile).mockImplementationOnce(async () => {
+        rejectTunnel(failure);
+        await new Promise<void>(resolve => setImmediate(resolve));
+      });
+      const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit(${code})`);
+      });
+
+      await expect(createCommand(['--import', configPath]).command.runAsync()).rejects.toBe(
+        failure
+      );
+
+      expect(processExitSpy).not.toHaveBeenCalled();
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    });
+
+    it('exits with 143 when SIGTERM arrives while a failed import is cleaned up with --json', async () => {
+      config({ platform: 'ios' }, [{ action: 'appearance.get' }]);
+      jest.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit(${code})`);
+      });
+      jest.mocked(applyStartConfigAsync).mockRejectedValueOnce(new Error('action failed'));
+      mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(async () => {
+        process.emit('SIGTERM');
+        return { id: 'session-123', status: DeviceRunSessionStatus.Stopped };
+      });
+
+      await expect(
+        createCommand(['--import', configPath, '--json']).command.runAsync()
+      ).rejects.toThrow('process.exit(143)');
+
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    });
+
+    it('starts the stop at once on SIGTERM while imported actions are still running', async () => {
+      config({ platform: 'ios' }, [{ action: 'appearance.get' }]);
+      jest.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit(${code})`);
+      });
+      // Like packaging a large app: the action does not finish when the session aborts.
+      jest.mocked(applyStartConfigAsync).mockImplementationOnce(() => {
+        setImmediate(() => process.emit('SIGTERM'));
+        return new Promise(() => {});
+      });
+
+      await expect(
+        createCommand(['--import', configPath, '--non-interactive']).command.runAsync()
+      ).rejects.toThrow('process.exit(143)');
+
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    });
 
     it('bounds the wait for local egress and closes the tunnel on timeout', async () => {
       config({ platform: 'ios', egress: 'local' }, [{ action: 'appearance.get' }]);
@@ -1204,7 +1323,7 @@ describe(Simulator, () => {
     jest.spyOn(promiseUtils, 'sleepAsync').mockImplementation(sleepAsync);
   }
 
-  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created, and stops a session that comes back during the flush only after the flush', async () => {
+  it('logs "request cancelled", stops the spinner, and exits with 130 only after the flush on Ctrl+C while the session is being created, and stops a session that comes back during the flush without waiting for it', async () => {
     mockLogEvent.mockClear();
     useFakeTimersWithRealSleep();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
@@ -1239,7 +1358,8 @@ describe(Simulator, () => {
       finishFlush();
       await exited;
 
-      expect(stopCallsDuringFlush).toEqual([]);
+      // The stop must not wait for analytics; a runner can kill the CLI soon after SIGTERM.
+      expect(stopCallsDuringFlush).toEqual([[graphqlClient, 'session-123']]);
       expect(exitCallsDuringFlush).toEqual([]);
       expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
         graphqlClient,
@@ -1323,17 +1443,44 @@ describe(Simulator, () => {
       await createStarted;
       process.emit('SIGINT');
       await jest.advanceTimersByTimeAsync(4_999);
-      const warningsBeforeFiveSeconds = [...jest.mocked(Log.warn).mock.calls];
+      const warningsBeforeFiveSeconds = [...jest.mocked(Log.warnToStderr).mock.calls];
       const exitCallsBeforeFiveSeconds = [...processExitSpy.mock.calls];
       await jest.advanceTimersByTimeAsync(1);
       await exited;
 
       expect(warningsBeforeFiveSeconds).toEqual([]);
       expect(exitCallsBeforeFiveSeconds).toEqual([]);
-      expect(Log.warn).toHaveBeenCalledWith(
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
         expect.stringContaining('Run `eas simulator:list` to check for a running session')
       );
       expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('cancels the create request and exits with 143 on SIGTERM', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const createStarted = mockCreateThatNeverAnswers();
+      const existingSigtermListeners = [...process.listeners('SIGTERM')];
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5_000);
+      await exited;
+
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
+        expect.stringContaining('Run `eas simulator:list` to check for a running session')
+      );
+      expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
     } finally {
       processExitSpy.mockRestore();
       jest.useRealTimers();
@@ -1364,11 +1511,70 @@ describe(Simulator, () => {
       expect(processExitSpy).toHaveBeenCalledWith(130);
       await exited;
 
-      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+      expect(Log.warnToStderr).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
       expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
       expect(mockLogEvent).toHaveBeenLastCalledWith(
         SimulatorEvent.REQUEST_CANCELLED,
         expect.objectContaining({ project_id: 'project-123', reason: 'user_abort' })
+      );
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('writes the recovery command to stderr when a session created after a cancel cannot be stopped', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
+      mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValueOnce(new Error('stop boom'));
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(0);
+      await exited;
+
+      // stderr, since stdout may be a closed pipe.
+      expect(Log.warnToStderr).toHaveBeenCalledWith(
+        expect.stringContaining('eas simulator:stop --id session-123')
+      );
+    } finally {
+      processExitSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('waits for the create request when a runner repeats the signal right after the first', async () => {
+    useFakeTimersWithRealSleep();
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    try {
+      const { createStarted, resolveCreate } = mockCreateThatAnswersLater();
+
+      const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+      const commandPromise = command.runAsync();
+      const exited = expect(commandPromise).rejects.toThrow('process.exit(143)');
+      await createStarted;
+      process.emit('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5);
+      process.emit('SIGTERM');
+      expect(processExitSpy).not.toHaveBeenCalled();
+      resolveCreate(makeCreatedDeviceRunSession());
+      await jest.advanceTimersByTimeAsync(0);
+      await exited;
+
+      // The repeated signal did not abandon the wait, so the late session is stopped.
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-123'
       );
     } finally {
       processExitSpy.mockRestore();
@@ -1397,7 +1603,7 @@ describe(Simulator, () => {
       expect(processExitSpy).not.toHaveBeenCalled();
 
       expect(() => process.emit('SIGINT')).toThrow('process.exit(130)');
-      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
+      expect(Log.warnToStderr).toHaveBeenCalledWith(expect.stringContaining('eas simulator:list'));
 
       // process.exit is mocked, so let the first Ctrl+C finish to clean up its listener.
       await jest.advanceTimersByTimeAsync(3_000);
@@ -1410,7 +1616,7 @@ describe(Simulator, () => {
     }
   });
 
-  it('stops waiting for a hung analytics flush 1 second after Ctrl+C', async () => {
+  it('waits for the create request while a hung analytics flush runs, and bounds the flush', async () => {
     useFakeTimersWithRealSleep();
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
@@ -1424,17 +1630,15 @@ describe(Simulator, () => {
       const exited = expect(commandPromise).rejects.toThrow('process.exit(130)');
       await createStarted;
       process.emit('SIGINT');
-      await jest.advanceTimersByTimeAsync(999);
-      const waitMessagesBeforeOneSecond = jest
-        .mocked(Log.log)
-        .mock.calls.filter(([message]) => String(message).includes('Waiting up to 5 seconds'));
-      await jest.advanceTimersByTimeAsync(1);
-
-      expect(waitMessagesBeforeOneSecond).toEqual([]);
+      await jest.advanceTimersByTimeAsync(0);
+      // The wait for the create request starts at once, not after the flush.
       expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Waiting up to 5 seconds'));
       expect(mockFlushAsync).toHaveBeenCalled();
 
-      await jest.advanceTimersByTimeAsync(5_000);
+      await jest.advanceTimersByTimeAsync(4_999);
+      expect(processExitSpy).not.toHaveBeenCalled();
+      // The hung flush does not delay the exit past the create wait.
+      await jest.advanceTimersByTimeAsync(1);
       await exited;
     } finally {
       processExitSpy.mockRestore();
@@ -1490,7 +1694,8 @@ describe(Simulator, () => {
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
       `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
     );
-    expect(Log.log).toHaveBeenCalledWith(
+    // The exports are the handoff, so they go through the checked stdout write.
+    expect(writeToStdoutAsync).toHaveBeenCalledWith(
       expect.stringContaining("export AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'")
     );
   });
@@ -2549,6 +2754,57 @@ describe(Simulator, () => {
     processExitSpy.mockRestore();
   });
 
+  it('stops the simulator session and exits with 143 on SIGTERM before the session is ready', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let notifyQueryStarted: () => void = () => {};
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    mockByIdAsync.mockImplementationOnce(
+      () =>
+        new Promise(() => {
+          notifyQueryStarted();
+        })
+    );
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    const commandPromise = command.runAsync();
+    await queryStarted;
+
+    process.emit('SIGTERM');
+    await expect(commandPromise).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+    processExitSpy.mockRestore();
+  });
+
+  it('keeps exit code 143 when clearing the dotenv file fails after SIGTERM', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockResetSimulatorEnvAsync.mockRejectedValueOnce(new Error('unlink failed'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('unlink failed'));
+  });
+
   const localEgressSessions: [
     string,
     DeviceRunSessionType,
@@ -2664,12 +2920,13 @@ describe(Simulator, () => {
     ]);
     await command.runAsync();
     expect(fs.writeFile).not.toHaveBeenCalled();
-    expect(Log.log).toHaveBeenCalledWith(
+    // The instructions are the handoff in this mode, so they go through the checked stdout write.
+    expect(writeToStdoutAsync).toHaveBeenCalledWith(
       expect.stringContaining(
         'Run the egress client to connect the tunnel:\n\neas simulator:egress --config-type env\n'
       )
     );
-    expect(Log.log).not.toHaveBeenCalledWith(
+    expect(writeToStdoutAsync).not.toHaveBeenCalledWith(
       expect.stringContaining(
         'Run the egress client to connect the tunnel:\n\neas simulator:egress\n'
       )
@@ -3218,7 +3475,7 @@ describe(Simulator, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+    expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'session-123', deviceRunSessionUrl })
     );
   });
@@ -3257,7 +3514,7 @@ describe(Simulator, () => {
         frameAncestors: ['https://embed.example.test', 'https://*.example.test'],
       })
     );
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+    expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
           webPreviewUrl: deviceRunSessionPreviewUrl,
@@ -3312,7 +3569,7 @@ describe(Simulator, () => {
       graphqlClient,
       expect.not.objectContaining({ frameAncestors: expect.anything() })
     );
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+    expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteConfig: expect.objectContaining({
           previewApiUrl: 'https://preview-api.example.test/?token=preview-secret',
@@ -3398,7 +3655,7 @@ describe(Simulator, () => {
         graphqlClient,
         expect.objectContaining({ publicPreview: publicLink })
       );
-      expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect(mockPrintJsonOnlyOutputAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           remoteConfig: expect.objectContaining({
             previewUrl: expectedUrl,
@@ -3409,7 +3666,7 @@ describe(Simulator, () => {
         })
       );
       if (!publicLink) {
-        expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0]?.[0])).not.toContain(
+        expect(JSON.stringify(mockPrintJsonOnlyOutputAsync.mock.calls[0]?.[0])).not.toContain(
           'preview-secret'
         );
       }
@@ -3557,6 +3814,312 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
+  it('stops the session on SIGTERM while it is running, without waiting for a stalled poll', async () => {
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+    let notifyPollStarted: () => void = () => {};
+    const pollStarted = new Promise<void>(resolve => {
+      notifyPollStarted = resolve;
+    });
+    let releasePoll: (session: ReturnType<typeof makeDeviceRunSession>) => void = () => {};
+    let pollSignal: AbortSignal | undefined;
+    let pollNoRetry: boolean | undefined;
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(
+      (_client, _id, options) =>
+        new Promise(resolve => {
+          pollSignal = options?.signal;
+          pollNoRetry = options?.noRetry;
+          releasePoll = resolve;
+          notifyPollStarted();
+        })
+    );
+
+    const { command } = createCommand(['--platform', 'ios']);
+    const commandPromise = command.runAsync();
+    await pollStarted;
+    process.emit('SIGTERM');
+    await commandPromise;
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+    // The stalled request is cancelled, and no retry timer is left, so the process can exit.
+    expect(pollSignal?.aborted).toBe(true);
+    expect(pollNoRetry).toBe(true);
+    releasePoll(makeDeviceRunSession());
+  });
+
+  it('stops the session when the output before the session wait fails', async () => {
+    jest.mocked(Log.log).mockImplementation(message => {
+      if (String(message).startsWith('To stop the session from another shell')) {
+        throw new Error('print failed');
+      }
+    });
+    try {
+      const { command } = createCommand(['--platform', 'ios']);
+      await expect(command.runAsync()).rejects.toThrow('print failed');
+
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+      expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    } finally {
+      jest.mocked(Log.log).mockReset();
+    }
+  });
+
+  it('stops the session when the create response has no job run', async () => {
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+    mockCreateDeviceRunSessionAsync.mockResolvedValueOnce(
+      makeCreatedDeviceRunSession({ turtleJobRun: null })
+    );
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('Expected simulator session to start');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(mockByIdAsync).not.toHaveBeenCalled();
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+  });
+
+  it('stops the session and removes its signal listeners when printing the session instructions fails', async () => {
+    const existingSigintListeners = [...process.listeners('SIGINT')];
+    const existingSigtermListeners = [...process.listeners('SIGTERM')];
+    jest.mocked(Log.log).mockImplementationOnce(() => {
+      throw new Error('print failed');
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('print failed');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(Log.log).toHaveBeenCalledWith(
+      'Stopped simulator session session-123 after the error below.'
+    );
+    expect(process.listeners('SIGINT')).toEqual(existingSigintListeners);
+    expect(process.listeners('SIGTERM')).toEqual(existingSigtermListeners);
+  });
+
+  it('stops the session when printing the JSON output fails', async () => {
+    // For example, the reading end of the stdout pipe closed.
+    mockPrintJsonOnlyOutputAsync.mockRejectedValueOnce(new Error('write EPIPE'));
+
+    const { command } = createCommand(['--platform', 'ios', '--json']);
+    await expect(command.runAsync()).rejects.toThrow('write EPIPE');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    // JSON mode keeps stdout for the JSON output.
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('after the error below'));
+  });
+
+  it('runs the full cleanup when SIGTERM arrives and then the JSON write fails', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    // Like a runner that kills the process group: the signal and the closed pipe come together.
+    mockPrintJsonOnlyOutputAsync.mockImplementationOnce(() => {
+      process.emit('SIGTERM');
+      return Promise.reject(new Error('write EPIPE'));
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--json']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    // The stop that the signal started early does not skip the dotenv cleanup.
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session and exits with 143 on SIGTERM while the JSON output waits for stdout', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    // Like a reader that does not read: the write does not finish.
+    mockPrintJsonOnlyOutputAsync.mockImplementationOnce(() => {
+      setImmediate(() => process.emit('SIGTERM'));
+      return new Promise(() => {});
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--json']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('stops the session when stdout does not accept the exports with --out-config-type env', async () => {
+    jest.mocked(writeToStdoutAsync).mockRejectedValueOnce(new Error('write EPIPE'));
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('write EPIPE');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the session and exits with 143 on SIGTERM while the exports wait for stdout', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    jest.mocked(writeToStdoutAsync).mockImplementationOnce(() => {
+      setImmediate(() => process.emit('SIGTERM'));
+      return new Promise(() => {});
+    });
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the stop at once on SIGTERM, before slow local cleanup finishes', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let finishWrite: () => void = () => {};
+    let stopsBeforeWriteFinished: number | undefined;
+    // The ready dotenv write is slow, like a busy disk.
+    jest.mocked(fs.writeFile).mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finishWrite = resolve;
+          setImmediate(() => {
+            process.emit('SIGTERM');
+            setImmediate(() => {
+              stopsBeforeWriteFinished = mockEnsureDeviceRunSessionStoppedAsync.mock.calls.length;
+              finishWrite();
+            });
+          });
+        })
+    );
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(stopsBeforeWriteFinished).toBe(1);
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('exits with 143 when SIGTERM arrives while the CLI stops a session after a startup error', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockResolvedValueOnce(
+      makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored, remoteConfig: null })
+    );
+    mockEnsureDeviceRunSessionStoppedAsync.mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return { id: 'session-123', status: DeviceRunSessionStatus.Stopped };
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms the env exports before importing actions, so later output does not count', async () => {
+    jest.mocked(fs.readJson).mockResolvedValue({
+      version: 1,
+      start: { platform: 'ios' },
+      actions: [{ action: 'appearance.get' }],
+    } as never);
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        remoteConfig: {
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
+          previewUrl: 'https://expo.dev/preview',
+          previewApiUrl: 'https://sim.example.test',
+          previewToken: 'private-token',
+        },
+      })
+    );
+    jest.mocked(applyStartConfigAsync).mockResolvedValueOnce([]);
+
+    const { command } = createCommand([
+      '--import',
+      '/test/simulator.json',
+      '--non-interactive',
+      '--out-config-type',
+      'env',
+    ]);
+    await command.runAsync();
+
+    expect(writeToStdoutAsync).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(writeToStdoutAsync).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(applyStartConfigAsync).mock.invocationCallOrder[0]
+    );
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('clears the saved session ID when polling for readiness fails', async () => {
+    mockByIdAsync.mockRejectedValueOnce(new Error('poll failed'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('poll failed');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    // Otherwise .env.eas-simulator keeps pointing to the stopped session.
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('does not wait for stdout when the dotenv file hands off the session', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(writeToStdoutAsync).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
+  it('tells the user how to stop the session when the stop after an output error fails', async () => {
+    jest.mocked(Log.log).mockImplementationOnce(() => {
+      throw new Error('print failed');
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValueOnce(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('print failed');
+
+    // stderr, since stdout may be the closed pipe that caused the error.
+    expect(Log.warnToStderr).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:stop --id session-123')
+    );
+    expect(mockResetSimulatorEnvAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not stop the session again when the session wait fails after taking over cleanup', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Errored }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await expect(command.runAsync()).rejects.toThrow('Simulator session session-123 errored.');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
+  });
+
   it('stops the session and reports when the stop cannot be confirmed after an interrupt before ready', async () => {
     jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
@@ -3597,12 +4160,78 @@ describe(Simulator, () => {
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
+  it('treats a signal that a runner forwards right after the first as the same cancellation', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    const now = jest.spyOn(Date, 'now');
+    mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      // Like `pnpm dlx`: the terminal sends SIGINT to the process group, and the runner forwards
+      // SIGTERM a moment later.
+      now.mockReturnValue(10_000);
+      process.emit('SIGINT');
+      now.mockReturnValue(10_005);
+      process.emit('SIGTERM');
+      return makeDeviceRunSession();
+    });
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(Log.errorToStderr).not.toHaveBeenCalled();
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('keeps the first exit code when a runner repeats the signal before the session is ready', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    const now = jest.spyOn(Date, 'now');
+    mockByIdAsync.mockImplementationOnce(async () => {
+      now.mockReturnValue(10_000);
+      process.emit('SIGTERM');
+      now.mockReturnValue(10_005);
+      process.emit('SIGTERM');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(Log.errorToStderr).not.toHaveBeenCalled();
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes the recovery command to stderr when the stop after an interrupt cannot be confirmed', async () => {
+    jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockByIdAsync.mockImplementationOnce(async () => {
+      process.emit('SIGTERM');
+      return makeDeviceRunSession({ remoteConfig: null });
+    });
+    mockEnsureDeviceRunSessionStoppedAsync.mockRejectedValueOnce(new Error('stop boom'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('process.exit(143)');
+
+    expect(Log.warnToStderr).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:stop --id session-123')
+    );
+  });
+
   it('force exits when a second interrupt arrives', async () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
     });
+    const now = jest.spyOn(Date, 'now');
     mockByIdAsync.mockResolvedValueOnce(makeDeviceRunSession()).mockImplementationOnce(async () => {
+      now.mockReturnValue(10_000);
       process.emit('SIGINT');
+      // A second Ctrl+C after the window for a runner's repeated signal.
+      now.mockReturnValue(11_000);
       process.emit('SIGINT');
       return makeDeviceRunSession();
     });
@@ -3611,7 +4240,7 @@ describe(Simulator, () => {
 
     await command.runAsync();
 
-    expect(Log.error).toHaveBeenCalledWith(
+    expect(Log.errorToStderr).toHaveBeenCalledWith(
       'Aborted before the simulator session could be stopped. Run `eas simulator:stop --id session-123` to terminate it and avoid unexpected charges.'
     );
     expect(exitSpy).toHaveBeenCalledWith(130);
