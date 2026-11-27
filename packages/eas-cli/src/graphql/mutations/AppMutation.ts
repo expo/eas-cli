@@ -11,6 +11,8 @@ import {
   RemoveProfileImageMutationVariables,
   ScheduleAppDeletionMutation,
   ScheduleAppDeletionMutationVariables,
+  SetAppDisplayNameMutation,
+  SetAppDisplayNameMutationVariables,
 } from '../generated';
 import { BackgroundJobReceiptNode } from '../types/BackgroundJobReceipt';
 
@@ -93,6 +95,33 @@ export const AppMutation = {
         .toPromise()
     );
     const app = data.app?.removeProfileImage;
+    assert(app, 'App must be defined');
+    return app;
+  },
+  async setDisplayNameAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, displayName }: { appId: string; displayName: string }
+  ): Promise<{ id: string; name: string; fullName: string }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<SetAppDisplayNameMutation, SetAppDisplayNameMutationVariables>(
+          gql`
+            mutation SetAppDisplayNameMutation($appId: ID!, $appInfo: AppInfoInput!) {
+              app {
+                setAppInfo(appId: $appId, appInfo: $appInfo) {
+                  id
+                  name
+                  fullName
+                }
+              }
+            }
+          `,
+          { appId, appInfo: { displayName } },
+          { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+    const app = data.app?.setAppInfo;
     assert(app, 'App must be defined');
     return app;
   },

@@ -133,7 +133,7 @@ export default class WorkflowView extends EasCommand {
 
     result.logURL = getWorkflowRunUrl(
       result.workflow.app.ownerAccount.name,
-      result.workflow.app.name,
+      result.workflow.app.slug,
       result.id
     );
 

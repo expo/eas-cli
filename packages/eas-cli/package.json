@@ -230,6 +230,9 @@
       "project:icon": {
         "description": "manage the project icon displayed on the EAS dashboard"
       },
+      "project:name": {
+        "description": "manage the project display name shown on the EAS dashboard"
+      },
       "release": {
         "description": "manage update releases"
       },
