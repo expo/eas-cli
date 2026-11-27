@@ -3,9 +3,11 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -30,6 +32,8 @@ import { sleepAsync } from '../../../utils/retry';
 import { uploadDeviceRunSessionScreenRecordingsAsync } from '../deviceRunSessionScreenRecordings';
 import { DEVICE_RUN_SESSION_TOKEN_HEADER } from '../deviceRunSessionWorkerApi';
 import {
+  NON_EPHEMERAL_PORT_MAX,
+  NON_EPHEMERAL_PORT_MIN,
   TOOL_TUNNEL_TEARDOWN_OPTIONS,
   createCorsOriginsInputProvider,
   createFrameAncestorsInputProvider,
@@ -40,6 +44,7 @@ import {
   describeServeSimLaunch,
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  findAvailablePortAsync,
   finishRemoteSessionAsync,
   parseCorsOriginsInput,
   parseFrameAncestorsInput,
@@ -2702,5 +2707,188 @@ describe(ensureFfmpegInstalledOnceAsync, () => {
     await new Promise<void>(resolve => setImmediate(resolve));
 
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe(findAvailablePortAsync, () => {
+  const servers: net.Server[] = [];
+
+  function loadFreshFindAvailablePortAsync(): typeof findAvailablePortAsync {
+    let loaded!: typeof findAvailablePortAsync;
+    jest.isolateModules(() => {
+      ({ findAvailablePortAsync: loaded } =
+        require('../remoteDeviceRunSession') as typeof import('../remoteDeviceRunSession'));
+    });
+    return loaded;
+  }
+
+  async function occupyPortAsync(port = 0): Promise<{ server: net.Server; port: number }> {
+    const server = net.createServer();
+    server.unref();
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', () => resolve());
+    });
+    servers.push(server);
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Expected TCP address');
+    }
+    return { server, port: address.port };
+  }
+
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await Promise.all(
+      servers
+        .splice(0)
+        .map(server =>
+          server.listening
+            ? new Promise<void>(resolve => server.close(() => resolve()))
+            : Promise.resolve()
+        )
+    );
+  });
+
+  it('allocates bindable ports strictly below Linux and macOS ephemeral ranges', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    for (let i = 0; i < 20; i++) {
+      const port = await findPort();
+      expect(Number.isInteger(port)).toBe(true);
+      expect(port).toBeGreaterThanOrEqual(NON_EPHEMERAL_PORT_MIN);
+      expect(port).toBeLessThanOrEqual(NON_EPHEMERAL_PORT_MAX);
+      // Linux default ephemeral range starts at 32768; macOS starts at 49152.
+      expect(port).toBeLessThan(32_768);
+    }
+  });
+
+  it('skips occupied ports in the preferred range and returns a free port', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    const busy = await occupyPortAsync(0);
+    const free = await occupyPortAsync(0);
+    await new Promise<void>(resolve => free.server.close(() => resolve()));
+
+    const randomIntSpy = jest
+      .spyOn(crypto, 'randomInt')
+      .mockReturnValueOnce(busy.port as never)
+      .mockReturnValueOnce(free.port as never);
+
+    const selected = await findPort({
+      minPort: Math.min(busy.port, free.port),
+      maxPort: Math.max(busy.port, free.port),
+      maxAttempts: 5,
+    });
+    expect(selected).toBe(free.port);
+    expect(randomIntSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not return the same port twice across consecutive calls', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    const first = await occupyPortAsync(0);
+    const second = await occupyPortAsync(0);
+    await Promise.all([
+      new Promise<void>(resolve => first.server.close(() => resolve())),
+      new Promise<void>(resolve => second.server.close(() => resolve())),
+    ]);
+    const minPort = Math.min(first.port, second.port);
+    const maxPort = Math.max(first.port, second.port);
+    const randomIntSpy = jest
+      .spyOn(crypto, 'randomInt')
+      .mockReturnValueOnce(first.port as never)
+      .mockReturnValueOnce(first.port as never)
+      .mockReturnValueOnce(second.port as never);
+
+    const allocatedFirst = await findPort({ minPort, maxPort, maxAttempts: 5 });
+    const allocatedSecond = await findPort({ minPort, maxPort, maxAttempts: 5 });
+    expect(allocatedFirst).toBe(first.port);
+    expect(allocatedSecond).toBe(second.port);
+    expect(randomIntSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('falls back to OS port 0 when all probed non-ephemeral ports are busy', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    const busy = await occupyPortAsync(0);
+
+    const fallbackPort = await findPort({
+      minPort: busy.port,
+      maxPort: busy.port,
+      maxAttempts: 5,
+    });
+    expect(fallbackPort).toBeGreaterThan(0);
+    expect(fallbackPort).not.toBe(busy.port);
+  });
+
+  it('retries EACCES without probing the same port twice and falls back to port 0', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    const attemptedPorts: number[] = [];
+    jest.spyOn(net, 'createServer').mockImplementation(() => {
+      const emitter = new EventEmitter() as net.Server;
+      let boundPort = 0;
+      let listening = false;
+      Object.defineProperty(emitter, 'listening', { get: () => listening });
+      emitter.unref = jest.fn(() => emitter);
+      emitter.address = jest.fn(() => ({ address: '127.0.0.1', family: 'IPv4', port: boundPort }));
+      emitter.close = jest.fn((cb?: (err?: Error) => void) => {
+        listening = false;
+        cb?.();
+        return emitter;
+      }) as net.Server['close'];
+      emitter.listen = jest.fn((port?: unknown) => {
+        const numericPort = Number(port);
+        attemptedPorts.push(numericPort);
+        queueMicrotask(() => {
+          if (numericPort !== 0) {
+            emitter.emit(
+              'error',
+              Object.assign(new Error('permission denied'), { code: 'EACCES' })
+            );
+          } else {
+            boundPort = 41_234;
+            listening = true;
+            emitter.emit('listening');
+          }
+        });
+        return emitter;
+      }) as net.Server['listen'];
+      return emitter;
+    });
+
+    const port = await findPort({
+      minPort: 20_000,
+      maxPort: 20_004,
+      maxAttempts: 10,
+    });
+
+    expect(port).toBe(41_234);
+    const probed = attemptedPorts.slice(0, -1);
+    expect(probed).toHaveLength(5);
+    expect(new Set(probed).size).toBe(5);
+    expect(attemptedPorts.at(-1)).toBe(0);
+  });
+
+  it('rethrows unexpected bind errors immediately without falling back', async () => {
+    const findPort = loadFreshFindAvailablePortAsync();
+    const attemptedPorts: number[] = [];
+    jest.spyOn(net, 'createServer').mockImplementation(() => {
+      const emitter = new EventEmitter() as net.Server;
+      Object.defineProperty(emitter, 'listening', { get: () => false });
+      emitter.unref = jest.fn(() => emitter);
+      emitter.listen = jest.fn((port?: unknown) => {
+        attemptedPorts.push(Number(port));
+        queueMicrotask(() => {
+          emitter.emit(
+            'error',
+            Object.assign(new Error('cannot assign requested address'), { code: 'EADDRNOTAVAIL' })
+          );
+        });
+        return emitter;
+      }) as net.Server['listen'];
+      return emitter;
+    });
+
+    await expect(findPort({ maxAttempts: 5 })).rejects.toMatchObject({
+      code: 'EADDRNOTAVAIL',
+    });
+    expect(attemptedPorts).toHaveLength(1);
   });
 });

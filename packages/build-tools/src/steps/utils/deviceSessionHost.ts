@@ -41,7 +41,10 @@ import {
   startNgrokTunnelAsync,
 } from './remoteDeviceRunSession';
 import { LOCAL_EGRESS_PROXY_HOST, readLocalEgressHandoffAsync } from './localEgress';
-import { withDeviceRunSessionTimeoutAsync } from './deviceRunSessionTimeout';
+import {
+  DeviceRunSessionTimeoutError,
+  withDeviceRunSessionTimeoutAsync,
+} from './deviceRunSessionTimeout';
 import { EMULATOR_CAPTURE_REQUESTED_ENV } from './emulatorCapture';
 import {
   IosSimulatorRecordingUtils,
@@ -89,6 +92,35 @@ const RECORDING_STOP_GRACE_PERIOD_MS =
   EXPO_DEVICE_HUB_SIGTERM_FINALIZE_DEADLINE_MS + EXPO_DEVICE_HUB_EXIT_LEEWAY_MS;
 const HOST_OUTPUT_TAIL_CHARS = 8_000;
 const WEB_PREVIEW_READY_POLL_INTERVAL_MS = 250;
+const COLD_PORT_COLLISION_MAX_ATTEMPTS = 3;
+
+class PreviewServerPortInUseError extends SystemError {
+  retryable = true;
+
+  constructor(
+    message: string,
+    readonly port: number
+  ) {
+    super(message);
+    this.name = 'PreviewServerPortInUseError';
+  }
+}
+
+function isPortInUseOutput(output: string, port: number): boolean {
+  const portMessagePattern = new RegExp(
+    `\\bport\\s+${port}\\s+(?:is\\s+)?(?:already\\s+)?in\\s+use\\b`,
+    'i'
+  );
+  const bindErrorPortPattern = new RegExp(`(?::|\\bport\\s+)${port}\\b`, 'i');
+  return output.split(/\r?\n/).some(line => {
+    if (portMessagePattern.test(line)) {
+      return true;
+    }
+    return (
+      /\b(?:EADDRINUSE|address already in use)\b/i.test(line) && bindErrorPortPattern.test(line)
+    );
+  });
+}
 
 export function websiteOrigin(env: BuildStepEnv): string {
   return env.EXPO_LOCAL
@@ -300,11 +332,14 @@ export async function waitForWebPreviewReadyAsync({
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
     if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
-      throw new SystemError(
-        `${serverName} exited before becoming ready. Last output:\n${
-          redactPreviewTokens(previewServer.getOutput()) || '<empty>'
-        }`
-      );
+      const output = redactPreviewTokens(previewServer.getOutput());
+      const message = `${serverName} exited before becoming ready. Last output:\n${
+        output || '<empty>'
+      }`;
+      if (isPortInUseOutput(output, port)) {
+        throw new PreviewServerPortInUseError(message, port);
+      }
+      throw new SystemError(message);
     }
     try {
       const response = await turtleFetch(readyUrl, 'GET', {
@@ -458,13 +493,13 @@ export type DeviceSessionServer = {
   stopAsync(): Promise<void>;
 };
 
-/** Fetches TURN before the host starts its collectors. */
+/** Fetches TURN before allocating a port so the bind window stays tight. */
 async function createAndroidDeviceSessionServerAsync(
   ctx: CustomBuildContext,
   { logger }: { logger: bunyan }
 ): Promise<DeviceSessionServer> {
-  const port = await findAvailablePortAsync();
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
+  const port = await findAvailablePortAsync();
   return {
     port,
     turnArgs: Promise.resolve(turnArgs),
@@ -483,25 +518,74 @@ export async function startDeviceSessionHostAsync(
   options: DeviceSessionHostOptions,
   server?: DeviceSessionServer
 ): Promise<DeviceSessionHost> {
+  const maxAttempts = server ? 1 : COLD_PORT_COLLISION_MAX_ATTEMPTS;
+  const serverName =
+    options.runtimePlatform === BuildRuntimePlatform.LINUX ? 'expo-device-hub' : 'serve-sim';
+
+  const startWithRetryAsync = async (
+    effectiveOptions: DeviceSessionHostOptions,
+    onFinished: (successful: boolean) => void
+  ): Promise<DeviceSessionHost> => {
+    let crashRecorderPreserved = false;
+    let startupErrorNotified = false;
+    const notifyStartupError = (error: unknown): void => {
+      if (!startupErrorNotified) {
+        startupErrorNotified = true;
+        effectiveOptions.onStartupError?.(error);
+      }
+    };
+    const attemptOptions: DeviceSessionHostOptions = {
+      ...effectiveOptions,
+      onStartupError: notifyStartupError,
+    };
+
+    for (let attempt = 1; ; attempt++) {
+      const canRetryPortCollision = !server && attempt < maxAttempts;
+      try {
+        const host = await startDeviceSessionHostInternalAsync(
+          ctx,
+          attemptOptions,
+          onFinished,
+          options.logger,
+          server,
+          canRetryPortCollision,
+          () => {
+            crashRecorderPreserved = false;
+          }
+        );
+        crashRecorderPreserved = false;
+        return host;
+      } catch (error) {
+        if (
+          canRetryPortCollision &&
+          error instanceof PreviewServerPortInUseError &&
+          error.retryable &&
+          !options.signal?.aborted
+        ) {
+          crashRecorderPreserved = true;
+          effectiveOptions.logger.warn(
+            `Port ${error.port} was already in use when starting ${serverName} (attempt ${attempt} of ${maxAttempts}); retrying on a new port.`
+          );
+          continue;
+        }
+        if (crashRecorderPreserved) {
+          crashRecorderPreserved = false;
+          await ServeSimCrashesRecorder.stopAsync();
+          notifyStartupError(error);
+        }
+        throw error;
+      }
+    }
+  };
+
   if (!options.separateLogPhase) {
-    return await startDeviceSessionHostInternalAsync(
-      ctx,
-      options,
-      () => {},
-      options.logger,
-      server
-    );
+    return await startWithRetryAsync(options, () => {});
   }
   const phase = startLogPhase(options.logger, 'Simulator preview');
   let ready = false;
   try {
-    const host = await startDeviceSessionHostInternalAsync(
-      ctx,
-      { ...options, logger: phase.logger },
-      successful =>
-        phase.end(ready && successful ? BuildPhaseResult.SUCCESS : BuildPhaseResult.FAIL),
-      options.logger,
-      server
+    const host = await startWithRetryAsync({ ...options, logger: phase.logger }, successful =>
+      phase.end(ready && successful ? BuildPhaseResult.SUCCESS : BuildPhaseResult.FAIL)
     );
     ready = true;
     return host;
@@ -541,7 +625,9 @@ async function startDeviceSessionHostInternalAsync(
   }: DeviceSessionHostOptions,
   onFinished: (successful: boolean) => void,
   artifactLogger: bunyan,
-  providedServer?: DeviceSessionServer
+  providedServer?: DeviceSessionServer,
+  canRetryPortCollision = false,
+  onCrashRecorderStopped?: () => void
 ): Promise<DeviceSessionHost> {
   signal?.throwIfAborted();
   const isAndroid = runtimePlatform === BuildRuntimePlatform.LINUX;
@@ -635,6 +721,7 @@ async function startDeviceSessionHostInternalAsync(
   const previewSetupController = new AbortController();
   let previewSetupTask: Promise<void> | undefined;
   let previewFailed = false;
+  let previewRetirementIncomplete = false;
   let previewActivity: PreviewActivityPolling | null = null;
 
   function openPreviewAsync(): Promise<DeviceWebPreview> {
@@ -662,6 +749,7 @@ async function startDeviceSessionHostInternalAsync(
           { name: 'Late preview tunnel close', timeoutMs: 5_000 },
           async () => await tunnel.stopAsync()
         ).catch(err => {
+          previewRetirementIncomplete = true;
           if (server.requiresPreviewRetirement) {
             previewRetirementErrors.push(err);
           }
@@ -698,8 +786,11 @@ async function startDeviceSessionHostInternalAsync(
     })();
     previewTask = opening;
     // A failed tunnel may be retried without restarting capture.
-    void opening.catch(() => {
+    void opening.catch(err => {
       previewFailed = true;
+      if (err instanceof DeviceRunSessionTimeoutError) {
+        previewRetirementIncomplete = true;
+      }
       if (previewTask === opening) {
         previewTask = null;
       }
@@ -721,7 +812,12 @@ async function startDeviceSessionHostInternalAsync(
     return withDeviceRunSessionTimeoutAsync(
       { name: 'Preview tunnel retirement', timeoutMs: 5_000 },
       async () => {
-        const preview = await previewTask?.catch(() => null);
+        const preview = await previewTask?.catch(err => {
+          if (err instanceof DeviceRunSessionTimeoutError) {
+            previewRetirementIncomplete = true;
+          }
+          return null;
+        });
         await preview?.closeAsync();
       }
     ).then(
@@ -846,6 +942,12 @@ async function startDeviceSessionHostInternalAsync(
     throw error;
   }
 
+  let retryingAttemptCleanup = false;
+  let retryCleanupResult = { hostStopped: false, previewRetired: false };
+  const stopCrashRecorderAsync = async (): Promise<void> => {
+    await ServeSimCrashesRecorder.stopAsync();
+    onCrashRecorderStopped?.();
+  };
   const host: DeviceSessionHost = {
     openPreviewAsync,
     getLastPreviewActivityAt() {
@@ -860,7 +962,7 @@ async function startDeviceSessionHostInternalAsync(
           // Confirm the tunnel is closed before stop, so the next session cannot reach this one.
           await previewRetirement;
         }
-        await finishDeviceSessionHostAsync(ctx, {
+        retryCleanupResult = await finishDeviceSessionHostAsync(ctx, {
           previewRetirement,
           stopSessionPreviewAsync: async () => {
             previewSetupController.abort();
@@ -875,9 +977,15 @@ async function startDeviceSessionHostInternalAsync(
           port,
           // A host that never answered /readyz has nothing to finalize or upload.
           recording: hostReady ? recording : null,
+          // ServeSimCrashesRecorder is session-wide; keep it running across cold port retries.
+          stopCrashRecorderAsync: retryingAttemptCleanup ? undefined : stopCrashRecorderAsync,
           logger,
           artifactLogger,
-          onStopped: successful => onFinished(successful && !previewFailed),
+          onStopped: successful => {
+            if (!retryingAttemptCleanup) {
+              onFinished(successful && !previewFailed);
+            }
+          },
         });
         if (previewRetirementErrors.length) {
           throw new AggregateError(
@@ -894,7 +1002,9 @@ async function startDeviceSessionHostInternalAsync(
         })
         .catch(err => {
           artifactLogger.warn({ err }, 'Could not finish the simulator preview.');
-          onFinished(false);
+          if (!retryingAttemptCleanup) {
+            onFinished(false);
+          }
           if (previewRetirementErrors.length) {
             throw new AggregateError(
               [err, ...previewRetirementErrors],
@@ -1081,14 +1191,51 @@ async function startDeviceSessionHostInternalAsync(
     signal?.throwIfAborted();
     return host;
   } catch (error) {
-    onStartupError?.(error);
+    const retryingPortCollision =
+      canRetryPortCollision &&
+      !hostReady &&
+      error instanceof PreviewServerPortInUseError &&
+      !signal?.aborted;
+    if (retryingPortCollision) {
+      retryingAttemptCleanup = true;
+    } else {
+      onStartupError?.(error);
+    }
     try {
       await host.finishAsync();
     } catch (cleanupError) {
-      throw new AggregateError(
+      const aggregateError = new AggregateError(
         [error, cleanupError],
         'Device session startup failed, and cleanup also failed.'
       );
+      if (retryingPortCollision) {
+        await stopCrashRecorderAsync();
+        onFinished(false);
+        onStartupError?.(aggregateError);
+      }
+      throw aggregateError;
+    }
+    const retryCleanupConfirmed =
+      retryCleanupResult.hostStopped &&
+      retryCleanupResult.previewRetired &&
+      !previewRetirementIncomplete;
+    if (retryingPortCollision && retryCleanupConfirmed && recording) {
+      await fs.promises.rm(recording.directory, { recursive: true, force: true }).catch(() => {});
+    }
+    if (retryingPortCollision) {
+      if (signal?.aborted) {
+        await stopCrashRecorderAsync();
+        onFinished(false);
+        onStartupError?.(signal.reason);
+        signal.throwIfAborted();
+      }
+      if (!retryCleanupConfirmed) {
+        // Require confirmed process shutdown and native ngrok settlement before retrying.
+        error.retryable = false;
+        await stopCrashRecorderAsync();
+        onFinished(false);
+        onStartupError?.(error);
+      }
     }
     throw error;
   }
@@ -1116,9 +1263,12 @@ async function waitForServeSimControlAsync({
       previewServer.getExitError() !== undefined ||
       (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid))
     ) {
-      throw new SystemError(
-        `serve-sim exited before its control API became ready. ${previewServer.getOutput()}`
-      );
+      const output = redactPreviewTokens(previewServer.getOutput());
+      const message = `serve-sim exited before its control API became ready. ${output}`;
+      if (isPortInUseOutput(output, port)) {
+        throw new PreviewServerPortInUseError(message, port);
+      }
+      throw new SystemError(message);
     }
     const servers = await readServeSimServersAsync(stateDir);
     const server = servers.find(
@@ -1146,6 +1296,7 @@ async function finishDeviceSessionHostAsync(
     serverName,
     port,
     recording,
+    stopCrashRecorderAsync,
     logger,
     artifactLogger,
     onStopped,
@@ -1158,11 +1309,12 @@ async function finishDeviceSessionHostAsync(
     serverName: string;
     port: number;
     recording: AndroidSessionRecording | null;
+    stopCrashRecorderAsync?: () => Promise<void>;
     logger: bunyan;
     artifactLogger: bunyan;
     onStopped: (successful: boolean) => void;
   }
-): Promise<void> {
+): Promise<{ hostStopped: boolean; previewRetired: boolean }> {
   // Stop capturing before the host stops, so the last thumbnail shows the session, not shutdown.
   await stopSessionPreviewAsync();
   const hostExited = previewServer.getExitError() !== undefined;
@@ -1176,8 +1328,10 @@ async function finishDeviceSessionHostAsync(
       logger,
     });
   }
-  // Crash reports are read from serve-sim, so collection finishes before it stops.
-  await ServeSimCrashesRecorder.stopAsync();
+  if (stopCrashRecorderAsync) {
+    // Crash reports are read from serve-sim, so collection finishes before it stops.
+    await stopCrashRecorderAsync();
+  }
   let hostStopped = false;
   try {
     await previewServer.stopAsync();
@@ -1218,6 +1372,7 @@ async function finishDeviceSessionHostAsync(
       'Session host output around the recording failure.'
     );
   }
+  return { hostStopped, previewRetired };
 }
 
 type AndroidRecordingFinalization = 'finalized' | 'not-recording' | 'failed';

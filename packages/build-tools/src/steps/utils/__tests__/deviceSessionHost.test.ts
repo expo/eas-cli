@@ -1,4 +1,4 @@
-import { BuildPhase, BuildPhaseResult, LogMarker } from '@expo/eas-build-job';
+import { BuildPhase, BuildPhaseResult, LogMarker, SystemError } from '@expo/eas-build-job';
 import type { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, type BuildStepEnv } from '@expo/steps';
 import * as ngrok from '@ngrok/ngrok';
@@ -37,6 +37,8 @@ import { readLocalEgressHandoffAsync } from '../localEgress';
 import {
   ensureFfmpegInstalledOnceAsync,
   fetchWebPreviewTurnArgsAsync,
+  findAvailablePortAsync,
+  isProcessRunning,
   spawnDetached,
   startNgrokTunnelAsync,
 } from '../remoteDeviceRunSession';
@@ -78,6 +80,10 @@ jest.mock('../remoteDeviceRunSession', () => ({
   ...jest.requireActual('../remoteDeviceRunSession'),
   ensureFfmpegInstalledOnceAsync: jest.fn(),
   fetchWebPreviewTurnArgsAsync: jest.fn().mockResolvedValue([]),
+  findAvailablePortAsync: jest.fn(
+    jest.requireActual('../remoteDeviceRunSession').findAvailablePortAsync
+  ),
+  isProcessRunning: jest.fn(jest.requireActual('../remoteDeviceRunSession').isProcessRunning),
   startNgrokTunnelAsync: jest.fn(
     jest.requireActual('../remoteDeviceRunSession').startNgrokTunnelAsync
   ),
@@ -155,6 +161,14 @@ const stopSessionPreview = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(ServeSimCrashesRecorder.stopAsync).mockReset().mockResolvedValue(undefined);
+  jest
+    .mocked(findAvailablePortAsync)
+    .mockReset()
+    .mockImplementation(jest.requireActual('../remoteDeviceRunSession').findAvailablePortAsync);
+  jest
+    .mocked(isProcessRunning)
+    .mockReset()
+    .mockImplementation(jest.requireActual('../remoteDeviceRunSession').isProcessRunning);
   jest
     .mocked(startNgrokTunnelAsync)
     .mockReset()
@@ -2888,3 +2902,592 @@ it.each([
     }
   }
 );
+
+describe('cold startup port collision handling', () => {
+  it('fetches TURN args before allocating a local port on Android and iOS', async () => {
+    for (const runtimePlatform of [BuildRuntimePlatform.LINUX, BuildRuntimePlatform.DARWIN]) {
+      jest.mocked(fetchWebPreviewTurnArgsAsync).mockClear();
+      jest.mocked(findAvailablePortAsync).mockClear();
+      const host = await startDeviceSessionHostAsync(ctx, {
+        preview: { baseDomain, authtoken },
+        runtimePlatform,
+        env,
+        logger,
+        timeoutMs: 10_000,
+      });
+      await host.finishAsync();
+      expect(jest.mocked(fetchWebPreviewTurnArgsAsync).mock.invocationCallOrder[0]).toBeLessThan(
+        jest.mocked(findAvailablePortAsync).mock.invocationCallOrder[0]
+      );
+    }
+  });
+
+  it('retries a cold Android expo-device-hub launch on a fresh port after a port-in-use exit', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(21_001).mockResolvedValueOnce(21_002);
+    jest.mocked(isProcessRunning).mockImplementation(pid => pid !== 42_001);
+    const defaultSpawn = jest.mocked(spawnDetached).getMockImplementation()!;
+    let failedRecordingDir: string | undefined;
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      failedRecordingDir = options.args[flag + 1];
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_001,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+    jest.mocked(spawnDetached).mockImplementationOnce(defaultSpawn);
+
+    const onStartupError = jest.fn();
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+      onStartupError,
+    });
+
+    expect(onStartupError).not.toHaveBeenCalled();
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
+    const firstArgs = jest.mocked(spawnDetached).mock.calls[0][0].args;
+    const secondArgs = jest.mocked(spawnDetached).mock.calls[1][0].args;
+    expect(firstArgs[firstArgs.indexOf('--port') + 1]).toBe('21001');
+    expect(secondArgs[secondArgs.indexOf('--port') + 1]).toBe('21002');
+    expect(closeTunnel).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Port 21001 was already in use when starting expo-device-hub')
+    );
+    await expect(access(failedRecordingDir!)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(logger.info).not.toHaveBeenCalledWith(
+      expect.objectContaining({ marker: LogMarker.END_PHASE }),
+      expect.anything()
+    );
+
+    await host.finishAsync();
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.SUCCESS },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('retries a cold iOS serve-sim launch on a fresh port after an EADDRINUSE exit before control readiness', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_001).mockResolvedValueOnce(22_002);
+    const defaultSpawn = jest.mocked(spawnDetached).getMockImplementation()!;
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: undefined,
+        getOutput: () => `Error: listen EADDRINUSE: address already in use 127.0.0.1:${port}\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+    jest.mocked(spawnDetached).mockImplementationOnce(defaultSpawn);
+
+    const onStartupError = jest.fn();
+    const host = await startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      iosSimulatorUdid: 'emulator-5554',
+      env,
+      logger,
+      timeoutMs: 10_000,
+      onStartupError,
+    });
+
+    expect(onStartupError).not.toHaveBeenCalled();
+    expect(ServeSimCrashesRecorder.stopAsync).not.toHaveBeenCalled();
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
+    const secondArgs = jest.mocked(spawnDetached).mock.calls[1][0].args;
+    expect(secondArgs[secondArgs.indexOf('--port') + 1]).toBe('22002');
+    await host.finishAsync();
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates the caller abort reason by identity when cancelled during retry cleanup', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_501);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    const closePending = deferred<void>();
+    const closeStarted = deferred<void>();
+    closeTunnel.mockImplementationOnce(() => {
+      closeStarted.resolve();
+      return closePending.promise;
+    });
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_501,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const controller = new AbortController();
+    const stopReason = new Error('session stopped by user');
+    const onStartupError = jest.fn();
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+      signal: controller.signal,
+      onStartupError,
+    });
+
+    await closeStarted.promise;
+    controller.abort(stopReason);
+    closePending.resolve();
+
+    await expect(starting).rejects.toBe(stopReason);
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledWith(stopReason);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('waits for a pending first ngrok open to retire before launching the retry attempt', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_601).mockResolvedValueOnce(22_602);
+    jest.mocked(isProcessRunning).mockImplementation(pid => pid !== 42_601);
+    const firstTunnelOpen = deferred<{
+      url: string;
+      subdomainId: string;
+      stopAsync: () => Promise<void>;
+    }>();
+    const firstTunnelClosed = jest.fn().mockResolvedValue(undefined);
+    const secondTunnelClosed = jest.fn().mockResolvedValue(undefined);
+    jest
+      .mocked(startNgrokTunnelAsync)
+      .mockReturnValueOnce(firstTunnelOpen.promise)
+      .mockResolvedValueOnce({
+        url: 'https://second.example.test',
+        subdomainId: 'second-preview',
+        stopAsync: secondTunnelClosed,
+      });
+    const defaultSpawn = jest.mocked(spawnDetached).getMockImplementation()!;
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_601,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+    jest.mocked(spawnDetached).mockImplementationOnce(defaultSpawn);
+
+    const stopStarted = deferred<void>();
+    stopServer.mockImplementationOnce(async () => {
+      stopStarted.resolve();
+    });
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      timeoutMs: 10_000,
+    });
+
+    await stopStarted.promise;
+    expect(stopServer).toHaveBeenCalledTimes(1);
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+
+    firstTunnelOpen.resolve({
+      url: 'https://first.example.test',
+      subdomainId: 'first-preview',
+      stopAsync: firstTunnelClosed,
+    });
+
+    const host = await starting;
+    expect(firstTunnelClosed).toHaveBeenCalledTimes(1);
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
+    expect(firstTunnelClosed.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(spawnDetached).mock.invocationCallOrder[1]
+    );
+    await host.finishAsync();
+    expect(secondTunnelClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry or delete the recording directory when closing a late preview tunnel fails', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_651).mockResolvedValueOnce(22_652);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    const firstTunnelOpen = deferred<{
+      url: string;
+      subdomainId: string;
+      stopAsync: () => Promise<void>;
+    }>();
+    const lateClose = jest.fn().mockRejectedValue(new Error('late tunnel close failed'));
+    jest.mocked(startNgrokTunnelAsync).mockReturnValueOnce(firstTunnelOpen.promise);
+    const stopStarted = deferred<void>();
+    stopServer.mockImplementationOnce(async () => {
+      stopStarted.resolve();
+    });
+    let failedRecordingDir: string | undefined;
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      failedRecordingDir = options.args[flag + 1];
+      directories.push(failedRecordingDir);
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_651,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+      onStartupError,
+    });
+
+    await stopStarted.promise;
+    firstTunnelOpen.resolve({
+      url: 'https://late.example.test',
+      subdomainId: 'late-preview',
+      stopAsync: lateClose,
+    });
+
+    await expect(starting).rejects.toThrow('Port 22651 is already in use');
+    expect(lateClose).toHaveBeenCalledTimes(1);
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    await expect(access(failedRecordingDir!)).resolves.toBeUndefined();
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('does not retry when the first ngrok open fails to retire within its deadline', async () => {
+    jest.useFakeTimers();
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_701);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    const hungTunnelOpen = deferred<{
+      url: string;
+      subdomainId: string;
+      stopAsync: () => Promise<void>;
+    }>();
+    const lateClose = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(startNgrokTunnelAsync).mockReturnValueOnce(hungTunnelOpen.promise);
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_701,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 10_000,
+      onStartupError,
+    });
+    const rejection = expect(starting).rejects.toThrow('Port 22701 is already in use');
+
+    await jest.advanceTimersByTimeAsync(5_000);
+    await rejection;
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+
+    // Resolve the hung open so its late-close handler runs cleanly after rejection.
+    hungTunnelOpen.resolve({
+      url: 'https://hung.example.test',
+      subdomainId: 'hung-preview',
+      stopAsync: lateClose,
+    });
+    await Promise.resolve();
+  });
+
+  it('does not retry when the real ngrok helper times out while native forward() is still pending', async () => {
+    jest.useFakeTimers();
+    const startedAt = Date.now();
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_751).mockResolvedValueOnce(22_752);
+    const nativeForward = deferred<ngrok.Listener>();
+    jest.mocked(ngrok.forward).mockReturnValueOnce(nativeForward.promise);
+    jest.mocked(isProcessRunning).mockImplementation(() => Date.now() - startedAt < 16_000);
+    jest
+      .mocked(turtleFetch)
+      .mockRejectedValue(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }));
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_751,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () =>
+          Date.now() - startedAt >= 16_000 ? new Error('Process exited with code 1.') : undefined,
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    const starting = startDeviceSessionHostAsync(ctx, {
+      preview: { baseDomain, authtoken },
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env,
+      logger,
+      separateLogPhase: true,
+      timeoutMs: 60_000,
+      onStartupError,
+    });
+    const rejection = expect(starting).rejects.toThrow('Port 22751 is already in use');
+
+    // Collision happens at 16s; startNgrokTunnelAsync's 19s first-open timeout fires at 19s
+    // (inside the 5s retirement window) while native ngrok.forward() is still pending.
+    await jest.advanceTimersByTimeAsync(19_500);
+    await rejection;
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(ngrok.forward).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+
+    nativeForward.resolve({
+      url: () => 'https://late-native.example.test',
+      close: closeTunnel,
+    } as never);
+    await Promise.resolve();
+  });
+
+  it('does not retry or delete the recording directory when stopping the failed host rejects', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(22_801).mockResolvedValueOnce(22_802);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    stopServer.mockRejectedValueOnce(new Error('Process output drain timed out'));
+    let failedRecordingDir: string | undefined;
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      failedRecordingDir = options.args[flag + 1];
+      directories.push(failedRecordingDir);
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_801,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    await expect(
+      startDeviceSessionHostAsync(ctx, {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env,
+        logger,
+        separateLogPhase: true,
+        timeoutMs: 10_000,
+        onStartupError,
+      })
+    ).rejects.toThrow('Port 22801 is already in use');
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    await expect(access(failedRecordingDir!)).resolves.toBeUndefined();
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('stops the preserved crash recorder and notifies onStartupError when replacement setup fails early', async () => {
+    const allocationError = new SystemError('Could not allocate a local port for the web preview.');
+    jest
+      .mocked(findAvailablePortAsync)
+      .mockResolvedValueOnce(22_901)
+      .mockRejectedValueOnce(allocationError);
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: undefined,
+        getOutput: () => `Error: listen EADDRINUSE: address already in use 127.0.0.1:${port}\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    await expect(
+      startDeviceSessionHostAsync(ctx, {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        iosSimulatorUdid: 'emulator-5554',
+        env,
+        logger,
+        separateLogPhase: true,
+        timeoutMs: 10_000,
+        onStartupError,
+      })
+    ).rejects.toBe(allocationError);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(ServeSimCrashesRecorder.stopAsync).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledWith(allocationError);
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('fails after exhausting cold port-collision retries and invokes onStartupError', async () => {
+    jest
+      .mocked(findAvailablePortAsync)
+      .mockResolvedValueOnce(23_001)
+      .mockResolvedValueOnce(23_002)
+      .mockResolvedValueOnce(23_003);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    jest.mocked(spawnDetached).mockImplementation(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      const port = options.args[options.args.indexOf('--port') + 1];
+      return {
+        pid: 42_002,
+        getOutput: () => `Port ${port} is already in use — pick another with --port.\n`,
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    await expect(
+      startDeviceSessionHostAsync(ctx, {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env,
+        logger,
+        separateLogPhase: true,
+        timeoutMs: 10_000,
+        onStartupError,
+      })
+    ).rejects.toThrow(SystemError);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(3);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      { marker: LogMarker.END_PHASE, result: BuildPhaseResult.FAIL },
+      'End phase: Simulator preview'
+    );
+  });
+
+  it('does not retry when the server exits with a non-matching port-in-use error', async () => {
+    jest.mocked(findAvailablePortAsync).mockResolvedValueOnce(24_001);
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    jest.mocked(spawnDetached).mockImplementationOnce(options => {
+      const flag = options.args.indexOf('--android-recording-directory');
+      if (flag >= 0) {
+        directories.push(options.args[flag + 1]);
+      }
+      return {
+        pid: 42_003,
+        getOutput: () =>
+          'Launching expo-device-hub on 127.0.0.1:24001\n' +
+          'Error: listen EADDRINUSE: address already in use 127.0.0.1:5037\n',
+        getExitError: () => new Error('Process exited with code 1.'),
+        stopAsync: stopServer,
+      };
+    });
+
+    const onStartupError = jest.fn();
+    await expect(
+      startDeviceSessionHostAsync(ctx, {
+        preview: { baseDomain, authtoken },
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+        env,
+        logger,
+        timeoutMs: 10_000,
+        onStartupError,
+      })
+    ).rejects.toThrow('expo-device-hub exited before becoming ready');
+
+    expect(spawnDetached).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a provided server on port-in-use exit', async () => {
+    jest.mocked(isProcessRunning).mockReturnValue(false);
+    const startAsync = jest.fn(async () => ({
+      pid: 42_004,
+      getOutput: () => 'Port 25001 is already in use — pick another with --port.\n',
+      getExitError: () => new Error('Process exited with code 1.'),
+      stopAsync: stopServer,
+    }));
+    const onStartupError = jest.fn();
+
+    await expect(
+      startDeviceSessionHostAsync(
+        ctx,
+        {
+          preview: { baseDomain, authtoken },
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          env,
+          logger,
+          timeoutMs: 10_000,
+          onStartupError,
+        },
+        {
+          port: 25_001,
+          turnArgs: Promise.resolve([]),
+          requiresPreviewRetirement: false,
+          startAsync,
+          stopAsync: jest.fn().mockResolvedValue(undefined),
+        }
+      )
+    ).rejects.toThrow('Port 25001 is already in use');
+
+    expect(startAsync).toHaveBeenCalledTimes(1);
+    expect(onStartupError).toHaveBeenCalledTimes(1);
+  });
+});

@@ -20,8 +20,8 @@ export async function createColdIosSessionAsync(
     iosSimulatorUdid,
   }: { env: BuildStepEnv; logger: bunyan; iosSimulatorUdid?: string }
 ): Promise<DeviceSessionServer> {
-  const port = await findAvailablePortAsync();
   const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { logger });
+  const port = await findAvailablePortAsync();
   return {
     port,
     turnArgs: Promise.resolve(turnArgs),
