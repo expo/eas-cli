@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 
 import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
+import { runXcodeBuildAsync } from './xcode';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { JobHooksRef, setupAsync } from '../common/setup';
@@ -48,6 +49,9 @@ const INSTALL_PODS_KILL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 class InstallPodsTimeoutError extends Error {}
 
 export default async function iosBuilder(ctx: BuildContext<Ios.Job>): Promise<Artifacts> {
+  if (ctx.job.builder !== undefined) {
+    return await runXcodeBuildAsync(ctx);
+  }
   if (ctx.job.mode === BuildMode.BUILD) {
     await prepareExecutableAsync(ctx);
     return await runBuilderWithHooksAsync(ctx, buildAsync);
