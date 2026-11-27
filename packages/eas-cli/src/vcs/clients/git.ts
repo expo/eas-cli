@@ -268,6 +268,16 @@ export default class GitClient extends Client {
       // We only do this if `requireCommit` is false because `requireCommit: true`
       // setups expect no changes in files (e.g. locked files should remain locked).
       await makeShallowCopyAsync(rootPath, destinationPath);
+      if (!doesEasignoreExist) {
+        // `git clone` above always creates its own `.git` directory in the
+        // destination, and the copy above never removes it — its filter only
+        // skips copying `.git` from the source. Without an `.easignore` there
+        // is no rule that would remove it, so delete it explicitly: the
+        // default upload should not include `.git` (see #2875). When an
+        // `.easignore` exists, its rules decide (see the special-case above).
+        await fs.rm(path.join(destinationPath, '.git'), { recursive: true, force: true });
+        Log.debug('deleted .git', { destinationPath });
+      }
     } else {
       Log.debug('not making shallow copy', { requireCommit: this.requireCommit });
     }
