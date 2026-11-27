@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { DeviceRunSessionStatus } from '../../../graphql/generated';
+import { AppPlatform, DeviceRunSessionStatus } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import { downloadSimulatorArtifactAsync } from '../../../simulator/artifacts';
 import Log from '../../../log';
@@ -222,6 +222,26 @@ describe(SimulatorCrashes, () => {
       'No crash reports have been recorded. Reports can take a few seconds to appear.'
     );
   });
+
+  it('rejects live inspection on Android without requesting preview access', async () => {
+    jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue({
+      id: 'session-id',
+      status: DeviceRunSessionStatus.InProgress,
+      platform: AppPlatform.Android,
+    } as Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>);
+    await expect(createCommand([]).runAsync()).rejects.toThrow('only available for iOS');
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+  });
+
+  it.each(['.', '..'])(
+    'rejects %s as a crash report ID before accessing preview',
+    async reportId => {
+      await expect(createCommand(['--report-id', reportId, '--json']).runAsync()).rejects.toThrow(
+        'Pass a report ID'
+      );
+      expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
+    }
+  );
 
   it('arms the watcher before reading the report and encodes its ID as a path segment', async () => {
     const detail = {

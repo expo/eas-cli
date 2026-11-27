@@ -6,6 +6,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { AppPlatform } from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
@@ -93,6 +94,7 @@ export default class SimulatorCrashes extends EasCommand {
     }
     const { flags } = await this.parse(SimulatorCrashes);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    const reportId = flags['report-id'];
 
     const {
       projectDir,
@@ -107,7 +109,7 @@ export default class SimulatorCrashes extends EasCommand {
     }
     const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
     if (hasSimulatorArtifacts(session)) {
-      if (flags['report-id']) {
+      if (reportId) {
         throw new Error(
           'The session has stopped. --report-id is only available while it runs. Use --output <path> to download its crash artifact.'
         );
@@ -119,6 +121,14 @@ export default class SimulatorCrashes extends EasCommand {
         json: jsonFlag,
       });
       return;
+    }
+    if (session.platform === AppPlatform.Android) {
+      throw new Error(
+        'Crash reports are only available for iOS simulator sessions. Start an iOS session with `eas simulator:start --platform ios`.'
+      );
+    }
+    if (reportId === '.' || reportId === '..') {
+      throw new Error('Pass a report ID from `eas simulator:crashes`.');
     }
     const preview = await resolveSimulatorPreviewAsync(session);
     if (flags.artifact !== undefined || flags.output !== undefined) {
@@ -135,10 +145,10 @@ export default class SimulatorCrashes extends EasCommand {
       Log.warn(stripTerminalControlCharacters(snapshot.meta.statusError));
     }
 
-    if (flags['report-id']) {
+    if (reportId) {
       const detail = await fetchSimulatorPreviewJsonAsync<SimulatorCrashDetail>(
         preview,
-        `/crashes/${encodeURIComponent(flags['report-id'])}`,
+        `/crashes/${encodeURIComponent(reportId)}`,
         {
           notFoundMessage:
             'The crash report was not found. The ID does not match a report in this session. Run `eas simulator:crashes` to see current report IDs.',
