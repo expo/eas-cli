@@ -50,13 +50,14 @@ import { AndroidPackageNotDefinedError } from '../errors';
 export class ManageAndroid {
   constructor(
     protected callingAction: Action,
-    protected projectDir: string
+    protected projectDir: string,
+    private readonly profileName?: string
   ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const hasProjectContext = !!this.callingAction.projectInfo;
     const buildProfile = hasProjectContext
-      ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID).runAsync()
+      ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID, this.profileName).runAsync()
       : null;
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (hasProjectContext) {
