@@ -151,4 +151,31 @@ describe('eas-cli dependency notice', () => {
     await findProjectDirAndVerifyProjectSetupAsync({ cwd: '/app' });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('in your project dependencies'));
   });
+
+  it('skips a workspace root that has no package.json', async () => {
+    vol.reset();
+    vol.fromJSON(
+      {
+        './pnpm-workspace.yaml': 'packages: ["applications/*"]',
+        './package.json5': '{ private: true }',
+        './applications/frontend/eas.json': JSON.stringify({}),
+        './applications/frontend/package.json': JSON.stringify({}),
+      },
+      '/repo'
+    );
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // A fresh module copy, so the once-per-process notice runs again.
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock('@expo/package-manager', () => ({
+        resolveWorkspaceRoot: () => '/repo',
+      }));
+      const { findProjectDirAndVerifyProjectSetupAsync: freshFindProjectDir } =
+        await import('../findProjectDirAndVerifyProjectSetupAsync');
+      process.stderr.isTTY = true;
+      await expect(freshFindProjectDir({ cwd: '/repo/applications/frontend' })).resolves.toBe(
+        '/repo/applications/frontend'
+      );
+    });
+  });
 });
