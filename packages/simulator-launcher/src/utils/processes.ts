@@ -55,7 +55,7 @@ export const commands = {
         }
         if (separateLogPath) {
           const separate = fs.statSync(separateLogPath, { throwIfNoEntry: false });
-          if (separate?.dev === log.dev && separate.ino === log.ino) {
+          if (separate && separate.dev === log.dev && separate.ino === log.ino) {
             throw new Error('The service console and event logs must be separate files.');
           }
         }
