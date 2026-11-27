@@ -175,10 +175,13 @@ export default class SimulatorNetworkRequests extends EasCommand {
       requestId: flags['request-id'],
     });
     if (jsonFlag) {
-      printJsonOnlyOutput({
-        deviceRunSessionId: preview.deviceRunSessionId,
-        ...(Array.isArray(result) ? { requests: result } : { request: result }),
-      });
+      printJsonOnlyOutput(
+        {
+          deviceRunSessionId: preview.deviceRunSessionId,
+          ...(Array.isArray(result) ? { requests: result } : { request: result }),
+        },
+        { preserveNulls: true }
+      );
     } else if (!Array.isArray(result)) {
       Log.log(
         stripTerminalControlCharacters(JSON.stringify(result, null, 2), {

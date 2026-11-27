@@ -12,24 +12,27 @@ export function enableJsonOutput(): void {
   process.stdout.write = process.stderr.write.bind(process.stderr);
 }
 
-export function printJsonOnlyOutput(value: object): void {
+export function printJsonOnlyOutput(
+  value: object,
+  { preserveNulls = false }: { preserveNulls?: boolean } = {}
+): void {
   assert(stdoutWrite, 'this should only be called with --json flag');
   try {
     process.stdout.write = stdoutWrite;
-    Log.log(JSON.stringify(sanitizeValue(value), null, 2));
+    Log.log(JSON.stringify(sanitizeValue(value, preserveNulls), null, 2));
   } finally {
     process.stdout.write = process.stderr.write.bind(process.stderr);
   }
 }
 
-function sanitizeValue(value: any): unknown {
+function sanitizeValue(value: any, preserveNulls: boolean): unknown {
   if (Array.isArray(value)) {
-    return value.map(val => sanitizeValue(val));
+    return value.map(val => sanitizeValue(val, preserveNulls));
   } else if (value && typeof value === 'object') {
     const result: Record<string, any> = {};
     Object.keys(value).forEach(key => {
-      if (key !== '__typename' && value[key] !== null) {
-        result[key] = sanitizeValue(value[key]);
+      if (key !== '__typename' && (preserveNulls || value[key] !== null)) {
+        result[key] = sanitizeValue(value[key], preserveNulls);
       }
     });
     return result;

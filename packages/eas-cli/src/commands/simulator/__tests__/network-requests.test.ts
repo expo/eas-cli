@@ -182,10 +182,10 @@ describe(SimulatorNetworkRequests, () => {
       limit: 100,
       requestId: undefined,
     });
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      requests: [requestSummary],
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      { deviceRunSessionId: 'session-id', requests: [requestSummary] },
+      { preserveNulls: true }
+    );
     expect(mockLog).not.toHaveBeenCalled();
     expect(mockDownloadCaptureAsync).not.toHaveBeenCalled();
   });
@@ -199,10 +199,13 @@ describe(SimulatorNetworkRequests, () => {
       limit: 100,
       requestId: 'request-id',
     });
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      request,
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      {
+        deviceRunSessionId: 'session-id',
+        request,
+      },
+      { preserveNulls: true }
+    );
     expect(mockLog).not.toHaveBeenCalled();
   });
 
@@ -269,10 +272,13 @@ describe(SimulatorNetworkRequests, () => {
 
     await createCommand(['--json']).runAsync();
 
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      requests: [summary],
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      {
+        deviceRunSessionId: 'session-id',
+        requests: [summary],
+      },
+      { preserveNulls: true }
+    );
   });
 
   it('adds intentional colors after sanitizing remote text and preserves full URLs', async () => {
@@ -335,10 +341,13 @@ describe(SimulatorNetworkRequests, () => {
 
     await createCommand(['--json']).runAsync();
 
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      requests: [summary],
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      {
+        deviceRunSessionId: 'session-id',
+        requests: [summary],
+      },
+      { preserveNulls: true }
+    );
     expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0][0])).not.toContain('\\u001b');
     expect(mockLog).not.toHaveBeenCalled();
   });
