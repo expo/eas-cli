@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
@@ -10,6 +10,7 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
 import {
   AndroidDeviceName,
+  AndroidEmulatorExitedError,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
@@ -182,6 +183,31 @@ describe('AndroidEmulatorUtils', () => {
       expect(config).toContain(`hw.ramSize=${ramSize}\n`);
       expect(config).not.toContain('hw.lcd.');
     });
+
+    it('throws UserError when avdmanager reports an invalid system image package path', async () => {
+      const avdError = Object.assign(new Error('avdmanager exited with non-zero code: 1'), {
+        stdout: '',
+        stderr: 'Error: Package path is not valid. Valid system image paths are:\nnull\n',
+        status: 1,
+      });
+      const avdManagerPromise = Promise.reject(avdError) as any;
+      avdManagerPromise.child = { stdin: { write: jest.fn(), end: jest.fn() } };
+      mockedSpawn.mockReturnValue(avdManagerPromise);
+
+      const error = await AndroidEmulatorUtils.createAsync({
+        deviceName: 'eas-simulator' as AndroidVirtualDeviceName,
+        systemImagePackage: 'system-images;android-37;google_apis_playstore;x86_64',
+        deviceIdentifier: null,
+        lcdWidth: null,
+        lcdHeight: null,
+        lcdDensity: null,
+        env: { HOME: homeDirectory },
+        logger: createMockLogger(),
+      }).catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND');
+    });
   });
 
   describe(AndroidEmulatorUtils.startAsync, () => {
@@ -203,24 +229,44 @@ describe('AndroidEmulatorUtils', () => {
       return path.join(directory, filename);
     }
 
-    function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+    function createMockEmulatorSpawn() {
       // Under `stdio: 'pipe'` these are net.Sockets, which is what startAsync
       // narrows on before unref-ing them.
       const stdout = new Socket();
       const stderr = new Socket();
       jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
       jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
+      let resolveSpawn!: (value: { stdout: string; stderr: string; status?: number }) => void;
+      let rejectSpawn!: (err: unknown) => void;
+      const spawnPromise = new Promise((resolve, reject) => {
+        resolveSpawn = resolve;
+        rejectSpawn = reject;
+      }) as any;
+      const kill = jest.fn(() => {
+        resolveSpawn({ stdout: '', stderr: '', status: 0 });
+      });
       const child = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: jest.fn(),
+        kill,
         stdout,
         stderr,
       });
-      const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
       spawnPromise.child = child;
+      return {
+        child,
+        spawnPromise,
+        resolveSpawn,
+        rejectSpawn,
+        kill,
+      };
+    }
+
+    function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+      const mock = createMockEmulatorSpawn();
       mockedSpawn.mockImplementation(((command: string, args: string[]) => {
         if (command.endsWith('/emulator/emulator')) {
-          return spawnPromise;
+          return mock.spawnPromise;
         }
         if (command === 'adb' && args[0] === 'devices') {
           return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
@@ -230,7 +276,7 @@ describe('AndroidEmulatorUtils', () => {
         }
         throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
       }) as any);
-      return { child };
+      return mock;
     }
 
     it('names log files after the device and detaches the emulator', async () => {
@@ -506,10 +552,9 @@ describe('AndroidEmulatorUtils', () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
-      const { child } = mockSuccessfulStart(deviceName);
+      const { child, kill } = mockSuccessfulStart(deviceName);
       const stdin = { end: jest.fn() };
-      const kill = jest.fn();
-      Object.assign(child, { stdin, kill });
+      Object.assign(child, { stdin });
       const gatedSpawn = mockedSpawn.getMockImplementation()!;
       mockedSpawn.mockImplementation(((command: string, args: string[], options: object) =>
         gatedSpawn(
@@ -535,6 +580,143 @@ describe('AndroidEmulatorUtils', () => {
       ).rejects.toBe(admissionError);
       expect(kill).toHaveBeenCalledWith('SIGKILL');
       expect(stdin.end).not.toHaveBeenCalled();
+    });
+
+    it('fails fast with emulator stderr tail when emulator exits before registering with adb', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'crashing-emulator' as AndroidVirtualDeviceName;
+      const { child, spawnPromise, rejectSpawn } = createMockEmulatorSpawn();
+
+      mockedRetryAsync.mockImplementation(async (fn, { retryOptions, shouldRetry, signal }) => {
+        let lastErr: unknown;
+        for (let attempt = 0; attempt <= retryOptions.retries; attempt++) {
+          if (signal?.aborted) {
+            throw lastErr ?? new Error('aborted');
+          }
+          try {
+            return await fn(attempt);
+          } catch (err) {
+            lastErr = err;
+            if (shouldRetry && !shouldRetry(err)) {
+              throw err;
+            }
+          }
+          await new Promise<void>(resolve => setImmediate(resolve));
+        }
+        throw lastErr;
+      });
+
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          setImmediate(() => {
+            child.stderr.emit(
+              'data',
+              Buffer.from(
+                'ERROR | Running multiple emulators\nFATAL | Unsupported 16k page image\n'
+              )
+            );
+            rejectSpawn(
+              Object.assign(new Error('emulator exited with non-zero code: 1'), {
+                status: 1,
+                signal: null,
+              })
+            );
+            child.emit('close');
+          });
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'List of devices attached\n\n', stderr: '' });
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+
+      const error = await AndroidEmulatorUtils.startAsync({
+        logCapture: buildCapture,
+        deviceName,
+        env: process.env,
+        logcatDirectory: outputDir,
+      }).catch(err => err);
+
+      expect(error).toBeInstanceOf(AndroidEmulatorExitedError);
+      expect(error.exitCode).toBe(1);
+      expect(error.isRetryable).toBe(true);
+      expect(error.message).toContain('exited prematurely during startup with exit code 1');
+      expect(error.message).toContain('FATAL | Unsupported 16k page image');
+      const adbCalls = mockedSpawn.mock.calls.filter(([cmd]) => cmd === 'adb');
+      expect(adbCalls.length).toBeLessThanOrEqual(1);
+    });
+
+    it('marks deterministic fatal emulator crashes as non-retryable', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'kvm-failed-emulator' as AndroidVirtualDeviceName;
+      const { child, spawnPromise, rejectSpawn } = createMockEmulatorSpawn();
+
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command.endsWith('/emulator/emulator')) {
+          queueMicrotask(() => {
+            child.stderr.emit('data', Buffer.from('ERROR | KVM is required to run this AVD.\n'));
+            rejectSpawn(
+              Object.assign(new Error('emulator exited with non-zero code: 1'), {
+                status: 1,
+                signal: null,
+              })
+            );
+            child.emit('close');
+          });
+          return spawnPromise;
+        }
+        return Promise.resolve({ stdout: 'List of devices attached\n\n', stderr: '' });
+      }) as any);
+
+      const error = await AndroidEmulatorUtils.startAsync({
+        logCapture: buildCapture,
+        deviceName,
+        env: process.env,
+        logcatDirectory: outputDir,
+      }).catch(err => err);
+
+      expect(error).toBeInstanceOf(AndroidEmulatorExitedError);
+      expect(error.isRetryable).toBe(false);
+      expect(error.message).toContain('KVM is required to run this AVD.');
+      expect(mockedSpawn.mock.calls.filter(([cmd]) => cmd === 'adb').length).toBeLessThanOrEqual(1);
+    });
+
+    it('surfaces emulator output tail and kills the process when startAsync times out while alive', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'hung-emulator' as AndroidVirtualDeviceName;
+      const { child, spawnPromise, kill } = createMockEmulatorSpawn();
+
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          setImmediate(() => {
+            child.stdout.emit('data', Buffer.from('INFO | Waiting for guest kernel\n'));
+          });
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return new Promise(resolve => {
+            setImmediate(() => resolve({ stdout: 'List of devices attached\n\n', stderr: '' }));
+          });
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+
+      const error = await AndroidEmulatorUtils.startAsync({
+        logCapture: buildCapture,
+        deviceName,
+        env: process.env,
+        logcatDirectory: outputDir,
+      }).catch(err => err);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(AndroidEmulatorExitedError);
+      expect(error.message).toContain('emulator with required ID not found');
+      expect(error.message).toContain('INFO | Waiting for guest kernel');
+      expect(kill).toHaveBeenCalledWith('SIGKILL');
     });
 
     it('throws a SystemError when the staging directory cannot be prepared', async () => {
@@ -728,6 +910,218 @@ describe('AndroidEmulatorUtils', () => {
         expect.anything()
       );
     });
+
+    it('fails fast with captured emulator output when the emulator exits during waitForReadyAsync', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const buildCapture = new AndroidEmulatorLogFiles({
+        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      });
+      const deviceName = 'boot-crash-emulator' as AndroidVirtualDeviceName;
+      const stdout = new Socket();
+      const stderr = new Socket();
+      jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
+      jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
+      let rejectSpawn!: (err: unknown) => void;
+      const spawnPromise = new Promise((_resolve, reject) => {
+        rejectSpawn = reject;
+      }) as any;
+      const child = Object.assign(new EventEmitter(), {
+        pid: 4321,
+        unref: jest.fn(),
+        kill: jest.fn(),
+        stdout,
+        stderr,
+      });
+      spawnPromise.child = child;
+
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
+        }
+        if (command === 'adb' && args[0] === '-s' && args[2] === 'emu') {
+          return Promise.resolve({ stdout: `${deviceName}\nOK\n`, stderr: '' });
+        }
+        if (command === 'adb' && args[3] === 'getprop') {
+          child.stderr.emit('data', Buffer.from('ERROR | Guest kernel panic on ps16k image\n'));
+          rejectSpawn(
+            Object.assign(new Error('emulator exited with signal: SIGABRT'), {
+              status: null,
+              signal: 'SIGABRT',
+            })
+          );
+          child.emit('close');
+          return Promise.reject(
+            new Error(
+              'adb -s emulator-5554 shell getprop sys.boot_completed exited with non-zero code: 1'
+            )
+          );
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+
+      try {
+        const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+          logCapture: buildCapture,
+          deviceName,
+          env: process.env,
+          logcatDirectory: outputDir,
+        });
+
+        const error = await AndroidEmulatorUtils.waitForReadyAsync({
+          serialId,
+          env: process.env,
+          timeoutMs: 60_000,
+          emulatorPromise,
+        }).catch(err => err);
+
+        expect(error).toBeInstanceOf(AndroidEmulatorExitedError);
+        expect(error.signal).toBe('SIGABRT');
+        expect(error.message).toContain('exited prematurely during startup with signal SIGABRT');
+        expect(error.message).toContain('ERROR | Guest kernel panic on ps16k image');
+      } finally {
+        await buildCapture.finishAsync();
+      }
+    });
+
+    it('surfaces captured emulator output on timeout and detaches startup listeners when ready', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const buildCapture = new AndroidEmulatorLogFiles({
+        sources: ALL_ANDROID_EMULATOR_LOG_SOURCES,
+      });
+      const deviceName = 'slow-emulator' as AndroidVirtualDeviceName;
+      const stdout = new Socket();
+      const stderr = new Socket();
+      jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
+      jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
+      const spawnPromise = new Promise(() => {}) as any;
+      const child = Object.assign(new EventEmitter(), {
+        pid: 4322,
+        unref: jest.fn(),
+        kill: jest.fn(),
+        stdout,
+        stderr,
+      });
+      spawnPromise.child = child;
+
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
+        }
+        if (command === 'adb' && args[0] === '-s' && args[2] === 'emu') {
+          return Promise.resolve({ stdout: `${deviceName}\nOK\n`, stderr: '' });
+        }
+        if (command === 'adb' && args[3] === 'getprop') {
+          child.stderr.emit(
+            'data',
+            Buffer.from('WARNING | Boot stalled waiting for system_server\n')
+          );
+          return Promise.reject(
+            new Error(
+              'adb -s emulator-5554 shell getprop sys.boot_completed exited with non-zero code: 1'
+            )
+          );
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+
+      try {
+        const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+          logCapture: buildCapture,
+          deviceName,
+          env: process.env,
+          logcatDirectory: outputDir,
+        });
+        const stderrListenersBefore = child.stderr.listenerCount('data');
+
+        const error = await AndroidEmulatorUtils.waitForReadyAsync({
+          serialId,
+          env: process.env,
+          timeoutMs: 60_000,
+          emulatorPromise,
+        }).catch(err => err);
+
+        expect(error).toBeInstanceOf(Error);
+        expect(error).not.toBeInstanceOf(AndroidEmulatorExitedError);
+        expect(error.message).toContain('getprop sys.boot_completed exited with non-zero code: 1');
+        expect(error.message).toContain('WARNING | Boot stalled waiting for system_server');
+        // Startup output tail listener is detached once waitForReadyAsync finishes, while logCapture stays attached.
+        expect(child.stderr.listenerCount('data')).toBe(stderrListenersBefore - 1);
+      } finally {
+        await buildCapture.finishAsync();
+      }
+    });
+
+    it('handles an already-exited emulator when a probe rejects without unhandled rejections', async () => {
+      const unhandledRejections: unknown[] = [];
+      const onUnhandledRejection = (reason: unknown): void => {
+        unhandledRejections.push(reason);
+      };
+      process.on('unhandledRejection', onUnhandledRejection);
+
+      try {
+        const exitedPromise = Promise.reject(
+          Object.assign(new Error('emulator exited with non-zero code: 1'), {
+            status: 1,
+            signal: null,
+            stderr: 'FATAL | Crash before boot probe\n',
+          })
+        );
+        // Observe so the test itself doesn't trigger an unhandled rejection before waitForReadyAsync runs.
+        exitedPromise.catch(() => {});
+
+        mockedSpawn.mockImplementation(() => {
+          return Promise.reject(new Error('adb failed')) as any;
+        });
+
+        const error = await AndroidEmulatorUtils.waitForReadyAsync({
+          serialId: 'emulator-5554' as any,
+          env: process.env,
+          emulatorPromise: exitedPromise,
+        }).catch(err => err);
+
+        // Also exercise the synchronous exit path during probe race (child.exitCode set synchronously).
+        let rejectSecond!: (err: unknown) => void;
+        const racingPromise = new Promise((_resolve, reject) => {
+          rejectSecond = reject;
+        }) as any;
+        racingPromise.child = { exitCode: null, signalCode: null };
+        mockedSpawn.mockImplementation((() => {
+          racingPromise.child.exitCode = 1;
+          rejectSecond(
+            Object.assign(new Error('emulator exited with non-zero code: 1'), {
+              status: 1,
+              signal: null,
+              stderr: 'FATAL | Synchronous exit during probe\n',
+            })
+          );
+          return Promise.reject(new Error('adb probe rejected'));
+        }) as any);
+
+        const secondError = await AndroidEmulatorUtils.waitForReadyAsync({
+          serialId: 'emulator-5554' as any,
+          env: process.env,
+          emulatorPromise: racingPromise,
+        }).catch(err => err);
+
+        await new Promise<void>(resolve => setImmediate(resolve));
+
+        expect(error).toBeInstanceOf(AndroidEmulatorExitedError);
+        expect(error.message).toContain('FATAL | Crash before boot probe');
+        expect(secondError).toBeInstanceOf(AndroidEmulatorExitedError);
+        expect(secondError.exitCode).toBe(1);
+        expect(unhandledRejections).toEqual([]);
+      } finally {
+        process.off('unhandledRejection', onUnhandledRejection);
+      }
+    });
   });
 
   describe(AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync, () => {
@@ -850,6 +1244,25 @@ describe('AndroidEmulatorUtils', () => {
       expect(mockedSpawn).toHaveBeenCalledWith('adb', ['-s', 'emulator-5554', 'emu', 'kill'], {
         env: process.env,
       });
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'avdmanager',
+        ['delete', 'avd', '-n', 'eas-simulator-1'],
+        {
+          env: process.env,
+        }
+      );
+    });
+
+    it('deletes the AVD directly without calling adb when skipStop is true', async () => {
+      mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      await AndroidEmulatorUtils.deleteAsync({
+        deviceName: 'eas-simulator-1' as any,
+        env: process.env,
+        skipStop: true,
+      });
+
+      expect(mockedSpawn).not.toHaveBeenCalledWith('adb', expect.anything(), expect.anything());
       expect(mockedSpawn).toHaveBeenCalledWith(
         'avdmanager',
         ['delete', 'avd', '-n', 'eas-simulator-1'],

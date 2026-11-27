@@ -1,9 +1,12 @@
+import { UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
+import os from 'node:os';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import {
+  AndroidEmulatorExitedError,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../../utils/AndroidEmulatorUtils';
@@ -12,7 +15,10 @@ import { resolveAndroidEmulatorLocalEgressAsync } from '../../utils/androidLocal
 import { AndroidEmulatorLogRing } from '../../../utils/androidEmulatorLogCapture';
 import { getAndroidEmulatorLogCapture } from '../../utils/androidEmulatorLogs';
 import { installEmulatorCaptureAsync } from '../../utils/emulatorCapture';
-import { createStartAndroidEmulatorBuildFunction } from '../startAndroidEmulator';
+import {
+  createStartAndroidEmulatorBuildFunction,
+  validateAndroidSystemImagePackage,
+} from '../startAndroidEmulator';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -35,6 +41,8 @@ jest.mock('../../utils/emulatorCapture', () => ({
 }));
 
 jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
+  AndroidEmulatorExitedError: jest.requireActual('../../../utils/AndroidEmulatorUtils')
+    .AndroidEmulatorExitedError,
   AndroidEmulatorUtils: {
     defaultSystemImagePackage: 'system-images;android-30;default;x86_64',
     getAvailableDevicesAsync: jest.fn(),
@@ -53,6 +61,7 @@ const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
 const mockedResolveLocalEgress = jest.mocked(resolveAndroidEmulatorLocalEgressAsync);
 const mockedMkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
+const mockedArch = jest.spyOn(os, 'arch');
 function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
@@ -83,6 +92,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       .mockImplementation(
         jest.requireActual('../../utils/androidEmulatorLogs').getAndroidEmulatorLogCapture
       );
+    mockedArch.mockReturnValue('x64');
     mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
@@ -94,13 +104,16 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
     mockedResolveLocalEgress.mockResolvedValue(null);
 
-    mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
+    mockedRetryAsync.mockImplementation(async (fn, { retryOptions, shouldRetry }) => {
       let lastErr: unknown;
       for (let attemptCount = 0; attemptCount <= retryOptions.retries; attemptCount++) {
         try {
           return await fn(attemptCount);
         } catch (err) {
           lastErr = err;
+          if (shouldRetry && !shouldRetry(err)) {
+            throw err;
+          }
         }
       }
       throw lastErr;
@@ -109,6 +122,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
   afterAll(() => {
     mockedMkdtemp.mockRestore();
+    mockedArch.mockRestore();
   });
 
   it('preserves an explicit empty source list and one capture through boot retries and clones', async () => {
@@ -163,6 +177,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         serialId: 'emulator-default',
         timeoutMs: 60_000,
         logger: expect.anything(),
+        emulatorPromise: expect.any(Promise),
       });
       expect(
         mockedSpawn.mock.calls.filter(
@@ -645,6 +660,331 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       ).rejects.toThrow('must be an npm version or dist-tag of expo-emulator-capture');
 
       expect(mockedInstall).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('system image validation and sdkmanager fail-fast', () => {
+    it.each([
+      'android-35;google_apis_playstore;x86_64',
+      'platforms;android-35',
+      'system-images;android-35;google_apis_playstore',
+      'system-images;35;default;x86_64',
+      ' system-images;android-35;default;x86_64 ',
+      '',
+    ])('rejects malformed system_image_package %j before running sdkmanager', async invalidPkg => {
+      const error = await createStep({ system_image_package: invalidPkg })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_INVALID_SYSTEM_IMAGE');
+      expect(error.message).toContain('system-images;android-<api-level>;<tag>;<abi>');
+      expect(mockedSpawn).not.toHaveBeenCalled();
+      expect(mockedAndroidUtils.createAsync).not.toHaveBeenCalled();
+    });
+
+    it('rejects arm64-v8a system image on an x64 runner before running sdkmanager', async () => {
+      mockedArch.mockReturnValue('x64');
+
+      const error = await createStep({
+        system_image_package: 'system-images;android-35;google_apis_playstore;arm64-v8a',
+      })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_INVALID_SYSTEM_IMAGE');
+      expect(error.message).toContain('incompatible with this x64 runner');
+      expect(error.message).toContain('system-images;android-35;google_apis_playstore;x86_64');
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('rejects x86_64 system image on an arm64 runner before running sdkmanager', async () => {
+      mockedArch.mockReturnValue('arm64');
+
+      const error = await createStep({
+        system_image_package: 'system-images;android-35;google_apis_playstore;x86_64',
+      })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_INVALID_SYSTEM_IMAGE');
+      expect(error.message).toContain('incompatible with this arm64 runner');
+      expect(error.message).toContain('system-images;android-35;google_apis_playstore;arm64-v8a');
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('accepts valid custom x86_64/x86 images on x64 and arm64-v8a on arm64', () => {
+      expect(() =>
+        validateAndroidSystemImagePackage(
+          'system-images;android-35-ext15;google_apis_playstore_ps16k;x86_64',
+          'x64'
+        )
+      ).not.toThrow();
+      expect(() =>
+        validateAndroidSystemImagePackage('system-images;android-30;default;x86', 'x64')
+      ).not.toThrow();
+      expect(() =>
+        validateAndroidSystemImagePackage('system-images;android-36;google_apis;arm64-v8a', 'arm64')
+      ).not.toThrow();
+    });
+
+    it('fails immediately without retrying when sdkmanager reports package not found on non-zero exit', async () => {
+      const systemImagePackage = 'system-images;android-37;google_apis_playstore;x86_64';
+      const sdkError = Object.assign(new Error('sdkmanager exited with non-zero code: 1'), {
+        stdout: '',
+        stderr: `Warning: Failed to find package '${systemImagePackage}'\n`,
+        status: 1,
+      });
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          return Promise.reject(sdkError);
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      const error = await createStep({ system_image_package: systemImagePackage })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND');
+      expect(error.message).toContain(systemImagePackage);
+      expect(mockedSpawn.mock.calls.filter(([command]) => command === 'sdkmanager')).toHaveLength(
+        1
+      );
+    });
+
+    it('fails immediately without retrying when sdkmanager exits 0 with a package not found warning', async () => {
+      const systemImagePackage = 'system-images;android-37;google_apis_playstore;x86_64';
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          return Promise.resolve({
+            stdout: '',
+            stderr: `Warning: Failed to find package '${systemImagePackage}'\n`,
+          });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      const error = await createStep({ system_image_package: systemImagePackage })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND');
+      expect(mockedSpawn.mock.calls.filter(([command]) => command === 'sdkmanager')).toHaveLength(
+        1
+      );
+    });
+
+    it('retries sdkmanager on transient manifest download errors even when output mentions package not found', async () => {
+      const systemImagePackage = 'system-images;android-35;google_apis_playstore;x86_64';
+      const transientError = Object.assign(new Error('sdkmanager exited with non-zero code: 1'), {
+        stdout: '',
+        stderr: [
+          'Warning: Failed to download any source lists!',
+          'Warning: IO exception while downloading manifest',
+          `Warning: Failed to find package '${systemImagePackage}'`,
+        ].join('\n'),
+        status: 1,
+      });
+      let sdkCalls = 0;
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          sdkCalls += 1;
+          if (sdkCalls === 1) {
+            return Promise.reject(transientError);
+          }
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      await createStep({ system_image_package: systemImagePackage }).executeAsync();
+
+      expect(sdkCalls).toBe(2);
+    });
+
+    it('proceeds when sdkmanager exits 0 with an unrelated Invalid package.xml warning', async () => {
+      const systemImagePackage = 'system-images;android-35;google_apis_playstore;x86_64';
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          return Promise.resolve({
+            stdout: '',
+            stderr:
+              'Warning: Invalid package.xml found at /android/sdk/extras/vendor/package.xml\n',
+          });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      await createStep({ system_image_package: systemImagePackage }).executeAsync();
+
+      expect(mockedSpawn.mock.calls.filter(([command]) => command === 'sdkmanager')).toHaveLength(
+        1
+      );
+      expect(mockedAndroidUtils.createAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('proceeds when sdkmanager exits 0 with a warning naming a longer package that shares a prefix', async () => {
+      const systemImagePackage = 'system-images;android-30;default;x86';
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          return Promise.resolve({
+            stdout: '',
+            stderr: [
+              "Warning: Failed to find package 'system-images;android-30;default;x86_64'",
+              'Warning: Unknown package: system-images;android-30;default;x86_64',
+            ].join('\n'),
+          });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      await createStep({ system_image_package: systemImagePackage }).executeAsync();
+
+      expect(mockedSpawn.mock.calls.filter(([command]) => command === 'sdkmanager')).toHaveLength(
+        1
+      );
+      expect(mockedAndroidUtils.createAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ systemImagePackage })
+      );
+    });
+
+    it('fails immediately when sdkmanager logs a manifest wait progress warning before package not found', async () => {
+      const systemImagePackage = 'system-images;android-37;google_apis_playstore;x86_64';
+      const sdkError = Object.assign(new Error('sdkmanager exited with non-zero code: 1'), {
+        stdout: '',
+        stderr: [
+          'Warning: Still waiting for package manifests to be fetched remotely.',
+          `Warning: Failed to find package '${systemImagePackage}'`,
+        ].join('\n'),
+        status: 1,
+      });
+      mockedSpawn.mockImplementation(((command: string) => {
+        if (command === 'sdkmanager') {
+          return Promise.reject(sdkError);
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      }) as any);
+
+      const error = await createStep({ system_image_package: systemImagePackage })
+        .executeAsync()
+        .catch(err => err);
+
+      expect(error).toBeInstanceOf(UserError);
+      expect(error.errorCode).toBe('EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND');
+      expect(mockedSpawn.mock.calls.filter(([command]) => command === 'sdkmanager')).toHaveLength(
+        1
+      );
+    });
+  });
+
+  describe('non-retryable emulator startup failures', () => {
+    it('does not retry a non-retryable AndroidEmulatorExitedError', async () => {
+      mockedAndroidUtils.startAsync.mockRejectedValue(
+        new AndroidEmulatorExitedError('KVM is required to run this AVD.', {
+          exitCode: 1,
+          signal: null,
+          outputTail: 'ERROR | KVM is required to run this AVD.',
+          isRetryable: false,
+        })
+      );
+
+      await expect(createStep().executeAsync()).rejects.toThrow('KVM is required to run this AVD.');
+
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(1);
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(1);
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith({
+        deviceName: 'EasAndroidDevice01',
+        env: expect.any(Object),
+        skipStop: true,
+      });
+    });
+
+    it('deletes the AVD by name with skipStop when a registered emulator exits during waitForReadyAsync', async () => {
+      mockedAndroidUtils.startAsync
+        .mockResolvedValueOnce(createStartResult('emulator-5554'))
+        .mockResolvedValueOnce(createStartResult('emulator-5556'));
+      mockedAndroidUtils.waitForReadyAsync
+        .mockRejectedValueOnce(
+          new AndroidEmulatorExitedError('Android emulator exited prematurely.', {
+            exitCode: 1,
+            signal: null,
+            outputTail: 'Segmentation fault',
+            isRetryable: true,
+          })
+        )
+        .mockResolvedValueOnce(undefined);
+
+      await createStep().executeAsync();
+
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(1);
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith({
+        deviceName: 'EasAndroidDevice01',
+        env: expect.any(Object),
+        skipStop: true,
+      });
+    });
+
+    it('deletes a cloned AVD by name with skipStop when the clone exits during waitForReadyAsync', async () => {
+      mockedAndroidUtils.startAsync
+        .mockResolvedValueOnce(createStartResult('emulator-base'))
+        .mockResolvedValueOnce(createStartResult('emulator-clone-1'))
+        .mockResolvedValueOnce(createStartResult('emulator-clone-1-retry'))
+        .mockResolvedValueOnce(createStartResult('emulator-clone-2'));
+      mockedAndroidUtils.waitForReadyAsync
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(
+          new AndroidEmulatorExitedError('Clone exited prematurely.', {
+            exitCode: 1,
+            signal: null,
+            outputTail: 'Segmentation fault',
+            isRetryable: true,
+          })
+        )
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await createStep({ count: 2 }).executeAsync();
+
+      expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith({
+        deviceName: 'eas-simulator-1',
+        env: expect.any(Object),
+        skipStop: true,
+      });
+    });
+
+    it('retries a retryable AndroidEmulatorExitedError and succeeds on a later attempt', async () => {
+      mockedAndroidUtils.startAsync
+        .mockRejectedValueOnce(
+          new AndroidEmulatorExitedError('Android emulator exited with exit code 1.', {
+            exitCode: 1,
+            signal: null,
+            outputTail: 'Segmentation fault',
+            isRetryable: true,
+          })
+        )
+        .mockResolvedValueOnce(createStartResult('emulator-recovered'));
+
+      await createStep().executeAsync();
+
+      expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(2);
+      expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ serialId: 'emulator-recovered' })
+      );
+    });
+
+    it('does not retry when createAsync throws a UserError', async () => {
+      mockedAndroidUtils.createAsync.mockRejectedValue(
+        new UserError('EAS_ANDROID_EMULATOR_SYSTEM_IMAGE_NOT_FOUND', 'Invalid AVD system image')
+      );
+
+      await expect(createStep().executeAsync()).rejects.toThrow('Invalid AVD system image');
+
+      expect(mockedAndroidUtils.createAsync).toHaveBeenCalledTimes(1);
+      expect(mockedAndroidUtils.startAsync).not.toHaveBeenCalled();
     });
   });
 });
