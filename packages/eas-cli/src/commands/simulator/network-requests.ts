@@ -34,7 +34,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
   static override aliases = getSimulatorCommandAliases('network-requests');
   static override hiddenAliases = getSimulatorCommandHiddenAliases('network-requests');
   static override description =
-    '[EXPERIMENTAL] inspect completed network requests from a capture-enabled simulator session';
+    'inspect completed network requests from a capture-enabled simulator session';
 
   static override examples = [
     '<%= config.bin %> simulator:network-requests --json',
