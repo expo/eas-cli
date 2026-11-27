@@ -6,6 +6,7 @@ import {
   AppPlatform,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionResourceClass,
+  DeviceRunSessionStatus,
   DeviceRunSessionType,
 } from '../graphql/generated';
 import { link } from '../log';
@@ -20,6 +21,17 @@ import {
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
+
+export function isSimulatorStopConfirmed(
+  session: Pick<DeviceRunSessionByIdResult, 'id' | 'status'>,
+  requestedId: string
+): boolean {
+  return (
+    session.id === requestedId &&
+    (session.status === DeviceRunSessionStatus.Stopped ||
+      session.status === DeviceRunSessionStatus.Errored)
+  );
+}
 
 /**
  * Message shown when EAS Simulator is not enabled for the account. Shared by every
