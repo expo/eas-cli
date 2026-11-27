@@ -293,3 +293,16 @@ describe(runOnWarmIosSimulatorAsync, () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 });
+
+it('attaches warm server output to the existing preview step logger', async () => {
+  const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+  warm.forwardServerLogs = jest.fn();
+  warm.redactLogs = jest.fn();
+  await createWarmDeviceSessionServer(ctx, logger, warm).startAsync({
+    ...launch(),
+    logger: previewLogger,
+    secrets: ['adoption-secret'],
+  });
+  expect(warm.forwardServerLogs).toHaveBeenCalledWith(previewLogger);
+  expect(warm.redactLogs).toHaveBeenCalledWith(['adoption-secret']);
+});

@@ -5,12 +5,15 @@ import path from 'node:path';
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
 import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
+import { followWarmLog } from '../warmLogReader';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
 
 jest.mock('../../../utils/warmSimulator');
 jest.mock('../localEgress');
+jest.mock('../warmLogReader');
 
 const logger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
+const previewLogger = { info: jest.fn(), warn: jest.fn() } as unknown as bunyan;
 const env = { EAS_USE_WARM_SIMULATOR: '1' };
 const claim = {
   status: 'claimed',
@@ -18,6 +21,7 @@ const claim = {
   server: { pid: 10, port: 3200, token: 'serve-token', url: 'http://127.0.0.1:3200' },
   agentDeviceStateDir: '/agent',
   argentEventLogPath: '/argent/events',
+  serveSimLogPath: '/logs/serve-sim.log',
   preinstalledExpoGo: { bundleIdentifier: 'host.exp.Exponent', shortVersion: '2.0', version: '1' },
 };
 
@@ -231,5 +235,98 @@ it('preserves exact build metadata through job resolution and warm claim', async
     )
   ).resolves.toBe('warm');
   expect(run).toHaveBeenCalledTimes(1);
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('forwards only new warm server output and stops the reader when warm cleanup fails', async () => {
+  const stopReader = jest.fn().mockResolvedValue(undefined);
+  jest.mocked(followWarmLog).mockReturnValue({
+    getOutput: () => 'server output',
+    stopAsync: stopReader,
+  });
+  const session = await tryClaimWarmIosSessionAsync({
+    engine: 'serve-sim',
+    env: { ...env, HOME: '/Users/expo' },
+    logger,
+  });
+  expect(followWarmLog).not.toHaveBeenCalled();
+  session?.forwardServerLogs?.(previewLogger);
+  expect(followWarmLog).toHaveBeenCalledWith(
+    expect.objectContaining({
+      logger: previewLogger,
+      file: '/logs/serve-sim.log',
+      secrets: ['serve-token'],
+    })
+  );
+  expect(session?.process.getOutput()).toBe('server output');
+  session?.redactLogs?.(['adoption-secret']);
+  expect(jest.mocked(followWarmLog).mock.calls[0][0].secrets).toEqual([
+    'serve-token',
+    'adoption-secret',
+  ]);
+  jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('cleanup failed'));
+  await expect(session?.process.stopAsync()).rejects.toThrow('cleanup failed');
+  expect(stopReader).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the claimed Simulator when its server log reader cannot start', async () => {
+  jest.mocked(followWarmLog).mockImplementation(() => {
+    throw new Error('log unavailable');
+  });
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  session?.forwardServerLogs?.(previewLogger);
+  expect(session?.server).toEqual({ pid: 10, port: 3200, token: 'serve-token' });
+  expect(previewLogger.warn).toHaveBeenCalledWith(
+    { err: new Error('log unavailable') },
+    'Could not forward warm Simulator server logs.'
+  );
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('does not open a server log reader once warm teardown has started', async () => {
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  const stopping = session!.process.stopAsync();
+  session!.forwardServerLogs!(previewLogger);
+  await stopping;
+  expect(followWarmLog).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  'does not replace Simulator cleanup with a reader error (cleanup fails: %s)',
+  async cleanupFails => {
+    const stopReader = jest.fn().mockRejectedValue(new Error('reader drain failed'));
+    jest.mocked(followWarmLog).mockReturnValue({
+      getOutput: () => '',
+      stopAsync: stopReader,
+    });
+    if (cleanupFails) {
+      jest.mocked(stopWarmSimulatorAsync).mockRejectedValue(new Error('Simulator cleanup failed'));
+    }
+    const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+    session?.forwardServerLogs?.(previewLogger);
+    if (cleanupFails) {
+      await expect(session!.process.stopAsync()).rejects.toThrow('Simulator cleanup failed');
+    } else {
+      await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+    }
+    expect(previewLogger.warn).toHaveBeenCalledWith(
+      { err: new Error('reader drain failed') },
+      'Could not stop forwarding warm Simulator server logs.'
+    );
+    expect(stopReader).toHaveBeenCalledTimes(1);
+  }
+);
+
+it('adopts an older launcher without forwarding its mixed console log', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockResolvedValue(JSON.stringify({ ...claim, serveSimLogPath: undefined }));
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'serve-sim', env, logger });
+  expect(session).toBeDefined();
+  session!.forwardServerLogs!(previewLogger);
+  expect(previewLogger.warn).toHaveBeenCalledWith(
+    'The warm launcher does not provide a separate Simulator server log.'
+  );
+  expect(followWarmLog).not.toHaveBeenCalled();
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
 });

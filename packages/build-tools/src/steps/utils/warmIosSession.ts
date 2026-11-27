@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from './localEgress';
 import { type DetachedProcessHandle, isProcessRunning } from './remoteDeviceRunSession';
+import { followWarmLog } from './warmLogReader';
 
 const ServiceSchema = z.object({ pid: z.number(), port: z.number(), token: z.string() });
 const PackageVersionSchema = z.string().refine(version => semver.valid(version) !== null);
@@ -19,6 +20,7 @@ const ClaimSchema = z.object({
   server: ServiceSchema,
   agentDeviceStateDir: z.string(),
   argentEventLogPath: z.string(),
+  serveSimLogPath: z.string().optional(),
   preinstalledExpoGo: z
     .object({ bundleIdentifier: z.string(), shortVersion: z.string(), version: z.string() })
     .optional(),
@@ -33,6 +35,8 @@ export type WarmIosSession = z.infer<typeof ClaimSchema> & {
   /** Runs after adoption: the launcher prepares the selected tool for the adopted device. */
   prepareToolsAsync(signal?: AbortSignal): Promise<void>;
   process: DetachedProcessHandle;
+  redactLogs?(secrets: string[]): void;
+  forwardServerLogs?(logger: bunyan): void;
 };
 
 /**
@@ -82,9 +86,32 @@ export async function tryClaimWarmIosSessionAsync({
       throw new Error('The warm tool does not match the requested package version.');
     }
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
+    const logSecrets = [claim.server.token];
+    let logReader: ReturnType<typeof followWarmLog> | undefined;
+    let serverLogLogger = logger;
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
       ...claim,
+      redactLogs: secrets => logSecrets.push(...secrets),
+      forwardServerLogs(previewLogger) {
+        if (logReader || stopping) {
+          return;
+        }
+        serverLogLogger = previewLogger;
+        if (!claim.serveSimLogPath) {
+          previewLogger.warn('The warm launcher does not provide a separate Simulator server log.');
+          return;
+        }
+        try {
+          logReader = followWarmLog({
+            file: claim.serveSimLogPath,
+            logger: previewLogger,
+            secrets: logSecrets,
+          });
+        } catch (err) {
+          previewLogger.warn({ err }, 'Could not forward warm Simulator server logs.');
+        }
+      },
       async prepareToolsAsync(prepareSignal = signal) {
         const prepared = ClaimSchema.pick({ preinstalledExpoGo: true })
           .extend({ tools: ServiceSchema.optional() })
@@ -103,16 +130,29 @@ export async function tryClaimWarmIosSessionAsync({
         } else if (engine === 'argent') {
           session.tools = ServiceSchema.parse(prepared.tools);
         }
+        if (session.tools) {
+          logSecrets.push(session.tools.token);
+        }
       },
       process: {
         pid: claim.server.pid,
-        getOutput: () => '',
+        getOutput: () => logReader?.getOutput() ?? '',
         getExitError: () =>
           isProcessRunning(claim.server.pid) &&
           (!session.tools || isProcessRunning(session.tools.pid))
             ? undefined
             : new Error('A service of the warm Simulator session has exited.'),
-        stopAsync: () => (stopping ??= stopWarmSimulatorAsync(env)),
+        stopAsync: () =>
+          (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
+            try {
+              await logReader?.stopAsync();
+            } catch (err) {
+              serverLogLogger.warn(
+                { err },
+                'Could not stop forwarding warm Simulator server logs.'
+              );
+            }
+          })),
       },
     };
     return session;

@@ -12,7 +12,7 @@ import {
   commands,
   stopProcessAndDescendantsAsync,
 } from '../utils/processes';
-import { startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
+import { getServeSimLogPath, startServeSim, waitForServeSimReadyAsync } from '../utils/serveSim';
 import {
   disableApsdAsync,
   listAvailableSimulatorsAsync,
@@ -429,6 +429,7 @@ export function createWarmSimulatorSession({
       controllerStartTime,
       agentDeviceStateDir,
       argentEventLogPath,
+      serveSimLogPath: getServeSimLogPath(),
     };
     return info;
   }

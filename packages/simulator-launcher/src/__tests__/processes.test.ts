@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 
@@ -415,12 +416,24 @@ describe('EPERM from exited processes awaiting reap', () => {
 
 test('serve-sim leads its own process group', () => {
   const { startServeSim } = require('../utils/serveSim');
+  jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+  jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
+  jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
+  jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
   startServeSim(['PHONE'], new AbortController().signal);
   expect(spawn).toHaveBeenCalledWith(
     'bunx',
     expect.arrayContaining(['PHONE', '--port', '3200']),
-    expect.objectContaining({ detached: true })
+    expect.objectContaining({ detached: true, stdio: ['ignore', 80, 80] })
   );
+  expect(fs.openSync).toHaveBeenCalledWith(
+    expect.stringContaining('serve-sim.log'),
+    expect.any(Number),
+    0o600
+  );
+  expect(fs.fchmodSync).toHaveBeenCalledWith(80, 0o600);
+  expect(fs.closeSync).toHaveBeenCalledWith(80);
 });
 
 test('the fixture PID guard keeps tests away from the real process.kill', () => {
@@ -637,4 +650,34 @@ test('rejects a process-group ID that does not belong to its owned child before 
   ).rejects.toThrow('does not belong');
   expect(kill).not.toHaveBeenCalled();
   expect(run).not.toHaveBeenCalled();
+});
+
+test('closes the private log descriptor when service spawn fails', () => {
+  jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+  jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
+  jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
+  const close = jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
+  jest.mocked(spawn).mockImplementationOnce(() => {
+    throw new Error('spawn failed');
+  });
+  expect(() => commands.start('service', [], { logPath: '/logs/service.log' })).toThrow(
+    'spawn failed'
+  );
+  expect(close).toHaveBeenCalledWith(80);
+});
+
+test('opens private service logs without blocking and rejects non-regular files', () => {
+  jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+  const open = jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => false } as fs.Stats);
+  const chmod = jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
+  const close = jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
+
+  expect(() => commands.start('service', [], { logPath: '/logs/service.log' })).toThrow(
+    'The private service log is not a regular file.'
+  );
+  expect(Number(open.mock.calls[0][1]) & fs.constants.O_NONBLOCK).toBe(fs.constants.O_NONBLOCK);
+  expect(chmod).not.toHaveBeenCalled();
+  expect(close).toHaveBeenCalledWith(80);
 });
