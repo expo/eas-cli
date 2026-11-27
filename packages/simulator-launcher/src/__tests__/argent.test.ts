@@ -1,13 +1,15 @@
 import { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import syncFs from 'node:fs';
 import fs from 'node:fs/promises';
 
-import { createArgentTool } from '../utils/argent';
+import { createArgentTool, getArgentLogPath } from '../utils/argent';
 import {
   commands,
   isProcessOwnedByServiceAsync,
   stopProcessAndDescendantsAsync,
 } from '../utils/processes';
+import { getServeSimLogPath } from '../utils/serveSim';
 import { type WarmTool } from '../utils/tools';
 import { deferred, until } from './helpers';
 
@@ -21,6 +23,10 @@ let tool: WarmTool;
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.replaceProperty(process, 'env', {
+    ...process.env,
+    ARGENT_EVENT_LOG: '/fixture/argent-events.jsonl',
+  });
   child = Object.assign(new EventEmitter(), {
     pid: 90001,
     exitCode: null,
@@ -42,6 +48,18 @@ beforeEach(() => {
   jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tools: [] })));
   jest.mocked(stopProcessAndDescendantsAsync).mockResolvedValue();
 });
+
+it('rejects an event log that aliases the Simulator server console at Argent startup', async () => {
+  const sameFile = { dev: 5, ino: 7 } as syncFs.Stats;
+  const stat = jest.spyOn(syncFs, 'statSync');
+  stat.mockReturnValueOnce(sameFile).mockReturnValueOnce(sameFile);
+  await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
+    'The Simulator server console and Argent event logs must be separate files.'
+  );
+  expect(stat).toHaveBeenCalledWith('/fixture/argent-events.jsonl', { throwIfNoEntry: false });
+  expect(stat).toHaveBeenCalledWith(getServeSimLogPath(), { throwIfNoEntry: false });
+  expect(commands.start).not.toHaveBeenCalled();
+});
 afterEach(() => {
   controller.abort();
   jest.restoreAllMocks();
@@ -60,6 +78,8 @@ it('does not report ready until its owned server answers the authenticated tools
   await started;
   expect(commands.start).toHaveBeenCalledWith('bunx', expect.arrayContaining(['server', 'start']), {
     detached: true,
+    logPath: expect.stringContaining('Library/Logs/expo-simulator-startup/argent.log'),
+    separateLogPath: process.env.ARGENT_EVENT_LOG,
   });
   expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:3201/tools', {
     headers: { Authorization: 'Bearer fixture-token' },
@@ -75,7 +95,9 @@ it('rejects an exit during the readiness request, even before the wrapper finish
   Object.assign(child, { exitCode: 1 });
   child.emit('exit', 1, null);
   response.resolve(new Response(JSON.stringify({ tools: [] })));
-  await expect(started).rejects.toThrow('Argent exited before its server became ready');
+  await expect(started).rejects.toThrow(
+    `Argent exited before its server became ready. Console log: ${getArgentLogPath()}`
+  );
   expect(onFailure).not.toHaveBeenCalled();
 });
 
@@ -85,7 +107,9 @@ it('observes an unexpected exit after readiness exactly once', async () => {
   result.reject(new Error('wrapper failed'));
   await Promise.resolve();
   expect(onFailure).toHaveBeenCalledTimes(1);
-  expect(onFailure.mock.calls[0][0].message).toContain('Argent server exited unexpectedly');
+  expect(onFailure.mock.calls[0][0].message).toBe(
+    `Argent server exited unexpectedly. Console log: ${getArgentLogPath()}`
+  );
 });
 
 it('ignores a foreign state file without sending its token to the local port', async () => {
@@ -136,7 +160,7 @@ it('bounds readiness when the server never becomes available', async () => {
     .mockReturnValueOnce(now)
     .mockReturnValue(now + 120_000);
   await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
-    'Timed out waiting for the Argent server'
+    `Timed out waiting for the Argent server on port 3201 to become ready. Console log: ${getArgentLogPath()}`
   );
   expect(fetch).not.toHaveBeenCalled();
 });

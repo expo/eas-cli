@@ -3,7 +3,7 @@ import { setTimeout as sleepAsync } from 'node:timers/promises';
 
 import { prefetchAsync } from './prefetch';
 import { createAgentDeviceTool } from '../utils/agentDevice';
-import { createArgentTool } from '../utils/argent';
+import { createArgentTool, getArgentLogPath } from '../utils/argent';
 import { startExpoGoPreinstall } from '../utils/expoGo';
 import { readPreparedExpoGoAsync } from '../utils/preparedExpoGo';
 import { getConfiguredToolVersions } from '../utils/packageSpecs';
@@ -430,6 +430,7 @@ export function createWarmSimulatorSession({
       agentDeviceStateDir,
       argentEventLogPath,
       serveSimLogPath: getServeSimLogPath(),
+      argentLogPath: getArgentLogPath(),
     };
     return info;
   }

@@ -21,6 +21,7 @@ const ClaimSchema = z.object({
   agentDeviceStateDir: z.string(),
   argentEventLogPath: z.string(),
   serveSimLogPath: z.string().optional(),
+  argentLogPath: z.string().optional(),
   preinstalledExpoGo: z
     .object({ bundleIdentifier: z.string(), shortVersion: z.string(), version: z.string() })
     .optional(),
@@ -87,8 +88,9 @@ export async function tryClaimWarmIosSessionAsync({
     }
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     const logSecrets = [claim.server.token];
+    const controllerLogName = engine === 'argent' ? 'Argent server' : 'agent-device daemon';
     let logReader: ReturnType<typeof followWarmLog> | undefined;
-    let agentLogReader: ReturnType<typeof followWarmLog> | undefined;
+    let controllerLogReader: ReturnType<typeof followWarmLog> | undefined;
     let serverLogLogger = logger;
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
@@ -134,17 +136,30 @@ export async function tryClaimWarmIosSessionAsync({
         if (session.tools) {
           logSecrets.push(session.tools.token);
         }
-        // The daemon has its own log file. Start after reading its identity so its token is
+        // Each controller has its own log file. Start after reading its identity so its token is
         // redacted before any output is forwarded; do not replay pre-session diagnostics.
-        if (engine === 'agent-device' && !agentLogReader && !stopping && !prepareSignal?.aborted) {
+        if (
+          (engine === 'agent-device' || engine === 'argent') &&
+          !controllerLogReader &&
+          !stopping &&
+          !prepareSignal?.aborted
+        ) {
+          const controllerLogPath =
+            engine === 'agent-device'
+              ? path.join(claim.agentDeviceStateDir, 'daemon.log')
+              : claim.argentLogPath;
+          if (!controllerLogPath) {
+            logger.warn('The warm launcher does not provide a separate controller log.');
+            return;
+          }
           try {
-            agentLogReader = followWarmLog({
-              file: path.join(claim.agentDeviceStateDir, 'daemon.log'),
+            controllerLogReader = followWarmLog({
+              file: controllerLogPath,
               logger,
               secrets: logSecrets,
             });
           } catch (err) {
-            logger.warn({ err }, 'Could not forward agent-device daemon logs.');
+            logger.warn({ err }, `Could not forward ${controllerLogName} logs.`);
           }
         }
       },
@@ -160,7 +175,7 @@ export async function tryClaimWarmIosSessionAsync({
           (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
             const results = await Promise.allSettled([
               logReader?.stopAsync(),
-              agentLogReader?.stopAsync(),
+              controllerLogReader?.stopAsync(),
             ]);
             for (const [index, result] of results.entries()) {
               if (result.status === 'rejected') {
@@ -168,7 +183,7 @@ export async function tryClaimWarmIosSessionAsync({
                   { err: result.reason },
                   index === 0
                     ? 'Could not stop forwarding warm Simulator server logs.'
-                    : 'Could not stop forwarding agent-device daemon logs.'
+                    : `Could not stop forwarding ${controllerLogName} logs.`
                 );
               }
             }

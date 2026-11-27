@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
+import os from 'node:os';
+import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
 jest.mock('node:child_process', () => ({ spawn: jest.fn() }));
@@ -414,11 +416,15 @@ describe('EPERM from exited processes awaiting reap', () => {
   });
 });
 
-test('serve-sim leads its own process group', () => {
+test('serve-sim leads its own process group without inspecting the Argent event path', () => {
   const { startServeSim } = require('../utils/serveSim');
+  jest.replaceProperty(process, 'env', { ...process.env, ARGENT_EVENT_LOG: '/logs/events.jsonl' });
   jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'openSync').mockReturnValue(80);
   jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
+  const stat = jest.spyOn(fs, 'statSync').mockImplementation(() => {
+    throw new Error('Argent event path is inaccessible');
+  });
   jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
   startServeSim(['PHONE'], new AbortController().signal);
@@ -433,6 +439,7 @@ test('serve-sim leads its own process group', () => {
     0o600
   );
   expect(fs.fchmodSync).toHaveBeenCalledWith(80, 0o600);
+  expect(stat).not.toHaveBeenCalled();
   expect(fs.closeSync).toHaveBeenCalledWith(80);
 });
 
@@ -680,4 +687,19 @@ test('opens private service logs without blocking and rejects non-regular files'
   expect(Number(open.mock.calls[0][1]) & fs.constants.O_NONBLOCK).toBe(fs.constants.O_NONBLOCK);
   expect(chmod).not.toHaveBeenCalled();
   expect(close).toHaveBeenCalledWith(80);
+});
+
+test('does not start a service when the event log aliases its console log', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'simulator-launcher-log-'));
+  const logPath = path.join(directory, 'console.log');
+  const separateLogPath = path.join(directory, 'event.log');
+  try {
+    fs.symlinkSync(logPath, separateLogPath);
+    expect(() => commands.start('service', [], { logPath, separateLogPath })).toThrow(
+      'The service console and event logs must be separate files.'
+    );
+    expect(spawn).not.toHaveBeenCalled();
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });

@@ -20,6 +20,7 @@ export const commands = {
       captureStdout = false,
       detached = false,
       logPath,
+      separateLogPath,
     }: {
       signal?: AbortSignal;
       captureStdout?: boolean;
@@ -27,6 +28,8 @@ export const commands = {
       detached?: boolean;
       /** Private console output for a service that a worker adopts later. */
       logPath?: string;
+      /** An existing log that must have a different file identity from the console log. */
+      separateLogPath?: string;
     } = {}
   ): ChildProcessHandle {
     let logFd: number | undefined;
@@ -46,8 +49,15 @@ export const commands = {
             fs.constants.O_NONBLOCK,
           0o600
         );
-        if (!fs.fstatSync(logFd).isFile()) {
+        const log = fs.fstatSync(logFd);
+        if (!log.isFile()) {
           throw new Error('The private service log is not a regular file.');
+        }
+        if (separateLogPath) {
+          const separate = fs.statSync(separateLogPath, { throwIfNoEntry: false });
+          if (separate && separate.dev === log.dev && separate.ino === log.ino) {
+            throw new Error('The service console and event logs must be separate files.');
+          }
         }
         fs.fchmodSync(logFd, 0o600);
       }

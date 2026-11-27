@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from '../localEgress';
+import { createProcessOutput } from '../processOutput';
 import { runOnWarmIosSimulatorAsync } from '../warmDeviceSessionHost';
 import { followWarmLog } from '../warmLogReader';
 import { tryClaimWarmIosSessionAsync } from '../warmIosSession';
@@ -22,6 +23,7 @@ const claim = {
   agentDeviceStateDir: '/agent',
   argentEventLogPath: '/argent/events',
   serveSimLogPath: '/logs/serve-sim.log',
+  argentLogPath: '/logs/argent.log',
   preinstalledExpoGo: { bundleIdentifier: 'host.exp.Exponent', shortVersion: '2.0', version: '1' },
 };
 
@@ -391,6 +393,77 @@ it('adopts an older launcher without forwarding its mixed console log', async ()
   session!.forwardServerLogs!(previewLogger);
   expect(previewLogger.warn).toHaveBeenCalledWith(
     'The warm launcher does not provide a separate Simulator server log.'
+  );
+  expect(followWarmLog).not.toHaveBeenCalled();
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('keeps warm Argent console output in the controller step and serve-sim in preview', async () => {
+  const outputs = new Map<string, ReturnType<typeof createProcessOutput>>();
+  const stops: jest.Mock[] = [];
+  jest.mocked(followWarmLog).mockImplementation(({ file, logger: outputLogger, secrets }) => {
+    const output = createProcessOutput(outputLogger, secrets);
+    outputs.set(file, output);
+    const stop = jest.fn(async () => {
+      output.finish();
+      if (file === '/logs/argent.log') {
+        throw new Error('Argent reader failed');
+      }
+    });
+    stops.push(stop);
+    return { getOutput: output.getOutput, stopAsync: stop };
+  });
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockImplementation(async ([command]) =>
+      JSON.stringify(
+        command === 'claim' ? claim : { tools: { pid: 30, port: 3201, token: 'argent-token' } }
+      )
+    );
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'argent', env, logger });
+  session!.redactLogs!(['adoption-secret']);
+  session!.forwardServerLogs!(previewLogger);
+  await session!.prepareToolsAsync();
+  outputs.get('/logs/serve-sim.log')!.stdout.append('Preview serve-token adoption-secret\n');
+  outputs.get('/logs/argent.log')!.stdout.append('Controller argent-token adoption-secret\n');
+  expect(previewLogger.info).toHaveBeenCalledWith(
+    { source: 'stdout' },
+    'Preview [REDACTED] [REDACTED]'
+  );
+  expect(logger.info).toHaveBeenCalledWith(
+    { source: 'stdout' },
+    'Controller [REDACTED] [REDACTED]'
+  );
+  expect(JSON.stringify(jest.mocked(previewLogger.info).mock.calls)).not.toContain('Controller');
+  expect(JSON.stringify(jest.mocked(logger.info).mock.calls)).not.toContain('Preview');
+  expect(session!.process.getOutput()).toBe('Preview [REDACTED] [REDACTED]\n');
+  await session!.process.stopAsync();
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: new Error('Argent reader failed') },
+    'Could not stop forwarding Argent server logs.'
+  );
+  expect(stops).toHaveLength(2);
+  for (const stop of stops) {
+    expect(stop).toHaveBeenCalledTimes(1);
+  }
+  expect([...outputs.keys()]).toEqual(['/logs/serve-sim.log', '/logs/argent.log']);
+});
+
+it('keeps an older warm Argent launcher without forwarding mixed console output', async () => {
+  jest
+    .mocked(runSimulatorLauncherAsync)
+    .mockImplementation(async ([command]) =>
+      JSON.stringify(
+        command === 'claim'
+          ? { ...claim, argentLogPath: undefined }
+          : { tools: { pid: 30, port: 3201, token: 'argent-token' } }
+      )
+    );
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'argent', env, logger });
+  await session!.prepareToolsAsync();
+  expect(session!.tools?.port).toBe(3201);
+  expect(logger.warn).toHaveBeenCalledWith(
+    'The warm launcher does not provide a separate controller log.'
   );
   expect(followWarmLog).not.toHaveBeenCalled();
   expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();

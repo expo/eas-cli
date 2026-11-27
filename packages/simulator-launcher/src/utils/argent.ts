@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import {
   isProcessOwnedByServiceAsync,
   stopProcessAndDescendantsAsync,
 } from './processes';
+import { getServeSimLogPath } from './serveSim';
 import { type WarmTool } from './tools';
 
 const ArgentStateSchema = z.object({
@@ -19,6 +21,8 @@ const ArgentStateSchema = z.object({
   token: z.string().min(1),
 });
 const ToolsSchema = z.object({ tools: z.array(z.unknown()) });
+export const getArgentLogPath = (): string =>
+  path.join(os.homedir(), 'Library/Logs/expo-simulator-startup/argent.log');
 
 export function createArgentTool(onUnexpectedExit: (error: unknown) => void): WarmTool {
   process.env.ARGENT_EVENT_LOG ||= path.join(os.homedir(), '.argent/tool-server-events.jsonl');
@@ -52,6 +56,17 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
     },
     async startAsync(_udid, signal) {
       signal.throwIfAborted();
+      const logPath = getArgentLogPath();
+      const eventLogPath = process.env.ARGENT_EVENT_LOG;
+      if (eventLogPath) {
+        const events = statSync(eventLogPath, { throwIfNoEntry: false });
+        const preview = statSync(getServeSimLogPath(), { throwIfNoEntry: false });
+        if (events && preview && events.dev === preview.dev && events.ino === preview.ino) {
+          throw new Error(
+            'The Simulator server console and Argent event logs must be separate files.'
+          );
+        }
+      }
       stopping = false;
       serverProcess = commands.start(
         'bunx',
@@ -66,7 +81,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           '--idle-timeout',
           '0',
         ],
-        { detached: true }
+        { detached: true, logPath, separateLogPath: eventLogPath }
       );
       const server = serverProcess;
       let ready = false;
@@ -77,8 +92,8 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
         }
         failure = new Error(
           ready
-            ? 'Argent server exited unexpectedly.'
-            : 'Argent exited before its server became ready.',
+            ? `Argent server exited unexpectedly. Console log: ${logPath}`
+            : `Argent exited before its server became ready. Console log: ${logPath}`,
           { cause }
         );
         if (ready && !stopping && !signal.aborted) {
@@ -96,7 +111,9 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           throw failure;
         }
         if (Date.now() >= deadline) {
-          throw new Error('Timed out waiting for the Argent server on port 3201 to become ready.');
+          throw new Error(
+            `Timed out waiting for the Argent server on port 3201 to become ready. Console log: ${logPath}`
+          );
         }
         const entries = await fs.readdir(stateDirectory).catch(() => []);
         for (const entry of entries) {
