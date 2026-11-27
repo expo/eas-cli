@@ -90,6 +90,7 @@ export async function uploadWithPresignedPostWithRetryAsync(
   presignedPost: PresignedPost,
   onAssetUploadBegin: () => void
 ): Promise<Response> {
+  const localMd5 = await computeFileMd5Base64Async(file);
   return await promiseRetry(
     async retry => {
       // retry fetch errors (usually connection or DNS errors)
@@ -113,6 +114,16 @@ export async function uploadWithPresignedPostWithRetryAsync(
       // don't retry other errors
       if (!response.ok) {
         throw new Error(`Presigned upload responded with a ${response.status} status`);
+      }
+
+      const storedMd5 = response.headers.get('x-goog-hash')?.match(/md5=([^,]+)/)?.[1];
+      if (storedMd5 && storedMd5 !== localMd5) {
+        return retry(
+          new Error(
+            `Uploaded file ${file} does not match the local file (Cloud Storage MD5 ${storedMd5}, local MD5 ${localMd5}). ` +
+              `The file changed between this machine and Cloud Storage. Try again from another network, and contact support if it keeps happening.`
+          )
+        );
       }
 
       return response;
