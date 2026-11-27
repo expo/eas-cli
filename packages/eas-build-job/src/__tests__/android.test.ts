@@ -3,7 +3,14 @@ import { randomUUID } from 'crypto';
 import Joi from 'joi';
 
 import * as Android from '../android';
-import { ArchiveSourceType, BuildMode, BuildTrigger, Platform, Workflow } from '../common';
+import {
+  ArchiveSourceType,
+  BuildMode,
+  BuildTrigger,
+  NativeBuilder,
+  Platform,
+  Workflow,
+} from '../common';
 
 const joiOptions: Joi.ValidationOptions = {
   stripUnknown: true,
@@ -21,6 +28,27 @@ const secrets = {
     },
   },
 };
+
+function createNativeJob(overrides: object = {}): Record<string, unknown> {
+  return {
+    mode: BuildMode.BUILD,
+    builder: NativeBuilder.GRADLE,
+    type: Workflow.GENERIC,
+    triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+    platform: Platform.ANDROID,
+    projectArchive: {
+      type: ArchiveSourceType.GIT,
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
+    },
+    projectRootDirectory: '.',
+    buildType: Android.BuildType.APK,
+    secrets: { robotAccessToken: 'robot-access-token' },
+    initiatingUserId: randomUUID(),
+    appId: randomUUID(),
+    ...overrides,
+  };
+}
 
 describe('Android.JobSchema', () => {
   test('valid generic job', () => {
@@ -490,5 +518,146 @@ describe('Android.JobSchema', () => {
     const { value, error } = Android.JobSchema.validate(job, joiOptions);
     expect(value).toMatchObject(job);
     expect(error).toBeFalsy();
+  });
+
+  test('returns a valid native job unchanged', () => {
+    const job = createNativeJob({
+      projectDirectory: 'android',
+      gradleCommand: ':app:assembleRelease',
+      autoIncrement: true,
+      hooks: { after_checkout: [{ run: 'echo Hello, world!' }] },
+    });
+
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value).toEqual(job);
+  });
+
+  test.each([undefined, 'release'])(
+    'returns a valid native job with appIdentifier unchanged (keystoreName: %s)',
+    keystoreName => {
+      const job = createNativeJob({ appIdentifier: 'com.example.testapp', keystoreName });
+
+      const { value, error } = Android.JobSchema.validate(job, joiOptions);
+      expect(error).toBeFalsy();
+      expect(value).toEqual(job);
+    }
+  );
+
+  test('native job rejects keystoreName without appIdentifier', () => {
+    const job = createNativeJob({ keystoreName: 'release' });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"keystoreName" missing required peer "appIdentifier"');
+  });
+
+  test('native job rejects secrets.buildCredentials', () => {
+    const job = createNativeJob({ secrets });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"secrets.buildCredentials" is not allowed');
+  });
+
+  test('native job requires buildType', () => {
+    const job = createNativeJob({ buildType: undefined });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"buildType" is required');
+  });
+
+  test('native job defaults mode to build', () => {
+    const job = createNativeJob({ mode: undefined });
+
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value.mode).toBe(BuildMode.BUILD);
+  });
+
+  test.each([BuildMode.RESIGN, BuildMode.CUSTOM, BuildMode.REPACK])(
+    'native job rejects mode %s',
+    mode => {
+      const job = createNativeJob({ mode });
+
+      const { error } = Android.JobSchema.validate(job, joiOptions);
+      expect(error?.message).toBe('"mode" must be [build]');
+    }
+  );
+
+  test('job without builder is not a native job', () => {
+    const job = createNativeJob({ builder: undefined, buildProfile: 'production' });
+
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error).toBeFalsy();
+    expect(value.buildProfile).toBe('production');
+  });
+
+  test('native job rejects a type other than generic', () => {
+    const job = createNativeJob({ type: Workflow.MANAGED });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"type" must be [generic]');
+  });
+
+  test.each([NativeBuilder.XCODE, 'unknown'])('native job rejects builder %s', builder => {
+    const job = createNativeJob({ builder });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe('"builder" must be [gradle]');
+  });
+
+  test.each([
+    ['buildProfile', 'production'],
+    ['updates', { channel: 'main' }],
+    ['cache', { disabled: false }],
+    ['developmentClient', true],
+    ['version', { versionCode: '1' }],
+    ['buildArtifactPaths', ['android/app/build/outputs/logs/*.txt']],
+    ['applicationArchivePath', 'android/app/build/outputs/**/*.apk'],
+    ['username', 'testuser'],
+    ['customBuildConfig', { path: 'production.yml' }],
+    ['steps', [{ id: 'step1', run: 'echo Hello, world!', shell: 'sh' }]],
+    ['outputs', { version_code: '1' }],
+    ['experimental', { prebuildCommand: 'echo Hello, world!' }],
+    ['githubTriggerOptions', { autoSubmit: true }],
+  ])('native job rejects %s', (field, fieldValue) => {
+    const job = createNativeJob({ [field]: fieldValue });
+
+    const { error } = Android.JobSchema.validate(job, joiOptions);
+    expect(error?.message).toBe(`"${field}" is not allowed`);
+  });
+
+  test('native job accepts only the job fields listed here', () => {
+    const { keys } = Android.JobSchema.describe().whens[0].then;
+    const acceptedFields = Object.keys(keys).filter(
+      field => keys[field].flags?.presence !== 'forbidden'
+    );
+
+    expect(new Set(acceptedFields)).toEqual(
+      new Set([
+        'mode',
+        'type',
+        'triggeredBy',
+        'projectArchive',
+        'platform',
+        'projectRootDirectory',
+        'secrets',
+        'builderEnvironment',
+        'gradleCommand',
+        'hooks',
+        'ssh',
+        'expoBuildUrl',
+        'loggerLevel',
+        'initiatingUserId',
+        'appId',
+        'environment',
+        'workflowInterpolationContext',
+        'builder',
+        'buildType',
+        'projectDirectory',
+        'appIdentifier',
+        'keystoreName',
+        'autoIncrement',
+      ])
+    );
   });
 });
