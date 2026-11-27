@@ -12,6 +12,7 @@ export default class SimulatorExec extends EasCommand {
   static override hiddenAliases = getSimulatorCommandHiddenAliases('exec');
   static override description = `execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
   static override strict = false;
+  static override skipTelemetry = true;
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectDir,

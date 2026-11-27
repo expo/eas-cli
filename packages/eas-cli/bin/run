@@ -9,6 +9,19 @@ if (require('semver').lt(process.version, '22.0.0')) {
 }
 
 (async () => {
+  const argv = process.argv.slice(2);
+  const { isSimulatorCommandId } = require('../build/simulator/commandAliases');
+  if (isSimulatorCommandId(argv[0], 'exec')) {
+    const {
+      isSimulatorExecFastPathArgv,
+      runSimulatorExecFastPathAsync,
+    } = require('../build/simulator/execFastPath');
+    if (isSimulatorExecFastPathArgv(argv)) {
+      await runSimulatorExecFastPathAsync(argv.slice(1));
+      return;
+    }
+  }
+
   const oclif = require('@oclif/core');
   await oclif.execute({ dir: __dirname });
 })();

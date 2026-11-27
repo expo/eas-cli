@@ -119,6 +119,10 @@ describe(SimulatorExec, () => {
     expect(spawnAsync).not.toHaveBeenCalled();
   });
 
+  it('disables telemetry on EasCommand', () => {
+    expect(SimulatorExec.skipTelemetry).toBe(true);
+  });
+
   it('loads simulator-specific env after regular env files', async () => {
     const { command } = createCommand(['agent-device', 'touch', '@e2']);
     await command.runAsync();

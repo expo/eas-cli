@@ -25,6 +25,7 @@ import { EasCommandError } from './errors';
 import {
   AnalyticsWithOrchestration,
   CommandEvent,
+  NoOpAnalytics,
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
 import { markAsParentCommand } from '../analytics/parentCommand';
@@ -172,6 +173,13 @@ export default abstract class EasCommand extends Command {
   static contextDefinition: ContextInput = {};
 
   /**
+   * When true, skip analytics setup/flushing, Sentry reporting, and the startup
+   * `getUserAsync()` network lookup. Intended for lightweight wrapper commands
+   * such as `simulator:exec`.
+   */
+  static skipTelemetry = false;
+
+  /**
    * The user session manager. Responsible for coordinating all user session related state.
    * If needed in a subclass, use the SessionManager ContextOption.
    */
@@ -240,6 +248,12 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   async run(): Promise<any> {
+    if ((this.constructor as typeof EasCommand).skipTelemetry) {
+      this.analyticsInternal = new NoOpAnalytics();
+      this.sessionManagerInternal = new SessionManager(this.analytics);
+      return await this.runAsync(undefined);
+    }
+
     // id is assigned by oclif in constructor based on the filepath:
     // commands/submit === submit, commands/build/list === build:list
     const command = `eas ${this.id}`;
@@ -265,8 +279,10 @@ export default abstract class EasCommand extends Command {
 
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
-    await this.analyticsInternal?.flushAsync();
-    await Sentry.flush(2000);
+    if (!(this.constructor as typeof EasCommand).skipTelemetry) {
+      await this.analyticsInternal?.flushAsync();
+      await Sentry.flush(2000);
+    }
     return await super.finally(err);
   }
 
@@ -330,17 +346,19 @@ export default abstract class EasCommand extends Command {
       Log.errorToStderr(err.message);
     }
     Log.debug(err);
-    Sentry.withScope(scope => {
-      scope.setTag('command', commandId);
-      scope.setTag('error_name', err.name);
-      scope.setExtra('commandId', commandId);
-      scope.setExtra('commandMessage', baseMessage);
-      scope.setExtra('originalMessage', err.message);
-      if (err instanceof CombinedError) {
-        scope.setExtra('graphQLErrorCount', err.graphQLErrors.length);
-      }
-      Sentry.captureException(err);
-    });
+    if (!(this.constructor as typeof EasCommand).skipTelemetry) {
+      Sentry.withScope(scope => {
+        scope.setTag('command', commandId);
+        scope.setTag('error_name', err.name);
+        scope.setExtra('commandId', commandId);
+        scope.setExtra('commandMessage', baseMessage);
+        scope.setExtra('originalMessage', err.message);
+        if (err instanceof CombinedError) {
+          scope.setExtra('graphQLErrorCount', err.graphQLErrors.length);
+        }
+        Sentry.captureException(err);
+      });
+    }
     const sanitizedError = new Error(baseMessage);
     sanitizedError.stack = err.stack;
     throw sanitizedError;

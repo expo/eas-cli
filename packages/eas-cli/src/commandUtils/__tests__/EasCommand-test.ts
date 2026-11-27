@@ -17,9 +17,10 @@ jest.mock('../../sentry', () => ({
   },
 }));
 jest.mock('../../analytics/AnalyticsManager', () => {
-  const { CommandEvent } = jest.requireActual('../../analytics/AnalyticsManager');
+  const { CommandEvent, NoOpAnalytics } = jest.requireActual('../../analytics/AnalyticsManager');
   return {
     CommandEvent,
+    NoOpAnalytics,
     createAnalyticsAsync: jest.fn(),
   };
 });
@@ -126,6 +127,43 @@ describe('EasCommand', () => {
       );
 
       expect(process.env.__EXPO_PARENT_COMMAND).toBe('expo run:ios');
+    });
+  });
+
+  describe('skipTelemetry', () => {
+    it('skips analytics, user lookup, and Sentry flushing when skipTelemetry is true', async () => {
+      const TestEasCommand = createTestEasCommand();
+      TestEasCommand.skipTelemetry = true;
+      const runAsyncSpy = jest.spyOn(TestEasCommand.prototype, 'runAsync');
+
+      await TestEasCommand.run([], mockConfig);
+
+      const { createAnalyticsAsync } = jest.requireMock('../../analytics/AnalyticsManager');
+      const SessionManager = jest.requireMock('../../user/SessionManager').default;
+      const Sentry = jest.requireMock('../../sentry').default;
+
+      expect(runAsyncSpy).toHaveBeenCalledWith(undefined);
+      expect(createAnalyticsAsync).not.toHaveBeenCalled();
+      expect(SessionManager.prototype.getUserAsync).not.toHaveBeenCalled();
+      expect(analytics.logEvent).not.toHaveBeenCalled();
+      expect(analytics.flushAsync).not.toHaveBeenCalled();
+      expect(Sentry.setUser).not.toHaveBeenCalled();
+      expect(Sentry.flush).not.toHaveBeenCalled();
+    });
+
+    it('skips Sentry error reporting when skipTelemetry is true and runAsync throws', async () => {
+      const TestEasCommand = createTestEasCommand();
+      TestEasCommand.skipTelemetry = true;
+      jest.spyOn(TestEasCommand.prototype, 'runAsync').mockRejectedValue(new Error('Boom'));
+
+      await expect(TestEasCommand.run([], mockConfig)).rejects.toThrow(
+        'testEasCommand command failed.'
+      );
+
+      const Sentry = jest.requireMock('../../sentry').default;
+      expect(Sentry.withScope).not.toHaveBeenCalled();
+      expect(Sentry.captureException).not.toHaveBeenCalled();
+      expect(Sentry.flush).not.toHaveBeenCalled();
     });
   });
 
