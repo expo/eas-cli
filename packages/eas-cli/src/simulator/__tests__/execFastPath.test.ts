@@ -20,6 +20,7 @@ jest.mock('../../log', () => ({
   __esModule: true,
   default: {
     errorToStderr: jest.fn(),
+    warn: jest.fn(),
   },
 }));
 
@@ -29,6 +30,8 @@ describe('execFastPath', () => {
   const originalSkipVersionCheck = process.env.EAS_SKIP_CLI_VERSION_CHECK;
   const originalNoVcs = process.env.EAS_NO_VCS;
   const originalProjectRoot = process.env.EAS_PROJECT_ROOT;
+  const originalGitDir = process.env.GIT_DIR;
+  const originalGitWorkTree = process.env.GIT_WORK_TREE;
 
   let tempRoot: string;
   let projectDir: string;
@@ -40,6 +43,8 @@ describe('execFastPath', () => {
     delete process.env.EAS_SKIP_CLI_VERSION_CHECK;
     delete process.env.EAS_NO_VCS;
     delete process.env.EAS_PROJECT_ROOT;
+    delete process.env.GIT_DIR;
+    delete process.env.GIT_WORK_TREE;
 
     tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-sim-exec-fast-path-'));
     projectDir = path.join(tempRoot, 'app');
@@ -71,6 +76,16 @@ describe('execFastPath', () => {
       delete process.env.EAS_PROJECT_ROOT;
     } else {
       process.env.EAS_PROJECT_ROOT = originalProjectRoot;
+    }
+    if (originalGitDir === undefined) {
+      delete process.env.GIT_DIR;
+    } else {
+      process.env.GIT_DIR = originalGitDir;
+    }
+    if (originalGitWorkTree === undefined) {
+      delete process.env.GIT_WORK_TREE;
+    } else {
+      process.env.GIT_WORK_TREE = originalGitWorkTree;
     }
     await fs.remove(tempRoot);
   });
@@ -165,6 +180,17 @@ describe('execFastPath', () => {
       );
     });
 
+    it('rejects nested EAS_PROJECT_ROOT overrides including names starting with ..', async () => {
+      const childDir = path.join(projectDir, '..automation');
+      await fs.ensureDir(childDir);
+      process.env.EAS_NO_VCS = '1';
+      process.env.EAS_PROJECT_ROOT = childDir;
+
+      await expect(resolveSimulatorExecProjectDirAsync(childDir)).rejects.toThrow(
+        `package.json is outside of the current git repository (project root: ${projectDir}, git root: ${childDir}.`
+      );
+    });
+
     it('allows a .git directory at the project root itself', async () => {
       await fs.ensureDir(path.join(projectDir, '.git'));
       const nestedDir = path.join(projectDir, 'src');
@@ -184,6 +210,21 @@ describe('execFastPath', () => {
 
       process.env.EAS_SKIP_CLI_VERSION_CHECK = '1';
       expect(await resolveSimulatorExecProjectDirAsync(projectDir)).toBe(projectDir);
+    });
+
+    it('rejects schema-invalid cli.version values and malformed eas.json even when version check is skipped', async () => {
+      await fs.writeJson(path.join(projectDir, 'eas.json'), {
+        cli: { version: 42 },
+      });
+
+      await expect(resolveSimulatorExecProjectDirAsync(projectDir)).rejects.toThrow(
+        '"cli.version" must be a string'
+      );
+
+      await fs.writeFile(path.join(projectDir, 'eas.json'), '{');
+      process.env.EAS_SKIP_CLI_VERSION_CHECK = '1';
+
+      await expect(resolveSimulatorExecProjectDirAsync(projectDir)).rejects.toThrow();
     });
 
     it('supports JSON5 eas.json files with comments for cli.version checks', async () => {
@@ -212,20 +253,28 @@ describe('execFastPath', () => {
       expect(loadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
       expect(observedParentCommand).toBe('eas simulator:exec');
       expect(process.env.__EXPO_PARENT_COMMAND).toBe('expo run:ios');
-      expect(spawnAsync).toHaveBeenCalledWith('agent-device', ['touch', '@e2'], {
-        stdio: 'inherit',
-        env: process.env,
-      });
+      expect(spawnAsync).toHaveBeenCalledWith(
+        'agent-device',
+        ['touch', '@e2'],
+        expect.objectContaining({
+          stdio: 'inherit',
+          env: process.env,
+        })
+      );
       expect(process.exitCode).toBeUndefined();
     });
 
     it('strips leading -- and passes --help through to the wrapped command', async () => {
       await runSimulatorExecFastPathAsync(['--', 'echo', '--help'], { cwd: projectDir });
 
-      expect(spawnAsync).toHaveBeenCalledWith('echo', ['--help'], {
-        stdio: 'inherit',
-        env: process.env,
-      });
+      expect(spawnAsync).toHaveBeenCalledWith(
+        'echo',
+        ['--help'],
+        expect.objectContaining({
+          stdio: 'inherit',
+          env: process.env,
+        })
+      );
       expect(process.exitCode).toBeUndefined();
     });
 
@@ -310,7 +359,68 @@ describe('execFastPath', () => {
       expect(process.exitCode).toBe(128 + os.constants.signals.SIGTERM);
     });
 
-    it('forwards SIGTERM to the spawned child and cleans up listeners afterward', async () => {
+    it('uses a detached child group and forwards SIGINT/SIGTERM/SIGHUP on non-TTY POSIX runs', async () => {
+      const kill = jest.fn();
+      const processKillSpy = jest.spyOn(process, 'kill').mockImplementation(() => true);
+      let rejectChild!: (err: Error) => void;
+      let resolveSpawnStarted!: () => void;
+      const spawnStarted = new Promise<void>(resolve => {
+        resolveSpawnStarted = resolve;
+      });
+      const childPromise = Object.assign(
+        new Promise<never>((_, reject) => {
+          rejectChild = reject;
+        }),
+        { child: { pid: 54321, kill } }
+      );
+      jest.mocked(spawnAsync).mockImplementation(() => {
+        resolveSpawnStarted();
+        return childPromise as never;
+      });
+
+      const sigtermListenersBefore = process.listenerCount('SIGTERM');
+      const sigintListenersBefore = process.listenerCount('SIGINT');
+      const runPromise = runSimulatorExecFastPathAsync(['sleep', '10'], {
+        cwd: projectDir,
+        isTTY: false,
+      });
+
+      try {
+        await spawnStarted;
+
+        if (process.platform !== 'win32') {
+          expect(spawnAsync).toHaveBeenCalledWith(
+            'sleep',
+            ['10'],
+            expect.objectContaining({ detached: true })
+          );
+          expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore + 1);
+          expect(process.listenerCount('SIGTERM')).toBe(sigtermListenersBefore + 1);
+
+          process.emit('SIGINT', 'SIGINT');
+          expect(processKillSpy).toHaveBeenCalledWith(-54321, 'SIGINT');
+
+          process.emit('SIGTERM', 'SIGTERM');
+          expect(processKillSpy).toHaveBeenCalledWith(-54321, 'SIGTERM');
+        }
+
+        rejectChild(
+          Object.assign(new Error('sleep 10 exited with signal: SIGTERM'), {
+            status: null,
+            signal: 'SIGTERM',
+          })
+        );
+        await runPromise;
+
+        expect(process.listenerCount('SIGTERM')).toBe(sigtermListenersBefore);
+        expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore);
+        expect(process.exitCode).toBe(128 + os.constants.signals.SIGTERM);
+      } finally {
+        processKillSpy.mockRestore();
+      }
+    });
+
+    it('keeps child attached and avoids forwarding SIGINT on interactive TTYs', async () => {
       const kill = jest.fn();
       let rejectChild!: (err: Error) => void;
       let resolveSpawnStarted!: () => void;
@@ -321,37 +431,40 @@ describe('execFastPath', () => {
         new Promise<never>((_, reject) => {
           rejectChild = reject;
         }),
-        { child: { kill } }
+        { child: { pid: 54321, kill } }
       );
       jest.mocked(spawnAsync).mockImplementation(() => {
         resolveSpawnStarted();
         return childPromise as never;
       });
 
-      const sigtermListenersBefore = process.listenerCount('SIGTERM');
       const sigintListenersBefore = process.listenerCount('SIGINT');
-      const runPromise = runSimulatorExecFastPathAsync(['sleep', '10'], { cwd: projectDir });
+      const runPromise = runSimulatorExecFastPathAsync(['sleep', '10'], {
+        cwd: projectDir,
+        isTTY: true,
+      });
 
       await spawnStarted;
 
-      // SIGINT should not be forwarded (avoids duplicate Ctrl+C interrupts to the child).
+      expect(spawnAsync).toHaveBeenCalledWith('sleep', ['10'], {
+        stdio: 'inherit',
+        env: process.env,
+      });
+      expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore + 1);
+
       process.emit('SIGINT', 'SIGINT');
       expect(kill).not.toHaveBeenCalled();
 
-      process.emit('SIGTERM', 'SIGTERM');
-      expect(kill).toHaveBeenCalledWith('SIGTERM');
-
       rejectChild(
-        Object.assign(new Error('sleep 10 exited with signal: SIGTERM'), {
+        Object.assign(new Error('sleep 10 exited with signal: SIGINT'), {
           status: null,
-          signal: 'SIGTERM',
+          signal: 'SIGINT',
         })
       );
       await runPromise;
 
-      expect(process.listenerCount('SIGTERM')).toBe(sigtermListenersBefore);
       expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore);
-      expect(process.exitCode).toBe(128 + os.constants.signals.SIGTERM);
+      expect(process.exitCode).toBe(128 + os.constants.signals.SIGINT);
     });
   });
 });

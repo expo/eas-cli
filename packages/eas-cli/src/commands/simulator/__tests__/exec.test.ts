@@ -52,10 +52,14 @@ describe(SimulatorExec, () => {
     expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
       force: true,
     });
-    expect(spawnAsync).toHaveBeenCalledWith('agent-device', ['touch', '@e2'], {
-      stdio: 'inherit',
-      env: process.env,
-    });
+    expect(spawnAsync).toHaveBeenCalledWith(
+      'agent-device',
+      ['touch', '@e2'],
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: process.env,
+      })
+    );
   });
 
   it('passes through command flags as args', async () => {
@@ -72,10 +76,10 @@ describe(SimulatorExec, () => {
     expect(spawnAsync).toHaveBeenCalledWith(
       'agent-device',
       ['screenshot', '/test/path.png', '--format', 'png'],
-      {
+      expect.objectContaining({
         stdio: 'inherit',
         env: process.env,
-      }
+      })
     );
   });
 
@@ -128,10 +132,14 @@ describe(SimulatorExec, () => {
 
     await command.runAsync();
 
-    expect(spawnAsync).toHaveBeenCalledWith('agent-device', ['--help'], {
-      stdio: 'inherit',
-      env: process.env,
-    });
+    expect(spawnAsync).toHaveBeenCalledWith(
+      'agent-device',
+      ['--help'],
+      expect.objectContaining({
+        stdio: 'inherit',
+        env: process.env,
+      })
+    );
   });
 
   it('loads simulator-specific env after regular env files', async () => {

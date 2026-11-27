@@ -13,12 +13,7 @@ import { markAsParentCommand } from '../analytics/parentCommand';
 import Log from '../log';
 import { easCliVersion } from '../utils/easCli';
 
-// Forward termination signals that target the wrapper PID directly (e.g. agent timeouts).
-// SIGINT is handled separately without forwarding: on interactive terminals, Ctrl+C already
-// delivers SIGINT to the foreground process group (including the child), so forwarding it
-// would send a duplicate SIGINT and abort child cleanup.
-const FORWARDED_SIGNALS: NodeJS.Signals[] =
-  process.platform === 'win32' ? ['SIGTERM'] : ['SIGTERM', 'SIGHUP'];
+const NON_TTY_FORWARDED_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
 function hasHelpFlag(args: string[]): boolean {
   for (const arg of args) {
@@ -43,6 +38,16 @@ export function parseSimulatorExecArgv(rawArgv: string[]): { command: string; ar
     throw new Error('No command provided. Run `eas simulator:exec <command> [args...]`.');
   }
   return { command, args };
+}
+
+function isStrictDescendant(parentDir: string, candidateDir: string): boolean {
+  const relative = path.relative(path.resolve(parentDir), path.resolve(candidateDir));
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
 }
 
 async function findNestedGitRootAsync(
@@ -80,18 +85,25 @@ async function readCliVersionConstraintAsync(projectDir: string): Promise<string
 
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && typeof parsed.cli?.version === 'string') {
-      return parsed.cli.version;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      (parsed.cli === undefined ||
+        (typeof parsed.cli === 'object' &&
+          parsed.cli !== null &&
+          !Array.isArray(parsed.cli) &&
+          (parsed.cli.version === undefined || typeof parsed.cli.version === 'string')))
+    ) {
+      return parsed.cli?.version;
     }
-    return undefined;
   } catch {
-    // Fall back to @expo/eas-json for JSON5 comments, trailing commas, or schema diagnostics.
-    const { EasJsonAccessor, EasJsonUtils } = await import('@expo/eas-json');
-    const config = await EasJsonUtils.getCliConfigAsync(
-      EasJsonAccessor.fromProjectPath(projectDir)
-    );
-    return config?.version;
+    // Fall through to @expo/eas-json for JSON5 comments, trailing commas, or parse errors.
   }
+
+  const { EasJsonAccessor, EasJsonUtils } = await import('@expo/eas-json');
+  const config = await EasJsonUtils.getCliConfigAsync(EasJsonAccessor.fromProjectPath(projectDir));
+  return config?.version;
 }
 
 export async function resolveSimulatorExecProjectDirAsync(cwd?: string): Promise<string> {
@@ -101,19 +113,17 @@ export async function resolveSimulatorExecProjectDirAsync(cwd?: string): Promise
   }
 
   const effectiveCwd = cwd ?? process.cwd();
-  const hasAbsoluteNoVcsRoot =
-    Boolean(process.env.EAS_NO_VCS) &&
-    Boolean(process.env.EAS_PROJECT_ROOT) &&
-    path.isAbsolute(process.env.EAS_PROJECT_ROOT!);
+  const hasVcsEnvOverride = Boolean(
+    process.env.EAS_NO_VCS || process.env.GIT_DIR || process.env.GIT_WORK_TREE
+  );
 
-  if (hasAbsoluteNoVcsRoot) {
-    const vcsRoot = path.normalize(process.env.EAS_PROJECT_ROOT!);
-    const relativeToProject = path.relative(projectDir, vcsRoot);
-    if (
-      relativeToProject !== '' &&
-      !relativeToProject.startsWith('..') &&
-      !path.isAbsolute(relativeToProject)
-    ) {
+  if (hasVcsEnvOverride) {
+    const { resolveVcsClient } = await import('../vcs');
+    let vcsRoot: string | undefined;
+    try {
+      vcsRoot = path.normalize(await resolveVcsClient().getRootPathAsync());
+    } catch {}
+    if (vcsRoot && isStrictDescendant(projectDir, vcsRoot)) {
       throw new Error(
         `package.json is outside of the current git repository (project root: ${projectDir}, git root: ${vcsRoot}.`
       );
@@ -127,16 +137,14 @@ export async function resolveSimulatorExecProjectDirAsync(cwd?: string): Promise
     }
   }
 
+  const cliVersion = await readCliVersionConstraintAsync(projectDir);
   const shouldSkipVersionCheck = getenv.boolish('EAS_SKIP_CLI_VERSION_CHECK', false);
-  if (!shouldSkipVersionCheck) {
-    const cliVersion = await readCliVersionConstraintAsync(projectDir);
-    if (cliVersion && !semver.satisfies(easCliVersion, cliVersion)) {
-      throw new Error(
-        `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${cliVersion}).\n\nThis error probably means that you need update your eas-cli to a newer version.\nRun ${chalk.bold(
-          'npm install -g eas-cli'
-        )} to update the eas-cli to the latest version.`
-      );
-    }
+  if (!shouldSkipVersionCheck && cliVersion && !semver.satisfies(easCliVersion, cliVersion)) {
+    throw new Error(
+      `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${cliVersion}).\n\nThis error probably means that you need update your eas-cli to a newer version.\nRun ${chalk.bold(
+        'npm install -g eas-cli'
+      )} to update the eas-cli to the latest version.`
+    );
   }
 
   return projectDir;
@@ -147,29 +155,57 @@ function getExitCodeForSignal(signal: string): number {
   return typeof signalNumber === 'number' ? 128 + signalNumber : 1;
 }
 
+function forwardSignalToChild(
+  child: { pid?: number; kill: (signal?: NodeJS.Signals | number) => boolean } | undefined,
+  signal: NodeJS.Signals,
+  isDetachedGroup: boolean
+): void {
+  if (!child) {
+    return;
+  }
+  if (isDetachedGroup && typeof child.pid === 'number' && child.pid > 0) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {}
+  }
+  try {
+    child.kill(signal);
+  } catch {}
+}
+
 export async function spawnSimulatorExecCommandAsync(
   command: string,
-  args: string[]
+  args: string[],
+  { isTTY = Boolean(process.stdin.isTTY) }: { isTTY?: boolean } = {}
 ): Promise<void> {
+  // On non-interactive POSIX runs (CI, agent tools), place the child in its own process group
+  // so signals sent to either the wrapper PID or the wrapper's process group hit the wrapper
+  // once and are forwarded once to the child's process group (preventing both lost PID-targeted
+  // SIGINTs and duplicate group SIGTERM/SIGHUPs). On interactive TTYs, keep the child attached
+  // to the foreground process group so stdin and Ctrl+C work naturally without duplicate SIGINTs.
+  const useDetachedChildGroup = process.platform !== 'win32' && !isTTY;
+
   const childPromise = spawnAsync(command, args, {
     stdio: 'inherit',
     env: process.env,
+    ...(useDetachedChildGroup ? { detached: true } : {}),
   });
 
   const signalHandlers = new Map<NodeJS.Signals, () => void>();
-  // Keep the wrapper alive on SIGINT so the child can finish its own interrupt cleanup.
-  const ignoreSigint = (): void => {};
-  signalHandlers.set('SIGINT', ignoreSigint);
-  process.on('SIGINT', ignoreSigint);
-
-  for (const signal of FORWARDED_SIGNALS) {
-    const handler = (): void => {
-      try {
-        childPromise.child?.kill(signal);
-      } catch {}
-    };
-    signalHandlers.set(signal, handler);
-    process.on(signal, handler);
+  if (useDetachedChildGroup) {
+    for (const signal of NON_TTY_FORWARDED_SIGNALS) {
+      const handler = (): void => {
+        forwardSignalToChild(childPromise.child, signal, true);
+      };
+      signalHandlers.set(signal, handler);
+      process.on(signal, handler);
+    }
+  } else {
+    // Keep the wrapper alive on SIGINT so the attached foreground child can finish cleanup.
+    const ignoreSigint = (): void => {};
+    signalHandlers.set('SIGINT', ignoreSigint);
+    process.on('SIGINT', ignoreSigint);
   }
 
   try {
@@ -192,7 +228,7 @@ export async function spawnSimulatorExecCommandAsync(
 
 export async function runSimulatorExecFastPathAsync(
   rawArgv: string[],
-  { cwd }: { cwd?: string } = {}
+  { cwd, isTTY }: { cwd?: string; isTTY?: boolean } = {}
 ): Promise<void> {
   let command: string;
   let args: string[];
@@ -208,7 +244,7 @@ export async function runSimulatorExecFastPathAsync(
 
   const { restoreParentCommand } = markAsParentCommand('eas simulator:exec');
   try {
-    await spawnSimulatorExecCommandAsync(command, args);
+    await spawnSimulatorExecCommandAsync(command, args, { isTTY });
   } finally {
     restoreParentCommand();
   }
