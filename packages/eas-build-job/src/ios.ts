@@ -17,6 +17,8 @@ import {
   HooksSchema,
   JobOutputs,
   JobOutputsSchema,
+  NativeBuilder,
+  NativeJobForbiddenKeys,
   Platform,
   SshSettings,
   SshSettingsSchema,
@@ -87,6 +89,7 @@ export interface BuildSecrets {
 
 export interface Job {
   mode: BuildMode;
+  builder?: NativeBuilder.XCODE;
   type: Workflow;
   triggeredBy: BuildTrigger;
   projectArchive: ArchiveSource;
@@ -104,6 +107,10 @@ export interface Job {
   cache?: Cache;
   developmentClient?: boolean;
   simulator?: boolean;
+  appIdentifier?: string;
+  distribution?: 'store' | 'internal';
+  enterpriseProvisioning?: 'adhoc' | 'universal';
+  autoIncrement?: boolean;
   version?: {
     buildNumber?: string;
     /**
@@ -119,6 +126,8 @@ export interface Job {
 
   scheme?: string;
   buildConfiguration?: string;
+  projectDirectory?: string;
+  projectFile?: string;
   applicationArchivePath?: string;
 
   username?: string;
@@ -158,7 +167,7 @@ const SecretsSchema = Joi.object({
   robotAccessToken: Joi.string(),
 });
 
-export const JobSchema = Joi.object({
+const BaseJobSchema = Joi.object({
   mode: Joi.string()
     .valid(...Object.values(BuildMode))
     .default(BuildMode.BUILD),
@@ -242,4 +251,40 @@ export const JobSchema = Joi.object({
   workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)
   ),
-}).concat(CustomBuildConfigSchema);
+});
+
+const NonNativeJobSchema = BaseJobSchema.concat(CustomBuildConfigSchema);
+
+const NativeJobSchema = BaseJobSchema.keys({
+  ...NativeJobForbiddenKeys,
+  resign: Joi.forbidden(),
+  refreshAdHocProvisioningProfile: Joi.forbidden(),
+  mode: Joi.string().valid(BuildMode.BUILD).default(BuildMode.BUILD),
+  type: Joi.string().valid(Workflow.GENERIC).required(),
+  builder: Joi.string().valid(NativeBuilder.XCODE).required(),
+  secrets: SecretsSchema.keys({ buildCredentials: Joi.forbidden() }).required(),
+  projectDirectory: Joi.string(),
+  projectFile: Joi.string(),
+  appIdentifier: Joi.when('simulator', {
+    is: true,
+    then: Joi.string(),
+    otherwise: Joi.string().required(),
+  }),
+  distribution: Joi.when('simulator', {
+    is: true,
+    then: Joi.forbidden(),
+    otherwise: Joi.string().valid('store', 'internal').required(),
+  }),
+  enterpriseProvisioning: Joi.when('distribution', {
+    is: 'internal',
+    then: Joi.string().valid('adhoc', 'universal'),
+    otherwise: Joi.forbidden(),
+  }),
+  autoIncrement: Joi.boolean(),
+}).fork('simulator', schema => schema.required());
+
+export const JobSchema = Joi.object().when('.builder', {
+  is: Joi.exist(),
+  then: NativeJobSchema,
+  otherwise: NonNativeJobSchema,
+});
