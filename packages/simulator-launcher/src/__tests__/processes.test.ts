@@ -418,6 +418,7 @@ test('serve-sim leads its own process group', () => {
   const { startServeSim } = require('../utils/serveSim');
   jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
   jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
   startServeSim(['PHONE'], new AbortController().signal);
@@ -654,6 +655,7 @@ test('rejects a process-group ID that does not belong to its owned child before 
 test('closes the private log descriptor when service spawn fails', () => {
   jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
   jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
   const close = jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
   jest.mocked(spawn).mockImplementationOnce(() => {
@@ -662,5 +664,20 @@ test('closes the private log descriptor when service spawn fails', () => {
   expect(() => commands.start('service', [], { logPath: '/logs/service.log' })).toThrow(
     'spawn failed'
   );
+  expect(close).toHaveBeenCalledWith(80);
+});
+
+test('opens private service logs without blocking and rejects non-regular files', () => {
+  jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+  const open = jest.spyOn(fs, 'openSync').mockReturnValue(80);
+  jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => false } as fs.Stats);
+  const chmod = jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
+  const close = jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
+
+  expect(() => commands.start('service', [], { logPath: '/logs/service.log' })).toThrow(
+    'The private service log is not a regular file.'
+  );
+  expect(Number(open.mock.calls[0][1]) & fs.constants.O_NONBLOCK).toBe(fs.constants.O_NONBLOCK);
+  expect(chmod).not.toHaveBeenCalled();
   expect(close).toHaveBeenCalledWith(80);
 });
