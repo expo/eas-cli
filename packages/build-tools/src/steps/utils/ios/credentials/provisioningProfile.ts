@@ -126,27 +126,27 @@ export default class ProvisioningProfile {
       name: plistData.Name as string,
       developerCertificate: this.developerCertificates[0],
       certificateCommonName: this.certificateCommonName,
-      distributionType: this.resolveDistributionType(plistData),
+      distributionType: resolveDistributionType(plistData),
     };
-  }
-
-  private resolveDistributionType(plistData: plist.PlistObject): DistributionType {
-    if (plistData.ProvisionsAllDevices) {
-      return DistributionType.ENTERPRISE;
-    } else if (plistData.ProvisionedDevices) {
-      const entitlements = plistData.Entitlements as plist.PlistObject | undefined;
-      if (entitlements?.['get-task-allow']) {
-        return DistributionType.DEVELOPMENT;
-      }
-      return DistributionType.AD_HOC;
-    } else {
-      return DistributionType.APP_STORE;
-    }
   }
 
   private getAllDerCertFingerprints(): string[] {
     return this.developerCertificates.map(cert =>
       crypto.createHash('sha1').update(new Uint8Array(cert)).digest('hex').toUpperCase()
     );
+  }
+}
+
+export function resolveDistributionType(plistData: plist.PlistObject): DistributionType {
+  if (plistData.ProvisionsAllDevices) {
+    return DistributionType.ENTERPRISE;
+  } else if (plistData.ProvisionedDevices) {
+    const entitlements = plistData.Entitlements as plist.PlistObject | undefined;
+    if (entitlements?.['get-task-allow']) {
+      return DistributionType.DEVELOPMENT;
+    }
+    return DistributionType.AD_HOC;
+  } else {
+    return DistributionType.APP_STORE;
   }
 }
