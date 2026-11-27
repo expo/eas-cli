@@ -222,6 +222,36 @@ describe(runAgentAsync, () => {
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
   });
 
+  it.each([
+    ['the requested model', { model: 'claude-opus-4-5' }, ['--model=claude-opus-4-5']],
+    ['the requested effort level', { effort: 'high' }, ['--effort=high']],
+    [
+      'the requested model and effort level',
+      { model: 'claude-opus-4-5', effort: 'high' },
+      ['--model=claude-opus-4-5', '--effort=high'],
+    ],
+    [
+      'a model and effort level that start with a hyphen',
+      { model: '--continue', effort: '-p' },
+      ['--model=--continue', '--effort=-p'],
+    ],
+  ])('runs Claude Code with %s, also when it resumes', async (_name, options, flags) => {
+    leaseMock
+      .mockResolvedValueOnce(anthropicLease)
+      .mockResolvedValueOnce({ ...anthropicLease, accessToken: 'renewed-access-token' });
+    const invocations = mockSpawn({
+      onAgent: agent => agent.exit(invocations.length === 1 ? 1 : 0),
+    });
+
+    await runAgentAsync(createOptions(options));
+
+    expect(invocations).toHaveLength(2);
+    const [first, resumed] = invocations;
+    expect(first.args.slice(-flags.length)).toEqual(flags);
+    expect(resumed.args).toContain('--continue');
+    expect(resumed.args.slice(-flags.length)).toEqual(flags);
+  });
+
   it('writes the agent output as log lines', async () => {
     leaseMock.mockResolvedValue(anthropicLease);
     const logger = createMockLogger();
@@ -393,6 +423,46 @@ describe(runAgentAsync, () => {
       LANG: 'C.UTF-8',
     });
     expect(agent.stdin).toHaveBeenCalledWith('Fix the failing test.');
+  });
+
+  it.each([
+    ['the requested model', { model: 'gpt-5.1-codex' }, ['model = "gpt-5.1-codex"']],
+    [
+      'a model name that is escaped so that it cannot add settings',
+      { model: 'gpt"\nshell_tool = true\n[features]' },
+      ['model = "gpt\\"\\nshell_tool = true\\n[features]"'],
+    ],
+    ['the requested effort level', { effort: 'high' }, ['model_reasoning_effort = "high"']],
+    [
+      'an effort level that is escaped so that it cannot add settings',
+      { effort: 'high"\nshell_tool = true' },
+      ['model_reasoning_effort = "high\\"\\nshell_tool = true"'],
+    ],
+    [
+      'the requested model and effort level',
+      { model: 'gpt-5.1-codex', effort: 'xhigh' },
+      ['model = "gpt-5.1-codex"', 'model_reasoning_effort = "xhigh"'],
+    ],
+    ['its default model and effort level when none are requested', {}, []],
+  ])('runs Codex with %s, also when it resumes', async (_name, options, modelSettings) => {
+    leaseMock
+      .mockResolvedValueOnce(openaiLease)
+      .mockResolvedValueOnce({ ...openaiLease, accessToken: 'renewed-access-token' });
+    const invocations = mockSpawn({
+      onAgent: agent => {
+        const config = agent.readHomeFile('.codex/config.toml').content;
+        const rootSettings = config.slice(0, config.indexOf('\n['));
+        expect(rootSettings.split('\n').filter(line => line.startsWith('model'))).toEqual(
+          modelSettings
+        );
+        agent.exit(invocations.length === 1 ? 1 : 0);
+      },
+    });
+
+    await runAgentAsync(createOptions({ agentKind: 'codex', ...options }));
+
+    expect(invocations).toHaveLength(2);
+    expect(invocations[1].args).toContain('resume');
   });
 
   it('escalates to SIGKILL when the agent ignores the stop', async () => {

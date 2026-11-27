@@ -28,6 +28,8 @@ export async function prepareCodexAsync({
   minimalEnv,
   mcpServer,
   prompt,
+  model,
+  effort,
   credentials,
   isResuming,
 }: {
@@ -35,6 +37,8 @@ export async function prepareCodexAsync({
   minimalEnv: Record<string, string>;
   mcpServer: McpServer;
   prompt: string;
+  model: string | undefined;
+  effort: string | undefined;
   credentials: AgentRunProviderCredentials;
   isResuming: boolean;
 }): Promise<AgentInvocation> {
@@ -51,6 +55,8 @@ export async function prepareCodexAsync({
       'sandbox_mode = "read-only"',
       'web_search = "disabled"',
       'check_for_update_on_startup = false',
+      ...(model ? [`model = ${JSON.stringify(model)}`] : []),
+      ...(effort ? [`model_reasoning_effort = ${JSON.stringify(effort)}`] : []),
       '',
       '[features]',
       'shell_tool = false',

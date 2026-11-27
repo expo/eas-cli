@@ -38,6 +38,16 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'model',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'effort',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     fn: async (stepCtx, { inputs, env, signal }) => {
       const inputErrors = {
@@ -45,6 +55,8 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         agentRunId: `The "agent_run_id" input must be the UUID of an agent run, but received "${String(inputs.agent_run_id.value)}".`,
         maxDurationSeconds: `The "max_duration_seconds" input must be a positive whole number of seconds, but received "${String(inputs.max_duration_seconds.value)}".`,
         prompt: 'The "prompt" input must be a non-empty string.',
+        model: `The "model" input must be a non-empty model name, but received "${String(inputs.model.value)}".`,
+        effort: `The "effort" input must be a non-empty effort level, but received "${String(inputs.effort.value)}".`,
       };
       const parsedInputs = z
         .object({
@@ -55,12 +67,22 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
             .int({ error: inputErrors.maxDurationSeconds })
             .positive({ error: inputErrors.maxDurationSeconds }),
           prompt: z.string({ error: inputErrors.prompt }).min(1, { error: inputErrors.prompt }),
+          model: z
+            .string({ error: inputErrors.model })
+            .min(1, { error: inputErrors.model })
+            .optional(),
+          effort: z
+            .string({ error: inputErrors.effort })
+            .min(1, { error: inputErrors.effort })
+            .optional(),
         })
         .safeParse({
           agent_kind: inputs.agent_kind.value,
           agent_run_id: inputs.agent_run_id.value,
           max_duration_seconds: inputs.max_duration_seconds.value,
           prompt: inputs.prompt.value,
+          model: inputs.model.value,
+          effort: inputs.effort.value,
         });
       if (!parsedInputs.success) {
         throw createValidationError(parsedInputs.error);
@@ -70,6 +92,8 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         agent_run_id: agentRunId,
         max_duration_seconds: maxDurationSeconds,
         prompt,
+        model,
+        effort,
       } = parsedInputs.data;
       const parsedEnv = z
         .object({
@@ -117,6 +141,8 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
           agentKind,
           agentRunId,
           prompt,
+          model,
+          effort,
           expoToken,
           expoApiV2BaseUrl: ctx.expoApiV2BaseUrl,
           mcpUrl: mcpUrl.toString(),
