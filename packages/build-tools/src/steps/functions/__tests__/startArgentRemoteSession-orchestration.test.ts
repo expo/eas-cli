@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import { BuildRuntimePlatform, type BuildStepContext } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
@@ -31,8 +32,13 @@ import {
 import { type WarmIosSession } from '../../utils/warmIosSession';
 import { watchDeviceRunSessionStartup } from '../../utils/deviceRunSessionStartup';
 import { createStartupWatchMock } from '../../../__tests__/utils/startupWatch';
-import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
+import {
+  createStartArgentRemoteSessionBuildFunction,
+  installArgentAsync,
+} from '../startArgentRemoteSession';
+import { PackageManager } from '../../../utils/packageManager';
 import { readIosApplicationIdentifierAsync } from '../../utils/iosAppArtifact';
+import { resolveLocalEgressServeSimBootEnvironmentAsync } from '../../utils/localEgressGuard';
 
 jest.mock('../../utils/endDeviceApps');
 // Redirect ~/.argent (where the tool-server writes its state file and event log) to a temp
@@ -69,10 +75,12 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
     getAvailableDevicesAsync: jest
       .fn()
       .mockResolvedValue([{ name: 'iPhone 17', udid: 'selected-ios-udid' }]),
+    getDeviceAsync: jest.fn().mockResolvedValue({ state: 'Shutdown' }),
   },
 }));
 jest.mock('../../utils/localEgressGuard', () => ({
   resolveLocalEgressServeSimBootEnvironmentAsync: jest.fn().mockResolvedValue(null),
+  startLocalEgressGuardRelayAsync: jest.fn(),
 }));
 
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
@@ -1462,6 +1470,249 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     } finally {
       release();
       await running;
+    }
+  });
+
+  it('inserts the Argent bootstrap at boot and runs Argent from that install for local egress', async () => {
+    const guardPath = '/w/bin/egress-guard.dylib';
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockImplementationOnce(async options => {
+        const libraries = (await options?.resolveAdditionalLibrariesAsync?.()) ?? [];
+        return { SERVE_SIM_ADDITIONAL_DYLIBS: [guardPath, ...libraries].join(':') };
+      });
+    let installDir: string | undefined;
+    jest.mocked(spawn).mockImplementation((async (
+      command: string,
+      args: string[],
+      options: { cwd?: string }
+    ) => {
+      if (command === 'bun' && args[0] === 'add') {
+        installDir = options.cwd!;
+        const modules = path.join(installDir, 'node_modules');
+        const dylibs = path.join(modules, '@swmansion', 'argent', 'dylibs');
+        await fs.promises.mkdir(path.join(modules, '.bin'), { recursive: true });
+        await fs.promises.mkdir(dylibs, { recursive: true });
+        await fs.promises.writeFile(path.join(modules, '.bin', 'argent'), '');
+        await fs.promises.writeFile(path.join(dylibs, 'libArgentInjectionBootstrap.dylib'), '');
+      }
+    }) as never);
+    try {
+      await createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: '0.34.0' },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      );
+
+      expect(spawn).toHaveBeenCalledWith(
+        'bun',
+        ['add', '@swmansion/argent@0.34.0'],
+        expect.objectContaining({ cwd: installDir })
+      );
+      const argentBin = path.join(installDir!, 'node_modules', '.bin', 'argent');
+      const bootstrap = path.join(
+        installDir!,
+        'node_modules',
+        '@swmansion',
+        'argent',
+        'dylibs',
+        'libArgentInjectionBootstrap.dylib'
+      );
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: `${guardPath}:${bootstrap}` },
+        })
+      );
+      expect(spawn).toHaveBeenCalledWith(
+        argentBin,
+        ['enable', 'artifacts-list-endpoint'],
+        expect.anything()
+      );
+      expect(spawnDetached).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: argentBin,
+          args: ['server', 'start', '--port', '0', '--idle-timeout', '0', '--force'],
+        })
+      );
+      expect(
+        jest.mocked(spawn).mock.calls.filter(([command]) => command === 'bun' || command === 'npx')
+      ).toHaveLength(1);
+    } finally {
+      if (installDir) {
+        await fs.promises.rm(installDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('reports Stop, not the killed install, when the session stops during the Argent install', async () => {
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockImplementationOnce(async options => {
+        await options?.resolveAdditionalLibrariesAsync?.();
+        return { SERVE_SIM_ADDITIONAL_DYLIBS: '/w/bin/egress-guard.dylib' };
+      });
+    let installDir: string | undefined;
+    let rejectInstall!: (error: Error) => void;
+    jest.mocked(spawn).mockImplementationOnce(((
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd;
+      return Object.assign(
+        new Promise<never>((_resolve, reject) => {
+          rejectInstall = reject;
+        }),
+        { child: { pid: 12345 } }
+      );
+    }) as never);
+    jest
+      .mocked(killProcessGroup)
+      .mockImplementationOnce(() => rejectInstall(new Error('exited with signal: SIGKILL')));
+    const running = Promise.resolve(
+      createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        {
+          logger: { info: jest.fn(), warn: jest.fn() },
+          global: { runtimePlatform: BuildRuntimePlatform.DARWIN },
+        } as unknown as BuildStepContext,
+        {
+          inputs: {
+            package_version: { value: undefined },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      )
+    );
+    running.catch(() => {});
+    for (let i = 0; i < 20 && !installDir; i++) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    expect(spawn).toHaveBeenCalledWith('bun', ['add', '@swmansion/argent@latest'], expect.anything());
+    jest.mocked(watchDeviceRunSessionStartup).mock.results[0].value.stop();
+    await expect(running).resolves.toBeUndefined();
+    expect(killProcessGroup).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(installDir!)).toBe(false);
+    expect(startDeviceSessionHostAsync).not.toHaveBeenCalled();
+    expect(spawnDetached).not.toHaveBeenCalled();
+  });
+
+  it('removes a failed Argent install and reports it as a SystemError', async () => {
+    let installDir: string | undefined;
+    const failure = new Error('exited with code 23');
+    jest.mocked(spawn).mockImplementationOnce((async (
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd;
+      throw failure;
+    }) as never);
+    const error = await installArgentAsync({
+      packageSpec: '@swmansion/argent@0.34.0',
+      packageManager: PackageManager.BUN,
+      env: {},
+      logger: { info: jest.fn() } as never,
+    }).catch(err => err);
+    expect(error).toBeInstanceOf(SystemError);
+    expect(error.message).toBe(
+      'Could not install @swmansion/argent@0.34.0 with bun: exited with code 23'
+    );
+    expect(error.cause).toBe(failure);
+    expect(fs.existsSync(installDir!)).toBe(false);
+  });
+
+  it('keeps the guard-only boot list and warns when Argent has no bootstrap library', async () => {
+    const guardPath = '/w/bin/egress-guard.dylib';
+    jest
+      .mocked(resolveLocalEgressServeSimBootEnvironmentAsync)
+      .mockImplementationOnce(async options => {
+        const libraries = (await options?.resolveAdditionalLibrariesAsync?.()) ?? [];
+        return { SERVE_SIM_ADDITIONAL_DYLIBS: [guardPath, ...libraries].join(':') };
+      });
+    let installDir: string | undefined;
+    jest.mocked(spawn).mockImplementationOnce((async (
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd!;
+      await fs.promises.mkdir(path.join(installDir, 'node_modules', '.bin'), { recursive: true });
+      await fs.promises.writeFile(path.join(installDir, 'node_modules', '.bin', 'argent'), '');
+    }) as never);
+    const logger = { info: jest.fn(), warn: jest.fn(), child: jest.fn().mockReturnThis() };
+    try {
+      await createStartArgentRemoteSessionBuildFunction({} as CustomBuildContext).fn!(
+        { logger, global: { runtimePlatform: BuildRuntimePlatform.DARWIN } } as never,
+        {
+          inputs: {
+            package_version: { value: '0.34.0' },
+            max_idle_time_minutes: { value: undefined },
+            boot_simulator: { value: true },
+          },
+          outputs: {},
+          env: {},
+        } as never
+      );
+      expect(startDeviceSessionHostAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ bootEnv: { SERVE_SIM_ADDITIONAL_DYLIBS: guardPath } })
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('has no native devtools bootstrap library')
+      );
+      expect(spawnDetached).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: path.join(installDir!, 'node_modules', '.bin', 'argent'),
+        })
+      );
+    } finally {
+      await fs.promises.rm(installDir!, { recursive: true, force: true });
+    }
+  });
+
+  it('installs Argent with a node_modules layout when Yarn is configured', async () => {
+    let installDir: string | undefined;
+    jest.mocked(spawn).mockImplementationOnce((async (
+      _command: string,
+      _args: string[],
+      options: { cwd?: string }
+    ) => {
+      installDir = options.cwd!;
+      await fs.promises.mkdir(path.join(installDir, 'node_modules', '.bin'), { recursive: true });
+      await fs.promises.writeFile(path.join(installDir, 'node_modules', '.bin', 'argent'), '');
+    }) as never);
+    try {
+      const install = await installArgentAsync({
+        packageSpec: '@swmansion/argent@0.34.0',
+        packageManager: PackageManager.YARN,
+        env: { PATH: '/usr/bin' },
+        logger: { info: jest.fn() } as never,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'yarn',
+        ['add', '@swmansion/argent@0.34.0'],
+        expect.objectContaining({ env: { PATH: '/usr/bin', YARN_NODE_LINKER: 'node-modules' } })
+      );
+      expect(install).toEqual({
+        binPath: path.join(installDir!, 'node_modules', '.bin', 'argent'),
+        bootstrapPath: undefined,
+      });
+    } finally {
+      await fs.promises.rm(installDir!, { recursive: true, force: true });
     }
   });
 });

@@ -515,13 +515,29 @@ describe(resolveLocalEgressServeSimBootEnvironmentAsync, () => {
   });
 
   it('does not require the guard or check for an ordinary session', async () => {
+    const resolveAdditionalLibrariesAsync = jest.fn();
     await expect(
       resolveLocalEgressServeSimBootEnvironmentAsync({
         handoffPath,
         libraryPath: null,
         checkPath: null,
+        resolveAdditionalLibrariesAsync,
       })
     ).resolves.toBeNull();
+    expect(resolveAdditionalLibrariesAsync).not.toHaveBeenCalled();
+  });
+
+  it('inserts additional libraries after the guard', async () => {
+    await writeLocalEgressHandoffAsync(handoff, handoffPath);
+    const bootEnv = await resolveLocalEgressServeSimBootEnvironmentAsync({
+      handoffPath,
+      libraryPath: '/w/bin/egress-guard.dylib',
+      checkPath: '/w/bin/egress-guard-check',
+      resolveAdditionalLibrariesAsync: async () => ['/argent/libArgentInjectionBootstrap.dylib'],
+    });
+    expect(bootEnv?.SERVE_SIM_ADDITIONAL_DYLIBS).toBe(
+      '/w/bin/egress-guard.dylib:/argent/libArgentInjectionBootstrap.dylib'
+    );
   });
 
   it('requires both packaged files before handing startup to serve-sim', async () => {

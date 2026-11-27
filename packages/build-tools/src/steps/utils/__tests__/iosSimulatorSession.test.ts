@@ -123,6 +123,18 @@ describe('serve-sim Simulator preparation', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('passes the local egress boot libraries to the guard boot environment', async () => {
+    const resolveLocalEgressBootLibrariesAsync = jest.fn();
+    await resolveIosSessionStartupAsync({
+      ...hostOptions,
+      bootSimulator: true,
+      resolveLocalEgressBootLibrariesAsync,
+    });
+    expect(resolveLocalEgressServeSimBootEnvironmentAsync).toHaveBeenCalledWith({
+      resolveAdditionalLibrariesAsync: resolveLocalEgressBootLibrariesAsync,
+    });
+  });
+
   it('prepares a session without an app when the workflow requests owned startup', async () => {
     const startup = await resolveIosSessionStartupAsync({ ...hostOptions, bootSimulator: true });
     expect(startup.iosStartup?.iosSimulatorUdid).toBe('SELECTED-UDID');

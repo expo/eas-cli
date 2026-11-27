@@ -331,12 +331,22 @@ export async function resolveLocalEgressBootEnvironmentAsync({
   };
 }
 
-/** Supply the guard at boot and require its self-check before starting serve-sim. */
+/**
+ * Supply the guard at boot and require its self-check before starting serve-sim.
+ *
+ * `resolveAdditionalLibrariesAsync` runs only for a local egress session and
+ * returns more libraries for the boot insert list, after the guard. A library
+ * that must load into apps of this session has to be passed here: launchd
+ * keeps the boot value of `DYLD_INSERT_LIBRARIES`, so a later `launchctl
+ * setenv` of it does not reach new processes.
+ */
 export async function resolveLocalEgressServeSimBootEnvironmentAsync({
   checkPath,
+  resolveAdditionalLibrariesAsync,
   ...options
 }: LocalEgressBootEnvironmentOptions & {
   checkPath?: string | null;
+  resolveAdditionalLibrariesAsync?: () => Promise<string[]>;
 } = {}): Promise<Record<string, string> | null> {
   const environment = await resolveLocalEgressBootEnvironmentAsync(options);
   if (!environment) {
@@ -344,8 +354,9 @@ export async function resolveLocalEgressServeSimBootEnvironmentAsync({
   }
   await requireEgressGuardCheckAsync(checkPath);
   const { DYLD_INSERT_LIBRARIES, ...childEnvironment } = environment;
+  const additionalLibraries = (await resolveAdditionalLibrariesAsync?.()) ?? [];
   return {
-    SERVE_SIM_ADDITIONAL_DYLIBS: DYLD_INSERT_LIBRARIES,
+    SERVE_SIM_ADDITIONAL_DYLIBS: [DYLD_INSERT_LIBRARIES, ...additionalLibraries].join(':'),
     ...Object.fromEntries(
       Object.entries(childEnvironment).map(([name, value]) => [`SIMCTL_CHILD_${name}`, value])
     ),
