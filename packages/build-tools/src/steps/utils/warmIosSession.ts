@@ -7,11 +7,8 @@ import { z } from 'zod';
 
 import { runSimulatorLauncherAsync, stopWarmSimulatorAsync } from '../../utils/warmSimulator';
 import { readLocalEgressHandoffAsync } from './localEgress';
-import {
-  type DetachedProcessHandle,
-  isProcessRunning,
-  spawnDetached,
-} from './remoteDeviceRunSession';
+import { type DetachedProcessHandle, isProcessRunning } from './remoteDeviceRunSession';
+import { followWarmLog } from './warmLogReader';
 
 const ServiceSchema = z.object({ pid: z.number(), port: z.number(), token: z.string() });
 const PackageVersionSchema = z.string().refine(version => semver.valid(version) !== null);
@@ -90,15 +87,15 @@ export async function tryClaimWarmIosSessionAsync({
     }
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     const logSecrets = [claim.server.token];
-    let logReader: DetachedProcessHandle | undefined;
-    let agentLogReader: DetachedProcessHandle | undefined;
+    let logReader: ReturnType<typeof followWarmLog> | undefined;
+    let agentLogReader: ReturnType<typeof followWarmLog> | undefined;
     let serverLogLogger = logger;
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
       ...claim,
       redactLogs: secrets => logSecrets.push(...secrets),
       forwardServerLogs(previewLogger) {
-        if (logReader) {
+        if (logReader || stopping) {
           return;
         }
         serverLogLogger = previewLogger;
@@ -107,15 +104,13 @@ export async function tryClaimWarmIosSessionAsync({
           return;
         }
         try {
-          logReader = spawnDetached({
-            command: '/usr/bin/tail',
-            args: ['-n', '0', '-F', claim.serveSimLogPath],
-            env,
+          logReader = followWarmLog({
+            file: claim.serveSimLogPath,
             logger: previewLogger,
             secrets: logSecrets,
           });
-        } catch {
-          previewLogger.warn('Could not forward warm Simulator server logs.');
+        } catch (err) {
+          previewLogger.warn({ err }, 'Could not forward warm Simulator server logs.');
         }
       },
       async prepareToolsAsync(prepareSignal = signal) {
@@ -141,24 +136,21 @@ export async function tryClaimWarmIosSessionAsync({
         }
         // The daemon has its own log file. Start after reading its identity so its token is
         // redacted before any output is forwarded; do not replay pre-session diagnostics.
-        if (engine === 'agent-device' && !agentLogReader) {
+        if (engine === 'agent-device' && !agentLogReader && !stopping && !prepareSignal?.aborted) {
           try {
-            agentLogReader = spawnDetached({
-              command: '/usr/bin/tail',
-              args: ['-n', '0', '-F', path.join(claim.agentDeviceStateDir, 'daemon.log')],
-              env,
+            agentLogReader = followWarmLog({
+              file: path.join(claim.agentDeviceStateDir, 'daemon.log'),
               logger,
               secrets: logSecrets,
             });
-          } catch {
-            logger.warn('Could not forward agent-device daemon logs.');
+          } catch (err) {
+            logger.warn({ err }, 'Could not forward agent-device daemon logs.');
           }
         }
       },
       process: {
         pid: claim.server.pid,
-        getOutput: () =>
-          [logReader?.getOutput(), agentLogReader?.getOutput()].filter(Boolean).join('\n'),
+        getOutput: () => logReader?.getOutput() ?? '',
         getExitError: () =>
           isProcessRunning(claim.server.pid) &&
           (!session.tools || isProcessRunning(session.tools.pid))
@@ -173,6 +165,7 @@ export async function tryClaimWarmIosSessionAsync({
             for (const [index, result] of results.entries()) {
               if (result.status === 'rejected') {
                 (index === 0 ? serverLogLogger : logger).warn(
+                  { err: result.reason },
                   index === 0
                     ? 'Could not stop forwarding warm Simulator server logs.'
                     : 'Could not stop forwarding agent-device daemon logs.'
