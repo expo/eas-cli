@@ -22,11 +22,6 @@ import {
   RequestValidationError,
   TurtleDeprecatedJobFormatError,
 } from './errors';
-import {
-  FreeTierLimitCheckoutExperiment,
-  getFreeTierLimitCheckoutExperiment,
-  maybeOfferFreeTierLimitCheckoutAsync,
-} from './freeTierLimitCheckout';
 import { transformMetadata } from './graphql';
 import { LocalBuildMode, runLocalBuildAsync } from './local';
 import {
@@ -218,12 +213,7 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        return await handleBuildRequestErrorAsync(
-          error,
-          job.platform,
-          ctx.accountName,
-          getFreeTierLimitCheckoutExperiment(ctx)
-        );
+        return await handleBuildRequestErrorAsync(error, job.platform, ctx.accountName);
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -247,8 +237,7 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
 export async function handleBuildRequestErrorAsync(
   error: any,
   platform: Platform,
-  accountName?: string,
-  freeTierLimitCheckoutExperiment?: FreeTierLimitCheckoutExperiment
+  accountName?: string
 ): Promise<never> {
   logBuildRequestErrorDebugInfo(error);
 
@@ -264,15 +253,11 @@ export async function handleBuildRequestErrorAsync(
     const isFreeTierLimitError =
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
       graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
-    if (!isFreeTierLimitError) {
-      throw new ErrorClass(message);
-    }
-    const limitMessage = `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`;
-    const messageAlreadyPrinted = await maybeOfferFreeTierLimitCheckoutAsync(
-      limitMessage,
-      freeTierLimitCheckoutExperiment
+    throw new ErrorClass(
+      isFreeTierLimitError
+        ? `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`
+        : message
     );
-    throw new ErrorClass(limitMessage, { messageAlreadyPrinted });
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
