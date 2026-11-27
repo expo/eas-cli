@@ -297,8 +297,18 @@ export function createStartAppiumRemoteSessionBuildFunction(
               // Appium 3 gates session listing (GET /appium/sessions) behind the
               // session_discovery insecure feature. We rely on it to poll for
               // Appium Event Timings, so enable it for all drivers.
+              // appium-chromedriver ships no Chromedriver binary, so UiAutomator2 can switch
+              // to a WEBVIEW context only when it may download one that matches the WebView.
+              // Clients can choose where Chromedriver files go (chromedriverExecutableDir and
+              // chromedriverChromeMappingFile). That is safe only while each Android session has
+              // its own VM and job-owned APPIUM_HOME; revisit this before sharing an Appium home.
               '--allow-insecure',
-              '*:session_discovery',
+              [
+                '*:session_discovery',
+                ...(device.driverName === 'uiautomator2'
+                  ? ['uiautomator2:chromedriver_autodownload']
+                  : []),
+              ].join(','),
               '--default-capabilities',
               JSON.stringify({
                 'appium:eventTimings': true,
