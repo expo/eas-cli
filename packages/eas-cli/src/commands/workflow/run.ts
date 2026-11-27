@@ -46,7 +46,6 @@ import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
 import * as path from 'node:path';
-import slash from 'slash';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -57,15 +56,15 @@ import {
   parseJsonInputs,
   parseWorkflowInputsFromYaml,
 } from '../../commandUtils/workflow/inputs';
+import { uploadWorkflowProjectSourceAsync } from '../../commandUtils/workflow/projectSource';
 import { collectReferencedWorkflowFilesAsync } from '../../commandUtils/workflow/referencedFiles';
 import {
-  fileExistsAsync,
   maybeReadStdinAsync,
   showWorkflowStatusAsync,
   workflowRunExitCodes,
 } from '../../commandUtils/workflow/utils';
 import {
-  WorkflowProjectSourceType,
+  WorkflowProjectSourceInput,
   WorkflowReferencedFileInput,
   WorkflowRevision,
   WorkflowRunGitInput,
@@ -76,8 +75,6 @@ import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log, { link } from '../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
-import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
-import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { WorkflowFile } from '../../utils/workflowFile';
 
@@ -326,17 +323,6 @@ export default class WorkflowRun extends EasCommand {
       }
     }
 
-    let projectArchiveBucketKey: string;
-    let easJsonBucketKey: string | null = null;
-    let packageJsonBucketKey: string | null = null;
-
-    const easJsonPath = path.join(projectDir, 'eas.json');
-    const packageJsonPath = path.join(projectDir, 'package.json');
-
-    const projectRootDirectory = slash(
-      path.relative(await vcsClient.getRootPathAsync(), projectDir) || '.'
-    );
-
     if (gitRef) {
       // Run from git ref
       let runResult: { id: string };
@@ -357,46 +343,14 @@ export default class WorkflowRun extends EasCommand {
         branch: flags['git-branch'],
         commitHash: flags['git-commit-hash'],
       });
+      let projectSource: WorkflowProjectSourceInput;
       try {
-        ({ projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
+        projectSource = await uploadWorkflowProjectSourceAsync({
           graphqlClient,
           vcsClient,
           accountId: account.id,
-        }));
-
-        if (await fileExistsAsync(easJsonPath)) {
-          ({ fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
-            graphqlClient,
-            accountId: account.id,
-            filePath: easJsonPath,
-            maxSizeBytes: 1024 * 1024,
-          }));
-        } else {
-          Log.warn(
-            `⚠ No ${chalk.bold('eas.json')} found in the project directory. Running ${chalk.bold(
-              'type: build'
-            )} jobs will not work. Run ${chalk.bold(
-              'eas build:configure'
-            )} to configure your project for builds.`
-          );
-        }
-
-        if (await fileExistsAsync(packageJsonPath)) {
-          ({ fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
-            graphqlClient,
-            accountId: account.id,
-            filePath: packageJsonPath,
-            maxSizeBytes: 1024 * 1024,
-          }));
-        } else {
-          Log.warn(
-            `⚠ No ${chalk.bold(
-              'package.json'
-            )} found in the project directory. It is used to automatically infer best job configuration for your project. You may want to define ${chalk.bold(
-              'image'
-            )} property in your workflow to specify the image to use.`
-          );
-        }
+          projectDir,
+        });
       } catch (err) {
         Log.error('Failed to upload project sources.');
 
@@ -413,13 +367,7 @@ export default class WorkflowRun extends EasCommand {
           },
           workflowRunInput: {
             inputs,
-            projectSource: {
-              type: WorkflowProjectSourceType.Gcs,
-              projectArchiveBucketKey,
-              easJsonBucketKey,
-              packageJsonBucketKey,
-              projectRootDirectory,
-            },
+            projectSource,
             ssh: sshInput,
             git: gitInput,
           },
