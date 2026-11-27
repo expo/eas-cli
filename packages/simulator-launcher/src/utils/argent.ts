@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import {
   isProcessOwnedByServiceAsync,
   stopProcessAndDescendantsAsync,
 } from './processes';
+import { getServeSimLogPath } from './serveSim';
 import { type WarmTool } from './tools';
 
 const ArgentStateSchema = z.object({
@@ -55,6 +57,16 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
     async startAsync(_udid, signal) {
       signal.throwIfAborted();
       const logPath = getArgentLogPath();
+      const eventLogPath = process.env.ARGENT_EVENT_LOG;
+      if (eventLogPath) {
+        const events = statSync(eventLogPath, { throwIfNoEntry: false });
+        const preview = statSync(getServeSimLogPath(), { throwIfNoEntry: false });
+        if (events && preview && events.dev === preview.dev && events.ino === preview.ino) {
+          throw new Error(
+            'The Simulator server console and Argent event logs must be separate files.'
+          );
+        }
+      }
       stopping = false;
       serverProcess = commands.start(
         'bunx',
@@ -69,7 +81,7 @@ export function createArgentTool(onUnexpectedExit: (error: unknown) => void): Wa
           '--idle-timeout',
           '0',
         ],
-        { detached: true, logPath, separateLogPath: process.env.ARGENT_EVENT_LOG }
+        { detached: true, logPath, separateLogPath: eventLogPath }
       );
       const server = serverProcess;
       let ready = false;

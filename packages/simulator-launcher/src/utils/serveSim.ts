@@ -53,11 +53,7 @@ export function startServeSim(
       '--quiet',
     ],
     // The orphan owns boot, device selection and its native children for this VM's job.
-    {
-      detached: true,
-      logPath: getServeSimLogPath(),
-      separateLogPath: process.env.ARGENT_EVENT_LOG,
-    }
+    { detached: true, logPath: getServeSimLogPath() }
   );
 }
 

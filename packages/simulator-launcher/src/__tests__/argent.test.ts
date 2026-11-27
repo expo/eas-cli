@@ -1,5 +1,6 @@
 import { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import syncFs from 'node:fs';
 import fs from 'node:fs/promises';
 
 import { createArgentTool, getArgentLogPath } from '../utils/argent';
@@ -8,6 +9,7 @@ import {
   isProcessOwnedByServiceAsync,
   stopProcessAndDescendantsAsync,
 } from '../utils/processes';
+import { getServeSimLogPath } from '../utils/serveSim';
 import { type WarmTool } from '../utils/tools';
 import { deferred, until } from './helpers';
 
@@ -21,6 +23,10 @@ let tool: WarmTool;
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.replaceProperty(process, 'env', {
+    ...process.env,
+    ARGENT_EVENT_LOG: '/fixture/argent-events.jsonl',
+  });
   child = Object.assign(new EventEmitter(), {
     pid: 90001,
     exitCode: null,
@@ -41,6 +47,18 @@ beforeEach(() => {
     .mockResolvedValue(JSON.stringify({ pid: 90001, port: 3201, token: 'fixture-token' }));
   jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ tools: [] })));
   jest.mocked(stopProcessAndDescendantsAsync).mockResolvedValue();
+});
+
+it('rejects an event log that aliases the Simulator server console at Argent startup', async () => {
+  const sameFile = { dev: 5, ino: 7 } as syncFs.Stats;
+  const stat = jest.spyOn(syncFs, 'statSync');
+  stat.mockReturnValueOnce(sameFile).mockReturnValueOnce(sameFile);
+  await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
+    'The Simulator server console and Argent event logs must be separate files.'
+  );
+  expect(stat).toHaveBeenCalledWith('/fixture/argent-events.jsonl', { throwIfNoEntry: false });
+  expect(stat).toHaveBeenCalledWith(getServeSimLogPath(), { throwIfNoEntry: false });
+  expect(commands.start).not.toHaveBeenCalled();
 });
 afterEach(() => {
   controller.abort();

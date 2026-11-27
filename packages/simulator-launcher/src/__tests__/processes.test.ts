@@ -416,13 +416,15 @@ describe('EPERM from exited processes awaiting reap', () => {
   });
 });
 
-test('serve-sim leads its own process group', () => {
+test('serve-sim leads its own process group without inspecting the Argent event path', () => {
   const { startServeSim } = require('../utils/serveSim');
   jest.replaceProperty(process, 'env', { ...process.env, ARGENT_EVENT_LOG: '/logs/events.jsonl' });
   jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'openSync').mockReturnValue(80);
   jest.spyOn(fs, 'fstatSync').mockReturnValue({ isFile: () => true } as fs.Stats);
-  const stat = jest.spyOn(fs, 'statSync').mockReturnValue(undefined);
+  const stat = jest.spyOn(fs, 'statSync').mockImplementation(() => {
+    throw new Error('Argent event path is inaccessible');
+  });
   jest.spyOn(fs, 'fchmodSync').mockReturnValue(undefined);
   jest.spyOn(fs, 'closeSync').mockReturnValue(undefined);
   startServeSim(['PHONE'], new AbortController().signal);
@@ -437,7 +439,7 @@ test('serve-sim leads its own process group', () => {
     0o600
   );
   expect(fs.fchmodSync).toHaveBeenCalledWith(80, 0o600);
-  expect(stat).toHaveBeenCalledWith('/logs/events.jsonl', { throwIfNoEntry: false });
+  expect(stat).not.toHaveBeenCalled();
   expect(fs.closeSync).toHaveBeenCalledWith(80);
 });
 
