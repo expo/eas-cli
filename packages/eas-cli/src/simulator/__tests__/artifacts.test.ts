@@ -277,7 +277,7 @@ it('selects individual IPS artifacts and saves their original native contents', 
       expect((await fs.stat(output)).mode & 0o777).toBe(0o600);
     }
     expect(requested).toEqual(['/first.ips', '/second.ips']);
-    expect(await fs.readdir(directory)).toEqual(['first.ips', 'second.ips']);
+    expect((await fs.readdir(directory)).sort()).toEqual(['first.ips', 'second.ips']);
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve =>

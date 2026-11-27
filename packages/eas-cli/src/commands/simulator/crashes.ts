@@ -155,7 +155,10 @@ export default class SimulatorCrashes extends EasCommand {
         }
       );
       if (jsonFlag) {
-        printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, ...detail });
+        printJsonOnlyOutput(
+          { deviceRunSessionId: preview.deviceRunSessionId, ...detail },
+          { preserveNulls: true }
+        );
         return;
       }
       Log.log(formatCrashSummary(detail.record, flags.timestamp));
@@ -178,8 +181,14 @@ export default class SimulatorCrashes extends EasCommand {
       return;
     }
 
+    if (snapshot.meta.status === 'unavailable' && snapshot.crashes.length === 0) {
+      process.exitCode = 1;
+    }
     if (jsonFlag) {
-      printJsonOnlyOutput({ deviceRunSessionId: preview.deviceRunSessionId, ...snapshot });
+      printJsonOnlyOutput(
+        { deviceRunSessionId: preview.deviceRunSessionId, ...snapshot },
+        { preserveNulls: true }
+      );
       return;
     }
     if (snapshot.crashes.length === 0) {

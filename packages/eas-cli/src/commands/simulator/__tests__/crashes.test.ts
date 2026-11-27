@@ -165,10 +165,10 @@ describe(SimulatorCrashes, () => {
       expect.objectContaining({ id: 'session-id' })
     );
     expect(mockFetchJsonAsync).toHaveBeenCalledWith(preview, '/crashes');
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      ...snapshot,
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      { deviceRunSessionId: 'session-id', ...snapshot },
+      { preserveNulls: true }
+    );
     expect(mockLog).not.toHaveBeenCalled();
     expect(mockWarn).not.toHaveBeenCalled();
   });
@@ -202,16 +202,49 @@ describe(SimulatorCrashes, () => {
     }
   );
 
-  it('prints source failures instead of silently treating them as no crashes', async () => {
-    mockFetchJsonAsync.mockResolvedValue({
-      ...createSnapshot(),
+  it.each([false, true])('fails when the watcher is unavailable and empty, json=%s', async json => {
+    const snapshot = {
       meta: { status: 'unavailable', statusError: '\u001b[31mwatcher unavailable\u001b[0m\u0007' },
+      crashes: [],
+    };
+    mockFetchJsonAsync.mockResolvedValue(snapshot);
+    const previousExitCode = process.exitCode;
+
+    try {
+      await createCommand(json ? ['--json'] : []).runAsync();
+
+      expect(process.exitCode).toBe(1);
+      expect(mockLog).not.toHaveBeenCalled();
+      if (json) {
+        expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+          { deviceRunSessionId: 'session-id', ...snapshot },
+          { preserveNulls: true }
+        );
+        expect(mockWarn).not.toHaveBeenCalled();
+      } else {
+        expect(mockWarn).toHaveBeenCalledWith('watcher unavailable');
+      }
+    } finally {
+      process.exitCode = previousExitCode;
+    }
+  });
+
+  it('still lists retained crashes when the watcher is unavailable', async () => {
+    mockFetchJsonAsync.mockResolvedValue({
+      meta: { status: 'unavailable', statusError: 'watcher unavailable' },
+      crashes: [crash],
     });
+    const previousExitCode = process.exitCode;
 
-    await createCommand([]).runAsync();
+    try {
+      await createCommand([]).runAsync();
 
-    expect(mockWarn).toHaveBeenCalledWith('watcher unavailable');
-    expect(mockLog).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(previousExitCode);
+      expect(mockWarn).toHaveBeenCalledWith('watcher unavailable');
+      expect(mockLog).toHaveBeenCalledWith('CoinFlip  EXC_CRASH  (2 occurrences)  crash-id');
+    } finally {
+      process.exitCode = previousExitCode;
+    }
   });
 
   it('explains an empty crash list when the watcher is healthy', async () => {
@@ -247,7 +280,7 @@ describe(SimulatorCrashes, () => {
     const detail = {
       record: crash,
       occurrence: { index: 1, total: 2, logTail: [crashLog] },
-      report: 'raw crash report',
+      report: null,
       reportError: null,
     };
     mockFetchJsonAsync.mockResolvedValueOnce(createSnapshot([crash])).mockResolvedValueOnce(detail);
@@ -264,10 +297,10 @@ describe(SimulatorCrashes, () => {
           'The crash report was not found. The ID does not match a report in this session. Run `eas simulator:crashes` to see current report IDs.',
       }
     );
-    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
-      deviceRunSessionId: 'session-id',
-      ...detail,
-    });
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      { deviceRunSessionId: 'session-id', ...detail },
+      { preserveNulls: true }
+    );
     expect(mockLog).not.toHaveBeenCalled();
   });
 
