@@ -27,7 +27,7 @@ import {
   isAtLeastNpm7Async,
   shouldUseFrozenLockfile,
 } from '../utils/packageManager';
-import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { getParentAndDescendantProcessPidsAsync, killProcesses } from '../utils/processes';
 import { readAndLogPackageJson, readEasJsonContents, readPackageJson } from '../utils/project';
 import { retryAsync } from '../utils/retry';
 
@@ -222,9 +222,7 @@ async function runExpoDoctor<TJob extends Job>(ctx: BuildContext<TJob>): Promise
       timedOut = true;
       const ppid = nullthrows(promise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach(pid => {
-        process.kill(pid);
-      });
+      killProcesses(pids);
       ctx.reportError?.(`"expo doctor" timed out`, undefined, {
         extras: { buildId: ctx.env.EAS_BUILD_ID },
       });
@@ -285,9 +283,7 @@ async function runInstallDependenciesAsync<TJob extends Job>(
       );
       const ppid = nullthrows(installDependenciesSpawnPromise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach(pid => {
-        process.kill(pid);
-      });
+      killProcesses(pids);
       ctx.reportError?.('"Install dependencies" phase takes a very long time', undefined, {
         extras: { buildId: ctx.env.EAS_BUILD_ID },
       });
