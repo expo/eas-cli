@@ -191,7 +191,7 @@ export async function createAnalyticsAsync(
   return new RudderstackAnalytics(deviceId, parentCommand);
 }
 
-class NoOpAnalytics implements AnalyticsWithOrchestration {
+export class NoOpAnalytics implements AnalyticsWithOrchestration {
   logEvent(): void {}
   setActor(): void {}
   async flushAsync(): Promise<void> {}
