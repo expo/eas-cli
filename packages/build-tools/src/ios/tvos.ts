@@ -28,5 +28,5 @@ export async function isTVOS(ctx: BuildContext<Ios.Job>): Promise<boolean> {
     targetName,
     buildConfiguration,
   });
-  return xcBuildConfiguration?.buildSettings?.SDKROOT?.includes('appletv');
+  return xcBuildConfiguration?.buildSettings?.SDKROOT?.includes('appletv') ?? false;
 }
