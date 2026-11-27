@@ -24,7 +24,12 @@ import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
 import { buildProfileNamesFromProjectAsync } from '../../commandUtils/workflow/buildProfileUtils';
 import { uploadWorkflowProjectSourceAsync } from '../../commandUtils/workflow/projectSource';
 import { showWorkflowStatusAsync } from '../../commandUtils/workflow/utils';
-import { BuildFragment, BuildStatus, WorkflowRunStatus } from '../../graphql/generated';
+import {
+  BuildFragment,
+  BuildStatus,
+  StatuspageServiceName,
+  WorkflowRunStatus,
+} from '../../graphql/generated';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
@@ -34,6 +39,7 @@ import Log, { link } from '../../log';
 import { requestedPlatformDisplayNames, selectPlatformAsync } from '../../platform';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
 import { WorkflowFile } from '../../utils/workflowFile';
 
 interface BuildRepackFlags {
@@ -170,6 +176,11 @@ export default class BuildRepack extends EasCommand {
       }
     }
 
+    await maybeWarnAboutEasOutagesAsync(graphqlClient, [
+      StatuspageServiceName.EasBuild,
+      StatuspageServiceName.EasWorkflows,
+    ]);
+
     const build =
       maybeBuild ??
       (await selectBuildToRepackAsync(graphqlClient, {
@@ -181,19 +192,21 @@ export default class BuildRepack extends EasCommand {
         buildProfile: flags.sourceProfile,
       }));
 
-    const targetProfileName = flags.profile ?? build.buildProfile ?? undefined;
-    const targetProfile = await readBuildProfileAsync({
-      projectDir,
-      platform,
-      profileName: targetProfileName,
-    });
-    if (targetProfile) {
-      assertProfileMatchesSourceBuild({
-        build,
+    const targetProfileName = flags.profile ?? build.buildProfile;
+    if (targetProfileName) {
+      const targetProfile = await readBuildProfileAsync({
+        projectDir,
         platform,
-        profile: targetProfile,
         profileName: targetProfileName,
       });
+      if (targetProfile) {
+        assertProfileMatchesSourceBuild({
+          build,
+          platform,
+          profile: targetProfile,
+          profileName: targetProfileName,
+        });
+      }
     }
 
     const yamlConfig = createRepackWorkflowYamlConfig({
@@ -388,7 +401,7 @@ async function readBuildProfileAsync({
 }: {
   projectDir: string;
   platform: Platform;
-  profileName: string | undefined;
+  profileName: string;
 }): Promise<BuildProfile | undefined> {
   try {
     return await EasJsonUtils.getBuildProfileAsync(
@@ -415,7 +428,7 @@ export function assertProfileMatchesSourceBuild({
   build: BuildFragment;
   platform: Platform;
   profile: BuildProfile;
-  profileName: string | undefined;
+  profileName: string;
 }): void {
   if (platform !== Platform.IOS) {
     return;
@@ -425,11 +438,10 @@ export function assertProfileMatchesSourceBuild({
   if (profileIsForSimulator === buildIsForSimulator) {
     return;
   }
-  const profileLabel = profileName ? `build profile "${profileName}"` : 'the build profile';
   const [buildKind, profileKind, suggestedKind] = buildIsForSimulator
     ? ['simulator', 'devices', 'a simulator']
     : ['device', 'the simulator', 'a device'];
   throw new Error(
-    `Build with ID ${build.id} is an iOS ${buildKind} build, but ${profileLabel} is for ${profileKind}. Pass ${suggestedKind} profile with --profile, or leave it out to use the source build's profile.`
+    `Build with ID ${build.id} is an iOS ${buildKind} build, but build profile "${profileName}" is for ${profileKind}. Pass ${suggestedKind} profile with --profile, or leave it out to use the source build's profile.`
   );
 }

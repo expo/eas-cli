@@ -10,6 +10,7 @@ import { showWorkflowStatusAsync } from '../../../commandUtils/workflow/utils';
 import {
   AppPlatform,
   BuildStatus,
+  StatuspageServiceName,
   WorkflowProjectSourceType,
   WorkflowRunStatus,
 } from '../../../graphql/generated';
@@ -18,6 +19,7 @@ import { WorkflowRunMutation } from '../../../graphql/mutations/WorkflowRunMutat
 import { BuildQuery } from '../../../graphql/queries/BuildQuery';
 import { WorkflowRunQuery } from '../../../graphql/queries/WorkflowRunQuery';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
+import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService';
 import BuildRepack from '../repack';
 
 jest.mock('../../../build/queries');
@@ -33,6 +35,7 @@ jest.mock('../../../graphql/mutations/WorkflowRunMutation');
 jest.mock('../../../graphql/queries/BuildQuery');
 jest.mock('../../../graphql/queries/WorkflowRunQuery');
 jest.mock('../../../project/projectUtils');
+jest.mock('../../../utils/statuspageService');
 jest.mock('../../../log');
 jest.mock('@expo/eas-json', () => ({
   ...jest.requireActual('@expo/eas-json'),
@@ -227,6 +230,39 @@ describe(BuildRepack, () => {
     ).rejects.toThrow(
       'Build with ID build-1 is an iOS device build, but build profile "preview" is for the simulator.'
     );
+  });
+
+  it('skips the profile check when the source build has no profile name', async () => {
+    jest
+      .mocked(BuildQuery.byIdAsync)
+      .mockResolvedValue(mockBuild({ isForIosSimulator: true, buildProfile: null }));
+
+    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
+
+    expect(EasJsonUtils.getBuildProfileAsync).not.toHaveBeenCalled();
+    expect(WorkflowRunMutation.createWorkflowRunAsync).toHaveBeenCalled();
+  });
+
+  it('checks the source build profile when --profile is not given', async () => {
+    jest
+      .mocked(BuildQuery.byIdAsync)
+      .mockResolvedValue(mockBuild({ isForIosSimulator: true, buildProfile: 'preview' }));
+
+    await expect(createCommand(['--id', 'build-1']).runAsync()).rejects.toThrow(
+      'Build with ID build-1 is an iOS simulator build, but build profile "preview" is for devices.'
+    );
+  });
+
+  it('warns about EAS outages before starting the workflow', async () => {
+    await createCommand(['--id', 'build-1', '--no-wait']).runAsync();
+
+    expect(maybeWarnAboutEasOutagesAsync).toHaveBeenCalledWith({}, [
+      StatuspageServiceName.EasBuild,
+      StatuspageServiceName.EasWorkflows,
+    ]);
+    expect(
+      jest.mocked(maybeWarnAboutEasOutagesAsync).mock.invocationCallOrder[0]
+    ).toBeLessThan(jest.mocked(WorkflowRunMutation.createWorkflowRunAsync).mock.invocationCallOrder[0]);
   });
 
   it('rejects a build profile missing from eas.json', async () => {
