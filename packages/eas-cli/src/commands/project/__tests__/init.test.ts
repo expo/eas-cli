@@ -501,6 +501,10 @@ describe(ProjectInit.name, () => {
             await new ProjectInit([], commandOptions).run();
             expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
             expect(confirmAsync).toHaveBeenCalledTimes(1);
+            expect(jest.mocked(AppMutation.createAppAsync).mock.calls[0][1]).toMatchObject({
+              projectName: 'testing-123',
+              displayName: 'testing 123',
+            });
           });
 
           it('does not create it if declined', async () => {
@@ -561,6 +565,7 @@ describe(ProjectInit.name, () => {
       expect(jest.mocked(AppMutation.createAppAsync).mock.calls[0][1]).toEqual({
         accountId: jester.accounts[0].id,
         projectName: 'testing-123',
+        displayName: 'testing 123',
       });
       expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
     });

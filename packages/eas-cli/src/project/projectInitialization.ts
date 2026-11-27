@@ -360,6 +360,7 @@ export async function initializeWithoutExplicitIDAsync(
     createdProjectId = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
+      displayName: exp.name,
     });
     spinner.succeed(`Created ${chalk.bold(projectLink)}`);
   } catch (err) {

@@ -196,6 +196,7 @@ export async function validateOrSetProjectIdAsync({
     {
       accountName,
       projectName: exp.slug,
+      displayName: exp.name,
     },
     {
       nonInteractive: options.nonInteractive,

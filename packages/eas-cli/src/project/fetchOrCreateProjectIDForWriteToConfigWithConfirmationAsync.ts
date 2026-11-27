@@ -21,13 +21,14 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   projectInfo: {
     accountName: string;
     projectName: string;
+    displayName?: string;
   },
   options: {
     nonInteractive: boolean;
   },
   actor: Actor
 ): Promise<string> {
-  const { accountName, projectName } = projectInfo;
+  const { accountName, projectName, displayName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
   const allAccounts = actor.accounts;
@@ -83,6 +84,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
     const id = await AppMutation.createAppAsync(graphqlClient, {
       accountId: account.id,
       projectName,
+      displayName,
     });
     spinner.succeed(`Created ${chalk.bold(projectLink)} on EAS`);
     return id;
