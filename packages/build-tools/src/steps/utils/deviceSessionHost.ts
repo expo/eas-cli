@@ -1044,7 +1044,6 @@ async function startDeviceSessionHostInternalAsync(
         const capture = createServeEmuPreviewCapture({
           port,
           token: previewToken!,
-          device: previewDevice ?? device,
         });
         // adb screencap worked before serve-emu's capture, so any probe failure keeps using it.
         const supported = await capture

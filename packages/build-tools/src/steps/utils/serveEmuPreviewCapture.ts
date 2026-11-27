@@ -6,8 +6,11 @@ import { EXPO_DEVICE_HUB_SERVE_EMU_PREFIX } from './previewActivity';
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const SCREENSHOT_METADATA_HEADER = 'X-Expo-Screenshot-Metadata';
-// expo-device-hub reports this placeholder instead of a serial before it knows the device.
-const UNKNOWN_DEVICE = 'no-device-id';
+
+const ScreenshotCapabilitiesSchema = z.object({
+  ok: z.literal(true),
+  options: z.array(z.string()),
+});
 
 // serve-emu sends `displayRotation: null` when it could not confirm the rotation for the image.
 const ScreenshotMetadataSchema = z
@@ -19,22 +22,12 @@ const ScreenshotMetadataSchema = z
  * Captures Android session previews through serve-emu in expo-device-hub. An automated capture
  * saves no session screenshot artifact, and its metadata header carries the display rotation.
  */
-export function createServeEmuPreviewCapture({
-  port,
-  token,
-  device,
-}: {
-  port: number;
-  token: string;
-  /** The emulator serial, or expo-device-hub's placeholder when it has none. */
-  device: string;
-}) {
+export function createServeEmuPreviewCapture({ port, token }: { port: number; token: string }) {
   const base = `http://127.0.0.1:${port}${EXPO_DEVICE_HUB_SERVE_EMU_PREFIX}/api/screenshot`;
   const headers = { Authorization: `Bearer ${token}` };
   return {
     /**
-     * Older serve-emu answers the probe with 405 and would save an artifact for every capture, so
-     * any answer other than a listed `automation` option means unsupported.
+     * Older serve-emu answers the probe with 405 and would save an artifact for every capture.
      */
     async isSupportedAsync(signal: AbortSignal): Promise<boolean> {
       const response = await fetch(base, {
@@ -43,23 +36,22 @@ export function createServeEmuPreviewCapture({
       });
       if (!response.ok) {
         await response.body?.cancel();
-        return false;
+        if (response.status === 405) {
+          return false;
+        }
+        throw new Error(`serve-emu screenshot capability probe failed: ${response.status}`);
       }
-      let body: { options?: unknown } | null = null;
-      try {
-        body = JSON.parse(await response.text());
-      } catch {
-        return false;
+      const capabilities = ScreenshotCapabilitiesSchema.safeParse(await response.json());
+      if (!capabilities.success) {
+        throw new Error('serve-emu returned invalid screenshot capabilities.');
       }
-      return Array.isArray(body?.options) && body.options.includes('automation');
+      return capabilities.data.options.includes('automation');
     },
-    async captureAsync(signal: AbortSignal): Promise<DeviceScreenshot> {
+    async captureAsync(serial: string, signal: AbortSignal): Promise<DeviceScreenshot> {
       signal.throwIfAborted();
       // An automated capture writes no file on the host, so an abort can close the request.
       const url = new URL(base);
-      if (device !== UNKNOWN_DEVICE) {
-        url.searchParams.set('device', device);
-      }
+      url.searchParams.set('device', serial);
       const response = await fetch(url, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },

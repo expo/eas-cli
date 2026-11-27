@@ -551,7 +551,7 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
   );
 
   it('captures Android through serve-emu with its rotation instead of adb when available', async () => {
-    const captureAndroidScreenshotAsync = jest.fn(async (signal: AbortSignal) => {
+    const captureAndroidScreenshotAsync = jest.fn(async (_serial: string, signal: AbortSignal) => {
       signal.throwIfAborted();
       return { image: png, displayRotation: 'landscape-left' as const };
     });
@@ -580,21 +580,28 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
         signal,
       })
     ).resolves.toEqual({ image: webp, displayRotation: 'landscape-left' });
-    expect(captureAndroidScreenshotAsync).toHaveBeenCalledWith(signal);
+    expect(captureAndroidScreenshotAsync).toHaveBeenCalledWith('selected-device', signal);
     expect(jest.mocked(spawn).mock.calls.map(([command]) => command)).toEqual(['ffmpeg']);
     expect(
       (await readdir(os.tmpdir())).filter(name => name.startsWith('session-preview-'))
     ).toEqual([]);
   });
 
-  it('captures Android with adb when the serve-emu capture fails', async () => {
+  it('uses the same resolved Android serial for serve-emu and the adb fallback', async () => {
     const adbPng = Buffer.from('adb-png');
     const failure = new Error(
       'serve-emu screenshot request failed: 503 serve-emu start for emulator-5554 is cooling down after a failure'
     );
     const logger = { warn: jest.fn() } as unknown as bunyan;
+    const captureAndroidScreenshotAsync = jest.fn().mockRejectedValue(failure);
+    const signal = new AbortController().signal;
     jest.mocked(spawn).mockImplementation((command, args) => {
       if (command === 'adb') {
+        if (args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'selected-device\tdevice\n', stderr: '' }) as ReturnType<
+            typeof spawn
+          >;
+        }
         expect(args).toEqual(['-s', 'selected-device', 'exec-out', 'screencap', '-p']);
         return Object.assign(Promise.resolve({ stdout: '', stderr: '' }), {
           child: { stdout: Readable.from([adbPng]) },
@@ -609,16 +616,19 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
     await expect(
       captureDeviceRunSessionPreviewAsync({
         runtimePlatform: BuildRuntimePlatform.LINUX,
-        device: 'selected-device',
-        captureAndroidScreenshotAsync: async () => {
-          throw failure;
-        },
+        device: 'no-device-id',
+        captureAndroidScreenshotAsync,
         env: {},
-        signal: new AbortController().signal,
+        signal,
         logger,
       })
     ).resolves.toEqual({ image: webp });
-    expect(jest.mocked(spawn).mock.calls.map(([command]) => command)).toEqual(['adb', 'ffmpeg']);
+    expect(captureAndroidScreenshotAsync).toHaveBeenCalledWith('selected-device', signal);
+    expect(jest.mocked(spawn).mock.calls.map(([command]) => command)).toEqual([
+      'adb',
+      'adb',
+      'ffmpeg',
+    ]);
     expect(logger.warn).toHaveBeenCalledWith(
       { err: failure },
       expect.stringContaining('capturing it with adb')
@@ -667,21 +677,25 @@ describe(captureDeviceRunSessionPreviewAsync, () => {
     ).toEqual([]);
   });
 
-  it('skips ambiguous Android devices instead of capturing the wrong screen', async () => {
-    jest
-      .mocked(spawn)
-      .mockResolvedValue({ stdout: 'device-one\tdevice\ndevice-two\tdevice\n' } as Awaited<
-        ReturnType<typeof spawn>
-      >);
-    await expect(
-      captureDeviceRunSessionPreviewAsync({
-        runtimePlatform: BuildRuntimePlatform.LINUX,
-        device: 'no-device-id',
-        env: {},
-        signal: new AbortController().signal,
-      })
-    ).rejects.toThrow('Expected exactly one connected Android device');
-  });
+  it.each(['', 'device-one\tdevice\ndevice-two\tdevice\n'])(
+    'skips Android capture when there is no unique device (%j)',
+    async stdout => {
+      jest.mocked(spawn).mockResolvedValue({ stdout } as Awaited<ReturnType<typeof spawn>>);
+      const captureAndroidScreenshotAsync = jest.fn();
+      await expect(
+        captureDeviceRunSessionPreviewAsync({
+          runtimePlatform: BuildRuntimePlatform.LINUX,
+          device: 'no-device-id',
+          captureAndroidScreenshotAsync,
+          env: {},
+          signal: new AbortController().signal,
+        })
+      ).rejects.toThrow('Expected exactly one connected Android device');
+      expect(captureAndroidScreenshotAsync).not.toHaveBeenCalled();
+      expect(spawn).toHaveBeenCalledTimes(1);
+      expect(spawn).toHaveBeenCalledWith('adb', ['devices'], expect.anything());
+    }
+  );
 
   it('cleans up temporary files when capture fails', async () => {
     jest.mocked(spawn).mockRejectedValue(new Error('capture failed'));

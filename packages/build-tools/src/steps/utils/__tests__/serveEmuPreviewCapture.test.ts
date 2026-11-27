@@ -4,6 +4,7 @@ import http from 'node:http';
 import { createServeEmuPreviewCapture } from '../serveEmuPreviewCapture';
 
 const token = 'hub-preview-token';
+const serial = 'emulator-5556';
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
 const supportedProbe = { ok: true, options: ['automation', 'maxWidth', 'format', 'quality'] };
 
@@ -60,7 +61,7 @@ afterEach(async () => {
 
 describe('isSupportedAsync', () => {
   it('sends the probe through the Hub mount with the session token', async () => {
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
+    const capture = createServeEmuPreviewCapture({ port, token });
     await expect(capture.isSupportedAsync(new AbortController().signal)).resolves.toBe(true);
     expect(requests).toEqual([
       {
@@ -73,30 +74,58 @@ describe('isSupportedAsync', () => {
     ]);
   });
 
+  it('reports no automation support for a 405 from an older Hub', async () => {
+    respond = (_req, res) => {
+      res.writeHead(405);
+      res.end('method not allowed');
+    };
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.isSupportedAsync(new AbortController().signal)).resolves.toBe(false);
+  });
+
+  it('reports no automation support when the capabilities omit it', async () => {
+    respond = (_req, res) => {
+      res.end(JSON.stringify({ ok: true, options: ['maxWidth', 'format'] }));
+    };
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.isSupportedAsync(new AbortController().signal)).resolves.toBe(false);
+  });
+
+  it.each([401, 503])('rejects a failed probe with HTTP %i', async status => {
+    respond = (_req, res) => {
+      res.writeHead(status);
+      res.end();
+    };
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.isSupportedAsync(new AbortController().signal)).rejects.toThrow(
+      `serve-emu screenshot capability probe failed: ${status}`
+    );
+  });
+
   it.each([
-    [405, 'text/plain', 'method not allowed'],
-    [401, 'application/json', JSON.stringify({ ok: false, error: 'unauthorized' })],
-    [200, 'application/json', JSON.stringify({ ok: true, options: ['maxWidth', 'format'] })],
-    [200, 'application/json', JSON.stringify({ ok: true, options: 'automation' })],
-    [200, 'application/json', JSON.stringify({ ok: true })],
-    [200, 'application/json', 'null'],
-    [200, 'text/html', '<html></html>'],
-  ])(
-    'reports no automation support for an older or unexpected answer (%i %s %s)',
-    async (status, contentType, body) => {
-      respond = (_req, res) => {
-        res.writeHead(status, { 'Content-Type': contentType });
-        res.end(body);
-      };
-      const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-      await expect(capture.isSupportedAsync(new AbortController().signal)).resolves.toBe(false);
-    }
-  );
+    JSON.stringify({ ok: true, options: 'automation' }),
+    JSON.stringify({ ok: true }),
+    'null',
+    '<html></html>',
+  ])('rejects unexpected capability responses (%s)', async body => {
+    respond = (_req, res) => res.end(body);
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.isSupportedAsync(new AbortController().signal)).rejects.toThrow();
+  });
+
+  it('rejects when the probe response ends before its body is read', async () => {
+    respond = (_req, res) => {
+      res.writeHead(200, { 'Content-Length': 1024, Connection: 'close' });
+      res.end(JSON.stringify(supportedProbe));
+    };
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.isSupportedAsync(new AbortController().signal)).rejects.toThrow();
+  });
 
   it('rejects when the probe cannot reach the Hub', async () => {
     server.close();
     await once(server, 'close');
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
+    const capture = createServeEmuPreviewCapture({ port, token });
     await expect(capture.isSupportedAsync(new AbortController().signal)).rejects.toThrow();
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
@@ -113,8 +142,8 @@ describe('captureAsync', () => {
       }),
       'X-Expo-Screenshot-Artifact': 'disabled',
     });
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5556' });
-    await expect(capture.captureAsync(new AbortController().signal)).resolves.toEqual({
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.captureAsync(serial, new AbortController().signal)).resolves.toEqual({
       image: png,
       displayRotation: 'landscape-left',
     });
@@ -129,13 +158,6 @@ describe('captureAsync', () => {
     ]);
   });
 
-  it('lets the Hub pick the device when it reported no serial', async () => {
-    respondWithScreenshot({});
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'no-device-id' });
-    await capture.captureAsync(new AbortController().signal);
-    expect(requests[0].url).toBe('/vendor/serve-emu/api/screenshot');
-  });
-
   it.each([
     [JSON.stringify({ width: 1080, height: 2400, displayRotation: 'portrait' }), 'portrait'],
     [JSON.stringify({ width: 0, height: 0, displayRotation: null }), undefined],
@@ -145,8 +167,8 @@ describe('captureAsync', () => {
     [undefined, undefined],
   ])('returns only a known display rotation from the header (%s)', async (header, expected) => {
     respondWithScreenshot(header === undefined ? {} : { 'X-Expo-Screenshot-Metadata': header });
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-    await expect(capture.captureAsync(new AbortController().signal)).resolves.toEqual(
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.captureAsync(serial, new AbortController().signal)).resolves.toEqual(
       expected ? { image: png, displayRotation: expected } : { image: png }
     );
   });
@@ -160,9 +182,9 @@ describe('captureAsync', () => {
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(body);
     };
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
+    const capture = createServeEmuPreviewCapture({ port, token });
     const message = `serve-emu screenshot request failed: ${status}`;
-    await expect(capture.captureAsync(new AbortController().signal)).rejects.toThrow(
+    await expect(capture.captureAsync(serial, new AbortController().signal)).rejects.toThrow(
       status === 500 ? message : `${message} ${JSON.parse(body).error}`
     );
   });
@@ -172,16 +194,16 @@ describe('captureAsync', () => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
     };
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-    await expect(capture.captureAsync(new AbortController().signal)).rejects.toThrow(
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.captureAsync(serial, new AbortController().signal)).rejects.toThrow(
       'serve-emu screenshot returned application/json.'
     );
   });
 
   it('rejects an empty image', async () => {
     respondWithScreenshot({}, Buffer.alloc(0));
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-    await expect(capture.captureAsync(new AbortController().signal)).rejects.toThrow(
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.captureAsync(serial, new AbortController().signal)).rejects.toThrow(
       'serve-emu screenshot returned an empty image.'
     );
   });
@@ -189,8 +211,10 @@ describe('captureAsync', () => {
   it('sends nothing when the preview was already stopped', async () => {
     const controller = new AbortController();
     controller.abort(new Error('session stopped'));
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-    await expect(capture.captureAsync(controller.signal)).rejects.toThrow('session stopped');
+    const capture = createServeEmuPreviewCapture({ port, token });
+    await expect(capture.captureAsync(serial, controller.signal)).rejects.toThrow(
+      'session stopped'
+    );
     expect(requests).toEqual([]);
   });
 
@@ -202,8 +226,8 @@ describe('captureAsync', () => {
     });
     // Hold the answer, as a slow capture would.
     respond = () => received();
-    const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-    const result = capture.captureAsync(controller.signal);
+    const capture = createServeEmuPreviewCapture({ port, token });
+    const result = capture.captureAsync(serial, controller.signal);
     await requestReceived;
     controller.abort(new Error('session stopped'));
     await expect(result).rejects.toThrow('session stopped');
@@ -218,8 +242,8 @@ describe('captureAsync', () => {
         received = resolve;
       });
       respond = () => received();
-      const capture = createServeEmuPreviewCapture({ port, token, device: 'emulator-5554' });
-      const result = capture.captureAsync(new AbortController().signal);
+      const capture = createServeEmuPreviewCapture({ port, token });
+      const result = capture.captureAsync(serial, new AbortController().signal);
       await requestReceived;
       expect(spy).toHaveBeenCalledWith(30_000);
       timeout.abort(new Error('capture timed out'));

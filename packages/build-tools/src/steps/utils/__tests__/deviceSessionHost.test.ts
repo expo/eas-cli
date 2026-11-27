@@ -325,7 +325,6 @@ describe('Android session preview capture', () => {
       expect(createServeEmuPreviewCapture).toHaveBeenCalledWith({
         port: Number(args[args.indexOf('--port') + 1]),
         token: 'hub-preview-token',
-        device: 'emulator-5556',
       });
       expect(isSupportedAsync).toHaveBeenCalledWith(expect.any(AbortSignal));
       expect(captureDeviceRunSessionPreviewAsync).toHaveBeenCalledWith({
