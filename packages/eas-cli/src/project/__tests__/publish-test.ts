@@ -9,8 +9,9 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
+import Log from '../../log';
 import { RequestedPlatform } from '../../platform';
-import { uploadWithPresignedPostWithRetryAsync } from '../../uploads';
+import { computeFileMd5Base64Async, uploadWithPresignedPostWithRetryAsync } from '../../uploads';
 import { expoCommandAsync } from '../../utils/expoCli';
 import {
   MetadataJoi,
@@ -1090,6 +1091,60 @@ describe(uploadAssetsAsync, () => {
     } finally {
       uploadMock.mockReset();
       jest.useRealTimers();
+    }
+  });
+
+  it('logs the uploaded object, stored hashes and local MD5 in debug mode', async () => {
+    const isDebugProperty = jest.replaceProperty(Log, 'isDebug', true);
+    const debugSpy = jest.spyOn(Log, 'debug').mockImplementation(() => {});
+    const uploadMock = jest.mocked(uploadWithPresignedPostWithRetryAsync);
+    uploadMock.mockResolvedValue(
+      new Response(undefined, { status: 204, headers: { etag: '"abc"', 'x-goog-hash': 'md5=def' } })
+    );
+    jest.mocked(computeFileMd5Base64Async).mockResolvedValue('ghi');
+    try {
+      const singleAssetGroup = {
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'application/javascript',
+            path: androidBundlePath,
+          },
+          assets: [],
+        },
+      };
+      let callNum = 0;
+      jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async (_, keys) => {
+        callNum++;
+        return keys.map(storageKey => ({
+          storageKey,
+          status: callNum >= 2 ? AssetMetadataStatus.Exists : AssetMetadataStatus.DoesNotExist,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+      jest.spyOn(PublishMutation, 'getUploadURLsAsync').mockResolvedValue({
+        specifications: ['{"url":"https://storage.example.com","fields":{"key":"object-1"}}'],
+      });
+
+      await uploadAssetsAsync(
+        instance(mock<ExpoGraphqlClient>()),
+        singleAssetGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {},
+        () => {}
+      );
+
+      const messages = debugSpy.mock.calls.map(call => String(call[0]));
+      expect(messages).toContainEqual(
+        expect.stringContaining('HTTP 204, ETag "abc", x-goog-hash md5=def, local MD5 ghi')
+      );
+      expect(messages).toContainEqual(expect.stringContaining('has storage key'));
+    } finally {
+      uploadMock.mockReset();
+      debugSpy.mockRestore();
+      isDebugProperty.restore();
+      jest.mocked(computeFileMd5Base64Async).mockReset();
     }
   });
 
