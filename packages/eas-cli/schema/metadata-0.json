@@ -760,6 +760,7 @@
         "additionalProperties": false,
         "properties": {
           "ar-SA": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Arabic" },
+          "bn-BD": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Bengali" },
           "ca": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Catalan" },
           "zh-Hans": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Chinese (Simplified)" },
           "zh-Hant": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Chinese (Traditional)" },
@@ -776,27 +777,37 @@
           "fr-CA": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "French (Canada)" },
           "de-DE": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "German" },
           "el": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Greek" },
+          "gu-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Gujarati" },
           "he": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hebrew" },
           "hi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hindi" },
           "hu": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hungarian" },
           "id": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Indonesian" },
           "it": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Italian" },
           "ja": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Japanese" },
+          "kn-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Kannada" },
           "ko": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Korean" },
           "ms": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Malay" },
+          "ml-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Malayalam" },
+          "mr-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Marathi" },
           "no": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Norwegian" },
+          "or-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Oriya" },
           "pl": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Polish" },
           "pt-BR": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Portuguese (Brazil)" },
           "pt-PT": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Portuguese (Portugal)" },
+          "pa-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Punjabi" },
           "ro": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Romanian" },
           "ru": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Russian" },
           "sk": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Slovak" },
+          "sl-SI": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Slovenian" },
           "es-MX": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Spanish (Mexico)" },
           "es-ES": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Spanish (Spain)" },
           "sv": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Swedish" },
+          "ta-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Tamil" },
+          "te-IN": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Telugu" },
           "th": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Thai" },
           "tr": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Turkish" },
           "uk": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Ukrainian" },
+          "ur-PK": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Urdu" },
           "vi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Vietnamese" }
         }
       },
@@ -869,6 +880,10 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Arabic"
             },
+            "bn-BD": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Bengali"
+            },
             "ca": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Catalan"
@@ -933,6 +948,10 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Greek"
             },
+            "gu-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Gujarati"
+            },
             "he": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Hebrew"
@@ -957,6 +976,10 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Japanese"
             },
+            "kn-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Kannada"
+            },
             "ko": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Korean"
@@ -965,9 +988,21 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Malay"
             },
+            "ml-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Malayalam"
+            },
+            "mr-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Marathi"
+            },
             "no": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Norwegian"
+            },
+            "or-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Oriya"
             },
             "pl": {
               "$ref": "#/definitions/apple/AppleInfo",
@@ -981,6 +1016,10 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Portuguese (Portugal)"
             },
+            "pa-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Punjabi"
+            },
             "ro": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Romanian"
@@ -992,6 +1031,10 @@
             "sk": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Slovak"
+            },
+            "sl-SI": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Slovenian"
             },
             "es-MX": {
               "$ref": "#/definitions/apple/AppleInfo",
@@ -1005,6 +1048,14 @@
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Swedish"
             },
+            "ta-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Tamil"
+            },
+            "te-IN": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Telugu"
+            },
             "th": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Thai"
@@ -1016,6 +1067,10 @@
             "uk": {
               "$ref": "#/definitions/apple/AppleInfo",
               "description": "Ukrainian"
+            },
+            "ur-PK": {
+              "$ref": "#/definitions/apple/AppleInfo",
+              "description": "Urdu"
             },
             "vi": {
               "$ref": "#/definitions/apple/AppleInfo",
