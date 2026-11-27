@@ -13,6 +13,7 @@ import bplistParser from 'bplist-parser';
 import plist from 'plist';
 
 export type IpaInfo = {
+  appName: string;
   bundleIdentifier: string;
   bundleShortVersion: string;
   bundleVersion: string;
@@ -68,7 +69,7 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
 
 export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
   try {
-    const infoPlistBuffer = await readInfoPlistBufferFromIpaAsync(ipaPath);
+    const { infoPlistBuffer, appBundlePath } = await readMainAppInfoPlistFromIpaAsync(ipaPath);
     const infoPlist = parseInfoPlistBuffer(infoPlistBuffer);
 
     const bundleIdentifier = infoPlist.CFBundleIdentifier;
@@ -99,6 +100,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
       typeof infoPlist.DTPlatformName === 'string' ? infoPlist.DTPlatformName : null;
 
     return {
+      appName: readAppName(infoPlist, appBundlePath),
       bundleIdentifier,
       bundleShortVersion,
       bundleVersion,
@@ -131,7 +133,20 @@ export function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
   return plist.parse(data.toString('utf8')) as Record<string, unknown>;
 }
 
-async function readInfoPlistBufferFromIpaAsync(ipaPath: string): Promise<Buffer> {
+export function readAppName(infoPlist: Record<string, unknown>, appBundlePath: string): string {
+  const { CFBundleDisplayName, CFBundleName } = infoPlist;
+  if (typeof CFBundleDisplayName === 'string' && CFBundleDisplayName) {
+    return CFBundleDisplayName;
+  }
+  if (typeof CFBundleName === 'string' && CFBundleName) {
+    return CFBundleName;
+  }
+  return path.basename(appBundlePath, '.app');
+}
+
+async function readMainAppInfoPlistFromIpaAsync(
+  ipaPath: string
+): Promise<{ infoPlistBuffer: Buffer; appBundlePath: string }> {
   const zip = new StreamZip.async({ file: ipaPath });
   try {
     const entries = Object.values(await zip.entries());
@@ -142,7 +157,10 @@ async function readInfoPlistBufferFromIpaAsync(ipaPath: string): Promise<Buffer>
         `Failed to read IPA info: Could not find Info.plist in ${ipaPath}`
       );
     }
-    return await zip.entryData(infoPlistEntry.name);
+    return {
+      infoPlistBuffer: await zip.entryData(infoPlistEntry.name),
+      appBundlePath: path.dirname(infoPlistEntry.name),
+    };
   } finally {
     await zip.close();
   }

@@ -70,7 +70,7 @@ describe(createXcodeWorkflowAsync, () => {
       'eas/configure_xcode_signing',
       'eas/build_native_ios',
       'eas/verify_native_ios',
-      'eas/update_resolved_version',
+      'eas/update_remote_build_metadata',
       'eas/upload_artifact',
     ]);
   });
@@ -84,7 +84,7 @@ describe(createXcodeWorkflowAsync, () => {
       'eas/detect_native_xcode',
       'eas/build_native_ios',
       'eas/verify_native_ios',
-      'eas/update_resolved_version',
+      'eas/update_remote_build_metadata',
       'eas/upload_artifact',
     ]);
     const buildStep = workflow.buildSteps.find(
@@ -135,7 +135,7 @@ describe(createXcodeWorkflowAsync, () => {
       'eas/configure_xcode_signing',
       'eas/build_native_ios',
       'eas/verify_native_ios',
-      'eas/update_resolved_version',
+      'eas/update_remote_build_metadata',
       'eas/upload_artifact',
     ]);
     const rawInputsOf = (metricsId: string): Record<string, unknown> =>
@@ -162,6 +162,22 @@ describe(createXcodeWorkflowAsync, () => {
     expect(rawInputsOf('eas/verify_native_ios')).toMatchObject({
       expected_build_number: buildNumber,
     });
+  });
+
+  it('passes what verification read from the built app to the metadata update', async () => {
+    const workflow = await createWorkflowAsync(createTestXcodeSimulatorJob());
+
+    const updateStep = workflow.buildSteps.find(
+      step => step.__metricsId === 'eas/update_remote_build_metadata'
+    )!;
+    expect(Object.fromEntries(updateStep.inputs!.map(input => [input.id, input.rawValue]))).toEqual(
+      {
+        app_name: '${{ steps.verify_native_ios.outputs.app_name }}',
+        application_identifier: '${{ steps.verify_native_ios.outputs.application_identifier }}',
+        app_version: '${{ steps.verify_native_ios.outputs.app_version }}',
+        build_number: '${{ steps.verify_native_ios.outputs.build_number }}',
+      }
+    );
   });
 
   it.each([false, undefined])(
@@ -276,7 +292,7 @@ describe(createXcodeWorkflowAsync, () => {
         'eas/configure_xcode_signing': projectRoot,
         'eas/build_native_ios': xcodeDirectory,
         'eas/verify_native_ios': projectRoot,
-        'eas/update_resolved_version': projectRoot,
+        'eas/update_remote_build_metadata': projectRoot,
         'eas/upload_artifact': projectRoot,
       });
       expect(
