@@ -16,7 +16,7 @@ describe(isCI, () => {
     expect(isCI()).toBe(true);
   });
 
-  it.each(['false', 'FALSE', '0', ''])('treats CI=%s as not CI', value => {
+  it.each(['false', 'FALSE', '0', 'no', 'NO', 'off', ''])('treats CI=%s as not CI', value => {
     process.env.CI = value;
     expect(isCI()).toBe(false);
   });
