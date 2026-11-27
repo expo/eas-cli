@@ -4,6 +4,7 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
+import path from 'path';
 
 import { runFastlaneGym } from '../utils/ios/fastlane';
 import { BuildStatusText, BuildStepOutputName } from '../utils/slackMessageDynamicFields';
@@ -39,6 +40,7 @@ export function runFastlaneFunction(): BuildFunction {
       try {
         await runFastlaneGym({
           workingDir: stepCtx.workingDirectory,
+          gymfileDirectory: path.join(stepCtx.workingDirectory, 'ios'),
           env,
           logger: stepCtx.logger,
           buildLogsDirectory: stepCtx.global.buildLogsDirectory,

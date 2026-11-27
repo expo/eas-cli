@@ -7,6 +7,7 @@ import {
   XcodeProject,
   project as parseProject,
 } from 'xcode';
+import { z } from 'zod';
 
 const { TargetType, getNativeTargets, isTargetOfType } = IOSConfig.Target;
 const { getBuildConfigurationsForListId, unquote } = IOSConfig.XcodeUtils;
@@ -19,6 +20,10 @@ export interface XcodeTarget {
 export interface XcodeTargetWithBundleIdentifier extends XcodeTarget {
   bundleIdentifier: string;
 }
+
+export const XcodeTargetsWithBundleIdentifierZ = z.array(
+  z.object({ id: z.string(), name: z.string(), bundleIdentifier: z.string() })
+);
 
 export function openXcodeProject(xcodeprojPath: string): XcodeProject {
   const pbxprojPath = path.join(xcodeprojPath, 'project.pbxproj');
