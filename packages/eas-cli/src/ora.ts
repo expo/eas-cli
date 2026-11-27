@@ -1,9 +1,9 @@
-import { boolish } from 'getenv';
 // eslint-disable-next-line
 import oraReal, { Options, Ora } from 'ora';
 import type { Writable } from 'stream';
 
 import Log from './log';
+import { isCI } from './utils/ci';
 
 export { Ora, Options };
 
@@ -16,7 +16,7 @@ const warnReal = console.warn;
 // eslint-disable-next-line no-console
 const errorReal = console.error;
 
-const isCi = boolish('CI', false);
+const isCi = isCI();
 
 export function isSpinnerEnabled(): boolean {
   return !(Log.isDebug || !process.stdin.isTTY || isCi);
