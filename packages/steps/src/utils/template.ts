@@ -1,7 +1,6 @@
 import cloneDeep from 'lodash.clonedeep';
 
 import { get } from './get';
-import { nullthrows } from './nullthrows';
 import { BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildConfigError, BuildStepRuntimeError } from '../errors';
 
@@ -10,44 +9,50 @@ export const BUILD_STEP_OUTPUT_EXPRESSION_REGEXP = /\${\s*(steps\.[\S]+)\s*}/;
 export const BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP = /\${\s*(eas\.[\S]+)\s*}/;
 export const BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX = /\${\s*((steps|eas)\.[\S]+)\s*}/;
 
-export function interpolateWithInputs(
-  templateString: string,
-  inputs: Record<string, string>
+type PlaceholderResolver = (expression: string) => string;
+
+export interface TemplateInterpolation {
+  regex: RegExp;
+  resolve: PlaceholderResolver | undefined;
+}
+
+interface TemplatePart {
+  text: string;
+  isResolvedValue: boolean;
+}
+
+export function interpolateTemplate(
+  template: string,
+  interpolations: TemplateInterpolation[]
 ): string {
-  return interpolate(templateString, BUILD_STEP_INPUT_EXPRESSION_REGEXP, inputs);
-}
-
-export function interpolateWithOutputs<InterpolableType extends string | object>(
-  interpolableValue: InterpolableType,
-  fn: (path: string) => string
-): InterpolableType {
-  if (typeof interpolableValue === 'string') {
-    return interpolateStringWithOutputs(interpolableValue, fn) as InterpolableType;
-  } else {
-    return interpolateObjectWithOutputs(interpolableValue, fn) as InterpolableType;
-  }
-}
-
-export function interpolateStringWithOutputs(
-  templateString: string,
-  fn: (path: string) => string
-): string {
-  return interpolate(templateString, BUILD_STEP_OUTPUT_EXPRESSION_REGEXP, fn);
-}
-
-export function interpolateObjectWithOutputs(
-  interpolableObject: object,
-  fn: (path: string) => string
-): object {
-  const interpolableObjectCopy = cloneDeep(interpolableObject);
-  Object.keys(interpolableObject).forEach(property => {
-    const propertyValue = interpolableObject[property as keyof typeof interpolableObject];
-    if (['string', 'object'].includes(typeof propertyValue)) {
-      interpolableObjectCopy[property as keyof typeof interpolableObjectCopy] =
-        interpolateWithOutputs(propertyValue, fn);
+  let parts: TemplatePart[] = [{ text: template, isResolvedValue: false }];
+  for (const { regex, resolve } of interpolations) {
+    if (!resolve) {
+      continue;
     }
-  });
-  return interpolableObjectCopy;
+    parts = parts.flatMap(part =>
+      part.isResolvedValue ? [part] : resolvePlaceholders(part.text, regex, resolve)
+    );
+  }
+  return parts.map(part => part.text).join('');
+}
+
+function resolvePlaceholders(
+  text: string,
+  regex: RegExp,
+  resolve: PlaceholderResolver
+): TemplatePart[] {
+  const parts: TemplatePart[] = [];
+  let textStart = 0;
+  for (const match of text.matchAll(new RegExp(regex, 'g'))) {
+    parts.push(
+      { text: text.slice(textStart, match.index), isResolvedValue: false },
+      { text: resolve(match[1]), isResolvedValue: true }
+    );
+    textStart = match.index + match[0].length;
+  }
+  parts.push({ text: text.slice(textStart), isResolvedValue: false });
+  return parts;
 }
 
 export function getObjectValueForInterpolation(
@@ -92,7 +97,9 @@ export function interpolateStringWithGlobalContext(
   templateString: string,
   fn: (path: string) => string
 ): string {
-  return interpolate(templateString, BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, fn);
+  return interpolateTemplate(templateString, [
+    { regex: BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, resolve: fn },
+  ]);
 }
 
 export function interpolateObjectWithGlobalContext(
@@ -108,24 +115,6 @@ export function interpolateObjectWithGlobalContext(
     }
   });
   return templateObjectCopy;
-}
-
-function interpolate(
-  templateString: string,
-  regex: RegExp,
-  varsOrFn: Record<string, string> | ((key: string) => string)
-): string {
-  const matched = templateString.match(new RegExp(regex, 'g'));
-  if (!matched) {
-    return templateString;
-  }
-  let result = templateString;
-  for (const match of matched) {
-    const [, path] = nullthrows(match.match(regex));
-    const value = typeof varsOrFn === 'function' ? varsOrFn(path) : varsOrFn[path.split('.')[1]];
-    result = result.replace(match, value);
-  }
-  return result;
 }
 
 function isAllowedValueTypeForObjectInterpolation(

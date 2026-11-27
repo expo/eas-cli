@@ -446,6 +446,126 @@ describe(BuildStep, () => {
         expect(step.getOutputValueByName('foo2')).toBe('bar');
       });
 
+      describe('placeholders inside interpolated values', () => {
+        function createStepWithOutputFoo2(
+          command: string,
+          inputs?: Record<string, string>
+        ): BuildStep {
+          return new BuildStep(baseStepCtx, {
+            id: 'step2',
+            displayName: 'Step 2',
+            command,
+            inputs:
+              inputs &&
+              Object.entries(inputs).map(
+                ([id, defaultValue]) =>
+                  new BuildStepInput(baseStepCtx, {
+                    id,
+                    stepDisplayName: 'Step 2',
+                    defaultValue,
+                    required: true,
+                    allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+                  })
+              ),
+            outputs: [
+              new BuildStepOutput(baseStepCtx, {
+                id: 'foo2',
+                stepDisplayName: 'Step 2',
+                required: true,
+              }),
+            ],
+          });
+        }
+
+        async function executeStep1WithOutputFooAsync(value: string): Promise<void> {
+          await new BuildFunction({
+            id: 'func',
+            fn: (_ctx, { outputs }) => {
+              outputs.foo.set(value);
+            },
+            outputProviders: [BuildStepOutput.createProvider({ id: 'foo', required: true })],
+          })
+            .createBuildStepFromFunctionCall(baseStepCtx, { id: 'step1' })
+            .executeAsync();
+        }
+
+        it('does not interpolate ${ eas.* } that a ${{ }} value contains', async () => {
+          baseStepCtx.updateEnv({
+            COMMENT: 'Hello ${ eas.env.SECRET }',
+            SECRET: 'secret-token',
+          });
+          const step = createStepWithOutputFoo2("set-output foo2 '${{ env.COMMENT }}'");
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe('Hello ${ eas.env.SECRET }');
+        });
+
+        it('does not interpolate ${ inputs.* } or ${ steps.* } that a ${{ }} value contains', async () => {
+          baseStepCtx.updateEnv({
+            COMMENT: 'Hello ${ inputs.foo1 } ${ steps.missing.foo }',
+          });
+          const step = createStepWithOutputFoo2("set-output foo2 '${{ env.COMMENT }}'", {
+            foo1: 'bar',
+          });
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe(
+            'Hello ${ inputs.foo1 } ${ steps.missing.foo }'
+          );
+        });
+
+        it('does not interpolate ${ steps.* } that a ${ inputs.* } value contains', async () => {
+          baseStepCtx.updateEnv({
+            COMMENT: 'Hello ${ steps.missing.foo }',
+          });
+          const step = createStepWithOutputFoo2("set-output foo2 '${ inputs.foo1 }'", {
+            foo1: '${{ env.COMMENT }}',
+          });
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe('Hello ${ steps.missing.foo }');
+        });
+
+        it('does not interpolate ${ inputs.* } or ${ steps.* } that a ${ eas.* } value contains', async () => {
+          baseStepCtx.updateEnv({
+            COMMENT: 'Hello ${ inputs.foo1 } ${ steps.missing.foo }',
+          });
+          const step = createStepWithOutputFoo2("set-output foo2 '${ eas.env.COMMENT }'", {
+            foo1: 'bar',
+          });
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe(
+            'Hello ${ inputs.foo1 } ${ steps.missing.foo }'
+          );
+        });
+
+        it('does not interpolate a placeholder that a step output contains', async () => {
+          await executeStep1WithOutputFooAsync('${{ env.SECRET }} ${ eas.env.SECRET }');
+          baseStepCtx.updateEnv({ SECRET: 'secret-token' });
+          const step = createStepWithOutputFoo2(
+            "set-output foo2 '${ steps.step1.foo } ${{ steps.step1.outputs.foo }}'"
+          );
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe(
+            '${{ env.SECRET }} ${ eas.env.SECRET } ${{ env.SECRET }} ${ eas.env.SECRET }'
+          );
+        });
+
+        it('interpolates all placeholder syntaxes that the author mixes in one command', async () => {
+          await executeStep1WithOutputFooAsync('output');
+          baseStepCtx.updateEnv({ GREETING: 'hello' });
+          const step = createStepWithOutputFoo2(
+            "set-output foo2 '${{ env.GREETING }} ${ eas.runtimePlatform } ${ inputs.foo1 } ${ steps.step1.foo } ${{ env.GREETING }}${ eas.env.GREETING }'",
+            { foo1: 'bar' }
+          );
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe('hello linux bar output hellohello');
+        });
+
+        it('leaves ${ inputs.* } literal in a command of a step without inputs', async () => {
+          const step = createStepWithOutputFoo2("set-output foo2 '${ inputs.foo1 }'");
+          await step.executeAsync();
+          expect(step.getOutputValueByName('foo2')).toBe('${ inputs.foo1 }');
+        });
+      });
+
       it('collects the outputs after calling the script', async () => {
         const id = 'test1';
         const command = 'set-output abc 123';

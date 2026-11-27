@@ -1,33 +1,88 @@
+import { jest } from '@jest/globals';
+
 import { getError } from '../../__tests__/utils/error';
 import { BuildConfigError, BuildStepRuntimeError } from '../../errors';
 import {
+  BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP,
+  BUILD_STEP_INPUT_EXPRESSION_REGEXP,
+  BUILD_STEP_OUTPUT_EXPRESSION_REGEXP,
   findOutputPaths,
   getObjectValueForInterpolation,
+  interpolateTemplate,
   interpolateWithGlobalContext,
-  interpolateWithInputs,
-  interpolateWithOutputs,
   parseOutputPath,
 } from '../template';
 
-describe(interpolateWithInputs, () => {
-  test('interpolation', () => {
-    const result = interpolateWithInputs('foo${ inputs.foo }', { foo: 'bar' });
-    expect(result).toBe('foobar');
+describe(interpolateTemplate, () => {
+  it('interpolates inputs', () => {
+    const result = interpolateTemplate('foo${ inputs.foo }', [
+      { regex: BUILD_STEP_INPUT_EXPRESSION_REGEXP, resolve: path => `<${path}>` },
+    ]);
+    expect(result).toBe('foo<inputs.foo>');
   });
-});
 
-describe(interpolateWithOutputs, () => {
-  test('interpolation', () => {
-    const result = interpolateWithOutputs('foo${ steps.abc123.foo }${ steps.abc123.bar }', path => {
-      if (path === 'steps.abc123.foo') {
-        return 'bar';
-      } else if (path === 'steps.abc123.bar') {
-        return 'baz';
-      } else {
-        return 'x';
-      }
-    });
+  it('interpolates outputs', () => {
+    const result = interpolateTemplate('foo${ steps.abc123.foo }${ steps.abc123.bar }', [
+      {
+        regex: BUILD_STEP_OUTPUT_EXPRESSION_REGEXP,
+        resolve: path => {
+          if (path === 'steps.abc123.foo') {
+            return 'bar';
+          } else if (path === 'steps.abc123.bar') {
+            return 'baz';
+          } else {
+            return 'x';
+          }
+        },
+      },
+    ]);
     expect(result).toBe('foobarbaz');
+  });
+
+  it('returns the template when nothing matches', () => {
+    expect(
+      interpolateTemplate('foo ${ bar }', [
+        { regex: BUILD_STEP_OUTPUT_EXPRESSION_REGEXP, resolve: () => 'x' },
+      ])
+    ).toBe('foo ${ bar }');
+    expect(interpolateTemplate('foo ${ steps.a.b }', [])).toBe('foo ${ steps.a.b }');
+  });
+
+  it('applies all interpolations to the text of the template', () => {
+    const result = interpolateTemplate('${ steps.a.b }-${ eas.a }-${ inputs.a }-${ eas.b }', [
+      { regex: BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, resolve: path => `<${path}>` },
+      { regex: BUILD_STEP_INPUT_EXPRESSION_REGEXP, resolve: path => `<${path}>` },
+      { regex: BUILD_STEP_OUTPUT_EXPRESSION_REGEXP, resolve: path => `<${path}>` },
+    ]);
+    expect(result).toBe('<steps.a.b>-<eas.a>-<inputs.a>-<eas.b>');
+  });
+
+  it('does not scan a value that an earlier interpolation inserted', () => {
+    const resolve = jest.fn((path: string) =>
+      path === 'eas.a' ? '${ steps.a.b } ${ eas.b } ${ inputs.a }' : 'x'
+    );
+    const result = interpolateTemplate('${ eas.a }|${ steps.c.d }', [
+      { regex: BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, resolve },
+      { regex: BUILD_STEP_INPUT_EXPRESSION_REGEXP, resolve },
+      { regex: BUILD_STEP_OUTPUT_EXPRESSION_REGEXP, resolve },
+    ]);
+    expect(result).toBe('${ steps.a.b } ${ eas.b } ${ inputs.a }|x');
+    expect(resolve.mock.calls).toEqual([['eas.a'], ['steps.c.d']]);
+  });
+
+  it('does not match a placeholder that spans the template and an inserted value', () => {
+    const result = interpolateTemplate('${ eas.a${ inputs.a }', [
+      { regex: BUILD_STEP_INPUT_EXPRESSION_REGEXP, resolve: () => '.b }' },
+      { regex: BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, resolve: () => 'x' },
+    ]);
+    expect(result).toBe('${ eas.a.b }');
+  });
+
+  it('inserts values that contain $ replacement patterns verbatim', () => {
+    const result = interpolateTemplate('a ${ eas.a } b', [
+      { regex: BUILD_GLOBAL_CONTEXT_EXPRESSION_REGEXP, resolve: () => "$$ $& $1 $` $'" },
+    ]);
+    expect(result).toBe("a $$ $& $1 $` $' b");
   });
 });
 

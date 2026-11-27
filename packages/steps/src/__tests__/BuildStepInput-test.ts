@@ -1,7 +1,9 @@
 import { JobInterpolationContext } from '@expo/eas-build-job';
+import { jest } from '@jest/globals';
 
 import { createGlobalContextMock } from './utils/context';
 import { BuildStep } from '../BuildStep';
+import { BuildStepGlobalContext } from '../BuildStepContext';
 import {
   BuildStepInput,
   BuildStepInputValueTypeName,
@@ -939,6 +941,203 @@ describe(BuildStepInput, () => {
     }).toThrowError(
       new BuildStepRuntimeError('Input parameter "foo" for step "test1" is required.')
     );
+  });
+
+  describe('placeholders inside interpolated values', () => {
+    function createStringInput(ctx: BuildStepGlobalContext, value: unknown): BuildStepInput {
+      return new BuildStepInput(ctx, {
+        id: 'foo',
+        stepDisplayName: 'test1',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }).set(value);
+    }
+
+    it('does not interpolate ${ eas.* } that a ${{ }} value contains', () => {
+      const commentBody = 'Hello ${ eas.job.secrets.robotAccessToken }';
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          github: { event: { comment: { body: commentBody } } },
+          job: { secrets: { robotAccessToken: 'secret-token' } },
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, 'User said: ${{ github.event.comment.body }}');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        `User said: ${commentBody}`
+      );
+    });
+
+    it('does not interpolate ${ eas.* } that a whole-value ${{ }} string contains', () => {
+      const commentBody = 'Hello ${ eas.job.secrets.robotAccessToken }';
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          github: { event: { comment: { body: commentBody } } },
+          job: { secrets: { robotAccessToken: 'secret-token' } },
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, '${{ github.event.comment.body }}');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(commentBody);
+    });
+
+    it('does not fail on unknown ${ eas.* } or ${ steps.* } that a ${{ }} value contains', () => {
+      const message = 'Document ${ eas.foo } and ${ steps.build.id }';
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          github: { event: { head_commit: { message } } },
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, 'Commit: ${{ github.event.head_commit.message }}');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        `Commit: ${message}`
+      );
+    });
+
+    it('does not interpolate strings nested in a whole-value ${{ }} object', () => {
+      const event = {
+        comment: { body: 'Hello ${ eas.job.secrets.robotAccessToken }' },
+        labels: ['${ steps.build.id }'],
+      };
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          github: { event },
+          job: { secrets: { robotAccessToken: 'secret-token' } },
+        } as unknown as JobInterpolationContext,
+      });
+      const i = new BuildStepInput(ctx, {
+        id: 'foo',
+        stepDisplayName: 'test1',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }).set('${{ github.event }}');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toEqual(event);
+    });
+
+    it('returns a copy of the object that a whole-value ${{ }} evaluates to', () => {
+      const event = { comment: { body: 'Hello' } };
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          github: { event },
+        } as unknown as JobInterpolationContext,
+      });
+      const i = new BuildStepInput(ctx, {
+        id: 'foo',
+        stepDisplayName: 'test1',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }).set('${{ github.event }}');
+      const value = i.getValue({ interpolationContext: ctx.getInterpolationContext() }) as any;
+      expect(value).toEqual(event);
+      expect(value).not.toBe(event);
+      expect(value.comment).not.toBe(event.comment);
+    });
+
+    it('does not interpolate ${ steps.* } that a ${ eas.* } value contains', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          title: 'See ${ steps.build.id }',
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, 'Title: ${ eas.title }');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        'Title: See ${ steps.build.id }'
+      );
+    });
+
+    it('inserts values that contain $ replacement patterns verbatim', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          price: "$$5 $& $1 $` $'",
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, 'Price: ${ eas.price }, again: ${{ price }}');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        "Price: $$5 $& $1 $` $', again: $$5 $& $1 $` $'"
+      );
+    });
+
+    it('replaces each placeholder at its own position', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          first: '${ eas.second }',
+          second: 'two',
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, '${ eas.first } ${ eas.second }');
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        '${ eas.second } two'
+      );
+    });
+
+    it('interpolates both syntaxes that the author mixes in one string', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          foo: 'bar',
+        } as unknown as JobInterpolationContext,
+      });
+      jest.spyOn(ctx, 'getStepOutputValue').mockReturnValue('output');
+      const i = createStringInput(
+        ctx,
+        '${{ foo }} ${ eas.runtimePlatform } ${ steps.build.id } ${{ foo }}${ eas.foo }'
+      );
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+        'bar linux output barbar'
+      );
+      expect(ctx.getStepOutputValue).toHaveBeenCalledWith('steps.build.id');
+    });
+
+    it('interpolates both syntaxes in strings nested in an object the author wrote', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          foo: 'bar',
+          count: 3,
+        } as unknown as JobInterpolationContext,
+      });
+      jest.spyOn(ctx, 'getStepOutputValue').mockReturnValue('output');
+      const i = new BuildStepInput(ctx, {
+        id: 'foo',
+        stepDisplayName: 'test1',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }).set({
+        mixed: '${{ foo }}-${ eas.runtimePlatform }',
+        typed: '${{ count }}',
+        list: ['${ steps.build.id }', 1],
+      });
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toEqual({
+        mixed: 'bar-linux',
+        typed: 3,
+        list: ['output', 1],
+      });
+    });
+
+    it('keeps null nested in an object the author wrote', () => {
+      const ctx = createGlobalContextMock();
+      const i = new BuildStepInput(ctx, {
+        id: 'foo',
+        stepDisplayName: 'test1',
+        required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }).set({ foo: null, bar: [null, '${ eas.runtimePlatform }'] });
+      expect(i.getValue({ interpolationContext: ctx.getInterpolationContext() })).toEqual({
+        foo: null,
+        bar: [null, 'linux'],
+      });
+    });
+
+    it('keeps ${ steps.* } literal and interpolates ${ eas.* } for composite function inputs', () => {
+      const ctx = createGlobalContextMock({
+        staticContextContent: {
+          foo: 'bar',
+        } as unknown as JobInterpolationContext,
+      });
+      const i = createStringInput(ctx, '${{ foo }} ${ eas.runtimePlatform } ${ steps.build.id }');
+      expect(
+        i.getValue({
+          interpolationContext: ctx.getInterpolationContext(),
+          skipLegacyOutputInterpolation: true,
+        })
+      ).toBe('bar linux ${ steps.build.id }');
+    });
   });
 });
 

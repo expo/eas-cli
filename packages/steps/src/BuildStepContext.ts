@@ -189,13 +189,15 @@ export class BuildStepGlobalContext {
   public interpolate<InterpolableType extends string | object>(
     value: InterpolableType
   ): InterpolableType {
-    return interpolateWithGlobalContext(value, path => {
-      return (
-        getObjectValueForInterpolation(path, {
-          eas: this.getEasContext(this.env),
-        })?.toString() ?? ''
-      );
-    });
+    return interpolateWithGlobalContext(value, path => this.getEasContextValue(path));
+  }
+
+  public getEasContextValue(path: string): string {
+    return (
+      getObjectValueForInterpolation(path, {
+        eas: this.getEasContext(this.env),
+      })?.toString() ?? ''
+    );
   }
 
   public stepCtx(options: { logger: bunyan; relativeWorkingDirectory?: string }): BuildStepContext {
