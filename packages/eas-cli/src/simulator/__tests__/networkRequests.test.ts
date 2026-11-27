@@ -213,13 +213,14 @@ describe(readNetworkRequestsAsync, () => {
     ]);
   });
 
-  it('returns selected captured headers and bodies without depending on the live request buffer', async () => {
-    const request = entry('r1');
-    reply(JSON.stringify(request));
-    expect(await readNetworkRequestsAsync(preview, { limit: 100, requestId: 'r1' })).toEqual(
-      request
-    );
-  });
+  it.each(['1', '#1', 'r1'])(
+    'returns captured headers and bodies for request %s',
+    async requestId => {
+      const request = entry('r1');
+      reply(JSON.stringify(request));
+      expect(await readNetworkRequestsAsync(preview, { limit: 100, requestId })).toEqual(request);
+    }
+  );
 
   it('handles UTF-8 split across chunks', async () => {
     const bytes = Buffer.from(

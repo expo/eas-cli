@@ -39,7 +39,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
   static override examples = [
     '<%= config.bin %> simulator:network-requests --json',
     '<%= config.bin %> simulator:network-requests --follow --timestamp',
-    '<%= config.bin %> simulator:network-requests --request-id r1 --json',
+    '<%= config.bin %> simulator:network-requests --request-id 1 --json',
     '<%= config.bin %> simulator:network-requests --output capture.har',
   ];
 
@@ -53,7 +53,7 @@ export default class SimulatorNetworkRequests extends EasCommand {
     }),
     'request-id': Flags.string({
       description:
-        'Show a captured request, including the headers and bodies selected for capture.',
+        'Show a request by its number in the list, including any captured headers and bodies.',
       exclusive: ['output'],
     }),
     output: Flags.string({
@@ -208,8 +208,9 @@ function formatRequestSummary(request: NetworkRequestSummary, timestamp = false)
   } else if (request.status >= 200) {
     status = chalk.green(status);
   }
+  const id = stripTerminalControlCharacters(request.id ?? '-').replace(/^r([1-9]\d*)$/, '#$1');
   const fields = [
-    chalk.dim(stripTerminalControlCharacters(request.id ?? '-').padEnd(5)),
+    chalk.dim(id.padEnd(5)),
     chalk.bold.cyan(stripTerminalControlCharacters(request.method).padEnd(6)),
     stripTerminalControlCharacters(request.url),
     status,

@@ -294,7 +294,7 @@ describe(SimulatorNetworkRequests, () => {
     expect(output).toBe(
       [
         chalk.dim('2026-10-05T12:00:00.000Z'),
-        chalk.dim('r1   '),
+        chalk.dim('#1   '),
         chalk.bold.cyan('GET   '),
         url,
         chalk.green('201'),
@@ -305,7 +305,7 @@ describe(SimulatorNetworkRequests, () => {
     expect(output).not.toContain('\u001b[35m');
     expect(output).not.toContain('\u0007');
     expect(stripVTControlCharacters(output)).toBe(
-      `2026-10-05T12:00:00.000Z  r1     GET     ${url}  201  50ms`
+      `2026-10-05T12:00:00.000Z  #1     GET     ${url}  201  50ms`
     );
   });
 
@@ -330,13 +330,14 @@ describe(SimulatorNetworkRequests, () => {
 
   it('leaves JSON data untouched when terminal color is enabled', async () => {
     chalk.level = 1;
-    mockReadRequestsAsync.mockResolvedValue([requestSummary]);
+    const summary = { ...requestSummary, id: 'r1' };
+    mockReadRequestsAsync.mockResolvedValue([summary]);
 
     await createCommand(['--json']).runAsync();
 
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
-      requests: [requestSummary],
+      requests: [summary],
     });
     expect(JSON.stringify(mockPrintJsonOnlyOutput.mock.calls[0][0])).not.toContain('\\u001b');
     expect(mockLog).not.toHaveBeenCalled();
@@ -356,7 +357,7 @@ describe(SimulatorNetworkRequests, () => {
     'streams human summaries with %s without fetching a finite list',
     async follow => {
       mockStreamRequestsAsync.mockImplementation(async (_preview, onRequest) => {
-        onRequest(requestSummary);
+        onRequest({ ...requestSummary, id: 'r19' });
       });
 
       await createCommand([follow, '--timestamp']).runAsync();
@@ -367,7 +368,7 @@ describe(SimulatorNetworkRequests, () => {
         expect.any(AbortSignal)
       );
       expect(mockLog).toHaveBeenCalledWith(
-        '2026-10-05T12:00:00.000Z  request-id  POST    https://example.test/posts  201  50ms'
+        '2026-10-05T12:00:00.000Z  #19    POST    https://example.test/posts  201  50ms'
       );
       expect(mockReadRequestsAsync).not.toHaveBeenCalled();
       expect(mockDownloadCaptureAsync).not.toHaveBeenCalled();

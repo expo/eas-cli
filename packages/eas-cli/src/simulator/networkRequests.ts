@@ -88,6 +88,7 @@ export async function readNetworkRequestsAsync(
   let response: Response | undefined;
   let lines: readline.Interface | undefined;
   const requests: NetworkRequestSummary[] = [];
+  const captureId = requestId?.replace(/^#?([1-9]\d*)$/, 'r$1');
   let selected: NetworkRequest | undefined;
   try {
     response = await fetchSimulatorPreviewAsync(preview, '/network-capture.ndjson', {
@@ -104,8 +105,8 @@ export async function readNetworkRequestsAsync(
         throw new Error(INVALID_NETWORK_CAPTURE_MESSAGE);
       }
       const entry = result.data;
-      if (requestId) {
-        if (entry._captureId === requestId) {
+      if (captureId) {
+        if (entry._captureId === captureId) {
           selected = entry;
         }
         continue;
@@ -137,7 +138,7 @@ export async function readNetworkRequestsAsync(
     response?.body.once('error', () => {});
     controller.abort();
   }
-  if (!requestId) {
+  if (!captureId) {
     return requests.sort(compareRequestStarts).slice(-limit);
   }
   if (!selected) {
