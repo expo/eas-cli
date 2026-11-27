@@ -156,6 +156,9 @@ const IosBuildProfileSchema = PlatformBuildProfileSchema.concat(
       Joi.boolean(),
       Joi.string().valid('version', 'buildNumber')
     ),
+
+    // artifacts
+    uploadDebugSymbols: Joi.boolean(),
   })
 );
 

@@ -51,6 +51,7 @@ describe('Ios.JobSchema', () => {
       expoBuildUrl: 'https://expo.dev/fake/build/url',
       experimental: {
         uploadSourceMaps: true,
+        uploadDebugSymbols: true,
       },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),

@@ -190,6 +190,56 @@ export async function uploadSourceMapAsync(
   }
 }
 
+export async function uploadDebugSymbolsAsync(
+  ctx: BuildContext,
+  {
+    debugSymbolsPath,
+    logger,
+  }: {
+    debugSymbolsPath: string;
+    logger: bunyan;
+  }
+): Promise<{ filename: string | null }> {
+  const { localPath, filename, size } = await prepareArtifactsForUploadAsync(logger, [
+    debugSymbolsPath,
+  ]);
+
+  let uploadSession: SignedUrl | null = null;
+
+  try {
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Debug Symbols',
+      size,
+      artifactType: 'debugSymbols',
+    });
+
+    uploadSession = signedUrl;
+
+    await uploadWithSignedUrl({
+      signedUrl,
+      srcGeneratorAsync: async () => {
+        return fs.createReadStream(localPath);
+      },
+    });
+
+    await saveArtifactAsync(ctx, { bucketKey, type: 'debugSymbols', storageType });
+
+    return { filename: null };
+  } catch (err: any) {
+    throw new errors.SystemError(err.message, {
+      trackingCode: 'EAS_BUILD_UPLOAD_DEBUG_SYMBOLS_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
+      cause: err,
+    });
+  }
+}
+
 export async function uploadWorkflowArtifactAsync(
   ctx: BuildContext,
   {
@@ -292,6 +342,22 @@ function getCommonParentDir(path1: string, path2: string): string {
   return '/';
 }
 
+const ErrorResponseBodySchema = z.object({
+  errors: z.array(z.object({ message: z.string() })).min(1),
+});
+
+function getErrorResponseMessage(status: number, body: string | undefined): string {
+  if (body !== undefined) {
+    try {
+      const parsedBody = ErrorResponseBodySchema.safeParse(JSON.parse(body));
+      if (parsedBody.success) {
+        return parsedBody.data.errors.map(error => error.message).join(' ');
+      }
+    } catch {}
+  }
+  return `Unexpected response from server (${status}): ${body ?? 'Could not read response body'}`;
+}
+
 async function createUploadSessionAsync(
   ctx: BuildContext,
   {
@@ -305,7 +371,7 @@ async function createUploadSessionAsync(
     name: string;
     size: number;
     metadata?: Record<string, unknown>;
-    artifactType?: 'sourceMap';
+    artifactType?: 'sourceMap' | 'debugSymbols';
   }
 ): Promise<{
   bucketKey: string;
@@ -376,13 +442,18 @@ async function createUploadSessionAsync(
 
     const response = responseResult.reason.response;
     const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+    throw new Error(
+      getErrorResponseMessage(response.status, textResult.ok ? textResult.value : undefined)
+    );
   }
 
   if (!responseResult.value.ok) {
     const textResult = await asyncResult(responseResult.value.text());
     throw new Error(
-      `Unexpected response from server (${responseResult.value.status}): ${textResult.ok ? textResult.value : 'Could not read response body'}`
+      getErrorResponseMessage(
+        responseResult.value.status,
+        textResult.ok ? textResult.value : undefined
+      )
     );
   }
 
@@ -443,7 +514,7 @@ async function saveArtifactAsync(
     storageType,
   }: {
     bucketKey: string;
-    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap';
+    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap' | 'debugSymbols';
     storageType: ArchiveSourceType | null;
   }
 ): Promise<void> {
@@ -502,6 +573,8 @@ async function saveArtifactAsync(
 
     const response = responseResult.reason.response;
     const textResult = await asyncResult(response.text());
-    throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+    throw new Error(
+      getErrorResponseMessage(response.status, textResult.ok ? textResult.value : undefined)
+    );
   }
 }

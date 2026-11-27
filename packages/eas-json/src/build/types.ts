@@ -131,6 +131,9 @@ export interface IosBuildProfile extends PlatformBuildProfile {
 
   // versions
   autoIncrement?: IosVersionAutoIncrement;
+
+  // artifacts
+  uploadDebugSymbols?: boolean;
 }
 
 export type BuildProfile<TPlatform extends Platform = Platform> = TPlatform extends Platform.ANDROID

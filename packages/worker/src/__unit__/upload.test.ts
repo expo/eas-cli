@@ -8,10 +8,11 @@ import { Response } from 'node-fetch';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadDebugSymbolsAsync,
   uploadSourceMapAsync,
   uploadWorkflowArtifactAsync,
 } from '../upload';
-import { turtleFetch } from '../utils/turtleFetch';
+import { TurtleFetchError, turtleFetch } from '../utils/turtleFetch';
 
 const mockLogger = {
   error: jest.fn(),
@@ -547,6 +548,165 @@ describe(uploadSourceMapAsync.name, () => {
         json: { source: { bucketKey, type: 'GCS' }, type: 'sourceMap' },
       })
     );
+  });
+});
+
+describe(uploadDebugSymbolsAsync.name, () => {
+  function createContext(buildId: string): BuildContext<Job> {
+    // @ts-expect-error
+    return {
+      env: {
+        EAS_BUILD_ID: buildId,
+      },
+      job: {
+        platform: 'ios',
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+  }
+
+  it('uploads the archive with its own name and registers it as debug symbols', async () => {
+    vol.fromJSON({
+      './ios/build/Remember.app.dSYM.zip': JSON.stringify(randomBytes(20)),
+    });
+    const buildId = randomUUID();
+    const ctx = createContext(buildId);
+    const bucketKey = `debug-symbols/${randomUUID()}/Remember.app.dSYM.zip`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const authorization = randomUUID();
+
+    turtleFetchMock.mockImplementation(async url => {
+      if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`) {
+        return {
+          ok: true,
+          status: 200,
+        } as Response;
+      } else if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              bucketKey,
+              url: uploadUrl,
+              headers: { authorization },
+              storageType: 'GCS',
+            },
+          }),
+        } as Response;
+      }
+      return { ok: false, status: 404 } as Response;
+    });
+
+    await uploadDebugSymbolsAsync(ctx, {
+      debugSymbolsPath: './ios/build/Remember.app.dSYM.zip',
+      logger: ctx.logger,
+    });
+
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedUrl: {
+          url: uploadUrl,
+          headers: { authorization },
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      1,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`,
+      'POST',
+      expect.objectContaining({
+        json: {
+          filename: 'Remember.app.dSYM.zip',
+          name: 'Debug Symbols',
+          size: expect.any(Number),
+          type: 'debugSymbols',
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      2,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`,
+      'POST',
+      expect.objectContaining({
+        json: { source: { bucketKey, type: 'GCS' }, type: 'debugSymbols' },
+      })
+    );
+  });
+
+  it('includes the server error in the thrown message', async () => {
+    vol.fromJSON({
+      './ios/build/Remember.app.dSYM.zip': JSON.stringify(randomBytes(20)),
+    });
+    const buildId = randomUUID();
+    const ctx = createContext(buildId);
+    const serverMessage = 'This feature is not available on the Free plan.';
+
+    turtleFetchMock.mockImplementation(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          errors: [
+            { code: 'EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER', message: serverMessage },
+          ],
+        }),
+      } as Response;
+    });
+
+    const uploadPromise = uploadDebugSymbolsAsync(ctx, {
+      debugSymbolsPath: './ios/build/Remember.app.dSYM.zip',
+      logger: ctx.logger,
+    });
+
+    await expect(uploadPromise).rejects.toThrow(errors.SystemError);
+    await expect(uploadPromise).rejects.toThrow(serverMessage);
+    expect(uploadWithSignedUrl).not.toHaveBeenCalled();
+  });
+  it('throws only the server message when the server rejects the archive', async () => {
+    vol.fromJSON({
+      './ios/build/Remember.app.dSYM.zip': '',
+    });
+    const buildId = randomUUID();
+    const ctx = createContext(buildId);
+    const serverMessage =
+      'The debug symbols archive is empty. Upload a zip that contains dSYM files.';
+
+    turtleFetchMock.mockImplementation(async url => {
+      if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              bucketKey: `debug-symbols/${randomUUID()}/Remember.app.dSYM.zip`,
+              url: `https://upload.url/${randomUUID()}`,
+              headers: {},
+              storageType: 'GCS',
+            },
+          }),
+        } as Response;
+      }
+      throw new TurtleFetchError(
+        'Request failed',
+        new Response(
+          JSON.stringify({
+            errors: [{ code: 'VALIDATION_ERROR', type: 'USER', message: serverMessage }],
+          }),
+          { status: 400 }
+        )
+      );
+    });
+
+    await expect(
+      uploadDebugSymbolsAsync(ctx, {
+        debugSymbolsPath: './ios/build/Remember.app.dSYM.zip',
+        logger: ctx.logger,
+      })
+    ).rejects.toMatchObject({ message: serverMessage });
   });
 });
 
