@@ -1,6 +1,8 @@
 import * as fs from 'fs-extra';
 import { parse as parseDotenv } from 'dotenv';
 import * as realFs from 'node:fs/promises';
+import { fork } from 'node:child_process';
+import { once } from 'node:events';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -23,10 +25,16 @@ import { readLocalEgressConfigFromEnv } from '../egress';
 jest.mock('fs-extra');
 
 describe(resetSimulatorEnvAsync, () => {
-  const projectDir = '/test/project';
-  const simulatorDotenvPath = getSimulatorEnvFilePath(projectDir);
+  let projectDir: string;
+  let simulatorDotenvPath: string;
 
-  beforeEach(() => {
+  afterEach(async () => {
+    await realFs.rm(projectDir, { recursive: true, force: true });
+  });
+
+  beforeEach(async () => {
+    projectDir = await realFs.mkdtemp(path.join(os.tmpdir(), 'eas-simulator-env-'));
+    simulatorDotenvPath = getSimulatorEnvFilePath(projectDir);
     jest.clearAllMocks();
     jest
       .mocked(fs.readFile)
@@ -47,9 +55,33 @@ describe(resetSimulatorEnvAsync, () => {
     );
   });
 
+  it('preserves the new session when another process writes during a reset', async () => {
+    await realFs.writeFile(simulatorDotenvPath, `${EAS_SIMULATOR_SESSION_ID}=session-123\n`);
+    jest.mocked(fs.writeFile).mockImplementation(jest.requireActual('fs-extra').writeFile);
+    jest.mocked(fs.truncate).mockImplementation(jest.requireActual('fs-extra').truncate);
+
+    let writerExit: Promise<unknown[]> | undefined;
+    jest.mocked(fs.readFile).mockImplementationOnce(async () => {
+      const old = await realFs.readFile(simulatorDotenvPath, 'utf8');
+      const writer = fork(path.join(__dirname, 'fixtures/write-simulator-env.cjs'), [projectDir], {
+        execArgv: [],
+      });
+      writerExit = once(writer, 'exit');
+      // If either side omits the lock, the writer exits first and the old reset erases its file.
+      const [state] = await Promise.race([once(writer, 'message'), writerExit]);
+      expect(state).toBe('contended');
+      return old;
+    });
+
+    await resetSimulatorEnvAsync(projectDir, 'session-123');
+    expect(await writerExit).toEqual([0, null]);
+    expect(parseDotenv(await realFs.readFile(simulatorDotenvPath, 'utf8'))).toEqual({
+      [EAS_SIMULATOR_SESSION_ID]: 'new-session',
+    });
+  });
+
   it('ignores a missing simulator dotenv file', async () => {
-    const err = Object.assign(new Error('missing file'), { code: 'ENOENT' });
-    jest.mocked(fs.readFile).mockRejectedValue(err as never);
+    jest.mocked(fs.access).mockImplementationOnce(jest.requireActual('fs-extra').access);
 
     await expect(resetSimulatorEnvAsync(projectDir, 'session-123')).resolves.toBeUndefined();
 
@@ -194,10 +226,16 @@ describe(loadSimulatorEnvAsync, () => {
 });
 
 describe(writeSimulatorEnvAsync, () => {
-  const projectDir = '/test/project';
-  const simulatorDotenvPath = getSimulatorEnvFilePath(projectDir);
+  let projectDir: string;
+  let simulatorDotenvPath: string;
 
-  beforeEach(() => {
+  afterEach(async () => {
+    await realFs.rm(projectDir, { recursive: true, force: true });
+  });
+
+  beforeEach(async () => {
+    projectDir = await realFs.mkdtemp(path.join(os.tmpdir(), 'eas-simulator-env-'));
+    simulatorDotenvPath = getSimulatorEnvFilePath(projectDir);
     jest.clearAllMocks();
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
   });

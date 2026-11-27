@@ -45,6 +45,7 @@ import { resolveStartConfigAsync } from '../../simulator/startConfig';
 import { applyStartConfigAsync } from '../../simulator/startSetup';
 import { parseEgressAllowList, runLocalEgressAsync } from '../../simulator/egress';
 import { parseCorsOriginList, parseFrameAncestorList } from '../../simulator/frameAncestors';
+import { reportSimulatorLifecycle } from '../../simulator/lifecycle';
 import { parseNetworkCaptureFields } from '../../simulator/networkCapture';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -104,6 +105,15 @@ export default class Simulator extends EasCommand {
   static override description = `start a remote simulator session on EAS
 
 Preview links require sign-in by default.
+
+For machine-readable progress, set EAS_SIMULATOR_LIFECYCLE to a fresh UUID for each invocation. Read lines from stderr beginning with "EAS_SIMULATOR_LIFECYCLE <uuid> " and parse the remaining JSON.
+
+  {"event":"start"}                             The command supports lifecycle records.
+  {"event":"allocated","id":"..."}              EAS allocated the session. Readiness checks follow.
+  {"event":"cleanup","id":"...","outcome":"stopped"}   EAS confirmed the session stopped.
+  {"event":"cleanup","id":"...","outcome":"unknown"}   The CLI attempted cleanup but could not confirm the stop.
+
+If the command fails after allocation without a cleanup record, check the session by ID. With --json, stdout carries the final result.
 
 Use --import to load saved start options and actions. CLI flags override saved options, including lists:
 
@@ -269,6 +279,11 @@ With local egress, actions wait for the connection and require interactive mode.
     ...this.ContextOptions.Analytics,
   };
 
+  override run(): Promise<void> {
+    reportSimulatorLifecycle({ event: 'start' });
+    return super.run();
+  }
+
   async runAsync(): Promise<void> {
     // Import preflight can fail before parsing; keep diagnostics off JSON stdout.
     if (this.argv.includes('--json')) {
@@ -420,6 +435,7 @@ With local egress, actions wait for the connection and require interactive mode.
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
     let deviceRunSessionPreviewUrl: string;
+    let simulatorEnvWritten = false;
     let sessionInterrupt: SessionInterrupt | undefined;
     try {
       const agentIdentity = await agentIdentityInputAsync();
@@ -478,6 +494,9 @@ With local egress, actions wait for the connection and require interactive mode.
             ...agentIdentity,
             maxRunTimeMinutes: flags['max-duration-minutes'],
             maxIdleTimeMinutes: flags['max-idle-time-minutes'],
+          }).then(created => {
+            reportSimulatorLifecycle({ event: 'allocated', id: created.id });
+            return created;
           }),
         createdSession =>
           stopDeviceRunSessionCreatedAfterCancelAsync(graphqlClient, createdSession.id)
@@ -495,7 +514,7 @@ With local egress, actions wait for the connection and require interactive mode.
         deviceRunSessionId
       );
       sessionInterrupt = registerSessionInterrupt(deviceRunSessionId);
-      const simulatorEnvWritten =
+      simulatorEnvWritten =
         !jsonFlag &&
         !imported.config?.actions?.length &&
         flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
@@ -518,6 +537,18 @@ With local egress, actions wait for the connection and require interactive mode.
       sessionInterrupt?.dispose();
       throw err;
     }
+
+    const stopAfterReadinessFailureAsync = async (): Promise<void> => {
+      const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
+        graphqlClient,
+        deviceRunSessionId
+      );
+      if (stopped && simulatorEnvWritten) {
+        await resetSimulatorEnvAsync(projectDir, deviceRunSessionId).catch(error => {
+          Log.warn(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}: ${String(error)}`);
+        });
+      }
+    };
 
     const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`).start();
     let startupDeadline: number | undefined = Date.now() + STARTUP_TIMEOUT_MS;
@@ -575,7 +606,7 @@ With local egress, actions wait for the connection and require interactive mode.
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      await stopAfterReadinessFailureAsync();
       sessionInterrupt.dispose();
       throw err;
     }
@@ -593,7 +624,7 @@ With local egress, actions wait for the connection and require interactive mode.
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to start`);
-      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      await stopAfterReadinessFailureAsync();
       sessionInterrupt.dispose();
       throw new Error(
         `Timed out after ${Math.round(STARTUP_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to start (excluding time in the queue). ${link(deviceRunSessionUrl)}`
@@ -1124,8 +1155,15 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
       graphqlClient,
       deviceRunSessionId
     );
-    return isSimulatorStopConfirmed(stopped, deviceRunSessionId);
+    const confirmed = isSimulatorStopConfirmed(stopped, deviceRunSessionId);
+    reportSimulatorLifecycle({
+      event: 'cleanup',
+      id: deviceRunSessionId,
+      outcome: confirmed ? 'stopped' : 'unknown',
+    });
+    return confirmed;
   } catch (err) {
+    reportSimulatorLifecycle({ event: 'cleanup', id: deviceRunSessionId, outcome: 'unknown' });
     // Cleanup is best-effort; surface the failure but don't mask the original error.
     Log.warn(
       `Failed to stop simulator session ${deviceRunSessionId}: ${

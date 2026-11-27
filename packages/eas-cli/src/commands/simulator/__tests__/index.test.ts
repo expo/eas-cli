@@ -42,6 +42,7 @@ import { maybeWarnAboutEasOutagesAsync } from '../../../utils/statuspageService'
 import Simulator from '../index';
 
 jest.mock('fs-extra');
+jest.mock('proper-lockfile', () => ({ lock: async () => async () => {} }));
 jest.mock('../../../simulator/startSetup');
 jest.mock('../../../analytics/AnalyticsManager', () => ({
   ...jest.requireActual('../../../analytics/AnalyticsManager'),
