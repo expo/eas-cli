@@ -19,7 +19,7 @@ function spawn(
   }
 ): SpawnPromise<SpawnResult> {
   const { logger, ...options } = _options;
-  if (logger) {
+  if (logger && options.stdio === undefined) {
     options.stdio = 'pipe';
   }
   const promise = spawnAsync(command, args, options);
