@@ -24,6 +24,13 @@ it('forwards only new output on the original file and drains it on stop', async 
   await fs.writeFile(file, 'before adoption\n');
   const writer = await fs.open(file, 'a');
   const info = jest.fn();
+  const liveOutput = new Promise<void>(resolve => {
+    info.mockImplementation((_fields, line) => {
+      if (line === 'during session') {
+        resolve();
+      }
+    });
+  });
   const warn = jest.fn();
   const logger = { info, warn } as unknown as bunyan;
   const reader = followWarmLog({ file, logger, secrets: ['session-secret'] });
@@ -31,15 +38,18 @@ it('forwards only new output on the original file and drains it on stop', async 
     await writer.write('adoption session-secret\n');
     await fs.rename(file, path.join(directory, 'original.log'));
     await fs.writeFile(file, 'unrelated replacement\n');
+    await writer.write('during session\n');
+    await liveOutput;
+    expect(info.mock.calls).toEqual([
+      [{ source: 'stdout' }, 'adoption [REDACTED]'],
+      [{ source: 'stdout' }, 'during session'],
+    ]);
     await writer.write('shutdown output');
     const stopping = reader.stopAsync();
     expect(reader.stopAsync()).toBe(stopping);
     await stopping;
-    expect(info.mock.calls).toEqual([
-      [{ source: 'stdout' }, 'adoption [REDACTED]'],
-      [{ source: 'stdout' }, 'shutdown output'],
-    ]);
-    expect(reader.getOutput()).toBe('adoption [REDACTED]\nshutdown output\n');
+    expect(info).toHaveBeenLastCalledWith({ source: 'stdout' }, 'shutdown output');
+    expect(reader.getOutput()).toBe('adoption [REDACTED]\nduring session\nshutdown output\n');
     expect(warn).not.toHaveBeenCalled();
   } finally {
     await writer.close();
