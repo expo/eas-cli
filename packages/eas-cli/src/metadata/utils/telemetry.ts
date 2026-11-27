@@ -3,6 +3,7 @@ import type { AxiosError } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Analytics, MetadataEvent } from '../../analytics/AnalyticsManager';
+import escapeRegExp from '../../utils/expodash/escapeRegExp';
 
 export type TelemetryContext = {
   app: App;
@@ -74,14 +75,12 @@ export async function makeDataScrubberAsync({
 }: TelemetryContext): Promise<<T>(data: T) => string> {
   const token = await getAuthTokenStringAsync(auth);
   const patterns: Record<string, RegExp | null> = {
-    APPLE_APP_ID: new RegExp(app.id, 'gi'),
-    APPLE_USERNAME: auth.username ? new RegExp(auth.username, 'gi') : null,
-    APPLE_PASSWORD: auth.password ? new RegExp(auth.password, 'gi') : null,
-    APPLE_TOKEN: token ? new RegExp(token, 'gi') : null,
-    APPLE_TEAM_ID: auth.context?.teamId ? new RegExp(auth.context.teamId, 'gi') : null,
-    APPLE_PROVIDER_ID: auth.context?.providerId
-      ? new RegExp(String(auth.context.providerId), 'gi')
-      : null,
+    APPLE_APP_ID: literalPattern(app.id),
+    APPLE_USERNAME: literalPattern(auth.username),
+    APPLE_PASSWORD: literalPattern(auth.password),
+    APPLE_TOKEN: literalPattern(token),
+    APPLE_TEAM_ID: literalPattern(auth.context?.teamId),
+    APPLE_PROVIDER_ID: literalPattern(auth.context?.providerId),
   };
 
   const iterator = Object.entries(patterns);
@@ -99,6 +98,18 @@ export async function makeDataScrubberAsync({
     }
     return value;
   };
+}
+
+/**
+ * A pattern matching the value itself, and nothing else.
+ *
+ * The values scrubbed here are chosen by the user, so they routinely contain characters that mean
+ * something in a pattern. Left unescaped, an Apple ID like `user+eas@icloud.com` or a password like
+ * `p+ssw0rd` is not matched by the pattern built from it and reaches the telemetry unscrubbed, and
+ * one containing `(` or `[` makes `new RegExp` throw before the first request goes out.
+ */
+function literalPattern(value: string | number | null | undefined): RegExp | null {
+  return value || value === 0 ? new RegExp(escapeRegExp(String(value)), 'gi') : null;
 }
 
 async function getAuthTokenStringAsync(auth: TelemetryContext['auth']): Promise<string | null> {
