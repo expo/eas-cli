@@ -8,6 +8,7 @@ import * as YAML from 'yaml';
 import { validateWorkflowLocalCompositeFunctionsAsync } from './compositeFunctions';
 import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
+import { WorkflowReferencedFileInput } from '../../graphql/generated';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
 import Log from '../../log';
 import { createValidator, getReadableErrors } from '../../metadata/utils/ajv';
@@ -26,7 +27,8 @@ export async function validateWorkflowFileAsync(
   workflowFileContents: { yamlConfig: string; filePath: string },
   projectDir: string,
   graphqlClient: ExpoGraphqlClient,
-  projectId: string
+  projectId: string,
+  referencedFiles?: WorkflowReferencedFileInput[]
 ): Promise<void> {
   const parsedYaml = parsedYamlFromWorkflowContents(workflowFileContents);
   Log.debug(`Parsed workflow: ${JSON.stringify(parsedYaml, null, 2)}`);
@@ -54,7 +56,12 @@ export async function validateWorkflowFileAsync(
 
   // Check for other errors using the server-side validation
   Log.debug(`Validating workflow on server...`);
-  await validateWorkflowOnServerAsync(graphqlClient, projectId, workflowFileContents);
+  await validateWorkflowOnServerAsync(
+    graphqlClient,
+    projectId,
+    workflowFileContents,
+    referencedFiles
+  );
 }
 
 export function logWorkflowValidationErrors(error: unknown): void {
@@ -95,11 +102,13 @@ function validateWorkflowIsNotEmpty(parsedYaml: any): void {
 async function validateWorkflowOnServerAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
-  workflowFileContents: { yamlConfig: string }
+  workflowFileContents: { yamlConfig: string },
+  referencedFiles?: WorkflowReferencedFileInput[]
 ): Promise<void> {
   await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
     appId: projectId,
     yamlConfig: workflowFileContents.yamlConfig,
+    referencedFiles,
   });
 }
 
