@@ -55,8 +55,8 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
         agentRunId: `The "agent_run_id" input must be the UUID of an agent run, but received "${String(inputs.agent_run_id.value)}".`,
         maxDurationSeconds: `The "max_duration_seconds" input must be a positive whole number of seconds, but received "${String(inputs.max_duration_seconds.value)}".`,
         prompt: 'The "prompt" input must be a non-empty string.',
-        model: `The "model" input must be a non-empty model name that does not start with "-", but received "${String(inputs.model.value)}".`,
-        effort: `The "effort" input must be a non-empty effort level that does not start with "-", but received "${String(inputs.effort.value)}".`,
+        model: `The "model" input must be a non-empty model name, but received "${String(inputs.model.value)}".`,
+        effort: `The "effort" input must be a non-empty effort level, but received "${String(inputs.effort.value)}".`,
       };
       const parsedInputs = z
         .object({
@@ -67,17 +67,13 @@ export function createRunAgentBuildFunction(ctx: CustomBuildContext): BuildFunct
             .int({ error: inputErrors.maxDurationSeconds })
             .positive({ error: inputErrors.maxDurationSeconds }),
           prompt: z.string({ error: inputErrors.prompt }).min(1, { error: inputErrors.prompt }),
-          // Claude Code receives `model` and `effort` as CLI arguments, so a value starting with '-'
-          // would be read as a flag
           model: z
             .string({ error: inputErrors.model })
             .min(1, { error: inputErrors.model })
-            .refine(model => !model.startsWith('-'), { error: inputErrors.model })
             .optional(),
           effort: z
             .string({ error: inputErrors.effort })
             .min(1, { error: inputErrors.effort })
-            .refine(effort => !effort.startsWith('-'), { error: inputErrors.effort })
             .optional(),
         })
         .safeParse({

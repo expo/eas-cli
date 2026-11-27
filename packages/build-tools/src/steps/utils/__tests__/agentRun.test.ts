@@ -223,12 +223,17 @@ describe(runAgentAsync, () => {
   });
 
   it.each([
-    ['the requested model', { model: 'claude-opus-4-5' }, ['--model', 'claude-opus-4-5']],
-    ['the requested effort level', { effort: 'high' }, ['--effort', 'high']],
+    ['the requested model', { model: 'claude-opus-4-5' }, ['--model=claude-opus-4-5']],
+    ['the requested effort level', { effort: 'high' }, ['--effort=high']],
     [
       'the requested model and effort level',
       { model: 'claude-opus-4-5', effort: 'high' },
-      ['--model', 'claude-opus-4-5', '--effort', 'high'],
+      ['--model=claude-opus-4-5', '--effort=high'],
+    ],
+    [
+      'a model and effort level that start with a hyphen',
+      { model: '--continue', effort: '-p' },
+      ['--model=--continue', '--effort=-p'],
     ],
   ])('runs Claude Code with %s, also when it resumes', async (_name, options, flags) => {
     leaseMock

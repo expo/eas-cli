@@ -137,6 +137,7 @@ describe(createRunAgentBuildFunction, () => {
     ['a model name with a context window suffix', 'claude-sonnet-4-5[1m]'],
     ['a model name with a dot', 'gpt-5.1-codex'],
     ['a model name with other punctuation', 'provider/model@2026:v1'],
+    ['a model name that starts with a hyphen', '--continue'],
   ])('hands %s to the agent run', async (_name, model) => {
     const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
     try {
@@ -152,6 +153,7 @@ describe(createRunAgentBuildFunction, () => {
     ['no effort level when the input is not set', undefined],
     ['an effort level', 'high'],
     ['an effort level the step does not know', 'ultra'],
+    ['an effort level that starts with a hyphen', '-p'],
   ])('hands %s to the agent run', async (_name, effort) => {
     const runAgentSpy = jest.spyOn(agentRun, 'runAgentAsync').mockResolvedValue();
     try {
@@ -207,9 +209,7 @@ describe(createRunAgentBuildFunction, () => {
     ['a fractional duration', { inputs: { ...inputs, max_duration_seconds: { value: 12.5 } } }],
     ['an empty prompt', { inputs: { ...inputs, prompt: { value: '' } } }],
     ['an empty model', { inputs: { ...inputs, model: { value: '' } } }],
-    ['a model that reads as a flag', { inputs: { ...inputs, model: { value: '--continue' } } }],
     ['an empty effort level', { inputs: { ...inputs, effort: { value: '' } } }],
-    ['an effort level that reads as a flag', { inputs: { ...inputs, effort: { value: '-p' } } }],
     ['no EXPO_TOKEN', { env: { ...env, EXPO_TOKEN: '' } }],
     ['no PATH', { env: { ...env, PATH: '' } }],
     ['no Expo API URL', { ctx: { ...ctx, expoApiV2BaseUrl: undefined } }],

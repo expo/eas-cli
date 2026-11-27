@@ -62,8 +62,8 @@ export async function prepareClaudeCodeAsync({
       // gets one.
       ...['--tools', '', '--allowedTools', `mcp__${MCP_SERVER_NAME}`],
       ...['--mcp-config', mcpConfigPath, '--strict-mcp-config'],
-      ...(model ? ['--model', model] : []),
-      ...(effort ? ['--effort', effort] : []),
+      ...(model ? [`--model=${model}`] : []),
+      ...(effort ? [`--effort=${effort}`] : []),
     ],
     env: {
       ...minimalEnv,
