@@ -42,9 +42,13 @@ export const commands = {
           fs.constants.O_WRONLY |
             fs.constants.O_CREAT |
             fs.constants.O_APPEND |
-            fs.constants.O_NOFOLLOW,
+            fs.constants.O_NOFOLLOW |
+            fs.constants.O_NONBLOCK,
           0o600
         );
+        if (!fs.fstatSync(logFd).isFile()) {
+          throw new Error('The private service log is not a regular file.');
+        }
         fs.fchmodSync(logFd, 0o600);
       }
       child = spawn(file, args, {
