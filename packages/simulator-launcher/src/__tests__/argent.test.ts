@@ -2,7 +2,7 @@ import { type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
 
-import { createArgentTool } from '../utils/argent';
+import { createArgentTool, getArgentLogPath } from '../utils/argent';
 import {
   commands,
   isProcessOwnedByServiceAsync,
@@ -76,7 +76,9 @@ it('rejects an exit during the readiness request, even before the wrapper finish
   Object.assign(child, { exitCode: 1 });
   child.emit('exit', 1, null);
   response.resolve(new Response(JSON.stringify({ tools: [] })));
-  await expect(started).rejects.toThrow('Argent exited before its server became ready');
+  await expect(started).rejects.toThrow(
+    `Argent exited before its server became ready. Console log: ${getArgentLogPath()}`
+  );
   expect(onFailure).not.toHaveBeenCalled();
 });
 
@@ -86,7 +88,9 @@ it('observes an unexpected exit after readiness exactly once', async () => {
   result.reject(new Error('wrapper failed'));
   await Promise.resolve();
   expect(onFailure).toHaveBeenCalledTimes(1);
-  expect(onFailure.mock.calls[0][0].message).toContain('Argent server exited unexpectedly');
+  expect(onFailure.mock.calls[0][0].message).toBe(
+    `Argent server exited unexpectedly. Console log: ${getArgentLogPath()}`
+  );
 });
 
 it('ignores a foreign state file without sending its token to the local port', async () => {
@@ -137,9 +141,20 @@ it('bounds readiness when the server never becomes available', async () => {
     .mockReturnValueOnce(now)
     .mockReturnValue(now + 120_000);
   await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
-    'Timed out waiting for the Argent server'
+    `Timed out waiting for the Argent server on port 3201 to become ready. Console log: ${getArgentLogPath()}`
   );
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it('rejects an event log override that resolves to the console log', async () => {
+  jest.replaceProperty(process, 'env', {
+    ...process.env,
+    ARGENT_EVENT_LOG: getArgentLogPath().replace(/argent\.log$/, './argent.log'),
+  });
+  await expect(tool.startAsync('PHONE', controller.signal)).rejects.toThrow(
+    'ARGENT_EVENT_LOG must be separate from the Argent console log.'
+  );
+  expect(commands.start).not.toHaveBeenCalled();
 });
 
 it('retries missing or incomplete state and transient HTTP failures before becoming ready', async () => {
