@@ -34,7 +34,6 @@ import { evaluateIfCondition as evaluateIfConditionExpression } from './utils/js
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
-import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -440,15 +439,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   private async executeCommandAsync({ signal }: { signal: AbortSignal | null }): Promise<void> {
     assert(this.command, 'Command must be defined.');
 
-    const interpolatedCommand = interpolateJobContext({
-      target: this.command,
-      context: this.getInterpolationContext(),
-    });
-
-    const command = this.interpolateInputsOutputsAndGlobalContextInTemplate(
-      `${interpolatedCommand}`,
-      this.inputs
-    );
+    const command = this.interpolateCommandTemplate(this.command, this.inputs);
     this.ctx.logger.debug(`Interpolated inputs in the command template`);
 
     const scriptPath = await saveScriptToTemporaryFileAsync(this.ctx.global, this.id, command);
@@ -514,22 +505,11 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.ctx.logger.debug(`Script completed successfully`);
   }
 
-  private interpolateInputsOutputsAndGlobalContextInTemplate(
-    template: string,
-    inputs?: BuildStepInput[]
-  ): string {
+  private interpolateCommandTemplate(template: string, inputs?: BuildStepInput[]): string {
     // Composite functions support only `${{ }}`; a literal `${ steps.x.y }` reaching bash is the accepted
     // behavior, so skip legacy output interpolation for composite-function-scoped steps.
     const skipLegacyOutputInterpolation = this.compositeFunctionScope !== undefined;
-    if (!inputs) {
-      const interpolatedWithGlobalContext = this.ctx.global.interpolate(template);
-      return skipLegacyOutputInterpolation
-        ? interpolatedWithGlobalContext
-        : interpolateWithOutputs(interpolatedWithGlobalContext, path =>
-            this.getLegacyStepOutputValue(path)
-          );
-    }
-    const vars = inputs.reduce(
+    const vars = inputs?.reduce(
       (acc, input) => {
         const value = input.getValue({
           interpolationContext: this.getInterpolationContext(),
@@ -541,19 +521,18 @@ export class BuildStep extends BuildStepOutputAccessor {
       },
       {} as Record<string, string>
     );
-    const interpolatedWithInputsAndGlobalContext = interpolateWithInputs(
-      this.ctx.global.interpolate(template),
-      vars
-    );
-    return skipLegacyOutputInterpolation
-      ? interpolatedWithInputsAndGlobalContext
-      : interpolateWithOutputs(interpolatedWithInputsAndGlobalContext, path =>
-          this.getLegacyStepOutputValue(path)
-        );
-  }
-
-  private getLegacyStepOutputValue(path: string): string {
-    return this.ctx.global.getStepOutputValue(path) ?? '';
+    const interpolatedCommand = interpolateJobContext({
+      target: template,
+      context: this.getInterpolationContext(),
+      legacyResolvers: {
+        eas: path => this.ctx.global.getEasContextValue(path),
+        inputs: vars && (path => `${vars[path.split('.')[1]]}`),
+        steps: skipLegacyOutputInterpolation
+          ? undefined
+          : path => this.ctx.global.getStepOutputValue(path) ?? '',
+      },
+    });
+    return `${interpolatedCommand}`;
   }
 
   private async collectAndValidateOutputsAsync(outputsDir: string): Promise<void> {

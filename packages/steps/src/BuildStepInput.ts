@@ -1,13 +1,11 @@
 import { JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
+import cloneDeep from 'lodash.clonedeep';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
-import {
-  BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
-  interpolateWithOutputs,
-} from './utils/template';
+import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',
@@ -103,6 +101,13 @@ export class BuildStepInput<
     const interpolatedValue = interpolateJobContext({
       target: rawValue,
       context: interpolationContext,
+      legacyResolvers: {
+        eas: path => this.ctx.getEasContextValue(path),
+        // Composite functions support only `${{ }}`; legacy `${ steps.* }` stays literal in composite-function-scoped inputs.
+        steps: skipLegacyOutputInterpolation
+          ? undefined
+          : path => this.ctx.getStepOutputValue(path) ?? '',
+      },
     });
 
     const valueDoesNotRequireInterpolation =
@@ -125,15 +130,9 @@ export class BuildStepInput<
       // `valueDoesNotRequireInterpolation` checks that `rawValue` is not undefined
       // so this will never be true.
       assert(interpolatedValue !== undefined);
-      const valueInterpolatedWithGlobalContext = this.ctx.interpolate(interpolatedValue);
-      // Composite functions support only `${{ }}`; legacy `${ steps.* }` stays literal in composite-function-scoped inputs.
-      const valueInterpolatedWithOutputsAndGlobalContext = skipLegacyOutputInterpolation
-        ? valueInterpolatedWithGlobalContext
-        : interpolateWithOutputs(
-            valueInterpolatedWithGlobalContext,
-            path => this.ctx.getStepOutputValue(path) ?? ''
-          );
-      returnValue = this.parseInputValueToAllowedType(valueInterpolatedWithOutputsAndGlobalContext);
+      returnValue = this.parseInputValueToAllowedType(
+        typeof interpolatedValue === 'object' ? cloneDeep(interpolatedValue) : interpolatedValue
+      );
     }
     return returnValue;
   }
