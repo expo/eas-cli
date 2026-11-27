@@ -61,6 +61,38 @@ describe(getAppBuildGradleAsync, () => {
     });
   });
 
+  test('parsing build.gradle with comments after values', async () => {
+    vol.fromJSON(
+      {
+        'android/app/build.gradle': await fsReal.promises.readFile(
+          path.join(__dirname, 'fixtures/comments-after-values-build.gradle'),
+          'utf-8'
+        ),
+      },
+      '/test'
+    );
+    const buildGradle = await getAppBuildGradleAsync('/test');
+    expect(
+      pick(buildGradle?.android ?? {}, ['defaultConfig', 'flavorDimensions', 'productFlavors'])
+    ).toEqual({
+      defaultConfig: {
+        applicationId: 'com.helloworld',
+        versionCode: '7',
+        versionName: '1.0',
+      },
+      flavorDimensions: 'env',
+      productFlavors: {
+        staging: {
+          applicationId: 'com.helloworld.staging',
+          versionCode: '8',
+        },
+        production: {
+          versionName: '2.0',
+        },
+      },
+    });
+  });
+
   test('parsing multiflavor build.gradle', async () => {
     vol.fromJSON(
       {

@@ -93,7 +93,7 @@
     "form-data": "^4.0.4",
     "fs-extra": "11.2.0",
     "getenv": "1.0.0",
-    "gradle-to-js": "2.0.1",
+    "gradle-to-js": "3.0.2",
     "graphql": "16.8.1",
     "graphql-tag": "2.12.6",
     "https-proxy-agent": "7.0.6",

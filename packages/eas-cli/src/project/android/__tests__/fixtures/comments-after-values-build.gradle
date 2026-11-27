@@ -1,0 +1,27 @@
+apply plugin: "com.android.application"
+
+android {
+    defaultConfig {
+        applicationId "com.helloworld" // set by expo prebuild
+        // applicationId "com.commented.out"
+        versionCode 7 /* bumped by EAS */
+        versionName "1.0" // keep in sync with app.json
+        /* versionName "9.9.9" */
+    }
+    flavorDimensions "env" // only one dimension is supported
+    productFlavors {
+        // used for internal testing
+        staging {
+            applicationId "com.helloworld.staging" /* internal */
+            versionCode 8 // one ahead of production
+        }
+        /*
+        legacy {
+            applicationId "com.helloworld.legacy"
+        }
+        */
+        production {
+            versionName "2.0" // store release
+        }
+    }
+}
