@@ -1,0 +1,105 @@
+name: Benchmark simulator commands
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - packages/eas-cli/**
+      - packages/eas-json/**
+      - packages/eas-build-job/**
+      - packages/logger/**
+      - packages/steps/**
+      - packages/turtle-spawn/**
+      - package.json
+      - yarn.lock
+      - .github/workflows/benchmark-simulator-commands.yml
+
+concurrency:
+  group: benchmark-simulator-commands-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  benchmark-simulator-commands:
+    name: Benchmark eas simulator commands
+    runs-on: ubuntu-latest
+    env:
+      BASE_REF: origin/${{ github.base_ref || 'main' }}
+      HEAD_LABEL: "${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-mise
+
+      - name: Install and build head
+        run: |
+          yarn install --immutable
+          yarn run -T lerna run build --scope eas-cli --include-dependencies
+          (cd packages/eas-cli && yarn run -T oclif manifest)
+
+      - name: Prepare and build base
+        run: |
+          BASE_WORKTREE="$RUNNER_TEMP/eas-cli-base"
+          git worktree add --detach "$BASE_WORKTREE" "$BASE_REF"
+          (
+            cd "$BASE_WORKTREE"
+            yarn install --immutable
+            yarn run -T lerna run build --scope eas-cli --include-dependencies
+            cd packages/eas-cli
+            yarn run -T oclif manifest
+          )
+
+      - name: Run before-vs-after benchmark
+        run: |
+          BASE_WORKTREE="$RUNNER_TEMP/eas-cli-base"
+          BEFORE_JSON="$RUNNER_TEMP/simulator-benchmark-before.json"
+          AFTER_JSON="$RUNNER_TEMP/simulator-benchmark-after.json"
+          REPORT_MD="$RUNNER_TEMP/simulator-benchmark-report.md"
+
+          BASE_SHA="$(git -C "$BASE_WORKTREE" rev-parse HEAD)"
+          HEAD_SHA="$(git rev-parse HEAD)"
+
+          node packages/eas-cli/scripts/benchmark-simulator-commands.js \
+            --eas-cli-dir "$BASE_WORKTREE/packages/eas-cli" \
+            --require-manifest \
+            --label "$BASE_REF" \
+            --git-sha "$BASE_SHA" \
+            --out "$BEFORE_JSON"
+
+          node packages/eas-cli/scripts/benchmark-simulator-commands.js \
+            --eas-cli-dir packages/eas-cli \
+            --require-manifest \
+            --label "$HEAD_LABEL" \
+            --git-sha "$HEAD_SHA" \
+            --out "$AFTER_JSON"
+
+          node packages/eas-cli/scripts/benchmark-simulator-commands.js \
+            --compare "$BEFORE_JSON" "$AFTER_JSON" \
+            --markdown-out "$REPORT_MD"
+
+          cat "$REPORT_MD" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up base worktree
+        if: always()
+        run: |
+          BASE_WORKTREE="$RUNNER_TEMP/eas-cli-base"
+          if [ -d "$BASE_WORKTREE" ]; then
+            git worktree remove --force "$BASE_WORKTREE"
+          fi
+
+      - name: Post or update PR benchmark comment
+        uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          message-id: simulator-commands-benchmark
+          message-path: ${{ runner.temp }}/simulator-benchmark-report.md
