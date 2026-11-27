@@ -313,20 +313,30 @@ describe('execFastPath', () => {
     it('forwards SIGTERM to the spawned child and cleans up listeners afterward', async () => {
       const kill = jest.fn();
       let rejectChild!: (err: Error) => void;
+      let resolveSpawnStarted!: () => void;
+      const spawnStarted = new Promise<void>(resolve => {
+        resolveSpawnStarted = resolve;
+      });
       const childPromise = Object.assign(
         new Promise<never>((_, reject) => {
           rejectChild = reject;
         }),
         { child: { kill } }
       );
-      jest.mocked(spawnAsync).mockReturnValue(childPromise as never);
+      jest.mocked(spawnAsync).mockImplementation(() => {
+        resolveSpawnStarted();
+        return childPromise as never;
+      });
 
-      const listenersBefore = process.listenerCount('SIGTERM');
+      const sigtermListenersBefore = process.listenerCount('SIGTERM');
+      const sigintListenersBefore = process.listenerCount('SIGINT');
       const runPromise = runSimulatorExecFastPathAsync(['sleep', '10'], { cwd: projectDir });
 
-      // Wait for async project dir + env resolution before emitting SIGTERM.
-      await new Promise(resolve => setImmediate(resolve));
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await spawnStarted;
+
+      // SIGINT should not be forwarded (avoids duplicate Ctrl+C interrupts to the child).
+      process.emit('SIGINT', 'SIGINT');
+      expect(kill).not.toHaveBeenCalled();
 
       process.emit('SIGTERM', 'SIGTERM');
       expect(kill).toHaveBeenCalledWith('SIGTERM');
@@ -339,7 +349,8 @@ describe('execFastPath', () => {
       );
       await runPromise;
 
-      expect(process.listenerCount('SIGTERM')).toBe(listenersBefore);
+      expect(process.listenerCount('SIGTERM')).toBe(sigtermListenersBefore);
+      expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore);
       expect(process.exitCode).toBe(128 + os.constants.signals.SIGTERM);
     });
   });

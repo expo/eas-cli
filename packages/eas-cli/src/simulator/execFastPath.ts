@@ -13,8 +13,12 @@ import { markAsParentCommand } from '../analytics/parentCommand';
 import Log from '../log';
 import { easCliVersion } from '../utils/easCli';
 
+// Forward termination signals that target the wrapper PID directly (e.g. agent timeouts).
+// SIGINT is handled separately without forwarding: on interactive terminals, Ctrl+C already
+// delivers SIGINT to the foreground process group (including the child), so forwarding it
+// would send a duplicate SIGINT and abort child cleanup.
 const FORWARDED_SIGNALS: NodeJS.Signals[] =
-  process.platform === 'win32' ? ['SIGINT', 'SIGTERM'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+  process.platform === 'win32' ? ['SIGTERM'] : ['SIGTERM', 'SIGHUP'];
 
 function hasHelpFlag(args: string[]): boolean {
   for (const arg of args) {
@@ -153,6 +157,11 @@ export async function spawnSimulatorExecCommandAsync(
   });
 
   const signalHandlers = new Map<NodeJS.Signals, () => void>();
+  // Keep the wrapper alive on SIGINT so the child can finish its own interrupt cleanup.
+  const ignoreSigint = (): void => {};
+  signalHandlers.set('SIGINT', ignoreSigint);
+  process.on('SIGINT', ignoreSigint);
+
   for (const signal of FORWARDED_SIGNALS) {
     const handler = (): void => {
       try {
