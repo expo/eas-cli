@@ -1,4 +1,10 @@
-import { App, AppStoreVersion, Platform as ApplePlatform, Build } from '@expo/apple-utils';
+import {
+  App,
+  AppStoreVersion,
+  Platform as ApplePlatform,
+  Build,
+  BuildQueryFilter,
+} from '@expo/apple-utils';
 import chalk from 'chalk';
 
 import { getSubmissionDetailsUrl } from './utils/urls';
@@ -9,6 +15,8 @@ import formatFields, { FormatFieldsItem } from '../utils/formatFields';
 import { sanitizeTerminalText } from '../utils/terminalText';
 
 const TESTFLIGHT_BUILDS_LIMIT = 5;
+/** The largest page size the App Store Connect API accepts for builds. */
+const MAX_BUILDS_PAGE_SIZE = 200;
 
 export type EasBuildLinkage = {
   easSubmissionId: string | null;
@@ -49,14 +57,7 @@ export async function getIosStoreStatusAsync(
     app.getLiveAppStoreVersionAsync({ platform: ApplePlatform.IOS }),
     app.getInReviewAppStoreVersionAsync({ platform: ApplePlatform.IOS }),
     app.getPendingReleaseAppStoreVersionAsync({ platform: ApplePlatform.IOS }),
-    Build.getAsync(app.context, {
-      query: {
-        filter: { app: app.id },
-        sort: '-uploadedDate',
-        limit: TESTFLIGHT_BUILDS_LIMIT,
-        includes: ['buildBetaDetail', 'preReleaseVersion'],
-      },
-    }),
+    getLatestTestFlightBuildsAsync(app),
   ]);
 
   return {
@@ -64,11 +65,38 @@ export async function getIosStoreStatusAsync(
     live: await toStoreVersionStatusAsync(live, easSubmissions),
     inReview: await toStoreVersionStatusAsync(inReview, easSubmissions),
     pendingRelease: await toStoreVersionStatusAsync(pendingRelease, easSubmissions),
-    // The ASC limit param only caps the page size and the client auto-paginates, so cap here too.
-    testFlightBuilds: builds
-      .slice(0, TESTFLIGHT_BUILDS_LIMIT)
-      .map(build => toTestFlightBuildStatus(build, easSubmissions)),
+    testFlightBuilds: builds.map(build => toTestFlightBuildStatus(build, easSubmissions)),
   };
+}
+
+/**
+ * apple-utils fetches every page of the builds list whatever the `limit`, and full build pages are
+ * slow. So walk the list in the largest pages with only the upload date and no includes, then load
+ * the details of the newest builds.
+ */
+async function getLatestTestFlightBuildsAsync(app: App): Promise<Build[]> {
+  const allBuilds = await Build.getAsync(app.context, {
+    query: {
+      filter: { app: app.id },
+      // apple-utils types `fields` like `filter`, but the API takes the attributes to return per type.
+      fields: { builds: 'uploadedDate' } as BuildQueryFilter,
+      sort: '-uploadedDate',
+      limit: MAX_BUILDS_PAGE_SIZE,
+      includes: [],
+    },
+  });
+  const latestBuildIds = allBuilds.slice(0, TESTFLIGHT_BUILDS_LIMIT).map(build => build.id);
+  if (latestBuildIds.length === 0) {
+    return [];
+  }
+  return await Build.getAsync(app.context, {
+    query: {
+      filter: { app: app.id, id: latestBuildIds.join(',') },
+      sort: '-uploadedDate',
+      limit: TESTFLIGHT_BUILDS_LIMIT,
+      includes: ['buildBetaDetail', 'preReleaseVersion'],
+    },
+  });
 }
 
 async function toStoreVersionStatusAsync(
