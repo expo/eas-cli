@@ -2,6 +2,7 @@ import {
   CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
+  LocalFunctionCatalog,
   Step,
 } from '@expo/eas-build-job';
 import fs from 'fs/promises';
@@ -69,7 +70,7 @@ export async function extendCompositeFunctionCatalogFromStepsAsync({
   rootSteps,
   loadCompositeFunction,
 }: {
-  catalog: CompositeFunctionCatalog;
+  catalog: LocalFunctionCatalog;
   rootSteps: readonly Step[];
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<void> {
