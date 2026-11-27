@@ -22,6 +22,13 @@ import {
   BuildFragmentWithSubmissionsNode,
 } from '../types/Build';
 
+type BuildSubmission =
+  BuildWithSubmissionsFragment['submissionsPaginated']['edges'][number]['node'];
+
+export type BuildWithSubmissions = Omit<BuildWithSubmissionsFragment, 'submissionsPaginated'> & {
+  submissions: BuildSubmission[];
+};
+
 export const BuildQuery = {
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -57,7 +64,7 @@ export const BuildQuery = {
     graphqlClient: ExpoGraphqlClient,
     buildId: string,
     { useCache = true }: { useCache?: boolean } = {}
-  ): Promise<BuildWithSubmissionsFragment> {
+  ): Promise<BuildWithSubmissions> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<BuildsWithSubmissionsByIdQuery, BuildsWithSubmissionsByIdQueryVariables>(
@@ -81,7 +88,13 @@ export const BuildQuery = {
         .toPromise()
     );
 
-    return data.builds.byId;
+    const { submissionsPaginated, ...build } = data.builds.byId;
+    // The connection lists the newest submissions first. `eas build --json` prints this list, so
+    // keep the oldest-to-newest order that the deprecated `Build.submissions` field returned.
+    return {
+      ...build,
+      submissions: submissionsPaginated.edges.map(edge => edge.node).reverse(),
+    };
   },
   async withFingerprintByIdAsync(
     graphqlClient: ExpoGraphqlClient,
