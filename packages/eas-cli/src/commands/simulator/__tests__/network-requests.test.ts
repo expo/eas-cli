@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { stripVTControlCharacters } from 'node:util';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { DeviceRunSessionStatus } from '../../../graphql/generated';
+import { AppPlatform, DeviceRunSessionStatus } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import { downloadSimulatorArtifactAsync } from '../../../simulator/artifacts';
 import Log from '../../../log';
@@ -117,6 +117,16 @@ describe(SimulatorNetworkRequests, () => {
   afterEach(() => {
     delete process.env.EAS_SIMULATOR_SESSION_ID;
     chalk.level = originalColorLevel;
+  });
+
+  it('rejects live capture on Android without requesting preview access', async () => {
+    jest.mocked(DeviceRunSessionQuery.byIdAsync).mockResolvedValue({
+      id: 'session-id',
+      status: DeviceRunSessionStatus.InProgress,
+      platform: AppPlatform.Android,
+    } as Awaited<ReturnType<typeof DeviceRunSessionQuery.byIdAsync>>);
+    await expect(createCommand([]).runAsync()).rejects.toThrow('only available for iOS');
+    expect(mockResolvePreviewAsync).not.toHaveBeenCalled();
   });
 
   it.each([DeviceRunSessionStatus.Stopped, DeviceRunSessionStatus.Errored])(

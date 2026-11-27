@@ -6,6 +6,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { AppPlatform } from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import { downloadSimulatorArtifactAsync, hasSimulatorArtifacts } from '../../simulator/artifacts';
@@ -117,6 +118,11 @@ export default class SimulatorNetworkRequests extends EasCommand {
         json: jsonFlag,
       });
       return;
+    }
+    if (session.platform === AppPlatform.Android) {
+      throw new Error(
+        'Network capture is only available for iOS simulator sessions. Start an iOS session with `eas simulator:start --platform ios --network-capture`.'
+      );
     }
     const preview = await resolveSimulatorPreviewAsync(session);
     if (flags.artifact !== undefined) {
