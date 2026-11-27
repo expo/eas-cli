@@ -1,14 +1,10 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
-import { Client, CombinedError, OperationResult } from '@urql/core';
+import { Client, OperationResult } from '@urql/core';
 import { graphql } from 'gql.tada';
 import { z } from 'zod';
 
-import {
-  describeError,
-  findGraphqlErrorCode,
-  isTransientGraphqlError,
-} from '../../../../utils/networkErrors';
-import { retryOnNetworkFailureAsync } from '../../../../utils/retryOnNetworkFailure';
+import { describeError, findGraphqlErrorCode } from '../../../../utils/networkErrors';
+import { requestGraphqlDataWithRetriesAsync } from '../../../../utils/retryOnNetworkFailure';
 
 const IOS_APP_CREDENTIALS_QUERY = graphql(`
   query NativeBuildIosAppCredentialsQuery($appId: String!) {
@@ -130,22 +126,9 @@ async function queryStoredCredentialsAsync<TData>(
   queryAsync: () => Promise<OperationResult<TData>>
 ): Promise<TData> {
   try {
-    return await retryOnNetworkFailureAsync(
-      async () => {
-        const { data, error } = await queryAsync();
-        if (error) {
-          throw error;
-        }
-        if (!data) {
-          throw new Error('The response has no data.');
-        }
-        return data;
-      },
-      {
-        operation: 'native_build.stored_credentials',
-        isRetryable: error => error instanceof CombinedError && isTransientGraphqlError(error),
-      }
-    );
+    return await requestGraphqlDataWithRetriesAsync(queryAsync, {
+      operation: 'native_build.stored_credentials',
+    });
   } catch (error) {
     const message = `EAS could not read the credentials that are stored for the project: ${describeError(error)}`;
     throw findGraphqlErrorCode(error) === 'UNAUTHORIZED_ERROR'

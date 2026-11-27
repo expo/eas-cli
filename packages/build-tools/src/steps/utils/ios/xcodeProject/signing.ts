@@ -1,9 +1,7 @@
-import { IOSConfig } from '@expo/config-plugins';
 import { UserError } from '@expo/eas-build-job';
-import assert from 'node:assert';
 import fs from 'node:fs';
 
-import { XcodeTarget, getBuildConfigurations, openXcodeProject } from './pbxproj';
+import { XcodeTarget, openXcodeProject, overrideTargetBuildSettings, quote } from './pbxproj';
 
 const SIGNING_BUILD_SETTING_NAMES = [
   'PROVISIONING_PROFILE_SPECIFIER',
@@ -32,21 +30,7 @@ export async function writeSigningBuildSettingsAsync({
   const targetAttributesById: Record<string, object> | undefined =
     project.getFirstProject().firstProject.attributes?.TargetAttributes;
   for (const { target, buildSettings } of targetSignings) {
-    const targetBuildSettings = getBuildConfigurations(project, target.id).find(
-      ({ name }) => IOSConfig.XcodeUtils.unquote(name) === buildConfiguration
-    )?.buildSettings;
-    assert(
-      targetBuildSettings,
-      `Target "${target.name}" has no build configuration named "${buildConfiguration}"`
-    );
-    for (const key of Object.keys(targetBuildSettings)) {
-      if (isConditionalVariantOfSigningBuildSetting(key)) {
-        delete targetBuildSettings[key];
-      }
-    }
-    for (const name of SIGNING_BUILD_SETTING_NAMES) {
-      targetBuildSettings[name] = quote(buildSettings[name]);
-    }
+    overrideTargetBuildSettings(project, { target, buildConfiguration, overrides: buildSettings });
     if (targetAttributesById) {
       targetAttributesById[target.id] = {
         ...targetAttributesById[target.id],
@@ -78,13 +62,4 @@ export function assertSigningBuildSettingsAreEffective({
       }
     }
   }
-}
-
-function isConditionalVariantOfSigningBuildSetting(buildSettingKey: string): boolean {
-  const key = IOSConfig.XcodeUtils.unquote(buildSettingKey);
-  return SIGNING_BUILD_SETTING_NAMES.some(name => key.startsWith(`${name}[`));
-}
-
-function quote(value: string): string {
-  return `"${value.replace(/[\\"]/g, '\\$&')}"`;
 }

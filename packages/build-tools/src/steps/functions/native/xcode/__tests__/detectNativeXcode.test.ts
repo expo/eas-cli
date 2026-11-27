@@ -325,4 +325,106 @@ describe(createDetectNativeXcodeBuildFunction, () => {
       message: expect.stringMatching(/scheme "Core".*Other shared schemes: NativeApp\./),
     });
   });
+
+  it('outputs the version and the build number of the application target, and the Info.plist files that carry the number, when it is asked to read the version', async () => {
+    writeProject();
+    mockBuildSettings({
+      ...BUILD_SETTINGS_BY_TARGET_NAME,
+      NativeApp: {
+        ...APPLICATION_BUILD_SETTINGS,
+        GENERATE_INFOPLIST_FILE: 'YES',
+        MARKETING_VERSION: '1.2.0',
+        CURRENT_PROJECT_VERSION: '7',
+      },
+      Widget: { ...WIDGET_BUILD_SETTINGS, CURRENT_PROJECT_VERSION: '3' },
+    });
+    const step = createDetectStep({ job: signedJob, callInputs: { read_version: true } });
+
+    await step.executeAsync();
+
+    expect(step.outputById.application_identifier.value).toBe('dev.expo.nativeapp');
+    expect(step.outputById.app_version.value).toBe('1.2.0');
+    expect(step.outputById.build_number.value).toBe('7');
+    expect(step.outputById.editable_info_plist_paths.value).toBe('[]');
+    expect(step.ctx.logger.info).toHaveBeenCalledWith('Version: 1.2.0. Build number: 7.');
+  });
+
+  it('outputs no version and no build number when the application target names none', async () => {
+    writeProject();
+    mockBuildSettings(BUILD_SETTINGS_BY_TARGET_NAME);
+    const step = createDetectStep({ job: signedJob, callInputs: { read_version: true } });
+
+    await step.executeAsync();
+
+    expect(step.outputById.app_version.value).toBeUndefined();
+    expect(step.outputById.build_number.value).toBeUndefined();
+    expect(step.ctx.logger.info).toHaveBeenCalledWith('Version: none. Build number: none.');
+  });
+
+  it('reads the build number from the Info.plist file of the application target and outputs the path of every file it can edit', async () => {
+    writeProject();
+    mockBuildSettings({
+      ...BUILD_SETTINGS_BY_TARGET_NAME,
+      NativeApp: {
+        ...APPLICATION_BUILD_SETTINGS,
+        SRCROOT: '/project',
+        INFOPLIST_FILE: 'NativeApp/Info.plist',
+        CURRENT_PROJECT_VERSION: '7',
+      },
+    });
+    jest.mocked(spawn).mockResolvedValueOnce({
+      stdout: `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict><key>CFBundleVersion</key><string>42</string></dict></plist>`,
+    } as any);
+    const step = createDetectStep({ job: signedJob, callInputs: { read_version: true } });
+
+    await step.executeAsync();
+
+    expect(step.outputById.build_number.value).toBe('42');
+    expect(JSON.parse(step.outputById.editable_info_plist_paths.value as string)).toEqual([
+      '/project/NativeApp/Info.plist',
+    ]);
+  });
+
+  it('does not read the build number from an Info.plist file that another signed target preprocesses', async () => {
+    writeProject();
+    const sharedInfoPlist = { SRCROOT: '/project', INFOPLIST_FILE: 'Shared/Info.plist' };
+    mockBuildSettings({
+      ...BUILD_SETTINGS_BY_TARGET_NAME,
+      NativeApp: {
+        ...APPLICATION_BUILD_SETTINGS,
+        ...sharedInfoPlist,
+        CURRENT_PROJECT_VERSION: '41',
+      },
+      Widget: { ...WIDGET_BUILD_SETTINGS, ...sharedInfoPlist, INFOPLIST_PREPROCESS: 'YES' },
+    });
+    const step = createDetectStep({ job: signedJob, callInputs: { read_version: true } });
+
+    await step.executeAsync();
+
+    expect(step.outputById.build_number.value).toBe('41');
+    expect(step.outputById.editable_info_plist_paths.value).toBe('[]');
+    expect(spawn).not.toHaveBeenCalledWith('plutil', expect.anything(), expect.anything());
+  });
+
+  it('does not read the version and the build number when it is not asked to', async () => {
+    writeProject();
+    mockBuildSettings({
+      ...BUILD_SETTINGS_BY_TARGET_NAME,
+      NativeApp: {
+        ...APPLICATION_BUILD_SETTINGS,
+        SRCROOT: '/project',
+        INFOPLIST_FILE: 'NativeApp/Info.plist',
+        CURRENT_PROJECT_VERSION: '7',
+      },
+    });
+    const step = createDetectStep({ job: signedJob });
+
+    await step.executeAsync();
+
+    expect(step.outputById.build_number.value).toBeUndefined();
+    expect(step.outputById.editable_info_plist_paths.value).toBeUndefined();
+    expect(spawn).not.toHaveBeenCalledWith('plutil', expect.anything(), expect.anything());
+    expect(step.ctx.logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Version:'));
+  });
 });

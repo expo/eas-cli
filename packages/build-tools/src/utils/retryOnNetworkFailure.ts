@@ -1,6 +1,30 @@
+import { CombinedError, OperationResult } from '@urql/core';
+
 import { Datadog } from '../datadog';
-import { findErrorCode, findGraphqlErrorCode } from './networkErrors';
+import { findErrorCode, findGraphqlErrorCode, isTransientGraphqlError } from './networkErrors';
 import { promiseRetryWithCondition } from './promiseRetryWithCondition';
+
+export async function requestGraphqlDataWithRetriesAsync<TData>(
+  attemptAsync: () => Promise<OperationResult<TData>>,
+  { operation }: { operation: string }
+): Promise<TData> {
+  return await retryOnNetworkFailureAsync(
+    async () => {
+      const { data, error } = await attemptAsync();
+      if (error) {
+        throw error;
+      }
+      if (!data) {
+        throw new Error('The response has no data.');
+      }
+      return data;
+    },
+    {
+      operation,
+      isRetryable: error => error instanceof CombinedError && isTransientGraphqlError(error),
+    }
+  );
+}
 
 export async function retryOnNetworkFailureAsync<T>(
   attemptAsync: () => Promise<T>,
