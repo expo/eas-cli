@@ -9,8 +9,59 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
+import { resolveAndroidLauncherActivityAsync } from '../utils/android/launcherActivity';
+
 const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
 const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
+const ANDROID_MAIN_ACTION = 'android.intent.action.MAIN';
+const ANDROID_TWO_ARG_LONG_INTENT_FLAGS = new Set([
+  '--es',
+  '--ez',
+  '--ei',
+  '--el',
+  '--ef',
+  '--ed',
+  '--eu',
+  '--ecn',
+  '--eia',
+  '--eial',
+  '--ela',
+  '--elal',
+  '--efa',
+  '--efal',
+  '--eda',
+  '--edal',
+  '--esa',
+  '--esal',
+]);
+const ANDROID_ONE_ARG_LONG_INTENT_FLAGS = new Set([
+  '--esn',
+  '--start-profiler',
+  '--profiler-output-version',
+  '--sampling',
+  '--attach-agent',
+  '--attach-agent-bind',
+  '--receiver-permission',
+  '--display',
+  '--windowingMode',
+  '--activityType',
+  '--task',
+  '--task-display-area-feature-id',
+  '--splash-screen-style',
+  '--clock-type',
+  '--allow-fgs-start-reason',
+  '--abi',
+]);
+const ANDROID_ONE_ARG_SHORT_INTENT_FLAGS = new Set([
+  '-t',
+  '-c',
+  '-n',
+  '-p',
+  '-f',
+  '-i',
+  '-P',
+  '-R',
+]);
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -96,19 +147,44 @@ export async function launchApplicationAsync({
     return;
   }
 
-  if (!activityName) {
+  const parsedLaunchArgs = parseAndroidLaunchArgs(launchArgs);
+  let resolvedActivityName = activityName;
+  if (!resolvedActivityName) {
+    resolvedActivityName = await resolveAndroidLauncherActivityAsync({
+      applicationIdentifier,
+      user: parsedLaunchArgs.user,
+      env,
+    });
+  }
+  if (!resolvedActivityName) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY',
-      'Launching an Android application requires activity_name.'
+      `Could not find a launchable Android activity for "${applicationIdentifier}". Pass "activity_name" explicitly or ensure the app declares a launcher activity in AndroidManifest.xml.`
     );
   }
 
   logApplicationLaunch(logger, applicationIdentifier, launchArgs);
   // Android does not support process arguments like iOS. Pass raw `am start` Intent
   // arguments instead, such as `--es key value` or `--ez key true`.
+  // Include ACTION_MAIN unless the caller specified an action, data URI, selector, or
+  // positional target, so API 36 activities enforcing intent filters without
+  // allowNullAction still launch while preserving Android's inferred action/category.
+  const defaultActionArgs = parsedLaunchArgs.shouldSkipDefaultMainAction
+    ? []
+    : ['-a', ANDROID_MAIN_ACTION];
+  const optionLaunchArgs = launchArgs.slice(0, parsedLaunchArgs.componentInsertIndex);
+  const trailingLaunchArgs = launchArgs.slice(parsedLaunchArgs.componentInsertIndex);
   try {
     await spawnAndroidShellCommandAsync(
-      ['am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+      [
+        'am',
+        'start',
+        ...defaultActionArgs,
+        ...optionLaunchArgs,
+        '-n',
+        `${applicationIdentifier}/${resolvedActivityName}`,
+        ...trailingLaunchArgs,
+      ],
       { env, logger }
     );
   } catch (err) {
@@ -138,6 +214,90 @@ async function spawnAndroidShellCommandAsync(
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<void> {
   await spawn('adb', ['shell', ...quoteAndroidShellCommand(command)], { env, logger });
+}
+
+export function parseAndroidLaunchArgs(launchArgs: string[]): {
+  shouldSkipDefaultMainAction: boolean;
+  componentInsertIndex: number;
+  user?: string;
+} {
+  let shouldSkipDefaultMainAction = false;
+  let componentInsertIndex = launchArgs.length;
+  let user: string | undefined;
+  let inSelector = false;
+
+  for (let i = 0; i < launchArgs.length; i++) {
+    const arg = launchArgs[i];
+    if (arg === '--') {
+      if (componentInsertIndex === launchArgs.length) {
+        componentInsertIndex = i;
+      }
+      const positionalArg = launchArgs[i + 1];
+      if (positionalArg !== undefined && positionalArg.length > 0) {
+        shouldSkipDefaultMainAction = true;
+      }
+      break;
+    }
+
+    if (!arg.startsWith('-') || arg === '-') {
+      if (componentInsertIndex === launchArgs.length) {
+        componentInsertIndex = i;
+      }
+      if (arg.length > 0) {
+        shouldSkipDefaultMainAction = true;
+      }
+      break;
+    }
+
+    if (arg.startsWith('--')) {
+      if (arg === '--selector') {
+        if (componentInsertIndex === launchArgs.length) {
+          componentInsertIndex = i;
+        }
+        shouldSkipDefaultMainAction = true;
+        inSelector = true;
+        continue;
+      }
+      if (arg === '--user') {
+        if (i + 1 < launchArgs.length) {
+          user = launchArgs[i + 1];
+          i += 1;
+        }
+        continue;
+      }
+      if (ANDROID_TWO_ARG_LONG_INTENT_FLAGS.has(arg)) {
+        i += 2;
+        continue;
+      }
+      if (ANDROID_ONE_ARG_LONG_INTENT_FLAGS.has(arg)) {
+        i += 1;
+      }
+      continue;
+    }
+
+    const shortFlag = arg.slice(0, 2);
+    const hasAttachedValue = arg.length > 2;
+    if (shortFlag === '-a' || shortFlag === '-d') {
+      if (!inSelector) {
+        shouldSkipDefaultMainAction = true;
+      }
+      if (!hasAttachedValue) {
+        i += 1;
+      }
+      continue;
+    }
+    if (shortFlag === '-e') {
+      i += hasAttachedValue ? 1 : 2;
+      continue;
+    }
+    if (ANDROID_ONE_ARG_SHORT_INTENT_FLAGS.has(shortFlag)) {
+      if (!hasAttachedValue) {
+        i += 1;
+      }
+    }
+  }
+
+  return { shouldSkipDefaultMainAction, componentInsertIndex, user };
 }
 
 async function preapproveIosUrlSchemeAsync({

@@ -47,6 +47,7 @@ import { downloadBuildAsync } from './downloadBuild';
 import { installBuildAsync } from './installBuild';
 import {
   launchApplicationAsync,
+  parseAndroidLaunchArgs,
   parseLaunchArgsInput,
   parseOpenUrlInput,
 } from './launchApplication';
@@ -332,6 +333,7 @@ export function createStartAgentDeviceSessionBuildFunction(
               const { applicationIdentifier, activityName } = await installBuildAsync({
                 artifactPath,
                 runtimePlatform,
+                androidUser: parseAndroidLaunchArgs(launchArgs).user,
                 env,
                 logger: taskLogger,
               });
