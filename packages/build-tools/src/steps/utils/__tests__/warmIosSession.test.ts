@@ -269,6 +269,71 @@ it('forwards only new warm server output and stops the reader when warm cleanup 
   expect(stopReader).toHaveBeenCalledTimes(1);
 });
 
+it('forwards new agent-device daemon logs with its token redacted and stops both readers', async () => {
+  const stopServerReader = jest.fn().mockRejectedValue(new Error('server reader failed'));
+  const stopDaemonReader = jest.fn().mockRejectedValue(new Error('daemon reader failed'));
+  jest
+    .mocked(followWarmLog)
+    .mockReturnValueOnce({
+      getOutput: () => 'server output',
+      stopAsync: stopServerReader,
+    })
+    .mockReturnValueOnce({
+      getOutput: () => 'daemon output',
+      stopAsync: stopDaemonReader,
+    });
+  jest
+    .spyOn(fs, 'readFile')
+    .mockResolvedValue(JSON.stringify({ pid: 20, httpPort: 4310, token: 'agent-token' }));
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'agent-device', env, logger });
+  session?.forwardServerLogs?.(previewLogger);
+  expect(followWarmLog).toHaveBeenCalledTimes(1);
+  await session!.prepareToolsAsync();
+  expect(followWarmLog).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      file: '/agent/daemon.log',
+      logger,
+      secrets: ['serve-token', 'agent-token'],
+    })
+  );
+  expect(session!.process.getOutput()).toBe('server output');
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+  expect(stopServerReader).toHaveBeenCalledTimes(1);
+  expect(stopDaemonReader).toHaveBeenCalledTimes(1);
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: new Error('daemon reader failed') },
+    'Could not stop forwarding agent-device daemon logs.'
+  );
+  await expect(session!.process.stopAsync()).resolves.toBeUndefined();
+  expect(stopDaemonReader).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a prepared agent-device session when its daemon log reader cannot start', async () => {
+  jest
+    .spyOn(fs, 'readFile')
+    .mockResolvedValue(JSON.stringify({ pid: 20, httpPort: 4310, token: 'agent-token' }));
+  jest.mocked(followWarmLog).mockImplementationOnce(() => {
+    throw new Error('log unavailable');
+  });
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'agent-device', env, logger });
+  await expect(session!.prepareToolsAsync()).resolves.toBeUndefined();
+  expect(logger.warn).toHaveBeenCalledWith(
+    { err: new Error('log unavailable') },
+    'Could not forward agent-device daemon logs.'
+  );
+  expect(stopWarmSimulatorAsync).not.toHaveBeenCalled();
+});
+
+it('does not open the daemon log if the warm session stops during tool preparation', async () => {
+  const session = await tryClaimWarmIosSessionAsync({ engine: 'agent-device', env, logger });
+  jest.spyOn(fs, 'readFile').mockImplementation(async () => {
+    await session!.process.stopAsync();
+    return JSON.stringify({ pid: 20, httpPort: 4310, token: 'agent-token' });
+  });
+  await session!.prepareToolsAsync();
+  expect(followWarmLog).not.toHaveBeenCalled();
+});
+
 it('keeps the claimed Simulator when its server log reader cannot start', async () => {
   jest.mocked(followWarmLog).mockImplementation(() => {
     throw new Error('log unavailable');

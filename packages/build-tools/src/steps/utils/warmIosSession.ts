@@ -88,6 +88,7 @@ export async function tryClaimWarmIosSessionAsync({
     logger.info(`Claimed the warm Simulator ${claim.device.name} (${claim.device.udid}).`);
     const logSecrets = [claim.server.token];
     let logReader: ReturnType<typeof followWarmLog> | undefined;
+    let agentLogReader: ReturnType<typeof followWarmLog> | undefined;
     let serverLogLogger = logger;
     let stopping: Promise<void> | undefined;
     const session: WarmIosSession = {
@@ -133,6 +134,19 @@ export async function tryClaimWarmIosSessionAsync({
         if (session.tools) {
           logSecrets.push(session.tools.token);
         }
+        // The daemon has its own log file. Start after reading its identity so its token is
+        // redacted before any output is forwarded; do not replay pre-session diagnostics.
+        if (engine === 'agent-device' && !agentLogReader && !stopping && !prepareSignal?.aborted) {
+          try {
+            agentLogReader = followWarmLog({
+              file: path.join(claim.agentDeviceStateDir, 'daemon.log'),
+              logger,
+              secrets: logSecrets,
+            });
+          } catch (err) {
+            logger.warn({ err }, 'Could not forward agent-device daemon logs.');
+          }
+        }
       },
       process: {
         pid: claim.server.pid,
@@ -144,13 +158,19 @@ export async function tryClaimWarmIosSessionAsync({
             : new Error('A service of the warm Simulator session has exited.'),
         stopAsync: () =>
           (stopping ??= stopWarmSimulatorAsync(env).finally(async () => {
-            try {
-              await logReader?.stopAsync();
-            } catch (err) {
-              serverLogLogger.warn(
-                { err },
-                'Could not stop forwarding warm Simulator server logs.'
-              );
+            const results = await Promise.allSettled([
+              logReader?.stopAsync(),
+              agentLogReader?.stopAsync(),
+            ]);
+            for (const [index, result] of results.entries()) {
+              if (result.status === 'rejected') {
+                (index === 0 ? serverLogLogger : logger).warn(
+                  { err: result.reason },
+                  index === 0
+                    ? 'Could not stop forwarding warm Simulator server logs.'
+                    : 'Could not stop forwarding agent-device daemon logs.'
+                );
+              }
             }
           })),
       },
