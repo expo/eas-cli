@@ -14,6 +14,7 @@ import {
 } from './IosActions';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SelectIosDistributionTypeGraphqlFromBuildProfile } from './SelectIosDistributionTypeGraphqlFromBuildProfile';
+import { resolveBuildProfileEnvAsync } from './resolveBuildProfileEnvAsync';
 import {
   AccountFragment,
   AppleDistributionCertificateFragment,
@@ -61,14 +62,21 @@ export class ManageIos {
   ) {}
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
-    const buildProfile = this.callingAction.projectInfo
-      ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.IOS).runAsync()
+    const selectedProfile = this.callingAction.projectInfo
+      ? await new SelectBuildProfileFromEasJson(
+          this.projectDir,
+          Platform.IOS
+        ).runWithProfileNameAsync()
       : null;
+    const buildProfile = selectedProfile?.buildProfile ?? null;
+    const env = selectedProfile
+      ? await resolveBuildProfileEnvAsync(this.callingAction, selectedProfile)
+      : undefined;
 
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (this.callingAction.projectInfo) {
       const { exp, projectId } = await this.callingAction.getDynamicPrivateProjectConfigAsync({
-        env: buildProfile?.env,
+        env,
       });
       projectInfo = { exp, projectId };
     }
@@ -79,7 +87,7 @@ export class ManageIos {
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
       analytics: this.callingAction.analytics,
-      env: buildProfile?.env,
+      env,
       nonInteractive: false,
       vcsClient: this.callingAction.vcsClient,
     });
@@ -210,7 +218,7 @@ export class ManageIos {
       exp,
       projectDir: ctx.projectDir,
       xcodeBuildContext,
-      env: buildProfile.env,
+      env: ctx.env,
       vcsClient: ctx.vcsClient,
     });
     return {

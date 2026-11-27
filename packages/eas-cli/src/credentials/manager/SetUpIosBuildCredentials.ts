@@ -6,6 +6,7 @@ import { IosActionType } from './Actions';
 import { CheckBuildProfileFlagAgainstEasJson } from './CheckBuildProfileFlagAgainstEasJson';
 import { Action } from './HelperActions';
 import { ManageIos } from './ManageIos';
+import { resolveBuildProfileEnvAsync } from './resolveBuildProfileEnvAsync';
 import { AccountFragment } from '../../graphql/generated';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { CredentialsContext, CredentialsContextProjectInfo } from '../context';
@@ -21,18 +22,22 @@ export class SetUpIosBuildCredentials extends ManageIos {
   }
 
   override async runAsync(): Promise<void> {
-    const buildProfile = this.callingAction.projectInfo
+    const selectedProfile = this.callingAction.projectInfo
       ? await new CheckBuildProfileFlagAgainstEasJson(
           this.projectDir,
           Platform.IOS,
           this.setUpBuildCredentialsWithProfileNameFromFlag
-        ).runAsync()
+        ).runWithProfileNameAsync()
       : null;
+    const buildProfile = selectedProfile?.buildProfile ?? null;
+    const env = selectedProfile
+      ? await resolveBuildProfileEnvAsync(this.callingAction, selectedProfile)
+      : undefined;
 
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (this.callingAction.projectInfo) {
       const { exp, projectId } = await this.callingAction.getDynamicPrivateProjectConfigAsync({
-        env: buildProfile?.env,
+        env,
       });
       projectInfo = { exp, projectId };
     }
@@ -43,7 +48,7 @@ export class SetUpIosBuildCredentials extends ManageIos {
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
       analytics: this.callingAction.analytics,
-      env: buildProfile?.env,
+      env,
       nonInteractive: false,
       vcsClient: this.callingAction.vcsClient,
     });

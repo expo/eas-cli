@@ -17,6 +17,7 @@ import { Action, PressAnyKeyToContinue } from './HelperActions';
 import { SelectExistingAndroidBuildCredentials } from './SelectAndroidBuildCredentials';
 import { SelectBuildProfileFromEasJson } from './SelectBuildProfileFromEasJson';
 import { SetDefaultAndroidKeystore } from './SetDefaultAndroidKeystore';
+import { resolveBuildProfileEnvAsync } from './resolveBuildProfileEnvAsync';
 import Log, { learnMore } from '../../log';
 import { GradleBuildContext, resolveGradleBuildContextAsync } from '../../project/android/gradle';
 import { promptAsync } from '../../prompts';
@@ -55,13 +56,20 @@ export class ManageAndroid {
 
   async runAsync(currentActions: ActionInfo[] = highLevelActions): Promise<void> {
     const hasProjectContext = !!this.callingAction.projectInfo;
-    const buildProfile = hasProjectContext
-      ? await new SelectBuildProfileFromEasJson(this.projectDir, Platform.ANDROID).runAsync()
+    const selectedProfile = hasProjectContext
+      ? await new SelectBuildProfileFromEasJson(
+          this.projectDir,
+          Platform.ANDROID
+        ).runWithProfileNameAsync()
       : null;
+    const buildProfile = selectedProfile?.buildProfile ?? null;
+    const env = selectedProfile
+      ? await resolveBuildProfileEnvAsync(this.callingAction, selectedProfile)
+      : undefined;
     let projectInfo: CredentialsContextProjectInfo | null = null;
     if (hasProjectContext) {
       const { exp, projectId } = await this.callingAction.getDynamicPrivateProjectConfigAsync({
-        env: buildProfile?.env,
+        env,
       });
       projectInfo = { exp, projectId };
     }
@@ -71,7 +79,7 @@ export class ManageAndroid {
       user: this.callingAction.actor,
       graphqlClient: this.callingAction.graphqlClient,
       analytics: this.callingAction.analytics,
-      env: buildProfile?.env,
+      env,
       nonInteractive: false,
       vcsClient: this.callingAction.vcsClient,
     });

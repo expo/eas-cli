@@ -3,7 +3,7 @@ import { BuildProfile } from '@expo/eas-json';
 
 import { DefaultEnvironment } from './utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
+import { fetchServerEnvironmentVariablesAsync } from '../environments/serverEnvironmentVariables';
 import Log, { learnMore } from '../log';
 
 export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId: string }, Opts>({
@@ -36,7 +36,7 @@ export async function evaluateConfigWithEnvVarsAsync<Config extends { projectId:
   return { env, ...config };
 }
 
-async function resolveEnvVarsAsync({
+export async function resolveEnvVarsAsync({
   buildProfile,
   buildProfileName,
   graphqlClient,
@@ -52,18 +52,10 @@ async function resolveEnvVarsAsync({
     resolveSuggestedEnvironmentForBuildProfileConfiguration(buildProfile);
 
   try {
-    const environmentVariables = await EnvironmentVariablesQuery.byAppIdWithSensitiveAsync(
-      graphqlClient,
-      {
-        appId: projectId,
-        environment,
-      }
-    );
-    const serverEnvVars = Object.fromEntries(
-      environmentVariables
-        .filter(({ name, value }) => name && value)
-        .map(({ name, value }) => [name, value])
-    ) as Record<string, string>;
+    const serverEnvVars = await fetchServerEnvironmentVariablesAsync(graphqlClient, {
+      appId: projectId,
+      environment,
+    });
 
     if (Object.keys(serverEnvVars).length > 0) {
       Log.log(
