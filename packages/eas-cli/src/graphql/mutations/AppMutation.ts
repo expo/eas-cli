@@ -7,6 +7,8 @@ import {
   BackgroundJobReceiptDataFragment,
   CreateAppMutation,
   CreateAppMutationVariables,
+  RemoveProfileImageMutation,
+  RemoveProfileImageMutationVariables,
   ScheduleAppDeletionMutation,
   ScheduleAppDeletionMutationVariables,
 } from '../generated';
@@ -67,5 +69,31 @@ export const AppMutation = {
     const receipt = result.app?.scheduleAppDeletion;
     assert(receipt, 'Background job receipt must be defined');
     return receipt;
+  },
+  async removeProfileImageAsync(
+    graphqlClient: ExpoGraphqlClient,
+    appId: string
+  ): Promise<{ id: string; fullName: string }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<RemoveProfileImageMutation, RemoveProfileImageMutationVariables>(
+          gql`
+            mutation RemoveProfileImageMutation($appId: ID!) {
+              app {
+                removeProfileImage(appId: $appId) {
+                  id
+                  fullName
+                }
+              }
+            }
+          `,
+          { appId },
+          { additionalTypenames: ['App'] }
+        )
+        .toPromise()
+    );
+    const app = data.app?.removeProfileImage;
+    assert(app, 'App must be defined');
+    return app;
   },
 };

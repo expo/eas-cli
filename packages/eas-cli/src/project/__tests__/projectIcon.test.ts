@@ -4,6 +4,7 @@ import { getPrivateExpoConfigAsync } from '../expoConfig';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppUploadSessionType } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
+import Log from '../../log';
 import { uploadAppScopedFileAtPathToGCSAsync } from '../../uploads';
 import { maybeSetProjectIconFromAppConfigAsync, resolveAppConfigIconAsync } from '../projectIcon';
 
@@ -67,6 +68,48 @@ describe(resolveAppConfigIconAsync, () => {
     });
   });
 
+  it('prefers a supported image over an earlier icon in an unsupported format', async () => {
+    vol.fromJSON({
+      '/app/assets/app.icon/icon.json': '{}',
+      '/app/assets/foreground.png': 'fake-png-bytes',
+    });
+    mockAppConfig({
+      ios: { icon: './assets/app.icon' },
+      android: { adaptiveIcon: { foregroundImage: './assets/foreground.png' } },
+    });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'android.adaptiveIcon.foregroundImage',
+      path: '/app/assets/foreground.png',
+    });
+  });
+
+  it('prefers an image within the size limit over an earlier icon that is too large', async () => {
+    vol.fromJSON({
+      '/app/assets/icon.png': 'x'.repeat(10 * 1024 * 1024 + 1),
+      '/app/assets/ios-icon.png': 'fake-png-bytes',
+    });
+    mockAppConfig({ icon: './assets/icon.png', ios: { icon: './assets/ios-icon.png' } });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'ios.icon',
+      path: '/app/assets/ios-icon.png',
+    });
+  });
+
+  it('prefers an image file over an earlier icon that is a directory', async () => {
+    vol.fromJSON({
+      '/app/assets/icon.png/contents.json': '{}',
+      '/app/assets/ios-icon.png': 'fake-png-bytes',
+    });
+    mockAppConfig({ icon: './assets/icon.png', ios: { icon: './assets/ios-icon.png' } });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'ios.icon',
+      path: '/app/assets/ios-icon.png',
+    });
+  });
+
   it('falls back to the Android adaptive icon foreground', async () => {
     vol.fromJSON({ '/app/assets/foreground.png': 'fake-png-bytes' });
     mockAppConfig({
@@ -76,6 +119,16 @@ describe(resolveAppConfigIconAsync, () => {
     await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
       field: 'android.adaptiveIcon.foregroundImage',
       path: '/app/assets/foreground.png',
+    });
+  });
+
+  it('falls back to the Android icon', async () => {
+    vol.fromJSON({ '/app/assets/android-icon.png': 'fake-png-bytes' });
+    mockAppConfig({ android: { icon: './assets/android-icon.png' } });
+
+    await expect(resolveAppConfigIconAsync(projectDir)).resolves.toEqual({
+      field: 'android.icon',
+      path: '/app/assets/android-icon.png',
     });
   });
 
@@ -126,6 +179,7 @@ describe(maybeSetProjectIconFromAppConfigAsync, () => {
       maybeSetProjectIconFromAppConfigAsync(graphqlClient, { projectId, projectDir })
     ).resolves.toEqual({ status: 'skipped', reason: 'icon-already-set' });
     expect(mockUploadAsync).not.toHaveBeenCalled();
+    expect(jest.mocked(Log.log).mock.calls.flat().join()).toContain('eas project:icon:set');
   });
 
   it('skips without a server round-trip when the app config has no icon', async () => {
@@ -155,6 +209,17 @@ describe(maybeSetProjectIconFromAppConfigAsync, () => {
     await expect(
       maybeSetProjectIconFromAppConfigAsync(graphqlClient, { projectId, projectDir })
     ).resolves.toEqual({ status: 'skipped', reason: 'invalid-icon' });
+    expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not propagate a failure to read the current icon', async () => {
+    vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
+    mockAppConfig({ icon: './assets/icon.png' });
+    mockByIdProfileImageUrlAsync.mockRejectedValue(new Error('timeout'));
+
+    await expect(
+      maybeSetProjectIconFromAppConfigAsync(graphqlClient, { projectId, projectDir })
+    ).resolves.toEqual({ status: 'skipped', reason: 'upload-failed' });
     expect(mockUploadAsync).not.toHaveBeenCalled();
   });
 

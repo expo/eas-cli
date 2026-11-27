@@ -52,13 +52,13 @@ export async function maybeSetProjectIconFromAppConfigAsync(
     return { status: 'skipped', reason: 'invalid-icon' };
   }
 
-  const existingIconUrl = await AppQuery.byIdProfileImageUrlAsync(graphqlClient, projectId);
-  if (existingIconUrl) {
-    Log.debug('The project already has an icon, skipping the icon from the app config.');
-    return { status: 'skipped', reason: 'icon-already-set' };
-  }
-
   try {
+    if (await AppQuery.byIdProfileImageUrlAsync(graphqlClient, projectId)) {
+      Log.log(
+        `The project already has an icon. To replace it with "${icon.field}" from your app config, run ${chalk.bold('eas project:icon:set')}.`
+      );
+      return { status: 'skipped', reason: 'icon-already-set' };
+    }
     await uploadProjectIconAsync(graphqlClient, { projectId, imagePath: icon.path });
   } catch (error: any) {
     Log.warn(`Failed to set the project icon from "${icon.field}": ${error.message}`);
@@ -88,16 +88,24 @@ export async function resolveAppConfigIconAsync(projectDir: string): Promise<App
     ['icon', exp.icon],
     ['ios.icon', exp.ios?.icon],
     ['android.adaptiveIcon.foregroundImage', exp.android?.adaptiveIcon?.foregroundImage],
+    ['android.icon', exp.android?.icon],
   ];
 
+  let firstInvalidIcon: AppConfigIcon | null = null;
   for (const [field, value] of candidates) {
     const iconPath = resolveLocalIconPath(projectDir, value);
     if (iconPath && (await fs.pathExists(iconPath))) {
-      return { field, path: iconPath };
+      const icon = { field, path: iconPath };
+      try {
+        await validateIconAsync(iconPath);
+        return icon;
+      } catch {
+        firstInvalidIcon ??= icon;
+      }
     }
   }
 
-  return null;
+  return firstInvalidIcon;
 }
 
 function resolveLocalIconPath(projectDir: string, value: unknown): string | null {
@@ -123,13 +131,17 @@ export async function validateIconAsync(imagePath: string): Promise<void> {
   if (!(await fs.pathExists(imagePath))) {
     throw new Error(`No file found at ${imagePath}`);
   }
+  const stat = await fs.stat(imagePath);
+  if (!stat.isFile()) {
+    throw new Error(`${imagePath} is not a file.`);
+  }
   const extension = path.extname(imagePath).toLowerCase();
   if (!ALLOWED_EXTENSIONS.includes(extension)) {
     throw new Error(
       `Unsupported image format "${extension}". The icon must be a PNG or JPEG file.`
     );
   }
-  const { size } = await fs.stat(imagePath);
+  const { size } = stat;
   if (size > MAX_IMAGE_SIZE_BYTES) {
     throw new Error(
       `The image is ${(size / 1024 / 1024).toFixed(1)} MB, but the maximum allowed size is 10 MB.`

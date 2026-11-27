@@ -4,6 +4,7 @@ import { vol } from 'memfs';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppUploadSessionType } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
+import { getPrivateExpoConfigAsync } from '../../../../project/expoConfig';
 import { uploadAppScopedFileAtPathToGCSAsync } from '../../../../uploads';
 import { sleepAsync } from '../../../../utils/promise';
 import ProjectIconSet from '../set';
@@ -11,6 +12,7 @@ import ProjectIconSet from '../set';
 jest.mock('fs');
 jest.mock('../../../../graphql/queries/AppQuery');
 jest.mock('../../../../log');
+jest.mock('../../../../project/expoConfig');
 jest.mock('../../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -74,6 +76,7 @@ describe(ProjectIconSet, () => {
     // @ts-expect-error getContextAsync is protected
     jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       projectId,
+      projectDir: '/app',
       loggedIn: { graphqlClient },
     });
     return command;
@@ -109,9 +112,48 @@ describe(ProjectIconSet, () => {
     expect(mockUploadAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('uploads the icon from the app config when no path is given', async () => {
+    vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
+    jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({
+      name: 'test',
+      slug: 'test-project',
+      icon: './assets/icon.png',
+    } as any);
+    mockByIdProfileImageUrlAsync
+      .mockResolvedValueOnce('https://example.com/old.png')
+      .mockResolvedValueOnce('https://example.com/new.png');
+
+    await createCommand([]).runAsync();
+
+    expect(mockUploadAsync).toHaveBeenCalledWith(graphqlClient, {
+      type: AppUploadSessionType.ProfileImageUpload,
+      appId: projectId,
+      path: '/app/assets/icon.png',
+    });
+  });
+
+  it('throws when no path is given and the app config has no icon', async () => {
+    jest
+      .mocked(getPrivateExpoConfigAsync)
+      .mockResolvedValue({ name: 'test', slug: 'test-project' } as any);
+
+    await expect(createCommand([]).runAsync()).rejects.toThrow(
+      'No local icon found in the app config'
+    );
+    expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
   it('throws when the file does not exist', async () => {
     const command = createCommand(['/app/missing.png']);
     await expect(command.runAsync()).rejects.toThrow('No file found at /app/missing.png');
+    expect(mockUploadAsync).not.toHaveBeenCalled();
+  });
+
+  it('throws for a directory', async () => {
+    vol.fromJSON({ '/app/assets/icon.png': 'fake-png-bytes' });
+    const command = createCommand(['/app/assets']);
+
+    await expect(command.runAsync()).rejects.toThrow('/app/assets is not a file.');
     expect(mockUploadAsync).not.toHaveBeenCalled();
   });
 
