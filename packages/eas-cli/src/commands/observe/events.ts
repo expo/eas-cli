@@ -30,7 +30,7 @@ import {
 } from '../../observe/formatCustomEvents';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
@@ -120,7 +120,11 @@ export default class ObserveEvents extends EasCommand {
       enableJsonOutput();
     }
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
 
     const platforms = observePlatformsFromFlag(flags.platform);
 

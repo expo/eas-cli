@@ -28,7 +28,7 @@ import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../obs
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { observePlatformTargetsFromFlag, observePlatformsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -105,7 +105,11 @@ export default class ObserveMetrics extends EasCommand {
     }
     const orderBy = resolveOrderBy(flags.sort);
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
 
     const platforms = observePlatformsFromFlag(flags.platform);
     const targets = observePlatformTargetsFromFlag(flags.platform);

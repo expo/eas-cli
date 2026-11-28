@@ -1,3 +1,4 @@
+import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObservePlatform } from '../../../graphql/generated';
@@ -34,6 +35,9 @@ describe(ObserveVersions, () => {
   const projectId = 'test-project-id';
 
   beforeEach(() => {
+    jest
+      .spyOn(ObserveQuery, 'queryAccessAsync')
+      .mockResolvedValue({ maxLookbackDays: null, earliestAccessibleTime: null });
     jest.clearAllMocks();
     mockFetchObserveVersionsAsync.mockResolvedValue([]);
   });

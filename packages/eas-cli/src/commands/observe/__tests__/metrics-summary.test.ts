@@ -1,3 +1,4 @@
+import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { CombinedError } from '@urql/core';
 import { GraphQLError } from 'graphql';
 
@@ -42,6 +43,9 @@ describe(ObserveMetricsSummary, () => {
   const projectId = 'test-project-id';
 
   beforeEach(() => {
+    jest
+      .spyOn(ObserveQuery, 'queryAccessAsync')
+      .mockResolvedValue({ maxLookbackDays: null, earliestAccessibleTime: null });
     jest.clearAllMocks();
     mockFetchObserveMetricsSummaryAsync.mockResolvedValue({
       metricsMap: new Map(),

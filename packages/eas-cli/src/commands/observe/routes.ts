@@ -28,7 +28,7 @@ import {
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformTargetsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_ROUTES_LIMIT = 50;
@@ -107,7 +107,11 @@ export default class ObserveRoutes extends EasCommand {
       ? Array.from(new Set(flags['route-name']))
       : undefined;
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
     const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const { routes, pageInfoByPlatform } = await withObservePlanGateHandlingAsync(() =>

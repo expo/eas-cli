@@ -1744,7 +1744,7 @@ export type App = Project & {
    * @deprecated Classic updates have been deprecated.
    */
   icon?: Maybe<AppIcon>;
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   /** App query field for querying EAS Insights about this app */
@@ -1773,10 +1773,10 @@ export type App = Project & {
    */
   observeIngestionPaused: Scalars['Boolean']['output'];
   ownerAccount: Account;
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   packageName: Scalars['String']['output'];
   posthogProject?: Maybe<PostHogProject>;
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   privacy: Scalars['String']['output'];
   profileImageUrl?: Maybe<Scalars['String']['output']>;
   /**
@@ -2517,6 +2517,7 @@ export type AppObserve = {
    * @deprecated Use overview.stability instead.
    */
   overviewStability: AppObserveOverviewStability;
+  queryAccess: AppObserveQueryAccess;
   /** One session's metrics, logs and spans for the timeline (ENG-26160). Unknown session ids yield empty lists. */
   session: AppObserveSession;
   /** @deprecated Use metrics.timeSeries instead. */
@@ -3937,6 +3938,12 @@ export enum AppObservePropertyType {
   Number = 'NUMBER',
   String = 'STRING'
 }
+
+export type AppObserveQueryAccess = {
+  __typename?: 'AppObserveQueryAccess';
+  earliestAccessibleTime?: Maybe<Scalars['DateTime']['output']>;
+  maxLookbackDays?: Maybe<Scalars['Int']['output']>;
+};
 
 export type AppObserveReleasesInput = {
   endTime: Scalars['DateTime']['input'];
@@ -6293,7 +6300,7 @@ export enum BuildPhase {
   StartBuild = 'START_BUILD',
   Unknown = 'UNKNOWN',
   UploadApplicationArchive = 'UPLOAD_APPLICATION_ARCHIVE',
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   UploadArtifacts = 'UPLOAD_ARTIFACTS',
   UploadBuildArtifacts = 'UPLOAD_BUILD_ARTIFACTS',
   UploadEmbeddedBundle = 'UPLOAD_EMBEDDED_BUNDLE'
@@ -9982,7 +9989,7 @@ export enum PostHogRegion {
 export type Project = {
   description: Scalars['String']['output'];
   fullName: Scalars['String']['output'];
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
@@ -10248,9 +10255,9 @@ export enum Role {
   Admin = 'ADMIN',
   Custom = 'CUSTOM',
   Developer = 'DEVELOPER',
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   HasAdmin = 'HAS_ADMIN',
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   NotAdmin = 'NOT_ADMIN',
   Owner = 'OWNER',
   ReleaseManager = 'RELEASE_MANAGER',
@@ -10925,7 +10932,7 @@ export enum SecondFactorMethod {
   Authenticator = 'AUTHENTICATOR',
   /**
    * SMS
-   * @deprecated No longer supported
+   * @deprecated Field no longer supported
    */
   Sms = 'SMS'
 }
@@ -11083,7 +11090,7 @@ export type Snack = Project & {
   /** Has the Snack been run without errors */
   hasBeenRunSuccessfully?: Maybe<Scalars['Boolean']['output']>;
   hashId: Scalars['String']['output'];
-  /** @deprecated No longer supported */
+  /** @deprecated Field no longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   /** Draft status, which is true when the Snack was not saved explicitly, but auto-saved */
@@ -16551,6 +16558,13 @@ export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
 
 
 export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId: { __typename?: 'GoogleServiceAccountKey', id: string, keyJson: string } } };
+
+export type ObserveQueryAccessQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type ObserveQueryAccessQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', queryAccess: { __typename?: 'AppObserveQueryAccess', maxLookbackDays?: number | null, earliestAccessibleTime?: any | null } } } } };
 
 export type AppObserveAppVersionsQueryVariables = Exact<{
   appId: Scalars['String']['input'];

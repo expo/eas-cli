@@ -1,3 +1,7 @@
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { ObserveQuery } from '../graphql/queries/ObserveQuery';
+import Log from '../log';
+
 import { validateDateFlag } from './fetchMetrics';
 import { EasCommandError } from '../commandUtils/errors';
 
@@ -57,4 +61,29 @@ export function resolveTimeRange(flags: { days?: number; start?: string; end?: s
   }
 
   return { daysBack, startTime, endTime };
+}
+
+export async function resolveObserveTimeRangeAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  flags: { days?: number; start?: string; end?: string }
+): Promise<ReturnType<typeof resolveTimeRange>> {
+  const range = resolveTimeRange(flags);
+  const access = await ObserveQuery.queryAccessAsync(graphqlClient, appId);
+  if (!access.earliestAccessibleTime) {
+    return range;
+  }
+  const cutoff = new Date(access.earliestAccessibleTime);
+  if (new Date(range.endTime) <= cutoff) {
+    throw new EasCommandError(
+      `The Free plan includes the last ${access.maxLookbackDays} days of Observe data. Choose a more recent time range or upgrade to access older retained data.`
+    );
+  }
+  if (new Date(range.startTime) < cutoff) {
+    Log.warnToStderr(
+      `Showing Observe data from ${cutoff.toISOString()}. The Free plan includes the last ${access.maxLookbackDays} days; upgrade to access older retained data.`
+    );
+    return { ...range, startTime: cutoff.toISOString(), daysBack: undefined };
+  }
+  return range;
 }

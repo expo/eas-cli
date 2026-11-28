@@ -30,7 +30,7 @@ import {
 } from '../../observe/formatErrors';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { observePlatformsFromFlag } from '../../observe/platforms';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { resolveObserveTimeRangeAsync } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const SEVERITY_BY_FLAG: Record<string, AppObserveErrorSeverity> = {
@@ -97,7 +97,11 @@ export default class ObserveErrors extends EasCommand {
       enableJsonOutput();
     }
 
-    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
+    const { daysBack, startTime, endTime } = await resolveObserveTimeRangeAsync(
+      graphqlClient,
+      projectId,
+      flags
+    );
 
     if (flags.fingerprint) {
       const { occurrences, pageInfo } = await withObservePlanGateHandlingAsync(() =>
